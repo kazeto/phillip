@@ -1,0 +1,7 @@
+*.o
+*.cdb.id
+*.cdb.lhs
+*.cdb.rhs
+*.cdb.pair
+bin/*
+src/lib/lpsolve55/*
