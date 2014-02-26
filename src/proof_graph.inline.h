@@ -26,21 +26,6 @@ inline const std::vector< std::pair<term_t, term_t> >&
 { return m_conditions_neqs; }
 
 
-inline void node_t::set_instantiation_info( axiom_id_t axiom_id, index_t idx )
-{
-    m_instantiated_by.ax_id = axiom_id;
-    m_instantiated_by.where = idx;
-}
-
-
-inline void node_t::get_instantiation_info(
-    axiom_id_t *axiom_id, index_t *idx ) const
-{
-    *axiom_id = m_instantiated_by.ax_id;
-    *idx      = m_instantiated_by.where;
-}
-
-
 inline void node_t::set_master_hypernode(hypernode_idx_t idx)
 {
     m_master_hypernode_idx = idx;

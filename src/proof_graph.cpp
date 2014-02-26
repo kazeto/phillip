@@ -288,12 +288,12 @@ std::vector<node_idx_t>
     const std::vector<node_idx_t> *pa_list =
         search_nodes_with_predicate( lit.predicate, lit.terms.size() );
     
-    if( pa_list == NULL ) return out;
+    if (pa_list == NULL) return out;
 
-    for( int i=0; i<pa_list->size(); i++ )
+    for (int i = 0; i < pa_list->size(); i++)
     {
         node_idx_t idx = pa_list->at(i);
-        if( m_nodes.at(idx).literal() == lit )
+        if (m_nodes.at(idx).literal() == lit)
             out.push_back(idx);
     }
 
@@ -640,21 +640,19 @@ void proof_graph_t::print( std::ostream *os ) const
 
 
 node_idx_t proof_graph_t::add_node(
-    const literal_t &lit, node_type_e type, int depth,
-    bool do_generate_unification_assumptions,
-    bool do_generate_mutual_exclusions)
+    const literal_t &lit, node_type_e type, int depth)
 {
-    node_t add( lit, type, m_nodes.size(), depth );
+    node_t add(lit, type, m_nodes.size(), depth);
     node_idx_t out = m_nodes.size();
     
-    m_nodes.push_back( add );
+    m_nodes.push_back(add);
     m_maps.predicate_to_nodes[lit.predicate][lit.terms.size()].push_back(out);
     m_maps.depth_to_nodes[depth].push_back(out);
     
     if(lit.predicate == "=")
     {
         term_t t1(lit.terms[0]), t2(lit.terms[1]);
-        if( t1 > t2 ) std::swap(t1, t2);
+        if (t1 > t2) std::swap(t1, t2);
 
         if( lit.truth )
         {
@@ -672,16 +670,6 @@ node_idx_t proof_graph_t::add_node(
     {
         const term_t& t = lit.terms.at(i);
         m_maps.term_to_nodes[t].insert(out);
-    }
-
-    // CONSIDER UNIFICATION, MUTUAL-EXCLUSION AND INCONSISTENCY
-    if (do_generate_unification_assumptions)
-        generate_unification_assumptions(out);
-
-    if (do_generate_mutual_exclusions)
-    {
-        generate_mutual_exclusion_for_counter_nodes(out);
-        generate_mutual_exclusion_for_inconsistency(out);
     }
 
     return out;
@@ -727,7 +715,6 @@ hypernode_idx_t proof_graph_t::chain(
     for (size_t i = 0; i < literals_to.size(); ++i)
     {
         node_idx_t idx = add_node(literals_to[i], NODE_HYPOTHESIS, depth);
-        m_nodes[idx].set_instantiation_info(implication.id, i);
         hypernode_to[i] = idx;
     }
     hypernode_idx_t idx_hn_to = add_hypernode( hypernode_to );

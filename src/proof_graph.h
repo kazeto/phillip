@@ -73,59 +73,53 @@ public:
     inline node_t(
         const literal_t &lit, node_type_e type, node_idx_t idx, int depth);
 
-    inline node_type_e      type()    const { return m_type; }
+    inline node_type_e type() const         { return m_type; }
     inline const literal_t& literal() const { return m_literal; }
-    inline index_t          index()   const { return m_index; }
-    inline int              depth()   const { return m_depth; }
 
+    /** Return the index of this node in a proof-graph. */
+    inline index_t index() const { return m_index; }
+
+    /** Return the distance from nearest-observation in proof-graph.
+     *  Observation and Labels have depth of 0.
+     *  Unification-nodes have depth of -1. */
+    inline int depth() const { return m_depth; }
+
+    /** List of inconsistency of variables.
+    *  If these are violated, this node cannot be hypothesized. */
     inline const std::vector< std::pair<term_t, term_t> >&
         get_conditions_for_non_equality_of_terms() const;
 
-    inline void set_instantiation_info(
-        axiom_id_t  axiom_id, index_t  idx );
-    inline void get_instantiation_info(
-        axiom_id_t *axiom_id, index_t *idx ) const;
-
-    inline void set_master_hypernode( hypernode_idx_t idx );
+    /** Return the index of hypernode
+     *  which was instantiated for instantiation of this node.
+     *  CAUTION:
+     *    If the node has plural parental-edges, this value is invalid.
+     *    Such case can occurs when the node is a substituion node. */
     inline hypernode_idx_t get_master_hypernode() const;
-    
+    inline void set_master_hypernode(hypernode_idx_t idx);
+
+    /** If true, this node is a substitution node. */
     inline bool is_equality_node() const;
+
+    /** If true, this node is a non-equality node. */
     inline bool is_non_equality_node() const;
+
+    /** If true, this node can be hypothesized
+     *  by only transitive unification from other nodes. */
     inline bool is_transitive_equality_node() const;
 
     inline std::string to_string() const;
 
 private:
-    struct instantiation_t
-    {
-        instantiation_t() : ax_id(-1), where(-1) {}
-        axiom_id_t ax_id; /**< Id of axiom used to instantiate this */
-        index_t    where; /**< Index of the literal in RHS/LHS of the axiom. */
-    };
-
     node_type_e m_type;
     literal_t   m_literal;
     node_idx_t  m_index;
-
-    /** The distance from nearest-observation in proof-graph.
-     *  Observation and Labels have depth of 0.
-     *  Unification-nodes have depth of -1. */
+    hypernode_idx_t m_master_hypernode_idx;
     int m_depth;
 
-    /** The index of hypernode
-     *  which was instantiated on instantiation of this node.
-     *  Note: When the node has plural parental-edges, this value is not correct. */
-    hypernode_idx_t m_master_hypernode_idx;
-
     /** IDs of axioms which has been applied to this node. */
-    hash_set<axiom_id_t> m_ids_axiom_used_forward;
-    hash_set<axiom_id_t> m_ids_axiom_used_backward;
+    hash_set<axiom_id_t> m_ids_axiom_used_forward, m_ids_axiom_used_backward;
 
-    /** List of inconsistency of variables.
-     *  If these are violated, this node cannot be hypothesized. */
     std::vector< std::pair<term_t, term_t> > m_conditions_neqs;
-    
-    instantiation_t m_instantiated_by;
 };
 
 
@@ -252,22 +246,28 @@ public:
     inline const std::vector< std::vector<node_idx_t> >& hypernodes() const;
     inline const std::vector<node_idx_t>& hypernode(hypernode_idx_t i) const;
 
-    inline const hash_set<node_idx_t>*
-        search_nodes_with_term(term_t term) const;
-    inline const std::vector<node_idx_t>*
-        search_nodes_with_predicate(
-        predicate_t predicate, int arity) const;
-    inline const std::vector<node_idx_t>*
-        search_nodes_with_arity(std::string arity) const;
-    inline const std::vector<node_idx_t>*
-        search_nodes_with_depth(int depth) const;
-    std::vector<node_idx_t>
-        search_nodes_with_literal(const literal_t &lit) const;
-
     inline const std::list<mutual_exclusion_t>& mutual_exclusions() const;
 
+    /** Return nodes whose literal has given term. */
+    inline const hash_set<node_idx_t>* search_nodes_with_term(term_t term) const;
+
+    /** Return nodes whose literal has given predicate. */
+    inline const std::vector<node_idx_t>*
+        search_nodes_with_predicate(predicate_t predicate, int arity) const;
+
+    /** Return nodes whose literal has given predicate. */
+    inline const std::vector<node_idx_t>*
+        search_nodes_with_arity(std::string arity) const;
+
+    /** Return nodes whose depth is given value. */
+    inline const std::vector<node_idx_t>*
+        search_nodes_with_depth(int depth) const;
+
+    /** Return nodes whose literal is equal to given literal. */
+    std::vector<node_idx_t> search_nodes_with_literal(const literal_t &lit) const;
+
     /** Return the indices of edges connected with given hypernode.
-     *  If any edge was not found, return NULL. */
+    *  If any edge was not found, return NULL. */
     inline const hash_set<edge_idx_t>*
         search_edges_with_hypernode(hypernode_idx_t idx) const;
 
@@ -320,6 +320,8 @@ public:
 
     node_idx_t find_sub_node(term_t t1, term_t t2) const;
     node_idx_t find_neg_sub_node(term_t t1, term_t t2) const;
+
+    /** Return index of the substitution nodes which hypothesized by transitivity */
     node_idx_t find_transitive_sub_node(node_idx_t i, node_idx_t j) const;
 
     /** Insert sub-nodes being transitive to target into target. */
@@ -390,12 +392,8 @@ protected:
     static size_t get_hash_of_nodes(std::list<node_idx_t> nodes);
 
     /** Add a new node and update maps.
-     *  At same time, unifiability and mutual-exclusion are considered.
      *  @return The index of added new node. */
-    node_idx_t add_node(
-        const literal_t &lit, node_type_e type, int depth,
-        bool do_generate_unification_assumptions = true,
-        bool do_generate_mutual_exclusions = true);
+    node_idx_t add_node(const literal_t &lit, node_type_e type, int depth);
 
     /** Add a new edge.
      *  @return The index of added new edge. */
