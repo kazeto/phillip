@@ -1,7 +1,29 @@
+; FOR UNIX
 *.o
-*.cdb.id
-*.cdb.lhs
-*.cdb.rhs
-*.cdb.pair
 bin/*
+
+; FOR WINDOWS
+Thumbs.db
+*.obj
+*.exe
+*.pdb
+*.user
+*.aps
+*.pch
+*.vspscc
+*.ncb
+*.suo
+*.tlb
+*.tlh
+*.bak
+*.cache
+*.ilk
+*.log
+*.sdf
+*.opensdf
+ipch
+vs/[Dd]ebug/*
+vs/[Rr]elease/*
+
+; LIBS
 src/lib/lpsolve55/*
