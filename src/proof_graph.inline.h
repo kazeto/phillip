@@ -227,8 +227,7 @@ proof_graph_t::search_nodes_with_term( term_t term ) const
 }
 
 
-inline const std::vector<node_idx_t>*
-proof_graph_t::search_nodes_with_predicate(
+inline const hash_set<node_idx_t>* proof_graph_t::search_nodes_with_predicate(
     predicate_t predicate, int arity ) const
 {
     auto iter_nm = m_maps.predicate_to_nodes.find( predicate );
@@ -241,8 +240,8 @@ proof_graph_t::search_nodes_with_predicate(
 }
 
 
-inline const std::vector<node_idx_t>*
-    proof_graph_t::search_nodes_with_arity( std::string arity ) const
+inline const hash_set<node_idx_t>* proof_graph_t::search_nodes_with_arity(
+    std::string arity ) const
 {
     int idx(arity.rfind('/')), num;
     assert( idx > 0 );
@@ -252,8 +251,8 @@ inline const std::vector<node_idx_t>*
 }
 
 
-inline const std::vector<node_idx_t>*
-proof_graph_t::search_nodes_with_depth( int depth ) const
+inline const hash_set<node_idx_t>*
+proof_graph_t::search_nodes_with_depth(int depth) const
 {
     auto it = m_maps.depth_to_nodes.find( depth );
     return (it == m_maps.depth_to_nodes.end()) ? NULL : &it->second;
@@ -272,7 +271,7 @@ inline const hash_set<edge_idx_t>*
 }
 
 
-inline const std::vector<hypernode_idx_t>*
+inline const hash_set<hypernode_idx_t>*
 proof_graph_t::search_hypernodes_with_node( node_idx_t node_idx ) const
 {
     auto it = m_maps.node_to_hypernode.find( node_idx );
@@ -307,22 +306,29 @@ inline edge_idx_t proof_graph_t::add_edge( const edge_t &edge )
 }
 
 
-inline void proof_graph_t::register_axiom_used_for_chaining(
-    axiom_id_t ax, hypernode_idx_t evidence, bool is_backward )
+inline bool proof_graph_t::is_considered_unification(
+    node_idx_t i, node_idx_t j ) const
 {
-    if( is_backward )
-        m_maps.axiom_to_hypernodes_backward[ax].insert(evidence);
-    else
-        m_maps.axiom_to_hypernodes_forward[ax].insert(evidence);
+    if (i > j) std::swap(i, j);
+
+    hash_map<node_idx_t, hash_set<node_idx_t> >::const_iterator
+        it1 = m_logs.considered_unifications.find(i);
+    if( it1 == m_logs.considered_unifications.end() )
+        return false;
+
+    hash_set<node_idx_t>::const_iterator it2 = it1->second.find(j);
+    return it2 != it1->second.end();
 }
 
 
-inline bool proof_graph_t::has_considered_unification_assumption(
-    node_idx_t i, node_idx_t j ) const
+inline bool proof_graph_t::is_considered_exclusion(
+    node_idx_t i, node_idx_t j) const
 {
+    if (i > j) std::swap(i, j);
+
     hash_map<node_idx_t, hash_set<node_idx_t> >::const_iterator
-        it1 = m_unification_assumptions_considered.find(i);
-    if( it1 == m_unification_assumptions_considered.end() )
+        it1 = m_logs.considered_exclusions.find(i);
+    if (it1 == m_logs.considered_exclusions.end())
         return false;
 
     hash_set<node_idx_t>::const_iterator it2 = it1->second.find(j);

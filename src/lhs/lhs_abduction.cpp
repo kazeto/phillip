@@ -33,7 +33,7 @@ pg::proof_graph_t* abductive_enumerator_t::execute() const
 
     for (int d = 0; (m_depth_max < 0 or d < m_depth_max); ++d)
     {
-        const std::vector<pg::node_idx_t>
+        const hash_set<pg::node_idx_t>
             *targets = out->search_nodes_with_depth(d);
         
         if (targets == NULL) break;

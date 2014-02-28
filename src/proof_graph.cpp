@@ -35,46 +35,46 @@ std::string unifier_t::to_string() const
 void proof_graph_t::unifiable_variable_clusters_set_t::add(
     term_t t1, term_t t2 )
 {
-    m_variables.insert( t1 );
-    m_variables.insert( t2 );
+    m_variables.insert(t1);
+    m_variables.insert(t2);
     
-    hash_map<term_t, index_t>::iterator iter_c1 = m_map_v2c.find( t1 );
-    hash_map<term_t, index_t>::iterator iter_c2 = m_map_v2c.find( t2 );
-    bool has_found_t1( iter_c1 != m_map_v2c.end() );
-    bool has_found_t2( iter_c2 != m_map_v2c.end() );
+    hash_map<term_t, index_t>::iterator iter_c1 = m_map_v2c.find(t1);
+    hash_map<term_t, index_t>::iterator iter_c2 = m_map_v2c.find(t2);
+    bool has_found_t1(iter_c1 != m_map_v2c.end());
+    bool has_found_t2(iter_c2 != m_map_v2c.end());
     
-    if( not has_found_t1  and not has_found_t2 )
+    if (not has_found_t1  and not has_found_t2)
     {
         static int new_cluster = 0;
         new_cluster++;
-        m_clusters[ new_cluster ].insert( t1 );
-        m_clusters[ new_cluster ].insert( t2 );
-        m_map_v2c[ t1 ] = new_cluster;
-        m_map_v2c[ t2 ] = new_cluster;
+        m_clusters[new_cluster].insert(t1);
+        m_clusters[new_cluster].insert(t2);
+        m_map_v2c[t1] = new_cluster;
+        m_map_v2c[t2] = new_cluster;
     }
-    else if( has_found_t1 and has_found_t2 )
+    else if (has_found_t1 and has_found_t2)
     {
         // MERGE CLUSTERS OF t1 AND t2
-        if( iter_c1->second != iter_c2->second )
+        if (iter_c1->second != iter_c2->second)
         {
-            hash_set<term_t>& c1 = m_clusters[ iter_c1->second ];
-            hash_set<term_t>& c2 = m_clusters[ iter_c2->second ];
+            hash_set<term_t>& c1 = m_clusters[iter_c1->second];
+            hash_set<term_t>& c2 = m_clusters[iter_c2->second];
 
-            for( auto it=c2.begin(); it!=c2.end(); ++it )
+            for (auto it = c2.begin(); it != c2.end(); ++it)
                 m_map_v2c[*it] = iter_c1->second;
 
-            c1.insert( c2.begin(), c2.end() );
+            c1.insert(c2.begin(), c2.end());
             c2.clear();
         }
     }
-    else if( has_found_t1 and not has_found_t2 )
+    else if (has_found_t1 and not has_found_t2)
     {
-        m_clusters[iter_c1->second].insert( t2 );
+        m_clusters[iter_c1->second].insert(t2);
         m_map_v2c[t2] = iter_c1->second;
     }
-    else if( not has_found_t1 and has_found_t2 )
+    else if (not has_found_t1 and has_found_t2)
     {
-        m_clusters[iter_c2->second].insert( t1 );
+        m_clusters[iter_c2->second].insert(t1);
         m_map_v2c[t1] = iter_c2->second;
     }
 }
@@ -83,15 +83,15 @@ void proof_graph_t::unifiable_variable_clusters_set_t::add(
 std::string proof_graph_t::unifiable_variable_clusters_set_t::to_string() const
 {
     std::ostringstream ret;
-    for( auto it_ec = m_clusters.begin(); it_ec != m_clusters.end(); ++it_ec )
+    for (auto it_ec = m_clusters.begin(); it_ec != m_clusters.end(); ++it_ec)
     {
         const hash_set<term_t> &cluster = it_ec->second;
-        if( cluster.size() == 0 )
+        if (cluster.size() == 0)
             continue;
         ret << (it_ec->first) << ": ";
-        for( auto it=cluster.begin(); it!=cluster.end(); ++it )
+        for (auto it = cluster.begin(); it != cluster.end(); ++it)
         {
-            if( it != cluster.begin() )
+            if (it != cluster.begin())
                 ret << ", ";
             ret << (*it).string();
         }
@@ -108,8 +108,8 @@ std::list< const hash_set<term_t>* >
     const hash_map<index_t, hash_set<term_t> >
         &clusters = m_vc_unifiable.clusters();
 
-    for( auto it = clusters.begin(); it != clusters.end(); ++it )
-        out.push_back( &it->second );
+    for (auto it = clusters.begin(); it != clusters.end(); ++it)
+        out.push_back(&it->second);
 
     return out;
 }
@@ -119,7 +119,7 @@ void proof_graph_t::enumerate_chains_of_grouped_axioms_from_node(
     node_idx_t from, std::list< std::list<edge_idx_t> > *out) const
 {
     const kb::knowledge_base_t *kb = sys()->knowledge_base();
-    const std::vector<hypernode_idx_t> *hns = search_hypernodes_with_node(from);
+    const hash_set<hypernode_idx_t> *hns = search_hypernodes_with_node(from);
     if (hns == NULL) return;
 
     // ENUMERATE EDGES CONNECTED WITH GIVEN NODE
@@ -268,10 +268,10 @@ std::string proof_graph_t::edge_to_string( edge_idx_t i ) const
     if (_edge.head() >= 0)
     {
         const std::vector<node_idx_t>& head = hypernode(_edge.head());
-        for( index_t j=0; j<head.size(); ++j )
+        for (index_t j = 0; j<head.size(); ++j)
         {
             node_idx_t idx = head.at(j);
-            str_edge << ( j > 0 ? " ^ " : "" ) << node(idx).to_string();
+            str_edge << (j > 0 ? " ^ " : "") << node(idx).to_string();
         }
     }
     else
@@ -281,20 +281,19 @@ std::string proof_graph_t::edge_to_string( edge_idx_t i ) const
 }
 
 
-std::vector<node_idx_t>
-    proof_graph_t::search_nodes_with_literal( const literal_t &lit ) const
+hash_set<node_idx_t>
+    proof_graph_t::enumerate_nodes_with_literal( const literal_t &lit ) const
 {
-    std::vector<node_idx_t> out;
-    const std::vector<node_idx_t> *pa_list =
+    hash_set<node_idx_t> out;
+    const hash_set<node_idx_t> *pa_list =
         search_nodes_with_predicate( lit.predicate, lit.terms.size() );
     
     if (pa_list == NULL) return out;
 
-    for (int i = 0; i < pa_list->size(); i++)
+    for (auto it = pa_list->begin(); it != pa_list->end(); ++it)
     {
-        node_idx_t idx = pa_list->at(i);
-        if (m_nodes.at(idx).literal() == lit)
-            out.push_back(idx);
+        if (m_nodes.at(*it).literal() == lit)
+            out.insert(*it);
     }
 
     return out;
@@ -305,12 +304,12 @@ edge_idx_t proof_graph_t::find_parental_edge( hypernode_idx_t idx ) const
 {
     const hash_set<edge_idx_t> *_edges = search_edges_with_hypernode(idx);
 
-    if( _edges != NULL )
+    if (_edges != NULL)
     {
-        for( auto e = _edges->begin(); e != _edges->end(); ++e )
+        for (auto e = _edges->begin(); e != _edges->end(); ++e)
         {
             const edge_t &ed = edge(*e);
-            if( ed.head() == idx ) return *e;
+            if (ed.head() == idx) return *e;
         }
     }
 
@@ -370,7 +369,7 @@ proof_graph_t::enumerate_nodes_list_with_arities(
 
     for (auto it = arities.begin(); it != arities.end(); ++it)
     {
-        const std::vector<node_idx_t> *_idx = search_nodes_with_arity(*it);
+        const hash_set<node_idx_t> *_idx = search_nodes_with_arity(*it);
         if (_idx == NULL) return out;
 
         std::vector<node_idx_t> _new;
@@ -459,13 +458,13 @@ template<class It> const hash_set<hypernode_idx_t>*
 hypernode_idx_t proof_graph_t::find_hypernode_with_ordered_nodes(
     const std::vector<node_idx_t> &indices ) const
 {
-    const std::vector<hypernode_idx_t> *hypernodes
-        = search_hypernodes_with_node( indices.at(0) );
-    if( hypernodes != NULL )
+    const hash_set<hypernode_idx_t> *hypernodes
+        = search_hypernodes_with_node(indices.at(0));
+    if (hypernodes != NULL)
     {
-        for( auto hn=hypernodes->begin(); hn!=hypernodes->end(); ++hn )
-            if( indices == hypernode(*hn) )
-                return *hn;
+        for (auto hn = hypernodes->begin(); hn != hypernodes->end(); ++hn)
+        if (indices == hypernode(*hn))
+            return *hn;
     }
     return -1;
 }
@@ -646,27 +645,27 @@ node_idx_t proof_graph_t::add_node(
     node_idx_t out = m_nodes.size();
     
     m_nodes.push_back(add);
-    m_maps.predicate_to_nodes[lit.predicate][lit.terms.size()].push_back(out);
-    m_maps.depth_to_nodes[depth].push_back(out);
+    m_maps.predicate_to_nodes[lit.predicate][lit.terms.size()].insert(out);
+    m_maps.depth_to_nodes[depth].insert(out);
     
     if(lit.predicate == "=")
     {
         term_t t1(lit.terms[0]), t2(lit.terms[1]);
         if (t1 > t2) std::swap(t1, t2);
 
-        if( lit.truth )
+        if (lit.truth)
         {
             m_maps.nodes_sub[t1][t2] = out;
-            if( t1.is_constant() and not t2.is_constant() )
+            if (t1.is_constant() and not t2.is_constant())
                 m_maps.var_to_consts[t2].insert(t1);
-            else if( t2.is_constant() and not t1.is_constant() )
+            else if (t2.is_constant() and not t1.is_constant())
                 m_maps.var_to_consts[t1].insert(t2);
         }
         else
             m_maps.nodes_negsub[t1][t2] = out;
     }
     
-    for( unsigned i=0; i<lit.terms.size(); i++ )
+    for (unsigned i = 0; i < lit.terms.size(); i++)
     {
         const term_t& t = lit.terms.at(i);
         m_maps.term_to_nodes[t].insert(out);
@@ -740,7 +739,10 @@ hypernode_idx_t proof_graph_t::chain(
     }
 
     /* ADD AXIOM HISTORY */
-    register_axiom_used_for_chaining(implication.id, from, is_backward);
+    if (is_backward)
+        m_maps.axiom_to_hypernodes_backward[implication.id].insert(from);
+    else
+        m_maps.axiom_to_hypernodes_forward[implication.id].insert(from);
     
     return idx_hn_to;
 }
@@ -836,7 +838,7 @@ term_t proof_graph_t::substitute_term_for_chain(
 }
 
 
-int proof_graph_t::get_depth_of_deepest_node( hypernode_idx_t idx ) const
+int proof_graph_t::get_depth_of_deepest_node(hypernode_idx_t idx) const
 {
     int out = -1;
     const std::vector<node_idx_t>& hn = hypernode(idx);
@@ -856,7 +858,7 @@ void proof_graph_t::generate_mutual_exclusion_for_inconsistency( node_idx_t idx 
     std::string arity = target.literal().get_predicate_arity();
     std::list<axiom_id_t> axioms = kb->search_inconsistencies(arity);
 
-    for( auto ax = axioms.begin(); ax != axioms.end(); ++ax )
+    for (auto ax = axioms.begin(); ax != axioms.end(); ++ax)
     {
         lf::axiom_t axiom = kb->get_axiom(*ax);
 
@@ -864,19 +866,18 @@ void proof_graph_t::generate_mutual_exclusion_for_inconsistency( node_idx_t idx 
         const literal_t &lit2 = axiom.func.branch(1).literal();
         bool target_is_first = (lit1.get_predicate_arity() == arity);
 
-        const std::vector<node_idx_t> *idx_nodes =
-            target_is_first ?
-            search_nodes_with_predicate(lit2.predicate, lit2.terms.size()):
+        const hash_set<node_idx_t> *idx_nodes = target_is_first ?
+            search_nodes_with_predicate(lit2.predicate, lit2.terms.size()) :
             search_nodes_with_predicate(lit1.predicate, lit1.terms.size());
 
-        if( idx_nodes == NULL ) continue;
+        if (idx_nodes == NULL) continue;
 
-        for( auto it=idx_nodes->begin(); it!=idx_nodes->end(); ++it )
+        for (auto it = idx_nodes->begin(); it != idx_nodes->end(); ++it)
         {
-            if( target_is_first )
-                apply_inconsistency_sub( idx, *it, axiom );
+            if (target_is_first)
+                apply_inconsistency_sub(idx, *it, axiom);
             else
-                apply_inconsistency_sub( *it, idx, axiom );
+                apply_inconsistency_sub(*it, idx, axiom);
         }
     }
 }
@@ -891,16 +892,14 @@ void proof_graph_t::apply_inconsistency_sub(
     const literal_t &target_1 = node(i).literal();
     const literal_t &target_2 = node(j).literal();
 
-    for( unsigned t1=0; t1<target_1.terms.size(); t1++ )
+    for (unsigned t1 = 0; t1 < target_1.terms.size(); t1++)
+    for (unsigned t2 = 0; t2 < target_2.terms.size(); t2++)
     {
-        for( unsigned t2=0; t2<target_2.terms.size(); t2++ )
+        if (inc_1.terms.at(t1) == inc_2.terms.at(t2))
         {
-            if( inc_1.terms.at(t1) == inc_2.terms.at(t2) )
-            {
-                const term_t &term1 = target_1.terms.at(t1);
-                const term_t &term2 = target_2.terms.at(t2);
-                theta.add( term1, term2 );
-            }
+            const term_t &term1 = target_1.terms.at(t1);
+            const term_t &term2 = target_2.terms.at(t2);
+            theta.add(term1, term2);
         }
     }
 
@@ -912,7 +911,7 @@ void proof_graph_t::apply_inconsistency_sub(
     m_maps.node_to_inconsistency[j].insert(axiom.id);
 
     mutual_exclusion_t mu = { std::make_pair(i, j), theta };
-    m_mutual_exclusions.push_back( mu );
+    m_mutual_exclusions.push_back(mu);
 }
 
 
@@ -926,7 +925,7 @@ void proof_graph_t::generate_unification_assumptions(node_idx_t target)
 
     /* UNIFY EACH UNIFIABLE NODE PAIR. */
     for (auto it = unifiables.begin(); it != unifiables.end(); ++it)
-        chain_for_unification(target, *it);
+        _chain_for_unification(target, *it);
 }
 
 
@@ -945,26 +944,27 @@ std::list<node_idx_t>
 
         node_idx_t n1 = target;
         node_idx_t n2 = (*it);
-        if( n1 > n2 ) std::swap( n1, n2 );
+        if (n1 > n2) std::swap(n1, n2);
 
         // IGNORE THE PAIR WHICH HAS BEEN CONSIDERED ALREADY.
-        if(has_considered_unification_assumption(n1, n2)) continue;
-        m_unification_assumptions_considered[n1].insert(n2);
+        if (not is_considered_unification(n1, n2))
+        {
+            m_logs.considered_unifications[n1].insert(n2);
 
-        bool unifiable = check_unifiability(
-            m_nodes[n1].literal(), m_nodes[n2].literal(), false, &unifier );
-
-        if (unifiable)
-            if (can_unify_nodes(n1, n2))
-                unifiables.push_back( *it );
+            bool unifiable = check_unifiability(
+                m_nodes[n1].literal(), m_nodes[n2].literal(),
+                false, &unifier);
+            if (unifiable and can_unify_nodes(n1, n2))
+                unifiables.push_back(*it);
+        }
     }
     return unifiables;
 }
 
 
-void proof_graph_t::chain_for_unification(node_idx_t i, node_idx_t j)
+void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
 {
-    std::vector<node_idx_t> unified_nodes;     // FROM
+    std::vector<node_idx_t> unified_nodes; // FROM
     std::vector<node_idx_t> unify_nodes; // TO
     unifier_t uni;
 
@@ -979,25 +979,17 @@ void proof_graph_t::chain_for_unification(node_idx_t i, node_idx_t j)
         sub != uni.substitutions().end(); ++sub)
     {
         term_t t1(sub->terms[0]), t2(sub->terms[1]);
-
         if (t1 == t2) continue;
-        if (t1 > t2) std::swap(t1, t2);
 
-        bool do_exist_node(false);
-        if (has_key(m_maps.nodes_sub, t1))
-        if (has_key(m_maps.nodes_sub[t1], t2))
-            do_exist_node = true;
-
-        node_idx_t sub_node_idx;
-        if (not do_exist_node)
+        node_idx_t sub_node_idx = find_sub_node(t1, t2);
+        if (sub_node_idx < 0)
         {
+            if (t1 > t2) std::swap(t1, t2);
             sub_node_idx = add_node(*sub, NODE_HYPOTHESIS, -1);
             m_maps.nodes_sub[t1][t2] = sub_node_idx;
             m_vc_unifiable.add(t1, t2);
-            add_nodes_of_transitive_unification(t1);
+            _add_nodes_of_transitive_unification(t1);
         }
-        else
-            sub_node_idx = m_maps.nodes_sub[t1][t2];
 
         unify_nodes.push_back(sub_node_idx);
     }
@@ -1016,7 +1008,7 @@ void proof_graph_t::chain_for_unification(node_idx_t i, node_idx_t j)
 }
 
 
-void proof_graph_t::add_nodes_of_transitive_unification( term_t t )
+void proof_graph_t::_add_nodes_of_transitive_unification( term_t t )
 {
     const hash_set<term_t> *terms = m_vc_unifiable.find_cluster(t);
     assert( terms != NULL );
@@ -1102,7 +1094,7 @@ void proof_graph_t::
     generate_mutual_exclusion_for_counter_nodes( node_idx_t idx )
 {
     const literal_t &l1 = node(idx).literal();
-    const std::vector<node_idx_t>* indices =
+    const hash_set<node_idx_t>* indices =
         search_nodes_with_predicate(l1.predicate, l1.terms.size());
     for( auto it = indices->begin(); it != indices->end(); ++it )
     {

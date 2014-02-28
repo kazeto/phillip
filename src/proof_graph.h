@@ -168,7 +168,7 @@ public:
     inline unifier_t() {};
 
     /** @param x,y Terms unified. */
-    inline unifier_t( const term_t& x, const term_t& y );
+    inline unifier_t(const term_t& x, const term_t& y);
 
     inline void clear();
 
@@ -179,10 +179,10 @@ public:
 
     /** Substitute variables in the given literal.
      *  e.g. (x = y) & p(x) --apply--> p(y) */
-    inline void apply( literal_t *p_out_lit ) const;
+    inline void apply(literal_t *p_out_lit) const;
 
-    inline void add( const term_t &x, const term_t &y );
-    inline void add( const term_t &x, const std::string &var );
+    inline void add(const term_t &x, const term_t &y);
+    inline void add(const term_t &x, const std::string &var);
 
     inline bool has_applied( const term_t &x ) const;
     std::string to_string() const;
@@ -248,23 +248,27 @@ public:
 
     inline const std::list<mutual_exclusion_t>& mutual_exclusions() const;
 
-    /** Return nodes whose literal has given term. */
+    /** Return pointer of set of nodes whose literal has given term.
+     *  If any node was found, return NULL. */
     inline const hash_set<node_idx_t>* search_nodes_with_term(term_t term) const;
 
-    /** Return nodes whose literal has given predicate. */
-    inline const std::vector<node_idx_t>*
+    /** Return pointer of set of nodes whose literal has given predicate.
+     *  If any node was found, return NULL. */
+    inline const hash_set<node_idx_t>*
         search_nodes_with_predicate(predicate_t predicate, int arity) const;
 
-    /** Return nodes whose literal has given predicate. */
-    inline const std::vector<node_idx_t>*
+    /** Return pointer of set of nodes whose literal has given predicate.
+     *  If any node was found, return NULL. */
+    inline const hash_set<node_idx_t>*
         search_nodes_with_arity(std::string arity) const;
 
-    /** Return nodes whose depth is given value. */
-    inline const std::vector<node_idx_t>*
+    /** Return pointer of set of nodes whose depth is equal to given value.
+     *  If any node was found, return NULL. */
+    inline const hash_set<node_idx_t>*
         search_nodes_with_depth(int depth) const;
 
-    /** Return nodes whose literal is equal to given literal. */
-    std::vector<node_idx_t> search_nodes_with_literal(const literal_t &lit) const;
+    /** Return set of nodes whose literal is equal to given literal. */
+    hash_set<node_idx_t> enumerate_nodes_with_literal(const literal_t &lit) const;
 
     /** Return the indices of edges connected with given hypernode.
     *  If any edge was not found, return NULL. */
@@ -299,12 +303,13 @@ public:
     /** Enumerate arrays of node indices which corresponds arities.
      *  You can use this method to enumerate hypernodes for chaining.
      *  Nodes whose depth exceed depth_limit are exclude from target. */
-    std::list< std::vector<node_idx_t> >
-        enumerate_nodes_list_with_arities(
+    std::list< std::vector<node_idx_t> > enumerate_nodes_list_with_arities(
         const std::vector<std::string> &arities, int depth_limit) const;
 
-    /** Search indices of hypernode which has the given node as its element. */
-    inline const std::vector<hypernode_idx_t>*
+    /** Return pointer of set of indices of hypernode
+     *  which has the given node as its element.
+     *  If any set was found, return NULL. */
+    inline const hash_set<hypernode_idx_t>*
         search_hypernodes_with_node(node_idx_t i) const;
 
     /** Return the index of first one of hypernodes
@@ -349,6 +354,10 @@ public:
     bool axiom_has_applied(
         hypernode_idx_t hn, const lf::axiom_t &ax, bool is_backward) const;
 
+    void generate_unifications_assumptions();
+    void generate_mutual_exclusions_for_inconsistency();
+    void generate_mutual_exclusions_for_counter_nodes();
+
     virtual void print(std::ostream *os) const;
 
 protected:
@@ -389,6 +398,7 @@ protected:
         const literal_t &p1, const literal_t &p2, bool do_ignore_truthment,
         unifier_t *out);
 
+    /** Return hash of node indices' list. */
     static size_t get_hash_of_nodes(std::list<node_idx_t> nodes);
 
     /** Add a new node and update maps.
@@ -417,7 +427,6 @@ protected:
     term_t substitute_term_for_chain(
         const term_t &target, hash_map<term_t, term_t> *subs) const;
 
-    /** Sub-routines of add_node. */
     void generate_unification_assumptions(node_idx_t target);
     void generate_mutual_exclusion_for_inconsistency(node_idx_t target);
     void generate_mutual_exclusion_for_counter_nodes(node_idx_t target);
@@ -427,24 +436,24 @@ protected:
      *  Node pairs which has been considered once are ignored. */
     std::list<node_idx_t> enumerate_unifiable_nodes(node_idx_t target);
 
+    /** This is sub-routine of generate_unification_assumptions.
+     *  Add a node and an edge for unification between node[i] & node[j].
+     *  And, update m_vc_unifiable and m_maps.nodes_sub. */
+    void _chain_for_unification(node_idx_t i, node_idx_t j);
+
     /** Sub-routine of chain_for_unification().
      *  Add nodes for transitive unification around the given term. */
-    void add_nodes_of_transitive_unification(term_t t);
+    void _add_nodes_of_transitive_unification(term_t t);
 
     /** Apply inconsistency between i-th node and j-th node. */
     void apply_inconsistency_sub(
         node_idx_t i, node_idx_t j, const lf::axiom_t &axiom);
 
-    inline void register_axiom_used_for_chaining(
-        axiom_id_t ax, hypernode_idx_t from, bool is_backward);
-    inline bool has_considered_unification_assumption(
-        node_idx_t i, node_idx_t j) const;
+    inline bool is_considered_unification(node_idx_t i, node_idx_t j) const;
+    inline bool is_considered_exclusion(node_idx_t i, node_idx_t j) const;
 
-    /** Add a node and an edge for unification between node[i] & node[j].
-     *  Moreover, update m_vc_unifiable and m_maps.nodes_sub. */
-    void chain_for_unification(node_idx_t i, node_idx_t j);
-
-    int get_depth_of_deepest_node( hypernode_idx_t idx ) const;
+    /** Return highest depth in nodes included in the given hypernode. */
+    int get_depth_of_deepest_node(hypernode_idx_t idx) const;
 
     /** If you want to make conditions for unification,
      *  you can define a sub-class which overrides this method. */
@@ -467,14 +476,20 @@ protected:
      *  which its unifiability has been already considered.
      *  KEY and VALUE express node pair, and KEY is less than VALUE. */
     hash_map<node_idx_t, hash_set<node_idx_t> >
-    m_unification_assumptions_considered;
+        m_unification_assumptions_considered;
     
     /** Indices of hypernodes which include unification-nodes. */
     hash_set<hypernode_idx_t> m_indices_of_unification_hypernodes;
 
-    /** Substitutions which is needed for the corresponding edge being true. */
+    /** Substitutions which is needed for the edge of key being true. */
     hash_map<edge_idx_t, std::list< std::pair<term_t, term_t> > >
         m_subs_of_conditions_for_chain;
+
+    struct
+    {
+        hash_map<node_idx_t, hash_set<node_idx_t> > considered_unifications;
+        hash_map<node_idx_t, hash_set<node_idx_t> > considered_exclusions;
+    } m_logs;
 
     struct
     {
@@ -498,7 +513,7 @@ protected:
         hash_map<node_idx_t, hash_set<axiom_id_t> > node_to_inconsistency;
 
         /** Map from depth to indices of nodes assigned the depth. */
-        hash_map< int, std::vector<node_idx_t> > depth_to_nodes;
+        hash_map<int, hash_set<node_idx_t> > depth_to_nodes;
 
         /** Map from axiom-id
          *  to indices of hypernode which has been applied the axiom. */
@@ -510,13 +525,13 @@ protected:
          *   - KEY1  : Predicate of the literal.
          *   - KEY2  : Num of terms of the literal.
          *   - VALUE : Indices of nodes which have the corresponding literal. */
-        hash_map<predicate_t, hash_map<int, std::vector<node_idx_t> > >
+        hash_map<predicate_t, hash_map<int, hash_set<node_idx_t> > >
             predicate_to_nodes;
 
         /** Map to get hypernodes from node.
          *   - KEY : Index of node.
          *   - VALUE : Index of hypernode which includes KEY. */
-        hash_map<node_idx_t, std::vector<hypernode_idx_t> > node_to_hypernode;
+        hash_map<node_idx_t, hash_set<hypernode_idx_t> > node_to_hypernode;
 
         /** Map to get hypernodes from hash of unordered-nodes. */
         hash_map<size_t, hash_set<hypernode_idx_t> > unordered_nodes_to_hypernode;
