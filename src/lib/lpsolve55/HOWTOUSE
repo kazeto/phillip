@@ -1,0 +1,14 @@
+This file includes how to use lp_solve in phillip.
+-----
+1. Download libraries of lp_solve5.5 for your operation system from web.
+     windows(32bit) : lp_solve_5.5.2.0_dev_win32.zip
+     windows(64bit) : lp_solve_5.5.2.0_dev_win64.zip
+     ubuntu(32bit)  : lp_solve_5.5.2.0_dev_ux32.tar.gz
+     ubuntu(64bit)  : lp_solve_5.5.2.0_dev_ux64.tar.gz
+     Mac OSX(32bit) : lp_solve_5.5.2.0_dev_osx32.tar.gz
+   If you use other operation system, download sources (lp_solve_5.5.2.0_source.tar.gz) and compile them.
+
+2. Put libraries to this directory.
+
+3. Add option -DUSE_LP_SOLVE to Makefile and compile phillip.
+     

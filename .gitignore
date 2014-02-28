@@ -27,3 +27,4 @@ vs/[Rr]elease/*
 
 ; LIBS
 src/lib/lpsolve55/*
+!src/lib/lpsolve55/HOWTOUSE
