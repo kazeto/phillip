@@ -851,7 +851,14 @@ int proof_graph_t::get_depth_of_deepest_node(hypernode_idx_t idx) const
 }
 
 
-void proof_graph_t::generate_mutual_exclusion_for_inconsistency( node_idx_t idx )
+void proof_graph_t::generate_mutual_exclusions(node_idx_t target)
+{
+    _generate_mutual_exclusion_for_inconsistency(target);
+    _generate_mutual_exclusion_for_counter_nodes(target);
+}
+
+
+void proof_graph_t::_generate_mutual_exclusion_for_inconsistency(node_idx_t idx)
 {
     const kb::knowledge_base_t *kb = sys()->knowledge_base();
     const node_t &target = node(idx);
@@ -1091,24 +1098,24 @@ hypernode_idx_t proof_graph_t::add_hypernode(
 
 
 void proof_graph_t::
-    generate_mutual_exclusion_for_counter_nodes( node_idx_t idx )
+    _generate_mutual_exclusion_for_counter_nodes(node_idx_t idx)
 {
     const literal_t &l1 = node(idx).literal();
     const hash_set<node_idx_t>* indices =
         search_nodes_with_predicate(l1.predicate, l1.terms.size());
-    for( auto it = indices->begin(); it != indices->end(); ++it )
+    for (auto it = indices->begin(); it != indices->end(); ++it)
     {
-        if( *it == idx ) continue;
+        if (*it == idx) continue;
 
         const literal_t &l2 = node(*it).literal();
-        if( l1.truth == l2.truth ) continue;
+        if (l1.truth != l2.truth)
+        {
+            mutual_exclusion_t mu;
+            mu.indices = std::make_pair(idx, *it);
 
-        mutual_exclusion_t mu;
-        mu.indices = std::make_pair( idx, *it );
-        bool unifiable = check_unifiability( l1, l2, true, &mu.unifier );
-
-        if( unifiable )
-            m_mutual_exclusions.push_back( mu );
+            if (check_unifiability(l1, l2, true, &mu.unifier))
+                m_mutual_exclusions.push_back(mu);
+        }
     }
 }
 

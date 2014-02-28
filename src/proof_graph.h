@@ -237,6 +237,10 @@ public:
     inline hypernode_idx_t forward_chain(
         hypernode_idx_t target, const lf::axiom_t &axiom);
 
+    void add_unification_assumptions();
+    void add_mutual_exclusions_for_counter_node();
+    void add_mutual_exclusions_for_inconsistency();
+
     inline const std::vector<node_t>& nodes() const;
     inline const node_t& node(node_idx_t i) const;
 
@@ -354,9 +358,6 @@ public:
     bool axiom_has_applied(
         hypernode_idx_t hn, const lf::axiom_t &ax, bool is_backward) const;
 
-    void generate_unifications_assumptions();
-    void generate_mutual_exclusions_for_inconsistency();
-    void generate_mutual_exclusions_for_counter_nodes();
 
     virtual void print(std::ostream *os) const;
 
@@ -428,8 +429,9 @@ protected:
         const term_t &target, hash_map<term_t, term_t> *subs) const;
 
     void generate_unification_assumptions(node_idx_t target);
-    void generate_mutual_exclusion_for_inconsistency(node_idx_t target);
-    void generate_mutual_exclusion_for_counter_nodes(node_idx_t target);
+    void generate_mutual_exclusions(node_idx_t target);
+    void _generate_mutual_exclusion_for_inconsistency(node_idx_t target);
+    void _generate_mutual_exclusion_for_counter_nodes(node_idx_t target);
 
     /** Sub-routine of generate_unification_assumptions().
      *  Return indices of node which is unifiable with target.
