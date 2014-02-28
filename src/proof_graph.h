@@ -237,9 +237,8 @@ public:
     inline hypernode_idx_t forward_chain(
         hypernode_idx_t target, const lf::axiom_t &axiom);
 
-    void add_unification_assumptions();
-    void add_mutual_exclusions_for_counter_node();
-    void add_mutual_exclusions_for_inconsistency();
+    void generate_unification_assumptions(node_idx_t target);
+    void generate_mutual_exclusions(node_idx_t target);
 
     inline const std::vector<node_t>& nodes() const;
     inline const node_t& node(node_idx_t i) const;
@@ -428,8 +427,6 @@ protected:
     term_t substitute_term_for_chain(
         const term_t &target, hash_map<term_t, term_t> *subs) const;
 
-    void generate_unification_assumptions(node_idx_t target);
-    void generate_mutual_exclusions(node_idx_t target);
     void _generate_mutual_exclusion_for_inconsistency(node_idx_t target);
     void _generate_mutual_exclusion_for_counter_nodes(node_idx_t target);
 
@@ -451,14 +448,14 @@ protected:
     void apply_inconsistency_sub(
         node_idx_t i, node_idx_t j, const lf::axiom_t &axiom);
 
-    inline bool is_considered_unification(node_idx_t i, node_idx_t j) const;
-    inline bool is_considered_exclusion(node_idx_t i, node_idx_t j) const;
+    inline bool _is_considered_unification(node_idx_t i, node_idx_t j) const;
+    inline bool _is_considered_exclusion(node_idx_t i, node_idx_t j) const;
 
     /** Return highest depth in nodes included in the given hypernode. */
     int get_depth_of_deepest_node(hypernode_idx_t idx) const;
 
     /** If you want to make conditions for unification,
-     *  you can define a sub-class which overrides this method. */
+     *  you can override this method. */
     virtual bool can_unify_nodes(node_idx_t, node_idx_t) const { return true; }
 
     // ---- VARIABLES

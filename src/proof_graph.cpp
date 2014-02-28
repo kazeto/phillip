@@ -954,15 +954,13 @@ std::list<node_idx_t>
         if (n1 > n2) std::swap(n1, n2);
 
         // IGNORE THE PAIR WHICH HAS BEEN CONSIDERED ALREADY.
-        if (not is_considered_unification(n1, n2))
+        if (not _is_considered_unification(n1, n2))
         {
-            m_logs.considered_unifications[n1].insert(n2);
-
             bool unifiable = check_unifiability(
-                m_nodes[n1].literal(), m_nodes[n2].literal(),
-                false, &unifier);
+                m_nodes[n1].literal(), m_nodes[n2].literal(), false, &unifier);
             if (unifiable and can_unify_nodes(n1, n2))
                 unifiables.push_back(*it);
+            m_logs.considered_unifications[n1].insert(n2);
         }
     }
     return unifiables;
@@ -1015,7 +1013,7 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
 }
 
 
-void proof_graph_t::_add_nodes_of_transitive_unification( term_t t )
+void proof_graph_t::_add_nodes_of_transitive_unification(term_t t)
 {
     const hash_set<term_t> *terms = m_vc_unifiable.find_cluster(t);
     assert( terms != NULL );
@@ -1026,13 +1024,13 @@ void proof_graph_t::_add_nodes_of_transitive_unification( term_t t )
         if( t.is_constant() and it->is_constant() ) continue;
 
         /* GENERATE TRANSITIVE UNIFICATION. */
-        if( find_sub_node(t, *it) < 0 )
+        if (find_sub_node(t, *it) < 0)
         {
             term_t t1(t), t2(*it);
-            if(t1 > t2) std::swap(t1, t2);
+            if (t1 > t2) std::swap(t1, t2);
 
             node_idx_t idx = add_node(
-                literal_t("=", t1, t2), NODE_HYPOTHESIS, -1 );
+                literal_t("=", t1, t2), NODE_HYPOTHESIS, -1);
             m_maps.nodes_sub[t1][t2] = idx;
         }
     }
@@ -1086,7 +1084,7 @@ hypernode_idx_t proof_graph_t::add_hypernode(
         m_hypernodes.push_back(indices);
         idx = m_hypernodes.size() - 1;
         for( auto it=indices.begin(); it!=indices.end(); ++it )
-            m_maps.node_to_hypernode[*it].push_back(idx);
+            m_maps.node_to_hypernode[*it].insert(idx);
 
         size_t h = get_hash_of_nodes(
             std::list<node_idx_t>(indices.begin(), indices.end()));
@@ -1103,12 +1101,15 @@ void proof_graph_t::
     const literal_t &l1 = node(idx).literal();
     const hash_set<node_idx_t>* indices =
         search_nodes_with_predicate(l1.predicate, l1.terms.size());
+
     for (auto it = indices->begin(); it != indices->end(); ++it)
     {
         if (*it == idx) continue;
 
         const literal_t &l2 = node(*it).literal();
+
         if (l1.truth != l2.truth)
+        if (not _is_considered_exclusion(*it, idx))
         {
             mutual_exclusion_t mu;
             mu.indices = std::make_pair(idx, *it);

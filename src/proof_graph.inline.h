@@ -306,7 +306,7 @@ inline edge_idx_t proof_graph_t::add_edge( const edge_t &edge )
 }
 
 
-inline bool proof_graph_t::is_considered_unification(
+inline bool proof_graph_t::_is_considered_unification(
     node_idx_t i, node_idx_t j ) const
 {
     if (i > j) std::swap(i, j);
@@ -321,7 +321,7 @@ inline bool proof_graph_t::is_considered_unification(
 }
 
 
-inline bool proof_graph_t::is_considered_exclusion(
+inline bool proof_graph_t::_is_considered_exclusion(
     node_idx_t i, node_idx_t j) const
 {
     if (i > j) std::swap(i, j);
