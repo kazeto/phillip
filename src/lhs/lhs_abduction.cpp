@@ -11,8 +11,10 @@ namespace lhs
 {
 
 
-abductive_enumerator_t::abductive_enumerator_t()
-    : m_depth_max(-1)
+basic_lhs_enumerator_t::
+basic_lhs_enumerator_t(bool do_deduction, bool do_abduction)
+: m_do_deduction(do_deduction), m_do_abduction(do_abduction),
+  m_depth_max(-1)
 {
     std::string depth_str = sys()->param("depth");
     if (not depth_str.empty())
@@ -26,7 +28,7 @@ abductive_enumerator_t::abductive_enumerator_t()
 
 
 
-pg::proof_graph_t* abductive_enumerator_t::execute() const
+pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
 {
     pg::proof_graph_t *out = new pg::proof_graph_t();
     add_observations(out);
@@ -46,24 +48,34 @@ pg::proof_graph_t* abductive_enumerator_t::execute() const
 }
 
 
-void abductive_enumerator_t::chain(
+void basic_lhs_enumerator_t::chain(
     pg::node_idx_t idx, pg::proof_graph_t *graph) const
 {
     const kb::knowledge_base_t *base = sys()->knowledge_base();
     const pg::node_t &node = graph->node(idx);
-    std::list<axiom_id_t> ids =
-        base->search_axioms_with_rhs(node.literal().get_predicate_arity());
+    std::string arity = node.literal().get_predicate_arity();
+    std::list<axiom_id_t> axioms_abd = base->search_axioms_with_rhs(arity);
+    std::list<axiom_id_t> axioms_ded = base->search_axioms_with_lhs(arity);
 
-    for (auto it = ids.begin(); it != ids.end(); ++it)
+    std::list< std::pair<lf::axiom_t, bool> > axioms; // <axiom, is_deduction>
+    for (auto it = axioms_ded.begin(); it != axioms_ded.end(); ++it)
+        axioms.push_back(std::make_pair(base->get_axiom(*it), true));
+    for (auto it = axioms_abd.begin(); it != axioms_abd.end(); ++it)
+        axioms.push_back(std::make_pair(base->get_axiom(*it), false));
+
+    for (auto it = axioms.begin(); it != axioms.end(); ++it)
     {
-        lf::axiom_t ax = base->get_axiom(*it);
+        const lf::axiom_t &ax(it->first);
+        bool is_forward(it->second);
         std::list< std::vector<pg::node_idx_t> > targets =
             graph->enumerate_targets_of_chain(ax, true, node.depth());
 
         for (auto v = targets.begin(); v != targets.end(); ++v)
         {
             pg::hypernode_idx_t from = graph->add_hypernode(*v);
-            pg::hypernode_idx_t to = graph->backward_chain(from, ax);
+            pg::hypernode_idx_t to = is_forward ?
+                graph->forward_chain(from, ax) :
+                graph->backward_chain(from, ax);
 
             // ---- DEBUG
             if (sys()->verbose() == FULL_VERBOSE)
@@ -74,10 +86,10 @@ void abductive_enumerator_t::chain(
                 std::string
                     str_from = join(hn_from.begin(), hn_from.end(), "%d", ","),
                     str_to = join(hn_to.begin(), hn_to.end(), "%d", ",");
-                std::string disp =
-                    format("Backward-chain: %d:[%s] <= %s <= %d:[%s]",
-                           from, str_from.c_str(), ax.name.c_str(),
-                           to, str_to.c_str());
+                std::string disp(
+                    is_forward ? "ForwardChain: " : "BackwardChain: ");
+                disp += format("%d:[%s] <= %s <= %d:[%s]",
+                    from, str_from.c_str(), ax.name.c_str(), to, str_to.c_str());
                 std::cerr << time_stamp() << disp << std::endl;
             }
         }
@@ -85,14 +97,16 @@ void abductive_enumerator_t::chain(
 }
 
 
-bool abductive_enumerator_t::can_execute(std::list<std::string>*) const
+bool basic_lhs_enumerator_t::can_execute(std::list<std::string>*) const
 { return true; }
 
 
-std::string abductive_enumerator_t::repr() const
+std::string basic_lhs_enumerator_t::repr() const
 {
-    return format(
-        "AbductiveEnumerator(depth = %d)", m_depth_max);
+    std::string name = m_do_deduction ?
+        (m_do_abduction ? "BasicEnumerator" : "BasicDeductiveEnumerator") :
+        (m_do_abduction ? "BasicAbductiveEnumerator" : "NullEnumerator");
+    return name + format("(depth = %d)", m_depth_max);
 }
 
 

@@ -265,7 +265,7 @@ bool _interpret_option(
 
 lhs_enumerator_t* _new_lhs_enumerator( const std::string &key )
 {
-    if (key == "depth") return new lhs::abductive_enumerator_t();
+    if (key == "depth") return new lhs::basic_lhs_enumerator_t();
     return NULL;
 }
 
