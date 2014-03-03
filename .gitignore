@@ -1,3 +1,11 @@
+; COMPILED AXIOMS
+*.cdb
+*.rm.dat
+
+; LIBS
+src/lib/lpsolve55/*
+!src/lib/lpsolve55/HOWTOUSE
+
 ; FOR UNIX
 *.o
 bin/*
@@ -24,7 +32,3 @@ Thumbs.db
 ipch
 vs/[Dd]ebug/*
 vs/[Rr]elease/*
-
-; LIBS
-src/lib/lpsolve55/*
-!src/lib/lpsolve55/HOWTOUSE

@@ -29,7 +29,7 @@ knowledge_base_t::knowledge_base_t(const std::string &filename)
       m_cdb_inc_pred(filename + ".inc.pred.cdb"),
       m_cdb_axiom_group(filename + ".group.cdb"),
       m_cdb_rm_idx(filename + ".rm.cdb"),
-      m_rm(filename + ".rm.dat"),
+      m_rm(filename + ".rm.dat", true),
       m_rm_dist(new basic_distance_provider_t()),
       m_num_compiled_axioms(0), m_num_temporary_axioms(0),
       m_num_unnamed_axioms(0)
@@ -606,8 +606,9 @@ std::list<axiom_id_t> knowledge_base_t::search_id_list(
 
 
 knowledge_base_t::reachable_matrix_t::
-    reachable_matrix_t(const std::string &filename)
-    : m_filename(filename), m_fout(NULL), m_fin(NULL)
+    reachable_matrix_t(const std::string &filename, bool is_triangular)
+    : m_filename(filename), m_fout(NULL), m_fin(NULL),
+      m_is_triangular(is_triangular)
 {}
 
 
@@ -699,24 +700,23 @@ void knowledge_base_t::reachable_matrix_t::
     m_map_idx_to_pos[idx1] = m_fout->tellp();
 
     for (auto it = dist.begin(); it != dist.end(); ++it)
-        if (idx1 <= it->first)
+        if (not is_triangular() or idx1 <= it->first)
             ++num;
 
     m_fout->write((const char*)&num, sizeof(size_t));
     for (auto it = dist.begin(); it != dist.end(); ++it)
     {
-        if (idx1 <= it->first)
+        if (not is_triangular() or idx1 <= it->first)
         {
             m_fout->write((const char*)&it->first, sizeof(size_t));
             m_fout->write((const char*)&it->second, sizeof(float));
         }
     }
-
 }
 
 
 float knowledge_base_t::
-    reachable_matrix_t::get(size_t idx1, size_t idx2) const
+reachable_matrix_t::get(size_t idx1, size_t idx2) const
 {
     if (idx1 > idx2) std::swap(idx1, idx2);
 
@@ -737,6 +737,29 @@ float knowledge_base_t::
     }
 
     return -1.0f;
+}
+
+
+hash_set<float> knowledge_base_t::reachable_matrix_t::get(size_t idx) const
+{
+    size_t num;
+    float dist;
+    hash_set<float> out;
+    auto find = m_map_idx_to_pos.find(idx);
+
+    if (find == m_map_idx_to_pos.end()) return out;
+
+    m_fin->seekg(find->second, std::ios::beg);
+    m_fin->read((char*)&num, sizeof(size_t));
+
+    for (size_t i = 0; i < num; ++i)
+    {
+        m_fin->read((char*)&idx, sizeof(size_t));
+        m_fin->read((char*)&dist, sizeof(float));
+        out.insert(dist);
+    }
+
+    return out;
 }
 
 

@@ -34,8 +34,11 @@ int main(int argc, char* argv[])
             << "Compiling knowledge-base ..." << std::endl;
 
         config.kb->prepare_compile();
+
         processor.add_component( new proc::compile_kb_t(config.kb) );
         processor.process(inputs);
+
+        config.kb->finalize();
 
         std::cerr << time_stamp()
             << "Completed to compile knowledge-base." << std::endl;
@@ -57,7 +60,10 @@ int main(int argc, char* argv[])
             << "Completed to load observations." << std::endl;
 
         config.kb->prepare_query();
+
         for (auto it = parsed_inputs.begin(); it != parsed_inputs.end(); ++it)
             sys()->infer(*it);
+
+        config.kb->finalize();
     }
 }

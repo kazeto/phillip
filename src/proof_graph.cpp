@@ -80,27 +80,6 @@ void proof_graph_t::unifiable_variable_clusters_set_t::add(
 }
 
 
-std::string proof_graph_t::unifiable_variable_clusters_set_t::to_string() const
-{
-    std::ostringstream ret;
-    for (auto it_ec = m_clusters.begin(); it_ec != m_clusters.end(); ++it_ec)
-    {
-        const hash_set<term_t> &cluster = it_ec->second;
-        if (cluster.size() == 0)
-            continue;
-        ret << (it_ec->first) << ": ";
-        for (auto it = cluster.begin(); it != cluster.end(); ++it)
-        {
-            if (it != cluster.begin())
-                ret << ", ";
-            ret << (*it).string();
-        }
-        ret << std::endl;
-    }
-    return ret.str();
-}
-
-
 std::list< const hash_set<term_t>* >
     proof_graph_t::enumerate_variable_clusters() const
 {
@@ -563,77 +542,137 @@ bool proof_graph_t::axiom_has_applied(
 }
 
 
-void proof_graph_t::print( std::ostream *os ) const
+void proof_graph_t::print(std::ostream *os) const
 {
-    // PRINT NODES
-    (*os) << "# node:" << std::endl;
-    for( auto i = 0; i < m_nodes.size(); ++i )
+    (*os) << "<latent-hypotheses-set>";
+
+}
+
+
+void proof_graph_t::print_nodes(
+    std::ostream *os, const std::string &indent) const
+{
+    (*os) << indent << "<nodes num=\"" << m_nodes.size() << "\">" << std::endl;
+    for (auto i = 0; i < m_nodes.size(); ++i)
     {
-        (*os) << "    "
-            << node(i).to_string()
-            << format(":depth(%d)", node(i).depth())
+        (*os) << indent << "    <node "
+            << "index=\"" << i
+            << "\" depth=\"" << node(i).depth()
+            << "\" master=\"" << node(i).get_master_hypernode()
+            << "\">" << node(i).literal().to_string()
+            << "</node>"
             << std::endl;
     }
+    (*os) << indent << "</nodes>" << std::endl;
+}
 
-    // PRINT AXIOMS
+
+void proof_graph_t::print_axioms(
+    std::ostream *os, const std::string &indent) const
+{
     hash_set<axiom_id_t> set_axioms;
     std::list<axiom_id_t> list_axioms;
-    for( auto it = m_edges.begin(); it != m_edges.end(); ++it )
-        if( it->axiom_id() >= 0 )
-            set_axioms.insert(it->axiom_id());
-    list_axioms.assign( set_axioms.begin(), set_axioms.end() );
+    for (auto it = m_edges.begin(); it != m_edges.end(); ++it)
+    if (it->axiom_id() >= 0)
+        set_axioms.insert(it->axiom_id());
+    list_axioms.assign(set_axioms.begin(), set_axioms.end());
     list_axioms.sort();
 
-    (*os) << "# axiom" << std::endl;
-    for( auto ax = list_axioms.begin(); ax != list_axioms.end(); ++ax )
+    (*os) << indent
+        << "<axioms num=\"" << list_axioms.size() << "\">" << std::endl;
+    for (auto ax = list_axioms.begin(); ax != list_axioms.end(); ++ax)
     {
         lf::axiom_t axiom = sys()->knowledge_base()->get_axiom(*ax);
-        (*os) << "    " << axiom.id << ":" << axiom.name << ":"
-              << axiom.func.to_string() << std::endl;
+        (*os) << indent << "    <axiom "
+            << "id=\"" << axiom.id
+            << "\" name=\"" << axiom.name
+            << "\">" << axiom.func.to_string()
+            << "</axiom>" << std::endl;
+    }
+    (*os) << indent << "</axioms>" << std::endl;
+}
+
+
+void proof_graph_t::print_edges(
+    std::ostream *os, const std::string &indent) const
+{
+    (*os) << indent << "<edges num=\"" << m_edges.size() << "\">" << std::endl;
+    for (auto i = 0; i < m_edges.size(); ++i)
+    {
+        const edge_t e = edge(i);
+        std::string type;
+        if (e.type() < EDGE_USER_DEFINED)
+        {
+            switch (e.type())
+            {
+            case EDGE_UNDERSPECIFIED: type = "underspecified"; break;
+            case EDGE_HYPOTHESIZE: type = "abductive"; break;
+            case EDGE_IMPLICATION: type = "deductive"; break;
+            case EDGE_UNIFICATION: type = "unification"; break;
+            default: type = "unknown";
+            }
+        }
+        else type = format("user-defined(%d)", e.type());
+
+        (*os) << indent << "    <edge "
+              << "id=\"" << i << "\" type=\"" << type
+              << "\" tail=\"" << e.tail() << "\" head=\"" << e.head()
+              << "\" axiom=\"" << e.axiom_id();
+
+        auto conds = m_subs_of_conditions_for_chain.find(i);
+        if (conds != m_subs_of_conditions_for_chain.end())
+        {
+            (*os) << "\" conds=\"";
+            for (auto p = conds->second.begin(); p != conds->second.end(); ++p)
+            {
+                if (p != conds->second.begin())
+                    (*os) << ", ";
+                (*os) << "(= "
+                      << p->first.string() << " "
+                      << p->second.string() << ")";
+            }
+        }
+
+        (*os) << "\">" << edge_to_string(i)
+              << "</edge>" << std::endl;
+    }
+    (*os) << indent << "</edges>" << std::endl;
+}
+
+
+void proof_graph_t::print_subs(std::ostream *os, const std::string &indent) const
+{
+    auto subs = m_vc_unifiable.clusters();
+    (*os) << indent << "<substitutions>" << std::endl;
+
+    for (auto it = subs.begin(); it != subs.end(); ++it)
+    {
+        (*os) << indent << "    <cluster "
+            << "id=\"" << it->first << "\">" << std::endl;
+
+        for (auto t = it->second.begin(); t != it->second.end(); ++t)
+        {
+            (*os) << indent << "        <term>"
+                  << t->string() << "</term>" << std::endl;
+        }
+
+        (*os) << indent << "    </cluster>" << std::endl;
     }
 
-    // PRINT EDGES
-    (*os) << "# edge:" << std::endl;
-    for( auto i = 0; i < m_edges.size(); ++i )
-        (*os) << "    " << edge_to_string(i) << std::endl;
+    (*os) << indent << "</substitutions>" << std::endl;
+}
 
-    int idx(0);
-    std::string sub = m_vc_unifiable.to_string();
-    while((idx = sub.find('\n', idx + 1)) >= 0)
-        sub = sub.replace(idx, 1, "\n    ");
 
-    // PRINT SUBSTITUSIONS
-    (*os) << "# substitusions:" << std::endl;
-    (*os) << "    " << sub << std::endl;
-
+void proof_graph_t::print_exclusiveness(std::ostream *os, const std::string &indent) const
+{
     const std::list<mutual_exclusion_t> &muexs = m_mutual_exclusions;
 
-    // PRINT MUTUAL-EXCLUSIONS
     (*os) << "# mutual-exclusions:" << std::endl;
     for (auto it = muexs.begin(); it != muexs.end(); ++it)
     {
         (*os) << "    " << node(it->indices.first).to_string()
             << " _|_ " << node(it->indices.second).to_string()
             << " : " << it->unifier.to_string() << std::endl;
-    }
-
-    // PRINT EDGE'S CONDITIONS
-    (*os) << "# conditions-for-edge:" << std::endl;
-    for (int i = 0; i < m_edges.size(); ++i)
-    {
-        auto conds = m_subs_of_conditions_for_chain.find(i);
-        if (conds == m_subs_of_conditions_for_chain.end()) continue;
-
-        (*os) << "    edge[" << i << "]: ";
-        for (auto p = conds->second.begin(); p != conds->second.end(); ++p)
-        {
-            if (p != conds->second.begin())
-                (*os) << ", ";
-            (*os) << "(= "
-                << p->first.string() << " "
-                << p->second.string() << ")";
-        }
-        (*os) << std::endl;
     }
 }
 

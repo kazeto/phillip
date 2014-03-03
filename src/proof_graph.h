@@ -299,6 +299,7 @@ public:
         hypernode_idx_t idx, std::list<hypernode_idx_t> *out) const;
 
     /** Enumerate lists of node indices which given axiom is applicable to.
+     *  You can use this method to enumerate hypernodes for chaining.
      *  Nodes whose depth exceed max_depth are excluded from enumeration. */
     std::list< std::vector<node_idx_t> > enumerate_targets_of_chain(
         const lf::axiom_t &ax, bool is_backward, int max_depth = -1) const;
@@ -338,8 +339,12 @@ public:
     inline const hash_set<term_t>* find_variable_cluster(term_t t) const;
     std::list< const hash_set<term_t>* > enumerate_variable_clusters() const;
 
+    /** Get list of edges in a path from given hypernode to its evidence. */
+    std::list<edge_idx_t> enumerate_edges_to_observation(hypernode_idx_t idx) const; // TODO
+
     /** Get list of chains which has same group's axioms in this proof-graph.
-     *  Note: Each list of indices is sorted in ascending-order. */
+     *  Each list of indices is sorted in ascending-order.
+     *  This method is used in adding mutual-exclusions of inconsistency. */
     void enumerate_chains_of_grouped_axioms_from_node(
         node_idx_t from, std::list< std::list<edge_idx_t> > *out) const;
     void enumerate_chains_of_grouped_axioms_from_hypernode(
@@ -374,8 +379,6 @@ protected:
         
         /** Check whether terms t1 & t2 are unifiable. */
         inline bool is_in_same_cluster(term_t t1, term_t t2) const;
-        
-        std::string to_string() const;
         
     private:
         /** List of clusters.
@@ -457,6 +460,17 @@ protected:
     /** If you want to make conditions for unification,
      *  you can override this method. */
     virtual bool can_unify_nodes(node_idx_t, node_idx_t) const { return true; }
+
+    virtual void print_nodes(
+        std::ostream *os, const std::string &indent) const;
+    virtual void print_axioms(
+        std::ostream *os, const std::string &indent) const;
+    virtual void print_edges(
+        std::ostream *os, const std::string &indent) const;
+    virtual void print_subs(
+        std::ostream *os, const std::string &indent) const;
+    virtual void print_exclusiveness(
+        std::ostream *os, const std::string &indent) const;
 
     // ---- VARIABLES
     

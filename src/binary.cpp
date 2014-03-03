@@ -16,7 +16,7 @@ const std::string USAGE =
     "    -m inference : Inference mode.\n"
     "    -m compile_kb : Compiling knowledge-base mode.\n"
     "  Common Options:\n"
-    "    -s <NAME> : Load a setting-file.\n"
+    "    -l <NAME> : Load a config-file.\n"
     "    -p <NAME>=<VALUE> : set a parameter.\n"
     "        kb_max_distance : limitation of distance between literals.\n"
     "    -f <NAME> : Set flag.\n"
@@ -32,10 +32,10 @@ const std::string USAGE =
     "  Options in compile_kb mode:\n"
     "    -k <NAME> : Set filename of output of compile_kb.\n";
 
-char ACCEPTABLE_OPTIONS[] = "c:f:k:m:o:p:s:t:v:P:T:";
+char ACCEPTABLE_OPTIONS[] = "c:f:k:l:m:o:p:t:v:P:T:";
 
 
-bool _load_setting_file(
+bool _load_config_file(
     const char *filename,
     execution_configure_t *option, std::vector<std::string> *inputs );
 
@@ -102,7 +102,7 @@ bool parse_options(
 
 
 /** Load the setting file. */
-bool _load_setting_file(
+bool _load_config_file(
     const char* filename,
     execution_configure_t *config, std::vector<std::string> *inputs )
 {
@@ -194,6 +194,12 @@ bool _interpret_option(
         config->kb_name = arg;
         return true;
     }
+
+    case 'l': // ---- SET THE PATH OF PHILLIP CONFIGURE FILE
+    {
+        _load_config_file( arg.c_str(), config, inputs );
+        return true;
+    }
     
     case 'm': // ---- SET MODE
     {
@@ -223,12 +229,6 @@ bool _interpret_option(
         else
             phil::sys()->set_param(arg, "");
         
-        return true;
-    }
-    
-    case 's': // ---- SET THE PATH OF HENRY SETTING FILE
-    {
-        _load_setting_file( arg.c_str(), config, inputs );
         return true;
     }
     
@@ -265,7 +265,9 @@ bool _interpret_option(
 
 lhs_enumerator_t* _new_lhs_enumerator( const std::string &key )
 {
-    if (key == "depth") return new lhs::basic_lhs_enumerator_t();
+    if (key == "bidirection") return new lhs::basic_lhs_enumerator_t(true, true);
+    if (key == "abduction") return new lhs::basic_lhs_enumerator_t(false, true);
+    if (key == "deduction") return new lhs::basic_lhs_enumerator_t(true, false);
     return NULL;
 }
 
@@ -279,9 +281,10 @@ ilp_converter_t* _new_ilp_converter( const std::string &key )
 
 ilp_solver_t* _new_ilp_solver( const std::string &key )
 {
-    if (key == "null")  return new  sol::null_solver_t();
-    if (key == "gltk")  return new  sol::gnu_linear_programming_kit_t();
-    if (key == "lpsol") return new sol::lp_solve_t();
+    if (key == "null")   return new sol::null_solver_t();
+    if (key == "gltk")   return new sol::gnu_linear_programming_kit_t();
+    if (key == "lpsol")  return new sol::lp_solve_t();
+    if (key == "gurobi") return new sol::gurobi_t();
     return NULL;
 }
 

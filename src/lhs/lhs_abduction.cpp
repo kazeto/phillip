@@ -68,7 +68,7 @@ void basic_lhs_enumerator_t::chain(
         const lf::axiom_t &ax(it->first);
         bool is_forward(it->second);
         std::list< std::vector<pg::node_idx_t> > targets =
-            graph->enumerate_targets_of_chain(ax, true, node.depth());
+            graph->enumerate_targets_of_chain(ax, !is_forward, node.depth());
 
         for (auto v = targets.begin(); v != targets.end(); ++v)
         {

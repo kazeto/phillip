@@ -68,12 +68,21 @@ inline std::string knowledge_base_t::_get_name_of_unnamed_axiom()
 
     
 inline bool knowledge_base_t::reachable_matrix_t::is_writable() const
-{ return (m_fout != NULL); }
+{
+    return (m_fout != NULL);
+}
 
 
 inline bool knowledge_base_t::reachable_matrix_t::is_readable() const
-{ return (m_fin != NULL); }
+{
+    return (m_fin != NULL);
+}
 
+
+inline bool knowledge_base_t::reachable_matrix_t::is_triangular() const
+{
+    return m_is_triangular;
+}
 
 
 }

@@ -22,7 +22,7 @@ bool null_solver_t::can_execute(
 
 std::string null_solver_t::repr() const
 {
-    return "Plain-Solution-Factory";
+    return "Null-Solver";
 }
 
 

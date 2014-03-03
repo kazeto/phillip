@@ -13,14 +13,12 @@ namespace ilp
 ilp::ilp_problem_t* null_converter_t::execute() const
 {
     const pg::proof_graph_t* graph = sys()->get_latent_hypotheses_set();
-    ilp::ilp_problem_t *out =
-        new ilp::ilp_problem_t( graph );
+    ilp::ilp_problem_t *out = new ilp::ilp_problem_t(graph);
     return out;
 }
 
 
-bool null_converter_t::can_execute(
-    std::list<std::string> *error_messages ) const
+bool null_converter_t::can_execute(std::list<std::string> *messages) const
 {
     return true;
 }

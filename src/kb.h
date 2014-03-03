@@ -56,6 +56,9 @@ public:
     /** Prepare for reading knowledge base. */
     void prepare_query();
 
+    /** Call this method on end of compiling or reading knowledge base. */
+    void finalize();
+
     /** Insert axiom into knowledge base as compiled axiom.
      *  This method can be called only in compile-mode. */
     void insert_implication_for_compile(
@@ -100,16 +103,18 @@ private:
     class reachable_matrix_t
     {
     public:
-        reachable_matrix_t(const std::string &filename);
+        reachable_matrix_t(const std::string &filename, bool m_is_triangular);
         ~reachable_matrix_t();
         void prepare_compile();
         void prepare_query();
         void finalize();
         void put(size_t idx1, const hash_map<size_t, float> &dist);
         float get(size_t idx1, size_t idx2) const;
+        hash_set<float> get(size_t idx) const;
 
         inline bool is_writable() const;
         inline bool is_readable() const;
+        inline bool is_triangular() const;
 
     private:
         typedef unsigned long long pos_t;
@@ -117,11 +122,10 @@ private:
         std::ofstream *m_fout;
         std::ifstream *m_fin;
         hash_map<size_t, pos_t> m_map_idx_to_pos;
+        bool m_is_triangular;
     };
 
     enum kb_state_e { STATE_NULL, STATE_COMPILE, STATE_QUERY };
-
-    void finalize();
 
     void _insert_cdb(
         const std::string &name, const lf::logical_function_t &lf);
