@@ -94,6 +94,29 @@ std::list< const hash_set<term_t>* >
 }
 
 
+std::list<edge_idx_t> proof_graph_t::enumerate_edges_to_observation(node_idx_t idx) const
+{
+    std::list<edge_idx_t> out;
+    enumerate_edges_to_observation(idx, &out);
+    return out;
+}
+
+
+void proof_graph_t::enumerate_edges_to_observation(
+    node_idx_t idx, std::list<edge_idx_t> *out) const
+{
+    hypernode_idx_t m = node(idx).get_master_hypernode();
+    if (m < 0) return;
+
+    edge_idx_t e = find_parental_edge(m);
+    out->push_back(e);
+
+    auto _nodes = hypernode(edge(e).tail());
+    for (auto it = _nodes.begin(); it != _nodes.end(); ++it)
+        enumerate_edges_to_observation(*it, out);
+}
+
+
 void proof_graph_t::enumerate_chains_of_grouped_axioms_from_node(
     node_idx_t from, std::list< std::list<edge_idx_t> > *out) const
 {

@@ -339,8 +339,10 @@ public:
     inline const hash_set<term_t>* find_variable_cluster(term_t t) const;
     std::list< const hash_set<term_t>* > enumerate_variable_clusters() const;
 
-    /** Get list of edges in a path from given hypernode to its evidence. */
-    std::list<edge_idx_t> enumerate_edges_to_observation(hypernode_idx_t idx) const; // TODO
+    /** Get list of edges in paths from given node to its evidences. */
+    std::list<edge_idx_t> enumerate_edges_to_observation(node_idx_t from) const;
+    void enumerate_edges_to_observation(
+        node_idx_t from, std::list<edge_idx_t> *out) const;
 
     /** Get list of chains which has same group's axioms in this proof-graph.
      *  Each list of indices is sorted in ascending-order.
