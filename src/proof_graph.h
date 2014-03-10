@@ -237,7 +237,11 @@ public:
     inline hypernode_idx_t forward_chain(
         hypernode_idx_t target, const lf::axiom_t &axiom);
 
+    /** Generates unification assumptions between target node
+     *  and other nodes which have same predicate as target node. */
     void generate_unification_assumptions(node_idx_t target);
+
+    /** Generates mutual exclusiveness between target node and other nodes. */
     void generate_mutual_exclusions(node_idx_t target);
 
     inline const std::vector<node_t>& nodes() const;

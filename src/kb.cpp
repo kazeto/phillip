@@ -440,7 +440,7 @@ void knowledge_base_t::insert_axiom_group_to_cdb()
 void knowledge_base_t::create_reachable_matrix()
 {
     std::cerr << time_stamp()
-              << "starts to compute distance... " << std::endl;
+              << "starts to create reachable matrix... " << std::endl;
 
     size_t N(m_arity_set.size()), processed(0), num_inserted(0);
     clock_t clock_past = clock_t();
@@ -485,6 +485,7 @@ void knowledge_base_t::create_reachable_matrix()
     time(&time_end);
     int proc_time(time_end - time_start); 
     double coverage(num_inserted * 100.0 / (double)(N * N));
+    
     std::cerr
         << time_stamp() << "completed computation. " << std::endl
         << time_stamp() << "process-time = " << proc_time << std::endl
