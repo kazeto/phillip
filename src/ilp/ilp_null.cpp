@@ -18,7 +18,7 @@ ilp::ilp_problem_t* null_converter_t::execute() const
 }
 
 
-bool null_converter_t::can_execute(std::list<std::string> *messages) const
+bool null_converter_t::is_available(std::list<std::string> *messages) const
 {
     return true;
 }

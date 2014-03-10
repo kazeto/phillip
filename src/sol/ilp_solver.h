@@ -32,7 +32,7 @@ class null_solver_t : public ilp_solver_t
 public:
     null_solver_t() {}
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const;
-    virtual bool can_execute( std::list<std::string> *error_messages ) const;
+    virtual bool is_available( std::list<std::string> *error_messages ) const;
     virtual std::string repr() const;
 };
 
@@ -43,7 +43,7 @@ class gnu_linear_programming_kit_t : public ilp_solver_t
 public:
     gnu_linear_programming_kit_t();
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const;
-    virtual bool can_execute( std::list<std::string> *error_messages ) const;
+    virtual bool is_available( std::list<std::string> *error_messages ) const;
     virtual std::string repr() const;
 
 #ifdef USE_GLPK
@@ -59,7 +59,7 @@ class lp_solve_t : public ilp_solver_t
 public:
     lp_solve_t() {}
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const;
-    virtual bool can_execute(std::list<std::string> *error_messages) const;
+    virtual bool is_available(std::list<std::string> *error_messages) const;
     virtual std::string repr() const;
 
 #ifdef USE_LP_SOLVE
@@ -77,7 +77,7 @@ class gurobi_t : public ilp_solver_t
 public:
     gurobi_t() {}
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const;
-    virtual bool can_execute(std::list<std::string> *error_messages) const;
+    virtual bool is_available(std::list<std::string> *error_messages) const;
     virtual std::string repr() const;
 
 #ifdef USE_GUROBI

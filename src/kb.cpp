@@ -18,10 +18,13 @@ namespace kb
 
 
 const int BUFFER_SIZE = 512 * 512;
-float knowledge_base_t::ms_max_distance = -1;
 
-knowledge_base_t::knowledge_base_t(const std::string &filename)
-    : m_state(STATE_NULL), m_filename(filename),
+
+knowledge_base_t::knowledge_base_t(
+    const std::string &filename,
+    float max_distance, reachable_matrix_creation_mode_e mode)
+    : m_state(STATE_NULL),
+      m_filename(filename), m_max_distance(max_distance),
       m_cdb_id(filename + ".id.cdb"),
       m_cdb_name(filename +".name.cdb"),
       m_cdb_rhs(filename + ".rhs.cdb"),
@@ -29,7 +32,7 @@ knowledge_base_t::knowledge_base_t(const std::string &filename)
       m_cdb_inc_pred(filename + ".inc.pred.cdb"),
       m_cdb_axiom_group(filename + ".group.cdb"),
       m_cdb_rm_idx(filename + ".rm.cdb"),
-      m_rm(filename + ".rm.dat", true),
+      m_rm(filename + ".rm.dat", (mode == RM_CREATE_ALL)),
       m_rm_dist(new basic_distance_provider_t()),
       m_num_compiled_axioms(0), m_num_temporary_axioms(0),
       m_num_unnamed_axioms(0)
@@ -71,6 +74,8 @@ void knowledge_base_t::prepare_query()
 
     if (m_state == STATE_NULL)
     {
+        read_config((m_filename + ".conf").c_str());
+
         m_cdb_id.prepare_query();
         m_cdb_name.prepare_query();
         m_cdb_rhs.prepare_query();
@@ -104,6 +109,7 @@ void knowledge_base_t::finalize()
         m_group_to_axioms.clear();
 
         create_reachable_matrix();
+        write_config((m_filename + ".conf").c_str());
 
         m_arity_set.clear();
     }
@@ -118,6 +124,30 @@ void knowledge_base_t::finalize()
     m_rm.finalize();
 
     m_state = STATE_NULL;
+}
+
+
+void knowledge_base_t::write_config(const char *filename) const
+{
+    std::ofstream fo(
+        filename, std::ios::out | std::ios::trunc | std::ios::binary);
+    char mode(m_rm_creation_mode);
+
+    fo.write(&mode, sizeof(char));
+    fo.write((char*)&m_max_distance, sizeof(float));
+    fo.close();
+}
+
+
+void knowledge_base_t::read_config(const char *filename)
+{
+    std::ifstream fi(filename, std::ios::in | std::ios::binary);
+    char mode;
+    fi.read(&mode, sizeof(char));
+    fi.read((char*)&m_max_distance, sizeof(float));
+    fi.close();
+
+    m_rm_creation_mode = static_cast<reachable_matrix_creation_mode_e>(mode);
 }
 
 
@@ -219,6 +249,24 @@ void knowledge_base_t::insert_inconsistency_temporary(
         std::string arity = (*it)->get_predicate_arity();
         m_inc_to_tmp_axioms[arity].insert(id);
     }
+}
+
+
+void knowledge_base_t::create_partial_reachable_matrix(
+    const hash_set<std::string> &arities)
+{
+    m_partial_reachable_matrix.clear();
+
+    if (get_creation_mode() != RM_CREATE_LOCAL or not m_cdb_id.is_readable())
+    {
+        std::string prefix("create-reachable-matrix: ");
+        print_error(prefix +
+            (not m_cdb_id.is_readable() ?
+            "KB's creation-mode is invalid." : "KB is not readable now."));
+        return;
+    }
+
+    // TODO
 }
 
 
@@ -447,9 +495,11 @@ void knowledge_base_t::create_reachable_matrix()
     time_t time_start, time_end;
     time(&time_start);
 
-    std::cerr << time_stamp() << "num of arities = " << N << std::endl;
     std::cerr << time_stamp()
-              << "max distance = " << max_distance() << std::endl;
+              << "  num of axioms = " << m_num_compiled_axioms << std::endl;
+    std::cerr << time_stamp() << "  num of arities = " << N << std::endl;
+    std::cerr << time_stamp()
+              << "  max distance = " << get_max_distance() << std::endl;
 
     m_cdb_id.prepare_query();
     m_cdb_rhs.prepare_query();
@@ -472,11 +522,11 @@ void knowledge_base_t::create_reachable_matrix()
         ++processed;
 
         clock_t c = clock();
-        if( c - clock_past > CLOCKS_PER_SEC )
+        if (c - clock_past > CLOCKS_PER_SEC)
         {
-            float progress = (float)(processed) * 100.0f / (float)N;
+            float progress = (float)(processed)* 100.0f / (float)N;
             std::cerr << format(
-                "processed %d tokens [%.4f%%]\r", processed, progress );
+                "processed %d tokens [%.4f%%]\r", processed, progress);
             std::cerr.flush();
             clock_past = c;
         }
@@ -488,8 +538,8 @@ void knowledge_base_t::create_reachable_matrix()
     
     std::cerr
         << time_stamp() << "completed computation. " << std::endl
-        << time_stamp() << "process-time = " << proc_time << std::endl
-        << time_stamp() << "coverage = "
+        << time_stamp() << "  process-time = " << proc_time << std::endl
+        << time_stamp() << "  coverage = "
         << format("%.6lf%%", coverage) << std::endl;
 }
 
@@ -538,7 +588,7 @@ void knowledge_base_t::create_reachable_matrix_sub(
 
                         bool do_add(false);
                         auto find = out->find(idx2);
-                        if (max_distance() < 0.0f or dist < max_distance())
+                        if (get_max_distance() < 0.0f or dist < get_max_distance())
                         {
                             if (find == out->end())       do_add = true;
                             else if (dist < find->second) do_add = true;

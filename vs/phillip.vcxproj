@@ -87,10 +87,11 @@
     <ClCompile Include="..\src\ctypes.cpp" />
     <ClCompile Include="..\src\define.cpp" />
     <ClCompile Include="..\src\ilp\ilp_null.cpp" />
+    <ClCompile Include="..\src\ilp\ilp_weight.cpp" />
     <ClCompile Include="..\src\ilp_problem.cpp" />
     <ClCompile Include="..\src\interface.cpp" />
     <ClCompile Include="..\src\kb.cpp" />
-    <ClCompile Include="..\src\lhs\lhs_abduction.cpp" />
+    <ClCompile Include="..\src\lhs\lhs_basic.cpp" />
     <ClCompile Include="..\src\lib\getopt_win.cpp" />
     <ClCompile Include="..\src\logical_function.cpp" />
     <ClCompile Include="..\src\main.cpp" />

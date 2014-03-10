@@ -29,7 +29,7 @@ void gnu_linear_programming_kit_t::execute(
 }
 
 
-bool gnu_linear_programming_kit_t::can_execute(
+bool gnu_linear_programming_kit_t::is_available(
     std::list<std::string> *error_messages ) const
 {
 #ifdef USE_GLPK

@@ -13,7 +13,7 @@ void null_solver_t::execute(std::vector<ilp::ilp_solution_t> *out) const
 }
 
 
-bool null_solver_t::can_execute(
+bool null_solver_t::is_available(
     std::list<std::string> *error_messages ) const
 {
     return true;

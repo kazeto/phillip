@@ -97,7 +97,7 @@ void basic_lhs_enumerator_t::chain(
 }
 
 
-bool basic_lhs_enumerator_t::can_execute(std::list<std::string>*) const
+bool basic_lhs_enumerator_t::is_available(std::list<std::string>*) const
 { return true; }
 
 

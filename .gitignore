@@ -1,6 +1,11 @@
-; COMPILED AXIOMS
-*.cdb
-*.rm.dat
+; DATA
+data/*
+!data/toy.obs.lisp
+!data/toy.kb.lisp
+
+; CONF
+conf/*
+!conf/toy.*
 
 ; LIBS
 src/lib/lpsolve55/*
@@ -12,6 +17,7 @@ bin/*
 
 ; FOR WINDOWS
 Thumbs.db
+*.cmd
 *.obj
 *.exe
 *.pdb

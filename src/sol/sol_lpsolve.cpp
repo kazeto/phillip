@@ -64,7 +64,7 @@ void lp_solve_t::execute(
 }
 
 
-bool lp_solve_t::can_execute(std::list<std::string> *messages) const
+bool lp_solve_t::is_available(std::list<std::string> *messages) const
 {
 #ifdef USE_LP_SOLVE
     return true;

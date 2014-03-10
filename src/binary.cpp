@@ -300,9 +300,9 @@ bool preprocess( execution_configure_t *config )
     float max_dist = -1;
     _sscanf(sys()->param("kb_max_distance").c_str(), "%f", &max_dist);
 
-    kb::knowledge_base_t::max_distance(max_dist);
-    config->kb = new kb::knowledge_base_t(config->kb_name);
-    
+    config->kb = new kb::knowledge_base_t(
+        config->kb_name, max_dist, kb::RM_CREATE_ALL);
+
     switch (config->mode)
     {
     case EXE_MODE_INFERENCE:

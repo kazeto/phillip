@@ -181,10 +181,12 @@ public:
      *  e.g. (x = y) & p(x) --apply--> p(y) */
     inline void apply(literal_t *p_out_lit) const;
 
+    /** Add pair of term which are unified. */
     inline void add(const term_t &x, const term_t &y);
     inline void add(const term_t &x, const std::string &var);
 
-    inline bool has_applied( const term_t &x ) const;
+    /** Returns whether x corresponds with substituted variable by this. */
+    inline bool has_applied(const term_t &x) const;
     std::string to_string() const;
 
 private:
@@ -361,6 +363,10 @@ public:
     bool check_availability_of_chain(
         pg::edge_idx_t idx, hash_set<node_idx_t> *out) const;
 
+    /** Returns whether given nodes can coexist in some hypothesis. */
+    bool check_possibility_of_coexistance_of_nodes(
+        node_idx_t n1, node_idx_t n2) const;
+
     std::string edge_to_string(edge_idx_t i) const;
         
     inline bool is_hypernode_for_unification(hypernode_idx_t hn) const;
@@ -436,7 +442,12 @@ protected:
     term_t substitute_term_for_chain(
         const term_t &target, hash_map<term_t, term_t> *subs) const;
 
+    /** Sub-routine of generate_mutual_exclusion().
+    *  Adds mutual-exclusions for target and nodes being inconsistent with it. */
     void _generate_mutual_exclusion_for_inconsistency(node_idx_t target);
+
+    /** Sub-routine of generate_mutual_exclusion().
+    *  Adds mutual-exclusions between target and its counter nodes. */
     void _generate_mutual_exclusion_for_counter_nodes(node_idx_t target);
 
     /** Sub-routine of generate_unification_assumptions().

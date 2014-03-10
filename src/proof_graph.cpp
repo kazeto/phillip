@@ -231,6 +231,14 @@ bool proof_graph_t::check_availability_of_chain(
 }
 
 
+bool proof_graph_t::check_possibility_of_coexistance_of_nodes(
+    node_idx_t n1, node_idx_t n2) const
+{
+    // TODO
+    return false;
+}
+
+
 std::string proof_graph_t::edge_to_string( edge_idx_t i ) const
 {
     std::ostringstream str_edge;
@@ -1108,18 +1116,18 @@ bool proof_graph_t::check_unifiability(
 {
     out->clear();
 
-    if( not do_ignore_truthment and p1.truth != p2.truth ) return false;
-    if( p1.predicate    != p2.predicate    ) return false;
-    if( p1.terms.size() != p2.terms.size() ) return false;
+    if (not do_ignore_truthment and p1.truth != p2.truth) return false;
+    if (p1.predicate != p2.predicate) return false;
+    if (p1.terms.size() != p2.terms.size()) return false;
 
-    for( int i=0; i<p1.terms.size(); i++ )
-    {        
-        if( p1.terms[i] != p2.terms[i] )
+    for (int i = 0; i < p1.terms.size(); i++)
+    {
+        if (p1.terms[i] != p2.terms[i])
         {
-            if( p1.terms[i].is_constant() and p2.terms[i].is_constant() )
+            if (p1.terms[i].is_constant() and p2.terms[i].is_constant())
                 return false;
             else
-                out->add( p1.terms[i], p2.terms[i] );
+                out->add(p1.terms[i], p2.terms[i]);
         }
     }
     return true;

@@ -24,7 +24,7 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
 }
 
 
-bool gurobi_t::can_execute(std::list<std::string> *err) const
+bool gurobi_t::is_available(std::list<std::string> *err) const
 {
 #ifdef USE_GUROBI
     return true;

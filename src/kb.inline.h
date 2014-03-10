@@ -8,6 +8,18 @@ namespace kb
 {
 
 
+inline reachable_matrix_creation_mode_e knowledge_base_t::get_creation_mode() const
+{
+    return m_rm_creation_mode;
+}
+
+
+inline float knowledge_base_t::get_max_distance() const
+{
+    return m_max_distance;
+}
+
+
 inline size_t knowledge_base_t::get_axiom_num() const
 {
     return m_num_compiled_axioms + m_num_temporary_axioms;

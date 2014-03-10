@@ -39,9 +39,6 @@
     <ClCompile Include="..\src\kb.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\lhs\lhs_abduction.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\logical_function.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -70,6 +67,12 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\sol\sol_plain.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ilp\ilp_weight.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\lhs\lhs_basic.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>

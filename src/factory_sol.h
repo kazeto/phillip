@@ -18,7 +18,7 @@ class plain_factory_t : public solver_interface_t
 public:
     plain_factory_t() {}
     virtual std::vector<lp::solution_t>* execute() const;
-    virtual bool can_execute( std::list<std::string> *error_messages ) const;
+    virtual bool is_available( std::list<std::string> *error_messages ) const;
     virtual std::string repr() const;
 };
 
@@ -29,7 +29,7 @@ class gnu_linear_programming_kit_t : public solver_interface_t
 public:
     gnu_linear_programming_kit_t();
     virtual std::vector<lp::solution_t>* execute() const;
-    virtual bool can_execute( std::list<std::string> *error_messages ) const;
+    virtual bool is_available( std::list<std::string> *error_messages ) const;
     virtual std::string repr() const;
 
 private:

@@ -40,13 +40,21 @@ public:
 };
 
 
+enum reachable_matrix_creation_mode_e
+{
+    /** Create all of reachable matrix on compiling. */
+    RM_CREATE_ALL,
+    /** Create a part of reachable matrix on compiling,
+     *  and create local reachable matrix for observation on inference. */
+    RM_CREATE_LOCAL
+};
+
+
 class knowledge_base_t
 {
 public:
-    static inline void max_distance(float dist) { ms_max_distance = dist; }
-    static inline float max_distance() { return ms_max_distance; }
-
-    knowledge_base_t(const std::string &filename);
+    knowledge_base_t(
+        const std::string &filename, float max_distance, reachable_matrix_creation_mode_e mode);
     ~knowledge_base_t();
 
     /** Initialize knowledge base and
@@ -74,6 +82,13 @@ public:
     void insert_inconsistency_temporary(
         const lf::logical_function_t &lf, std::string name);
 
+    /** Creates reachable-matrix for given arities.
+     *  For calling this method, the mode must be RM_CREATE_PARTIAL
+     *  and preparation of query must be completed. */
+    void create_partial_reachable_matrix(const hash_set<std::string> &arities);
+
+    inline reachable_matrix_creation_mode_e get_creation_mode() const;
+    inline float get_max_distance() const;
     inline size_t get_axiom_num() const;
     inline size_t get_compiled_axiom_num() const;
     inline size_t get_temporal_axiom_num() const;
@@ -127,6 +142,9 @@ private:
 
     enum kb_state_e { STATE_NULL, STATE_COMPILE, STATE_QUERY };
 
+    void write_config(const char *filename) const;
+    void read_config(const char *filename);
+
     void _insert_cdb(
         const std::string &name, const lf::logical_function_t &lf);
     void _insert_cdb(
@@ -153,8 +171,6 @@ private:
 
     inline std::string _get_name_of_unnamed_axiom();
 
-    static float ms_max_distance;
-
     kb_state_e m_state;
     std::string m_filename;
 
@@ -167,19 +183,24 @@ private:
     size_t m_num_temporary_axioms;
     size_t m_num_unnamed_axioms;
 
+    reachable_matrix_creation_mode_e m_rm_creation_mode;
+    hash_map<size_t, hash_map<size_t, float> > m_partial_reachable_matrix;
+
     /** Axioms which were added temporally. */
     hash_map<axiom_id_t, lf::axiom_t> m_temporary_axioms;
     hash_map<std::string, hash_set<axiom_id_t> >
         m_lhs_to_tmp_axioms, m_rhs_to_tmp_axioms, m_inc_to_tmp_axioms;
 
     /** All arities in this knowledge-base.
-     *  This variable is used in constructing reachable-matrix. */
+     *  This variable is used on constructing reachable-matrix. */
     hash_set<std::string> m_arity_set;
 
     hash_map<std::string, hash_set<axiom_id_t> >
         m_name_to_axioms, m_lhs_to_axioms, m_rhs_to_axioms, m_inc_to_axioms, m_group_to_axioms;
 
+    /** Function object to provide distance between predicates. */
     distance_provider_t *m_rm_dist;
+    float m_max_distance; /**< Max distance in reachable matrix. */
 };
 
 

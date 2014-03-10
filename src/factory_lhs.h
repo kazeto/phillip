@@ -17,7 +17,7 @@ class depth_based_factory_t : public latent_hypotheses_set_factory_interface
 public:
     depth_based_factory_t();
     virtual pg::proof_graph_t* execute() const;
-    virtual bool can_execute(std::list<std::string> *error_messages) const;
+    virtual bool is_available(std::list<std::string> *error_messages) const;
     virtual std::string repr() const;
     
 private:

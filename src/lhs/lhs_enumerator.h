@@ -18,7 +18,7 @@ class basic_lhs_enumerator_t : public lhs_enumerator_t
 public:
     basic_lhs_enumerator_t(bool do_deduction = true, bool do_abduction = true);
     virtual pg::proof_graph_t* execute() const;
-    virtual bool can_execute(std::list<std::string>*) const;
+    virtual bool is_available(std::list<std::string>*) const;
     virtual std::string repr() const;
     
 private:
