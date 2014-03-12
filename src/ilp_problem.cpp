@@ -201,16 +201,12 @@ constraint_idx_t
 
 
 constraint_idx_t ilp_problem_t::add_constraint_of_mutual_exclusion(
-    const pg::mutual_exclusion_t &muex, bool do_add_requisite_variable )
+    pg::node_idx_t n1, pg::node_idx_t n2, const pg::unifier_t &uni,
+    bool do_add_requisite_variable)
 {
-    pg::node_idx_t n1 = muex.indices.first;
-    pg::node_idx_t n2 = muex.indices.second;
-    const pg::unifier_t &uni = muex.unifier;
-
     static std::hash< std::string > hasher;
     size_t id = hasher((n1 < n2) ?
-        format("%d:%d", n1, n2) :
-        format("%d:%d", n2, n1));
+        format("%d:%d", n1, n2) : format("%d:%d", n2, n1));
 
     /* IGNORE TUPLES WHICH HAVE BEEN CONSIDERED ALREADY. */
     if(m_hashes_of_node_tuple_for_mutual_exclusion.count(id) > 0)
@@ -230,20 +226,20 @@ constraint_idx_t ilp_problem_t::add_constraint_of_mutual_exclusion(
     /* N1 AND N2 CANNOT BE TRUE AT SAME TIME. */
     constraint_t con(
         format("inconsistency:n(%d,%d)", n1, n2), OPR_LESS_EQ, 1.0);
-    con.add_term( var1, 1.0 );
-    con.add_term( var2, 1.0 );
+    con.add_term(var1, 1.0);
+    con.add_term(var2, 1.0);
 
     bool f_fails = false;
-    
-    for( auto sub = uni.substitutions().begin();
-         sub != uni.substitutions().end(); ++sub )
+    const std::vector<literal_t> &subs = uni.substitutions();
+
+    for (auto sub = subs.begin(); sub != subs.end(); ++sub)
     {
         const term_t &term1 = sub->terms[0];
         const term_t &term2 = sub->terms[1];
-        if( term1.is_constant() and term2.is_constant() and term1 != term2)
+        if (term1.is_constant() and term2.is_constant() and term1 != term2)
             return -1;
-      
-        pg::node_idx_t sub_node = m_graph->find_sub_node( term1, term2 );
+
+        pg::node_idx_t sub_node = m_graph->find_sub_node(term1, term2);
         if (sub_node < 0) return -1;
 
         variable_idx_t sub_var = find_variable_with_node(sub_node);
@@ -251,8 +247,8 @@ constraint_idx_t ilp_problem_t::add_constraint_of_mutual_exclusion(
             sub_var = add_variable_of_node(sub_node);
         if (sub_var < 0) return -1;
 
-        con.add_term( sub_var, 1.0 );
-        con.set_bound( con.bound() + 1.0 );
+        con.add_term(sub_var, 1.0);
+        con.set_bound(con.bound() + 1.0);
     }
 
     m_hashes_of_node_tuple_for_mutual_exclusion.insert(id);
@@ -264,9 +260,14 @@ constraint_idx_t ilp_problem_t::add_constraint_of_mutual_exclusion(
 void ilp_problem_t::add_constraints_of_mutual_exclusions(
     bool do_add_requisite_variable )
 {
-    auto muexs = m_graph->mutual_exclusions();
-    for( auto it = muexs.begin(); it != muexs.end(); ++it )
-        add_constraint_of_mutual_exclusion(*it, do_add_requisite_variable);
+    auto muexs = m_graph->enumerate_mutual_exclusive_nodes();
+
+    for (auto it = muexs.begin(); it != muexs.end(); ++it)
+    {
+        add_constraint_of_mutual_exclusion(
+            std::get<0>(*it), std::get<1>(*it), std::get<2>(*it),
+            do_add_requisite_variable);
+    }
 }
 
 
@@ -366,7 +367,7 @@ void ilp_problem_t::add_constraints_of_transitive_unifications(
 
 
 void ilp_problem_t::
-add_constraints_of_substitutions_in_chain(pg::edge_idx_t idx)
+add_constrains_of_conditions_for_chain(pg::edge_idx_t idx)
 {
     const pg::edge_t &edge = m_graph->edge(idx);
     variable_idx_t head = find_variable_with_hypernode(edge.head());
@@ -401,47 +402,19 @@ add_constraints_of_substitutions_in_chain(pg::edge_idx_t idx)
 }
 
 
-void ilp_problem_t::add_constraints_of_exclusiveness_of_chains_from_node()
+void ilp_problem_t::add_constrains_of_exclusive_chains()
 {
-    IF_VERBOSE_4("Adding constraints of exclusiveness of chains from node...");
+    IF_VERBOSE_4("Adding constraints of exclusiveness of chains...");
 
-    std::set< list_for_map<pg::edge_idx_t> > exc_set;
-    for (pg::node_idx_t i = 0; i < m_graph->nodes().size(); ++i)
-    {
-        std::list< std::list<pg::edge_idx_t> > _exc;
-        m_graph->enumerate_chains_of_grouped_axioms_from_node(i, &_exc);
-        if (not _exc.empty())
-            exc_set.insert(_exc.begin(), _exc.end());
-    }
+    auto excs = m_graph->enumerate_mutual_exclusive_edges();
+    int num = add_constrains_of_exclusive_chains(excs);
 
-    std::list< std::list<pg::edge_idx_t> > exc(exc_set.begin(), exc_set.end());
-    int num_of_added_constraints
-        = add_constraints_of_exclusiveness_of_chains(exc);
-
-    IF_VERBOSE_4(format(
-        "    # of added constraints = %d", num_of_added_constraints));
+    IF_VERBOSE_4(format("    # of added constraints = %d", num));
 }
 
 
-void ilp_problem_t::add_constraints_of_exclusiveness_of_chains_from_hypernode()
-{
-    IF_VERBOSE_4("Adding constraints of exclusiveness of chains from hypernode...");
-
-    std::list< std::list<pg::edge_idx_t> > exc;
-
-    for (pg::hypernode_idx_t i = 0; i < m_graph->hypernodes().size(); ++i)
-        m_graph->enumerate_chains_of_grouped_axioms_from_hypernode(i, &exc);
-
-    int num_of_added_constraints
-        = add_constraints_of_exclusiveness_of_chains(exc);
-
-    IF_VERBOSE_4(format(
-        "    # of added constraints = %d", num_of_added_constraints));
-}
-
-
-size_t ilp_problem_t::add_constraints_of_exclusiveness_of_chains(
-    const std::list< std::list<pg::edge_idx_t> > &exc)
+size_t ilp_problem_t::add_constrains_of_exclusive_chains(
+    const std::list< hash_set<pg::edge_idx_t> > &exc)
 {
     size_t num_of_added_constraints(0);
 

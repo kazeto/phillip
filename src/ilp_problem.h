@@ -154,16 +154,15 @@ public:
      *  On calling this method, it is required that
      *  variables of related hypernodes have been created.
      *  @return The index of added constraint. */
-    constraint_idx_t
-        add_constraint_of_dependence_of_hypernode_on_parents
-        ( pg::hypernode_idx_t, bool do_add_requisite_variable = false );
+    constraint_idx_t add_constraint_of_dependence_of_hypernode_on_parents(
+        pg::hypernode_idx_t, bool do_add_requisite_variable = false);
 
     /** Add constraint for mutual-exclusion between terms.
      *  On calling this method, it is required that
      *  variables of related unification-nodes have been created.
      *  @return The index of added constraint. */
     constraint_idx_t add_constraint_of_mutual_exclusion(
-        const pg::mutual_exclusion_t &muex,
+        pg::node_idx_t n1, pg::node_idx_t n2, const pg::unifier_t &uni,
         bool do_add_requisite_variable = false );
     void add_constraints_of_mutual_exclusions(
         bool do_add_requisite_variable = false );
@@ -178,9 +177,8 @@ public:
     void add_constraints_of_transitive_unifications(
         bool do_add_requisite_variable = false);
 
-    void add_constraints_of_substitutions_in_chain(pg::edge_idx_t idx);
-    void add_constraints_of_exclusiveness_of_chains_from_node();
-    void add_constraints_of_exclusiveness_of_chains_from_hypernode();
+    void add_constrains_of_conditions_for_chain(pg::edge_idx_t idx);
+    void add_constrains_of_exclusive_chains();
 
     inline void add_constancy_of_variable(variable_idx_t idx, double value);
     inline const hash_map<variable_idx_t, double>& const_variable_values() const;
@@ -230,8 +228,8 @@ protected:
 
     /** A sub-routine of add_constraints_of_exclusiveness_of_chains_from_*.
      *  @return Number of added constraints. */
-    size_t add_constraints_of_exclusiveness_of_chains(
-        const std::list< std::list<pg::edge_idx_t> > &exc);
+    size_t add_constrains_of_exclusive_chains(
+        const std::list< hash_set<pg::edge_idx_t> > &exc);
 
     const pg::proof_graph_t* const m_graph;
     

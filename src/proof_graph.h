@@ -201,17 +201,6 @@ private:
 };
 
 
-/** A struct to express mutual exclusion among nodes. */
-struct mutual_exclusion_t
-{
-    /** Pair of indices of the nodes. */
-    std::pair<node_idx_t, node_idx_t> indices;
-    /** A hypothesis is inconsistent if this unifier is satisfied.
-    *  Namely, m_substitutions in this unifier must not be satisfied. */
-    unifier_t  unifier;
-};
-
-
 /** A class to express proof-graph of latent-hypotheses-set. */
 class proof_graph_t
 {        
@@ -255,7 +244,10 @@ public:
     inline const std::vector< std::vector<node_idx_t> >& hypernodes() const;
     inline const std::vector<node_idx_t>& hypernode(hypernode_idx_t i) const;
 
-    inline const std::list<mutual_exclusion_t>& mutual_exclusions() const;
+    std::list<std::tuple<node_idx_t, node_idx_t, unifier_t> >
+        enumerate_mutual_exclusive_nodes() const;
+
+    std::list<hash_set<edge_idx_t> > enumerate_mutual_exclusive_edges() const;
 
     /** Return pointer of set of nodes whose literal has given term.
      *  If any node was found, return NULL. */
@@ -305,17 +297,12 @@ public:
         hypernode_idx_t idx, std::list<hypernode_idx_t> *out) const;
 
     /** Enumerate lists of node indices which given axiom is applicable to.
-     *  You can use this method to enumerate hypernodes for chaining.
-     *  Nodes whose depth exceed max_depth are excluded from enumeration. */
+     *  Following nodes are excluded from output:
+     *    - Are not feasible due to exclusiveness of chains.
+     *    - Maximum of their depth exceeds max_depth from output. */
     std::list< std::vector<node_idx_t> > enumerate_targets_of_chain(
         const lf::axiom_t &ax, bool is_backward, int max_depth = -1) const;
     
-    /** Enumerate arrays of node indices which corresponds arities.
-     *  You can use this method to enumerate hypernodes for chaining.
-     *  Nodes whose depth exceed depth_limit are exclude from target. */
-    std::list< std::vector<node_idx_t> > enumerate_nodes_list_with_arities(
-        const std::vector<std::string> &arities, int depth_limit) const;
-
     /** Return pointer of set of indices of hypernode
      *  which has the given node as its element.
      *  If any set was found, return NULL. */
@@ -345,35 +332,28 @@ public:
     inline const hash_set<term_t>* find_variable_cluster(term_t t) const;
     std::list< const hash_set<term_t>* > enumerate_variable_clusters() const;
 
-    /** Get list of edges in paths from given node to its evidences. */
-    std::list<edge_idx_t> enumerate_edges_to_observation(node_idx_t from) const;
-    void enumerate_edges_to_observation(
-        node_idx_t from, std::list<edge_idx_t> *out) const;
+    /** Get list of chains which are needed to hypothesize given node. */
+    hash_set<edge_idx_t> enumerate_dependent_edges(node_idx_t) const;
 
-    /** Get list of chains which has same group's axioms in this proof-graph.
-     *  Each list of indices is sorted in ascending-order.
-     *  This method is used in adding mutual-exclusions of inconsistency. */
-    void enumerate_chains_of_grouped_axioms_from_node(
-        node_idx_t from, std::list< std::list<edge_idx_t> > *out) const;
-    void enumerate_chains_of_grouped_axioms_from_hypernode(
-        hypernode_idx_t from, std::list< std::list<edge_idx_t> > *out) const;
+    /** Get list of chains which are needed to hypothesize given node. */
+    void enumerate_dependent_edges(node_idx_t, hash_set<edge_idx_t>*) const;
 
-    /** Enumerate sub-nodes which are needed to perform the chaining
-     *  and return whether the chaining is possible. */
+    /** Enumerates unification nodes
+     *  which are needed to satisfy conditions for given chaining.
+     *  @return Whether the chaining is possible. */
     bool check_availability_of_chain(
         pg::edge_idx_t idx, hash_set<node_idx_t> *out) const;
 
     /** Returns whether given nodes can coexist in some hypothesis. */
-    bool check_possibility_of_coexistance_of_nodes(
-        node_idx_t n1, node_idx_t n2) const;
+    bool can_let_nodes_coexist(node_idx_t n1, node_idx_t n2) const;
 
     std::string edge_to_string(edge_idx_t i) const;
         
     inline bool is_hypernode_for_unification(hypernode_idx_t hn) const;
 
+    /** Returns whether given axioms has already applied to given hypernode. */
     bool axiom_has_applied(
         hypernode_idx_t hn, const lf::axiom_t &ax, bool is_backward) const;
-
 
     virtual void print(std::ostream *os) const;
 
@@ -410,68 +390,99 @@ protected:
      *  @param[out] out   The unifier of p1 and p2.
      *  @return Possibility to unify literals p1 & p2. */
     static bool check_unifiability(
-        const literal_t &p1, const literal_t &p2, bool do_ignore_truthment,
-        unifier_t *out);
+        const literal_t &p1, const literal_t &p2,
+        bool do_ignore_truthment, unifier_t *out);
 
     /** Return hash of node indices' list. */
     static size_t get_hash_of_nodes(std::list<node_idx_t> nodes);
 
-    /** Add a new node and update maps.
+    /** Adds a new node and updates maps.
      *  @return The index of added new node. */
     node_idx_t add_node(const literal_t &lit, node_type_e type, int depth);
 
-    /** Add a new edge.
+    /** Adds a new edge.
      *  @return The index of added new edge. */
     inline edge_idx_t add_edge( const edge_t &edge );
 
-    /** Perform backward-chaining or forward-chaining.
+    /** Performs backward-chaining or forward-chaining.
      *  Correspondence of each term is considered on chaining. */
     hypernode_idx_t chain(
         hypernode_idx_t from, const lf::axiom_t &axiom, bool is_backward);
 
-    /* Sub-routines of chain. */
-    void get_substitutions_for_chain(
+    /** This method is a sub-routine of enumerate_targets_of_chain.
+     *  Enumerates arrays of node indices which corresponds arities.
+     *  @param depth_limit Excludes nodes whose depth exceed this from target. */
+    std::list< std::vector<node_idx_t> > _enumerate_nodes_list_with_arities(
+        const std::vector<std::string> &arities, int depth_limit) const;
+
+    /** This is a sub-routine of enumerate_targets_of_chain.
+     *  Excludes nodes which includes any exclusive node pair. */
+    void _omit_invalid_targets_for_chain(
+        std::list<std::vector<node_idx_t> > *out) const;
+
+    /* This is a sub-routine of chain. */
+    void _get_substitutions_for_chain(
         const std::vector<node_idx_t> &nodes,
         const std::vector<const literal_t*> &li_from,
         hash_map<term_t, term_t> *subs,
         hash_map<term_t, hash_set<term_t> > *conds) const;
-    void get_substitutions_for_chain_sub(
+
+    /* This is a sub-routine of _get_substitutions_for_chain. */
+    void _get_substitutions_for_chain_sub(
         term_t t_from, term_t t_to,
         hash_map<term_t, term_t> *subs,
         hash_map<term_t, hash_set<term_t> > *conds) const;
-    term_t substitute_term_for_chain(
+
+    /* This is a sub-routine of _get_substitutions_for_chain. */
+    term_t _substitute_term_for_chain(
         const term_t &target, hash_map<term_t, term_t> *subs) const;
 
-    /** Sub-routine of generate_mutual_exclusion().
-    *  Adds mutual-exclusions for target and nodes being inconsistent with it. */
-    void _generate_mutual_exclusion_for_inconsistency(node_idx_t target);
+    /** This is a sub-routine of generate_mutual_exclusion.
+     *  Adds mutual-exclusions for target and nodes being inconsistent with it. */
+    void _generate_mutual_exclusion_for_inconsistent_nodes(node_idx_t target);
 
-    /** Sub-routine of generate_mutual_exclusion().
-    *  Adds mutual-exclusions between target and its counter nodes. */
+    /** This is a sub-routine of generate_mutual_exclusion.
+     *  Adds mutual-exclusions between target and its counter nodes. */
     void _generate_mutual_exclusion_for_counter_nodes(node_idx_t target);
 
-    /** Sub-routine of generate_unification_assumptions().
+    /** This is a sub-routine of chain.
+     *  @param is_node_base Gives the mode of enumerating candidate edges.
+     *                      If true, enumeration is performed on node-base.
+     *                      Otherwise, it is on hypernode-base. */
+    void _generate_mutual_exclusion_for_edges(
+        edge_idx_t target, bool is_node_base);
+
+    void _enumerate_exclusive_chains_from_node(
+        node_idx_t from, std::list< std::list<edge_idx_t> > *out) const;
+    void _enumerate_exclusive_chains_from_hypernode(
+        hypernode_idx_t from, std::list< std::list<edge_idx_t> > *out) const;
+
+    inline void _add_mutual_exclusion(
+        node_idx_t n1, node_idx_t n2, const unifier_t &uni);
+
+    /** This is a sub-routine of generate_unification_assumptions.
      *  Return indices of node which is unifiable with target.
      *  Node pairs which has been considered once are ignored. */
-    std::list<node_idx_t> enumerate_unifiable_nodes(node_idx_t target);
+    std::list<node_idx_t> _enumerate_unifiable_nodes(node_idx_t target);
 
     /** This is sub-routine of generate_unification_assumptions.
      *  Add a node and an edge for unification between node[i] & node[j].
      *  And, update m_vc_unifiable and m_maps.nodes_sub. */
     void _chain_for_unification(node_idx_t i, node_idx_t j);
 
-    /** Sub-routine of chain_for_unification().
+    /** Sub-routine of chain_for_unification.
      *  Add nodes for transitive unification around the given term. */
     void _add_nodes_of_transitive_unification(term_t t);
 
-    /** Apply inconsistency between i-th node and j-th node. */
-    void apply_inconsistency_sub(
+    /** Sub-routine of _generate_mutual_exclusions_for_inconsistency.
+     *  Applies inconsistency between i-th node and j-th node. */
+    void _apply_inconsistency_sub(
         node_idx_t i, node_idx_t j, const lf::axiom_t &axiom);
 
     inline bool _is_considered_unification(node_idx_t i, node_idx_t j) const;
     inline bool _is_considered_exclusion(node_idx_t i, node_idx_t j) const;
 
-    /** Return highest depth in nodes included in the given hypernode. */
+    /** Return highest depth in nodes which given hypernode includes. */
     int get_depth_of_deepest_node(hypernode_idx_t idx) const;
 
     /** If you want to make conditions for unification,
@@ -498,7 +509,12 @@ protected:
     /** List of index of node which is label. */
     std::vector<node_idx_t> m_label_nodes;
     
-    std::list<mutual_exclusion_t> m_mutual_exclusions;
+    /** Mutual exclusiveness betwen two nodes.
+     *  If unifier of third value is satisfied,
+     *  first node and second node are cannot be unified. */
+    hash_map<node_idx_t, hash_map<node_idx_t, unifier_t> > m_mutual_exclusive_nodes;
+
+    hash_map<edge_idx_t, hash_set<edge_idx_t> > m_mutual_exclusive_edges;
     
     unifiable_variable_clusters_set_t m_vc_unifiable;
 

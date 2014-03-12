@@ -259,10 +259,6 @@ proof_graph_t::search_nodes_with_depth(int depth) const
 }
 
 
-inline const std::list<mutual_exclusion_t>& proof_graph_t::mutual_exclusions() const
-{ return m_mutual_exclusions; }
-
-
 inline const hash_set<edge_idx_t>*
     proof_graph_t::search_edges_with_hypernode( hypernode_idx_t idx ) const
 {
@@ -303,6 +299,14 @@ inline edge_idx_t proof_graph_t::add_edge( const edge_t &edge )
     m_maps.hypernode_to_edge[edge.tail()].insert(m_edges.size());
     m_edges.push_back(edge);
     return m_edges.size() - 1;
+}
+
+
+inline void proof_graph_t::_add_mutual_exclusion(
+    node_idx_t n1, node_idx_t n2, const unifier_t &uni)
+{
+    if (n1 >= n2) std::swap(n1, n2);
+    m_mutual_exclusive_nodes[n1][n2] = uni;
 }
 
 

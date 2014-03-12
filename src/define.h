@@ -187,20 +187,21 @@ private:
 
 
 /** A template class of list to be used as a key of std::map. */
-template <class T> class list_for_map : public std::list<T>
+template <class T> class comparable_list : public std::list<T>
 {
 public:
-    list_for_map() : std::list<T>() {}
-    list_for_map(const list_for_map<T> &x) : std::list<T>(x) {}
-    list_for_map(const std::list<T> &x) : std::list<T>(x) {}
+    comparable_list() : std::list<T>() {}
+    comparable_list(const comparable_list<T> &x) : std::list<T>(x) {}
+    comparable_list(const std::list<T> &x) : std::list<T>(x) {}
 
-    bool operator>(const list_for_map<T> &x) const
+    bool operator>(const comparable_list<T> &x) const
     {
         if (this->size() != x.size()) return this->size() > x.size();
         auto it1(this->begin()), it2(x.begin());
         for (; it1 != this->end(); ++it1, ++it2)
-        if ((*it1) != (*it2))
-            return (*it1) > (*it2);
+        {
+            if ((*it1) != (*it2)) return (*it1) > (*it2);
+        }
         return false;
     }
 };
@@ -257,14 +258,22 @@ inline size_t binary_to_num(const char *bin, int *out);
 inline size_t binary_to_bool(const char *bin, bool *out);
 template <class T> inline size_t binary_to(const char *bin, T *out);
 
-template <class T> std::string join(
-    const T &s_begin, const T &s_end, const std::string &delim);
-template <class T> std::string join(
-    const T &s_begin, const T &s_end,
+/** Returns joined string.
+ *  If USE_STREAM is true, uses ostringstream to join. */
+template <class It, bool USE_STREAM = false> std::string join(
+    const It &s_begin, const It &s_end, const std::string &delim);
+template <class It> std::string join(
+    const It &s_begin, const It &s_end,
     const std::string &fmt, const std::string &delim);
+
+/** Returns whether given map's keys includes given key. */
 template <class T, class K> inline bool has_key(const T& map, const K& key);
+
+/** Returns whether set1 and set2 have any intersection. */
 template <class T> bool has_intersection(
     const T &s1_begin, const T &s1_end, const T &s2_begin, const T &s2_end);
+
+/** Returns intersection of set1 and set2. */
 template <class T> hash_set<T> intersection(
     const hash_set<T> &set1, const hash_set<T> &set2);
 

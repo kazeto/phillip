@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <sstream>
 #include <cassert>
 
 
@@ -324,28 +325,39 @@ template <class T> inline size_t binary_to( const char *bin, T *out )
 }
 
 
-template <class T> std::string join(
-    const T &s_begin, const T &s_end, const std::string &delimiter )
+template <class It, bool USE_STREAM> std::string join(
+    const It &s_begin, const It &s_end, const std::string &delimiter)
 {
-    std::string out;
-    for( T i=s_begin; s_end!=i; ++i )
-        out += (i==s_begin ? "" : delimiter) + (*i);
-    return out;
+    if (USE_STREAM)
+    {
+        std::ostringstream ss;
+        for (It it = s_begin; it != s_end; ++it)
+            ss << (it == s_begin ? "" : delimiter) << (*it);
+        return ss.str();
+    }
+    else
+    {
+        std::string out;
+        for (It it = s_begin; it != s_end; ++it)
+            out += (it == s_begin ? "" : delimiter) + (*it);
+        return out;
+    }
 }
 
 
-template <class T> std::string join(
-    const T &s_begin, const T &s_end,
+template <class It> std::string join(
+    const It &s_begin, const It &s_end,
     const std::string &fmt, const std::string &delimiter )
 {
     std::string out;
-    for( T it=s_begin; s_end!=it; ++it )
+    for (It it = s_begin; s_end != it; ++it)
     {
-        std::string buf = format( fmt.c_str(), *it );
+        std::string buf = format(fmt.c_str(), *it);
         out += (it != s_begin ? delimiter : "") + buf;
     }
     return out;
 }
+
 
 
 template <class T, class K> inline bool has_key( const T& map, const K& key )
@@ -356,9 +368,9 @@ template <class T> bool has_intersection(
     const T &s1_begin, const T &s1_end,
     const T &s2_begin, const T &s2_end )
 {
-    for( T i1=s1_begin; s1_end!=i1; ++i1 )
-        for( T i2=s2_begin; s2_end!=i2; ++i2 )
-            if( *i1 == *i2 ) return true;
+    for (T i1 = s1_begin; i1 != s1_end; ++i1)
+        for (T i2=s2_begin; i2 != s2_end; ++i2 )
+            if (*i1 == *i2) return true;
     return false;
 }
 

@@ -94,30 +94,30 @@ std::list< const hash_set<term_t>* >
 }
 
 
-std::list<edge_idx_t> proof_graph_t::enumerate_edges_to_observation(node_idx_t idx) const
+hash_set<edge_idx_t> proof_graph_t::enumerate_dependent_edges(node_idx_t idx) const
 {
-    std::list<edge_idx_t> out;
-    enumerate_edges_to_observation(idx, &out);
+    hash_set<edge_idx_t> out;
+    enumerate_dependent_edges(idx, &out);
     return out;
 }
 
 
-void proof_graph_t::enumerate_edges_to_observation(
-    node_idx_t idx, std::list<edge_idx_t> *out) const
+void proof_graph_t::enumerate_dependent_edges(
+    node_idx_t idx, hash_set<edge_idx_t> *out) const
 {
     hypernode_idx_t m = node(idx).get_master_hypernode();
     if (m < 0) return;
 
     edge_idx_t e = find_parental_edge(m);
-    out->push_back(e);
+    out->insert(e);
 
     auto _nodes = hypernode(edge(e).tail());
     for (auto it = _nodes.begin(); it != _nodes.end(); ++it)
-        enumerate_edges_to_observation(*it, out);
+        enumerate_dependent_edges(*it, out);
 }
 
 
-void proof_graph_t::enumerate_chains_of_grouped_axioms_from_node(
+void proof_graph_t::_enumerate_exclusive_chains_from_node(
     node_idx_t from, std::list< std::list<edge_idx_t> > *out) const
 {
     const kb::knowledge_base_t *kb = sys()->knowledge_base();
@@ -125,7 +125,7 @@ void proof_graph_t::enumerate_chains_of_grouped_axioms_from_node(
     if (hns == NULL) return;
 
     // ENUMERATE EDGES CONNECTED WITH GIVEN NODE
-    std::list<edge_idx_t> edges;
+    std::list<edge_idx_t> targets;
     for (auto it = hns->begin(); it != hns->end(); ++it)
     {
         const hash_set<edge_idx_t> *_edges = search_edges_with_hypernode(*it);
@@ -135,22 +135,22 @@ void proof_graph_t::enumerate_chains_of_grouped_axioms_from_node(
         {
             const edge_t &e = edge(*it_e);
             if (e.tail() == (*it) and e.axiom_id() >= 0)
-                edges.push_back(*it_e);
+                targets.push_back(*it_e);
         }
     }
 
-    if (not edges.empty())
+    if (not targets.empty())
     {
         // CREATE MAP OF EXCLUSIVENESS
-        std::set< list_for_map<edge_idx_t> > exclusions;
-        for (auto it1 = edges.begin(); it1 != edges.end(); ++it1)
+        std::set< comparable_list<edge_idx_t> > exclusions;
+        for (auto it1 = targets.begin(); it1 != targets.end(); ++it1)
         {
             const edge_t &e1 = edge(*it1);
             hash_set<axiom_id_t> grp = kb->search_axiom_group(e1.axiom_id());
             if (grp.empty()) continue;
 
-            list_for_map<edge_idx_t> exc;
-            for (auto it2 = edges.begin(); it2 != it1; ++it2)
+            comparable_list<edge_idx_t> exc;
+            for (auto it2 = targets.begin(); it2 != it1; ++it2)
             {
                 const edge_t &e2 = edge(*it2);
                 if (grp.count(e2.axiom_id()) > 0)
@@ -171,14 +171,14 @@ void proof_graph_t::enumerate_chains_of_grouped_axioms_from_node(
 }
 
 
-void proof_graph_t::enumerate_chains_of_grouped_axioms_from_hypernode(
+void proof_graph_t::_enumerate_exclusive_chains_from_hypernode(
     hypernode_idx_t from, std::list< std::list<edge_idx_t> > *out) const
 {
     const kb::knowledge_base_t *kb = sys()->knowledge_base();
     const hash_set<edge_idx_t> *edges = search_edges_with_hypernode(from);
     if (edges == NULL) return;
 
-    std::set< list_for_map<edge_idx_t> > exclusions;
+    std::set< comparable_list<edge_idx_t> > exclusions;
 
     // CREATE MAP OF EXCLUSIVENESS
     for (auto it1 = edges->begin(); it1 != edges->end(); ++it1)
@@ -189,7 +189,7 @@ void proof_graph_t::enumerate_chains_of_grouped_axioms_from_hypernode(
         hash_set<axiom_id_t> grp = kb->search_axiom_group(e1.axiom_id());
         if (grp.empty()) continue;
 
-        list_for_map<edge_idx_t> exc;
+        comparable_list<edge_idx_t> exc;
         for (auto it2 = edges->begin(); it2 != it1; ++it2)
         {
             const edge_t &e2 = edge(*it2);
@@ -231,11 +231,23 @@ bool proof_graph_t::check_availability_of_chain(
 }
 
 
-bool proof_graph_t::check_possibility_of_coexistance_of_nodes(
-    node_idx_t n1, node_idx_t n2) const
+bool proof_graph_t::can_let_nodes_coexist(node_idx_t n1, node_idx_t n2) const
 {
-    // TODO
-    return false;
+    hash_set<edge_idx_t>
+        e1(enumerate_dependent_edges(n1)),
+        e2(enumerate_dependent_edges(n2));
+    if (e1.size() > e2.size()) std::swap(e1, e2);
+
+    for (auto it = e1.begin(); it != e1.end(); ++it)
+    {
+        if (e2.count(*it) > 0) continue;
+
+        auto muexs = m_mutual_exclusive_edges.at(*it);
+        if (has_intersection(muexs.begin(), muexs.end(), e2.begin(), e2.end()))
+            return false;
+    }
+
+    return true;
 }
 
 
@@ -366,12 +378,19 @@ proof_graph_t::enumerate_targets_of_chain(
     for (auto it = lits.begin(); it != lits.end(); ++it)
         arities.push_back((*it)->get_predicate_arity());
 
-    return enumerate_nodes_list_with_arities(arities, max_depth);
+    std::list<std::vector<node_idx_t> > targets =
+        _enumerate_nodes_list_with_arities(arities, max_depth);
+    hash_map<node_idx_t, hash_map<node_idx_t, bool> > log;
+
+    if (not sys()->flag("disable_omitting_invalid_chains"))
+        _omit_invalid_targets_for_chain(&targets);
+
+    return targets;
 }
 
 
 std::list< std::vector<node_idx_t> >
-proof_graph_t::enumerate_nodes_list_with_arities(
+proof_graph_t::_enumerate_nodes_list_with_arities(
     const std::vector<std::string> &arities, int depth_limit) const
 {
     std::vector< std::vector<node_idx_t> > candidates;
@@ -422,6 +441,40 @@ proof_graph_t::enumerate_nodes_list_with_arities(
     }
 
     return out;
+}
+
+
+void proof_graph_t::_omit_invalid_targets_for_chain(
+    std::list<std::vector<node_idx_t> > *out) const
+{
+    hash_map<node_idx_t, hash_map<node_idx_t, bool> > log;
+
+    for (auto it = out->begin(); it != out->end();)
+    {
+        bool is_valid(true);
+
+        for (auto n1 = it->begin(); n1 != it->end() and is_valid; ++n1)
+        for (auto n2 = it->begin(); n2 != n1 and is_valid; ++n2)
+        {
+            auto find1 = log.find(*n1);
+            if (find1 != log.end())
+            {
+                auto find2 = find1->second.find(*n2);
+                if (find2 != find1->second.end())
+                {
+                    is_valid = find2->second;
+                    continue;
+                }
+            }
+
+            bool can_coexist = can_let_nodes_coexist(*n1, *n2);
+            log[*n1][*n2] = log[*n2][*n1] = can_coexist;
+            is_valid = can_coexist;
+        }
+
+        if (is_valid) ++it;
+        else it = out->erase(it);
+    }
 }
 
 
@@ -575,8 +628,15 @@ bool proof_graph_t::axiom_has_applied(
 
 void proof_graph_t::print(std::ostream *os) const
 {
-    (*os) << "<latent-hypotheses-set>";
+    (*os) << "<latent-hypotheses-set>" << std::endl;
 
+    print_nodes(os, "    ");
+    print_axioms(os, "    ");
+    print_edges(os, "    ");
+    print_subs(os, "    ");
+    print_exclusiveness(os, "    ");
+
+    (*os) << "</latent-hypotheses-set>" << std::endl;
 }
 
 
@@ -694,16 +754,21 @@ void proof_graph_t::print_subs(std::ostream *os, const std::string &indent) cons
 }
 
 
-void proof_graph_t::print_exclusiveness(std::ostream *os, const std::string &indent) const
+void proof_graph_t::print_exclusiveness(
+    std::ostream *os, const std::string &indent) const
 {
-    const std::list<mutual_exclusion_t> &muexs = m_mutual_exclusions;
+    const hash_map<node_idx_t, hash_map<node_idx_t, unifier_t> >
+        &muexs = m_mutual_exclusive_nodes;
 
     (*os) << "# mutual-exclusions:" << std::endl;
-    for (auto it = muexs.begin(); it != muexs.end(); ++it)
+    for (auto it1 = muexs.begin(); it1 != muexs.end(); ++it1)
+    for (auto it2 = it1->second.begin(); it2 != it1->second.end(); ++it2)
     {
-        (*os) << "    " << node(it->indices.first).to_string()
-            << " _|_ " << node(it->indices.second).to_string()
-            << " : " << it->unifier.to_string() << std::endl;
+        const node_t &n1 = node(it1->first);
+        const node_t &n2 = node(it2->first);
+
+        (*os) << "    " << n1.to_string() << " _|_ " << n2.to_string()
+            << " : " << it2->second.to_string() << std::endl;
     }
 }
 
@@ -761,7 +826,7 @@ hypernode_idx_t proof_graph_t::chain(
             ax_to( ( is_backward ? lhs : rhs ).get_all_literals() ),
             ax_from( ( is_backward ? rhs : lhs ).get_all_literals() );
 
-        get_substitutions_for_chain(indices_from, ax_from, &subs, &conds);
+        _get_substitutions_for_chain(indices_from, ax_from, &subs, &conds);
         literals_to.assign(ax_to.size(), literal_t());
 
         /* SUBSTITUTE TERMS */
@@ -771,7 +836,7 @@ hypernode_idx_t proof_graph_t::chain(
             for (size_t j = 0; j < literals_to[i].terms.size(); ++j)
             {
                 term_t &term = literals_to[i].terms[j];
-                term = substitute_term_for_chain(term, &subs);
+                term = _substitute_term_for_chain(term, &subs);
             }
         }
     }
@@ -809,16 +874,18 @@ hypernode_idx_t proof_graph_t::chain(
     }
 
     /* ADD AXIOM HISTORY */
-    if (is_backward)
-        m_maps.axiom_to_hypernodes_backward[implication.id].insert(from);
-    else
-        m_maps.axiom_to_hypernodes_forward[implication.id].insert(from);
+    (is_backward ?
+        m_maps.axiom_to_hypernodes_backward : m_maps.axiom_to_hypernodes_forward)
+        [implication.id].insert(from);
+
+    bool flag(sys()->flag("enable_node_based_mutual_exclusive_chain"));
+    _generate_mutual_exclusion_for_edges(edge_idx, flag);
     
     return idx_hn_to;
 }
 
 
-void proof_graph_t::get_substitutions_for_chain(
+void proof_graph_t::_get_substitutions_for_chain(
     const std::vector<node_idx_t> &nodes,
     const std::vector<const literal_t*> &lit,
     hash_map<term_t, term_t> *subs,
@@ -834,7 +901,7 @@ void proof_graph_t::get_substitutions_for_chain(
         for (size_t j=0; j<li_ax.terms.size(); ++j)
         {
             const term_t &t_ax(li_ax.terms.at(j)), &t_hy(li_hy.terms.at(j));
-            get_substitutions_for_chain_sub(t_ax, t_hy, subs, conds);
+            _get_substitutions_for_chain_sub(t_ax, t_hy, subs, conds);
 
             const std::string &s_ax(t_ax.string()), &s_hy(t_hy.string());
             size_t idx1 = s_ax.rfind('.');
@@ -850,7 +917,7 @@ void proof_graph_t::get_substitutions_for_chain(
                 if (sub.empty())
                     sub = (s_hy + "/" + suf);
 
-                get_substitutions_for_chain_sub(
+                _get_substitutions_for_chain_sub(
                     term_t(s_ax.substr(0, idx1)), term_t(sub), subs, conds);
             }
         }
@@ -858,7 +925,7 @@ void proof_graph_t::get_substitutions_for_chain(
 }
 
 
-void proof_graph_t::get_substitutions_for_chain_sub(
+void proof_graph_t::_get_substitutions_for_chain_sub(
     term_t t_from, term_t t_to,
     hash_map<term_t, term_t> *subs,
     hash_map<term_t, hash_set<term_t> > *conds) const
@@ -881,7 +948,7 @@ void proof_graph_t::get_substitutions_for_chain_sub(
 }
 
 
-term_t proof_graph_t::substitute_term_for_chain(
+term_t proof_graph_t::_substitute_term_for_chain(
     const term_t &target, hash_map<term_t, term_t> *subs) const
 {
     auto find = subs->find(target);
@@ -923,12 +990,50 @@ int proof_graph_t::get_depth_of_deepest_node(hypernode_idx_t idx) const
 
 void proof_graph_t::generate_mutual_exclusions(node_idx_t target)
 {
-    _generate_mutual_exclusion_for_inconsistency(target);
+    _generate_mutual_exclusion_for_inconsistent_nodes(target);
     _generate_mutual_exclusion_for_counter_nodes(target);
 }
 
 
-void proof_graph_t::_generate_mutual_exclusion_for_inconsistency(node_idx_t idx)
+std::list<std::tuple<node_idx_t, node_idx_t, unifier_t> >
+proof_graph_t::enumerate_mutual_exclusive_nodes() const
+{
+    const hash_map<node_idx_t, hash_map<node_idx_t, unifier_t> >
+        &muexs = m_mutual_exclusive_nodes;
+    std::list<std::tuple<node_idx_t, node_idx_t, unifier_t> > out;
+
+    for (auto it1 = muexs.begin(); it1 != muexs.end(); ++it1)
+    for (auto it2 = it1->second.begin(); it2 != it1->second.end(); ++it2)
+        out.push_back(std::make_tuple(it1->first, it2->first, it2->second));
+
+    return out;
+}
+
+
+std::list<hash_set<edge_idx_t> >
+proof_graph_t::enumerate_mutual_exclusive_edges() const
+{
+    const hash_map<edge_idx_t, hash_set<edge_idx_t> >
+        muexs(m_mutual_exclusive_edges);
+    std::set<comparable_list<edge_idx_t> > buf;
+
+    for (auto it = muexs.begin(); it != muexs.end(); ++it)
+    {
+        std::list<edge_idx_t> _list(it->second.begin(), it->second.end());
+        _list.push_back(it->first);
+        _list.sort();
+        buf.insert(comparable_list<edge_idx_t>(_list));
+    }
+
+    std::list<hash_set<edge_idx_t> > out;
+    for (auto it = buf.begin(); it != buf.end(); ++it)
+        out.push_back(hash_set<edge_idx_t>(it->begin(), it->end()));
+
+    return out;
+}
+
+
+void proof_graph_t::_generate_mutual_exclusion_for_inconsistent_nodes(node_idx_t idx)
 {
     const kb::knowledge_base_t *kb = sys()->knowledge_base();
     const node_t &target = node(idx);
@@ -952,18 +1057,18 @@ void proof_graph_t::_generate_mutual_exclusion_for_inconsistency(node_idx_t idx)
         for (auto it = idx_nodes->begin(); it != idx_nodes->end(); ++it)
         {
             if (target_is_first)
-                apply_inconsistency_sub(idx, *it, axiom);
+                _apply_inconsistency_sub(idx, *it, axiom);
             else
-                apply_inconsistency_sub(*it, idx, axiom);
+                _apply_inconsistency_sub(*it, idx, axiom);
         }
     }
 }
 
 
-void proof_graph_t::apply_inconsistency_sub(
+void proof_graph_t::_apply_inconsistency_sub(
     node_idx_t i, node_idx_t j, const lf::axiom_t &axiom )
 {
-    unifier_t theta;
+    unifier_t uni;
     const literal_t &inc_1 = axiom.func.branch(0).literal();
     const literal_t &inc_2 = axiom.func.branch(1).literal();
     const literal_t &target_1 = node(i).literal();
@@ -976,19 +1081,17 @@ void proof_graph_t::apply_inconsistency_sub(
         {
             const term_t &term1 = target_1.terms.at(t1);
             const term_t &term2 = target_2.terms.at(t2);
-            theta.add(term1, term2);
+            uni.add(term1, term2);
         }
     }
 
     IF_VERBOSE_FULL(
         "Inconsistent: " + node(i).to_string() + ", "
-        + node(j).to_string() + theta.to_string() );
+        + node(j).to_string() + uni.to_string() );
     
     m_maps.node_to_inconsistency[i].insert(axiom.id);
     m_maps.node_to_inconsistency[j].insert(axiom.id);
-
-    mutual_exclusion_t mu = { std::make_pair(i, j), theta };
-    m_mutual_exclusions.push_back(mu);
+    _add_mutual_exclusion(i, j, uni);
 }
 
 
@@ -998,7 +1101,7 @@ void proof_graph_t::generate_unification_assumptions(node_idx_t target)
     if (node(target).is_equality_node() or node(target).is_non_equality_node())
         return;
 
-    std::list<node_idx_t> unifiables = enumerate_unifiable_nodes(target);
+    std::list<node_idx_t> unifiables = _enumerate_unifiable_nodes(target);
 
     /* UNIFY EACH UNIFIABLE NODE PAIR. */
     for (auto it = unifiables.begin(); it != unifiables.end(); ++it)
@@ -1007,7 +1110,7 @@ void proof_graph_t::generate_unification_assumptions(node_idx_t target)
 
 
 std::list<node_idx_t>
-    proof_graph_t::enumerate_unifiable_nodes( node_idx_t target )
+    proof_graph_t::_enumerate_unifiable_nodes(node_idx_t target)
 {
     const literal_t &lit = node(target).literal();
     auto candidates =
@@ -1181,11 +1284,37 @@ void proof_graph_t::
         if (l1.truth != l2.truth)
         if (not _is_considered_exclusion(*it, idx))
         {
-            mutual_exclusion_t mu;
-            mu.indices = std::make_pair(idx, *it);
+            unifier_t uni;
 
-            if (check_unifiability(l1, l2, true, &mu.unifier))
-                m_mutual_exclusions.push_back(mu);
+            if (check_unifiability(l1, l2, true, &uni))
+                _add_mutual_exclusion(idx, *it, uni);
+        }
+    }
+}
+
+
+void proof_graph_t::_generate_mutual_exclusion_for_edges(
+    edge_idx_t target, bool is_node_base)
+{
+    const edge_t &e = edge(target);
+    std::list< std::list<edge_idx_t> > grouped_edges;
+
+    if (is_node_base)
+    {
+        const std::vector<node_idx_t> &tail = hypernode(e.tail());
+        for (auto it = tail.begin(); it != tail.end(); ++it)
+            _enumerate_exclusive_chains_from_node(*it, &grouped_edges);
+    }
+    else
+        _enumerate_exclusive_chains_from_hypernode(e.tail(), &grouped_edges);
+
+    for (auto it = grouped_edges.begin(); it != grouped_edges.end(); ++it)
+    {
+        for (auto it1 = it->begin(); it1 != it->end(); ++it1)
+        for (auto it2 = it->begin(); it2 != it1; ++it2)
+        {
+            m_mutual_exclusive_edges[*it1].insert(*it2);
+            m_mutual_exclusive_edges[*it2].insert(*it1);
         }
     }
 }
