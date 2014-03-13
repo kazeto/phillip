@@ -408,7 +408,9 @@ proof_graph_t::_enumerate_nodes_list_with_arities(
                 _new.push_back(*n);
         }
 
-        if (_new.empty()) return out;
+        if (_new.empty())
+            return out;
+
         candidates.push_back(_new);
     }
 
@@ -806,6 +808,9 @@ node_idx_t proof_graph_t::add_node(
         m_maps.term_to_nodes[t].insert(out);
     }
 
+    _generate_mutual_exclusions(out);
+    _generate_unification_assumptions(out);
+
     return out;
 }
 
@@ -988,13 +993,6 @@ int proof_graph_t::get_depth_of_deepest_node(hypernode_idx_t idx) const
 }
 
 
-void proof_graph_t::generate_mutual_exclusions(node_idx_t target)
-{
-    _generate_mutual_exclusion_for_inconsistent_nodes(target);
-    _generate_mutual_exclusion_for_counter_nodes(target);
-}
-
-
 std::list<std::tuple<node_idx_t, node_idx_t, unifier_t> >
 proof_graph_t::enumerate_mutual_exclusive_nodes() const
 {
@@ -1096,7 +1094,7 @@ void proof_graph_t::_apply_inconsistency_sub(
 
 
 
-void proof_graph_t::generate_unification_assumptions(node_idx_t target)
+void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
 {
     if (node(target).is_equality_node() or node(target).is_non_equality_node())
         return;
@@ -1117,25 +1115,34 @@ std::list<node_idx_t>
         search_nodes_with_predicate(lit.predicate, lit.terms.size());
     std::list<node_idx_t> unifiables;
     unifier_t unifier;
+    bool do_omit_invalid_unification(
+        not sys()->flag("disable_omitting-invalid-unification"));
 
-    for( auto it=candidates->begin(); it!=candidates->end(); ++it )
+    for (auto it = candidates->begin(); it != candidates->end(); ++it)
     {
-        if( target == (*it) ) continue;
+        if (target == (*it)) continue;
 
         node_idx_t n1 = target;
         node_idx_t n2 = (*it);
         if (n1 > n2) std::swap(n1, n2);
 
         // IGNORE THE PAIR WHICH HAS BEEN CONSIDERED ALREADY.
-        if (not _is_considered_unification(n1, n2))
-        {
-            bool unifiable = check_unifiability(
-                m_nodes[n1].literal(), m_nodes[n2].literal(), false, &unifier);
-            if (unifiable and can_unify_nodes(n1, n2))
-                unifiables.push_back(*it);
-            m_logs.considered_unifications[n1].insert(n2);
-        }
+        if (_is_considered_unification(n1, n2))
+            continue;
+
+        m_logs.considered_unifications[n1].insert(n2); // ADD TO LOG
+
+        bool unifiable = check_unifiability(
+            m_nodes[n1].literal(), m_nodes[n2].literal(), false, &unifier);
+
+        // FILTERING WITH CO-EXISTENCY OF NODES
+        if (unifiable and do_omit_invalid_unification)
+            unifiable = can_let_nodes_coexist(n1, n2);
+
+        if (unifiable and can_unify_nodes(n1, n2))
+            unifiables.push_back(*it);
     }
+
     return unifiables;
 }
 

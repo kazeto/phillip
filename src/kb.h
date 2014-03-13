@@ -31,10 +31,15 @@ public:
 class basic_distance_provider_t : public distance_provider_t
 {
 public:
+    basic_distance_provider_t();
     virtual float operator() (
         const std::string &a1, const std::string &a2,
-        const lf::axiom_t &ax) const
-    { return 1.0f; }
+        const lf::axiom_t &ax) const;
+
+private:
+    void load_functional_predicates(const char *filename);
+
+    hash_set<std::string> m_functional_predicates;
 };
 
 

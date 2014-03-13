@@ -310,6 +310,13 @@ inline void proof_graph_t::_add_mutual_exclusion(
 }
 
 
+inline void proof_graph_t::_generate_mutual_exclusions(node_idx_t target)
+{
+    _generate_mutual_exclusion_for_inconsistent_nodes(target);
+    _generate_mutual_exclusion_for_counter_nodes(target);
+}
+
+
 inline bool proof_graph_t::_is_considered_unification(
     node_idx_t i, node_idx_t j ) const
 {

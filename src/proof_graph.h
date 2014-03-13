@@ -228,12 +228,6 @@ public:
     inline hypernode_idx_t forward_chain(
         hypernode_idx_t target, const lf::axiom_t &axiom);
 
-    /** Generates unification assumptions between target node
-     *  and other nodes which have same predicate as target node. */
-    void generate_unification_assumptions(node_idx_t target);
-
-    /** Generates mutual exclusiveness between target node and other nodes. */
-    void generate_mutual_exclusions(node_idx_t target);
 
     inline const std::vector<node_t>& nodes() const;
     inline const node_t& node(node_idx_t i) const;
@@ -409,7 +403,7 @@ protected:
     hypernode_idx_t chain(
         hypernode_idx_t from, const lf::axiom_t &axiom, bool is_backward);
 
-    /** This method is a sub-routine of enumerate_targets_of_chain.
+    /** This is a sub-routine of enumerate_targets_of_chain.
      *  Enumerates arrays of node indices which corresponds arities.
      *  @param depth_limit Excludes nodes whose depth exceed this from target. */
     std::list< std::vector<node_idx_t> > _enumerate_nodes_list_with_arities(
@@ -436,6 +430,15 @@ protected:
     /* This is a sub-routine of _get_substitutions_for_chain. */
     term_t _substitute_term_for_chain(
         const term_t &target, hash_map<term_t, term_t> *subs) const;
+
+    /** This is a sub-routine of add_node.
+     *  Generates unification assumptions between target node
+     *  and other nodes which have same predicate as target node has. */
+    void _generate_unification_assumptions(node_idx_t target);
+
+    /** This is a sub-routine of add_node.
+     *  Generates mutual exclusiveness between target node and other nodes. */
+    inline void _generate_mutual_exclusions(node_idx_t target);
 
     /** This is a sub-routine of generate_mutual_exclusion.
      *  Adds mutual-exclusions for target and nodes being inconsistent with it. */

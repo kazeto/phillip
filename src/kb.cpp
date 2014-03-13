@@ -8,6 +8,7 @@
 #include <fcntl.h>
 
 #include "./kb.h"
+#include "./phillip.h"
 
 
 namespace phil
@@ -18,6 +19,50 @@ namespace kb
 
 
 const int BUFFER_SIZE = 512 * 512;
+
+
+basic_distance_provider_t::basic_distance_provider_t()
+{
+    std::string filename = sys()->param("path_functional_predicates");
+    if (not filename.empty())
+        load_functional_predicates(filename.c_str());
+}
+
+
+float basic_distance_provider_t::operator() (
+    const std::string &a1, const std::string &a2, const lf::axiom_t &ax) const
+{
+    if (not m_functional_predicates.empty())
+    {
+        if (m_functional_predicates.count(a1) > 0)
+            return -1.0f;
+        if (m_functional_predicates.count(a2) > 0)
+            return -1.0f;
+    }
+
+    return 1.0f;
+}
+
+
+void basic_distance_provider_t::load_functional_predicates(const char *filename)
+{
+    std::ifstream fi(filename);
+
+    if (fi.bad())
+        print_error_fmt("Cannot open file \"%s\"", filename);
+    else
+    {
+        char buf[BUFFER_SIZE];
+
+        while (not fi.eof())
+        {
+            fi.getline(buf, BUFFER_SIZE);
+            m_functional_predicates.insert(buf);
+        }
+
+        fi.close();
+    }
+}
 
 
 knowledge_base_t::knowledge_base_t(
