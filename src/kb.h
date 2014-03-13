@@ -23,7 +23,6 @@ class distance_provider_t
 {
 public:
     virtual float operator() (
-        float const std::string &a0,
         const std::string &a1, const std::string &a2,
         const lf::axiom_t &ax) const = 0;
 };
@@ -33,20 +32,9 @@ class basic_distance_provider_t : public distance_provider_t
 {
 public:
     virtual float operator() (
-        float const std::string &a0,
         const std::string &a1, const std::string &a2,
         const lf::axiom_t &ax) const
     { return 1.0f; }
-};
-
-
-enum reachable_matrix_creation_mode_e
-{
-    /** Create all of reachable matrix on compiling. */
-    RM_CREATE_ALL,
-    /** Create a part of reachable matrix on compiling,
-     *  and create local reachable matrix for observation on inference. */
-    RM_CREATE_LOCAL
 };
 
 
@@ -54,8 +42,7 @@ class knowledge_base_t
 {
 public:
     knowledge_base_t(
-        const std::string &filename, float max_distance = -1.0f,
-        reachable_matrix_creation_mode_e mode = RM_CREATE_ALL);
+        const std::string &filename, float max_distance = -1.0f);
     ~knowledge_base_t();
 
     /** Initializes knowledge base and
@@ -90,12 +77,6 @@ public:
     void insert_inconsistency_temporary(
         const lf::logical_function_t &lf, std::string name);
 
-    /** Creates reachable-matrix for given arities.
-     *  For calling this method, the mode must be RM_CREATE_PARTIAL
-     *  and preparation of query must be completed. */
-    void create_partial_reachable_matrix(const hash_set<std::string> &arities);
-
-    inline reachable_matrix_creation_mode_e get_creation_mode() const;
     inline float get_max_distance() const;
     inline size_t get_axiom_num() const;
     inline size_t get_compiled_axiom_num() const;
@@ -126,7 +107,7 @@ private:
     class reachable_matrix_t
     {
     public:
-        reachable_matrix_t(const std::string &filename, bool m_is_triangular);
+        reachable_matrix_t(const std::string &filename);
         ~reachable_matrix_t();
         void prepare_compile();
         void prepare_query();
@@ -137,7 +118,6 @@ private:
 
         inline bool is_writable() const;
         inline bool is_readable() const;
-        inline bool is_triangular() const;
 
     private:
         typedef unsigned long long pos_t;
@@ -145,7 +125,6 @@ private:
         std::ofstream *m_fout;
         std::ifstream *m_fin;
         hash_map<size_t, pos_t> m_map_idx_to_pos;
-        bool m_is_triangular;
     };
 
     enum kb_state_e { STATE_NULL, STATE_COMPILE, STATE_QUERY };
@@ -171,9 +150,9 @@ private:
     void create_reachable_matrix();
     
     void _create_reachable_matrix_direct(
-        hash_map<size_t, hash_set<size_t, float> > *out);
+        hash_map<size_t, hash_map<size_t, float> > *out);
     void _create_reachable_matrix_indirect(
-        size_t key, hash_map<size_t, hash_set<size_t, float> > &base,
+        size_t key, hash_map<size_t, hash_map<size_t, float> > &base,
         hash_map<size_t, float> *out);
 
     /** Returns axioms corresponding with given query.
@@ -200,7 +179,6 @@ private:
     size_t m_num_temporary_axioms;
     size_t m_num_unnamed_axioms;
 
-    reachable_matrix_creation_mode_e m_rm_creation_mode;
     hash_map<size_t, hash_map<size_t, float> > m_partial_reachable_matrix;
 
     /** Axioms which were added temporally. */

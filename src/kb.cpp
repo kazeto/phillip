@@ -21,8 +21,7 @@ const int BUFFER_SIZE = 512 * 512;
 
 
 knowledge_base_t::knowledge_base_t(
-    const std::string &filename,
-    float max_distance, reachable_matrix_creation_mode_e mode)
+    const std::string &filename, float max_distance)
     : m_state(STATE_NULL),
       m_filename(filename), m_max_distance(max_distance),
       m_cdb_id(filename + ".id.cdb"),
@@ -32,7 +31,7 @@ knowledge_base_t::knowledge_base_t(
       m_cdb_inc_pred(filename + ".inc.pred.cdb"),
       m_cdb_axiom_group(filename + ".group.cdb"),
       m_cdb_rm_idx(filename + ".rm.cdb"),
-      m_rm(filename + ".rm.dat", (mode == RM_CREATE_ALL)),
+      m_rm(filename + ".rm.dat"),
       m_rm_dist(new basic_distance_provider_t()),
       m_num_compiled_axioms(0), m_num_temporary_axioms(0),
       m_num_unnamed_axioms(0)
@@ -131,9 +130,7 @@ void knowledge_base_t::write_config(const char *filename) const
 {
     std::ofstream fo(
         filename, std::ios::out | std::ios::trunc | std::ios::binary);
-    char mode(m_rm_creation_mode);
 
-    fo.write(&mode, sizeof(char));
     fo.write((char*)&m_max_distance, sizeof(float));
     fo.close();
 }
@@ -142,12 +139,9 @@ void knowledge_base_t::write_config(const char *filename) const
 void knowledge_base_t::read_config(const char *filename)
 {
     std::ifstream fi(filename, std::ios::in | std::ios::binary);
-    char mode;
-    fi.read(&mode, sizeof(char));
+
     fi.read((char*)&m_max_distance, sizeof(float));
     fi.close();
-
-    m_rm_creation_mode = static_cast<reachable_matrix_creation_mode_e>(mode);
 }
 
 
@@ -249,24 +243,6 @@ void knowledge_base_t::insert_inconsistency_temporary(
         std::string arity = (*it)->get_predicate_arity();
         m_inc_to_tmp_axioms[arity].insert(id);
     }
-}
-
-
-void knowledge_base_t::create_partial_reachable_matrix(
-    const hash_set<std::string> &arities)
-{
-    m_partial_reachable_matrix.clear();
-
-    if (get_creation_mode() != RM_CREATE_LOCAL or not m_cdb_id.is_readable())
-    {
-        std::string prefix("create-reachable-matrix: ");
-        print_error(prefix +
-            (not m_cdb_id.is_readable() ?
-            "KB's creation-mode is invalid." : "KB is not readable now."));
-        return;
-    }
-
-    // TODO
 }
 
 
@@ -496,7 +472,7 @@ void knowledge_base_t::create_reachable_matrix()
 
     print_console_fmt("  num of axioms = %d", m_num_compiled_axioms);
     print_console_fmt("  num of arities = %d", N);
-    print_console_fmt("  max distance = %d", get_max_distance());
+    print_console_fmt("  max distance = %.2f", get_max_distance());
 
     m_cdb_id.prepare_query();
     m_cdb_rhs.prepare_query();
@@ -506,9 +482,11 @@ void knowledge_base_t::create_reachable_matrix()
 
     m_rm.prepare_compile();
 
-    hash_map<size_t, hash_set<size_t, float> > base;
+    print_console("  computing distance of direct edges...");
+    hash_map<size_t, hash_map<size_t, float> > base;
     _create_reachable_matrix_direct(&base);
 
+    print_console("  writing reachable matrix...");
     for (auto it = base.begin(); it != base.end(); ++it)
     {
         size_t idx = it->first;
@@ -542,12 +520,12 @@ void knowledge_base_t::create_reachable_matrix()
 
 
 void knowledge_base_t::_create_reachable_matrix_direct(
-    hash_map<hash_map<size_t, float> > *out)
+    hash_map<size_t, hash_map<size_t, float> > *out)
 {
     for (auto ar = m_arity_set.begin(); ar != m_arity_set.end(); ++ar)
     {
         size_t idx1 = *search_arity_index(*ar);
-        hash_map<size_t, float> *target = (*out)[idx1];
+        hash_map<size_t, float> *target = &(*out)[idx1];
         std::list<axiom_id_t>
             ids_lhs(search_axioms_with_lhs(*ar)),
             ids_rhs(search_axioms_with_rhs(*ar));
@@ -570,8 +548,8 @@ void knowledge_base_t::_create_reachable_matrix_direct(
                     std::string arity2 = (*li)->get_predicate_arity();
                     size_t idx2 = *search_arity_index(arity2);
                     float dist = is_forward ?
-                        (*m_rm_dist)(*ar, it->first, arity2, axiom) :
-                        (*m_rm_dist)(*ar, arity2, it->first, axiom);
+                        (*m_rm_dist)(*ar, arity2, axiom) :
+                        (*m_rm_dist)(arity2, *ar, axiom);
                     
                     if (dist >= 0.0f)
                     {
@@ -592,7 +570,7 @@ void knowledge_base_t::_create_reachable_matrix_direct(
 
 
 void knowledge_base_t::_create_reachable_matrix_indirect(
-    size_t idx1, hash_map<size_t, hash_set<size_t, float> > &base,
+    size_t idx1, hash_map<size_t, hash_map<size_t, float> > &base,
     hash_map<size_t, float> *out)
 {
     hash_map<size_t, float> current;
@@ -606,7 +584,7 @@ void knowledge_base_t::_create_reachable_matrix_indirect(
 
         for (auto it1 = current.begin(); it1 != current.end(); ++it1)
         {
-            const hash_set<size_t, float> &dists = base.at(it1->first);
+            const hash_map<size_t, float> &dists = base.at(it1->first);
 
             for (auto it2 = dists.begin(); it2 != dists.end(); ++it2)
             {
@@ -618,10 +596,12 @@ void knowledge_base_t::_create_reachable_matrix_indirect(
                 
                 auto find = out->find(idx2);
                 if (find != out->end())
-                    if (dist < find->second)
-                        continue;
+                if (dist >= find->second)
+                    continue;
 
-                (*out)[idx2] = next[idx2] = dist;
+                if (dist < get_max_distance())
+                    next[idx2] = dist;
+                (*out)[idx2] = dist;
             }
         }
 
@@ -679,9 +659,8 @@ std::list<axiom_id_t> knowledge_base_t::search_id_list(
 
 
 knowledge_base_t::reachable_matrix_t::
-    reachable_matrix_t(const std::string &filename, bool is_triangular)
-    : m_filename(filename), m_fout(NULL), m_fin(NULL),
-      m_is_triangular(is_triangular)
+    reachable_matrix_t(const std::string &filename)
+    : m_filename(filename), m_fout(NULL), m_fin(NULL)
 {}
 
 
@@ -773,13 +752,13 @@ void knowledge_base_t::reachable_matrix_t::
     m_map_idx_to_pos[idx1] = m_fout->tellp();
 
     for (auto it = dist.begin(); it != dist.end(); ++it)
-        if (not is_triangular() or idx1 <= it->first)
+        if (idx1 <= it->first)
             ++num;
 
     m_fout->write((const char*)&num, sizeof(size_t));
     for (auto it = dist.begin(); it != dist.end(); ++it)
     {
-        if (not is_triangular() or idx1 <= it->first)
+        if (idx1 <= it->first)
         {
             m_fout->write((const char*)&it->first, sizeof(size_t));
             m_fout->write((const char*)&it->second, sizeof(float));

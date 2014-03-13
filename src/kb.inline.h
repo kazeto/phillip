@@ -8,12 +8,6 @@ namespace kb
 {
 
 
-inline reachable_matrix_creation_mode_e knowledge_base_t::get_creation_mode() const
-{
-    return m_rm_creation_mode;
-}
-
-
 inline float knowledge_base_t::get_max_distance() const
 {
     return m_max_distance;
@@ -88,12 +82,6 @@ inline bool knowledge_base_t::reachable_matrix_t::is_writable() const
 inline bool knowledge_base_t::reachable_matrix_t::is_readable() const
 {
     return (m_fin != NULL);
-}
-
-
-inline bool knowledge_base_t::reachable_matrix_t::is_triangular() const
-{
-    return m_is_triangular;
 }
 
 
