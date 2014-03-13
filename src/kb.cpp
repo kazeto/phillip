@@ -487,19 +487,16 @@ void knowledge_base_t::insert_axiom_group_to_cdb()
 
 void knowledge_base_t::create_reachable_matrix()
 {
-    std::cerr << time_stamp()
-              << "starts to create reachable matrix... " << std::endl;
+    print_console("starts to create reachable matrix...");
 
     size_t N(m_arity_set.size()), processed(0), num_inserted(0);
     clock_t clock_past = clock_t();
     time_t time_start, time_end;
     time(&time_start);
 
-    std::cerr << time_stamp()
-              << "  num of axioms = " << m_num_compiled_axioms << std::endl;
-    std::cerr << time_stamp() << "  num of arities = " << N << std::endl;
-    std::cerr << time_stamp()
-              << "  max distance = " << get_max_distance() << std::endl;
+    print_console_fmt("  num of axioms = %d", m_num_compiled_axioms);
+    print_console_fmt("  num of arities = %d", N);
+    print_console_fmt("  max distance = %d", get_max_distance());
 
     m_cdb_id.prepare_query();
     m_cdb_rhs.prepare_query();
@@ -509,14 +506,16 @@ void knowledge_base_t::create_reachable_matrix()
 
     m_rm.prepare_compile();
 
-    for (auto it1 = m_arity_set.begin(); it1 != m_arity_set.end(); ++it1)
+    hash_map<size_t, hash_set<size_t, float> > base;
+    _create_reachable_matrix_direct(&base);
+
+    for (auto it = base.begin(); it != base.end(); ++it)
     {
-        const std::string &arity(*it1);
-        size_t idx1 = *search_arity_index(arity);
+        size_t idx = it->first;
         hash_map<size_t, float> dist;
 
-        create_reachable_matrix_sub(arity, &dist);
-        m_rm.put(idx1, dist);
+        _create_reachable_matrix_indirect(idx, base, &dist);
+        m_rm.put(idx, dist);
 
         num_inserted += dist.size();
         ++processed;
@@ -536,70 +535,93 @@ void knowledge_base_t::create_reachable_matrix()
     int proc_time(time_end - time_start); 
     double coverage(num_inserted * 100.0 / (double)(N * N));
     
-    std::cerr
-        << time_stamp() << "completed computation. " << std::endl
-        << time_stamp() << "  process-time = " << proc_time << std::endl
-        << time_stamp() << "  coverage = "
-        << format("%.6lf%%", coverage) << std::endl;
+    print_console("completed computation.");
+    print_console_fmt("  process-time = %d", proc_time);
+    print_console_fmt("  coverage = %.6lf%%", coverage);
 }
 
 
-void knowledge_base_t::create_reachable_matrix_sub(
-    const std::string &arity, hash_map<size_t, float> *out )
+void knowledge_base_t::_create_reachable_matrix_direct(
+    hash_map<hash_map<size_t, float> > *out)
 {
-    hash_map<std::string, float> current;
-    hash_set<axiom_id_t> used;
-    size_t idx1 = *search_arity_index(arity);
+    for (auto ar = m_arity_set.begin(); ar != m_arity_set.end(); ++ar)
+    {
+        size_t idx1 = *search_arity_index(*ar);
+        hash_map<size_t, float> *target = (*out)[idx1];
+        std::list<axiom_id_t>
+            ids_lhs(search_axioms_with_lhs(*ar)),
+            ids_rhs(search_axioms_with_rhs(*ar));
 
-    current[arity] = 0.0f;
+        (*target)[idx1] = 0.0f;
+    
+        for (int i = 0; i < 2; ++i)
+        {
+            bool is_forward(i == 0);
+            std::list<axiom_id_t> *ids = is_forward ? &ids_lhs : &ids_rhs;
+
+            for (auto id = ids->begin(); id != ids->end(); ++id)
+            {
+                lf::axiom_t axiom = get_axiom(*id);
+                std::vector<const literal_t*> lits =
+                    axiom.func.branch(is_forward ? 1 : 0).get_all_literals();
+
+                for (auto li = lits.begin(); li != lits.end(); ++li)
+                {
+                    std::string arity2 = (*li)->get_predicate_arity();
+                    size_t idx2 = *search_arity_index(arity2);
+                    float dist = is_forward ?
+                        (*m_rm_dist)(*ar, it->first, arity2, axiom) :
+                        (*m_rm_dist)(*ar, arity2, it->first, axiom);
+                    
+                    if (dist >= 0.0f)
+                    {
+                        bool do_add(false);
+                        auto find = target->find(idx2);
+
+                        if (find == target->end())    do_add = true;
+                        else if (dist < find->second) do_add = true;
+
+                        if (do_add)
+                            (*target)[idx2] = dist;
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+void knowledge_base_t::_create_reachable_matrix_indirect(
+    size_t idx1, hash_map<size_t, hash_set<size_t, float> > &base,
+    hash_map<size_t, float> *out)
+{
+    hash_map<size_t, float> current;
+
+    current[idx1] = 0.0f;
     (*out)[idx1] = 0.0f;
 
     while (not current.empty())
     {
-        hash_map<std::string, float> next;
+        hash_map<size_t, float> next;
 
-        for (auto it = current.begin(); it != current.end(); ++it)
+        for (auto it1 = current.begin(); it1 != current.end(); ++it1)
         {
-            std::list<axiom_id_t>
-                ids_lhs(search_axioms_with_lhs(it->first)),
-                ids_rhs(search_axioms_with_rhs(it->first));
+            const hash_set<size_t, float> &dists = base.at(it1->first);
 
-            for (int i = 0; i < 2; ++i)
+            for (auto it2 = dists.begin(); it2 != dists.end(); ++it2)
             {
-                bool is_lhs = (i == 0);
-                std::list<axiom_id_t> *ids = is_lhs ? &ids_lhs : &ids_rhs;
+                size_t idx2(it2->first);
+                float dist(it1->second + it2->second); // DISTANCE idx1 ~ idx2
+                
+                if (get_max_distance() > 0.0f and dist > get_max_distance())
+                    continue;
+                
+                auto find = out->find(idx2);
+                if (find != out->end())
+                    if (dist < find->second)
+                        continue;
 
-                for (auto id = ids->begin(); id != ids->end(); ++id)
-                {
-                    if (used.count(*id) > 0) continue;
-                    else used.insert(*id);
-
-                    lf::axiom_t axiom = get_axiom(*id);
-                    std::vector<const literal_t*> lits =
-                        axiom.func.branch(is_lhs ? 1 : 0).get_all_literals();
-
-                    for (auto li = lits.begin(); li != lits.end(); ++li)
-                    {
-                        std::string arity2 = (*li)->get_predicate_arity();
-                        size_t idx2 = *search_arity_index(arity2);
-                        float dist = (*m_rm_dist)(
-                            it->second, arity, it->first, arity2, axiom);
-                        if (dist < 0.0f) continue;
-
-                        bool do_add(false);
-                        auto find = out->find(idx2);
-                        if (get_max_distance() < 0.0f or dist < get_max_distance())
-                        {
-                            if (find == out->end())       do_add = true;
-                            else if (dist < find->second) do_add = true;
-                        }
-                        if (do_add)
-                        {
-                            (*out)[idx2] = dist;
-                            next[arity2] = dist;
-                        }
-                    }
-                }
+                (*out)[idx2] = next[idx2] = dist;
             }
         }
 

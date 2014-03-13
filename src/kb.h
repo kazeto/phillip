@@ -23,7 +23,7 @@ class distance_provider_t
 {
 public:
     virtual float operator() (
-        float d, const std::string &a0,
+        float const std::string &a0,
         const std::string &a1, const std::string &a2,
         const lf::axiom_t &ax) const = 0;
 };
@@ -33,10 +33,10 @@ class basic_distance_provider_t : public distance_provider_t
 {
 public:
     virtual float operator() (
-        float d, const std::string &a0,
+        float const std::string &a0,
         const std::string &a1, const std::string &a2,
         const lf::axiom_t &ax) const
-    { return d + 1.0f; }
+    { return 1.0f; }
 };
 
 
@@ -54,31 +54,39 @@ class knowledge_base_t
 {
 public:
     knowledge_base_t(
-        const std::string &filename, float max_distance, reachable_matrix_creation_mode_e mode);
+        const std::string &filename, float max_distance = -1.0f,
+        reachable_matrix_creation_mode_e mode = RM_CREATE_ALL);
     ~knowledge_base_t();
 
-    /** Initialize knowledge base and
-     *  prepare for compiling knowledge base. */
+    /** Initializes knowledge base and
+     *  prepares for compiling knowledge base. */
     void prepare_compile();
 
-    /** Prepare for reading knowledge base. */
+    /** Prepares for reading knowledge base. */
     void prepare_query();
 
     /** Call this method on end of compiling or reading knowledge base. */
     void finalize();
 
-    /** Insert axiom into knowledge base as compiled axiom.
+    /** Inserts new axiom into knowledge base as compiled axiom.
      *  This method can be called only in compile-mode. */
     void insert_implication_for_compile(
         const lf::logical_function_t &lf, std::string name);
+    
+    /** Inserts new inconsistency into knowledge base as compiled axiom.
+     *  This method can be called only in compile-mode. */
     void insert_inconsistency_for_compile(
         const lf::logical_function_t &lf, std::string name);
 
-    /** Insert axiom into knowledge base as temporal axiom.
+    /** Inserts new axiom into knowledge base as temporal axiom.
      *  This method can be called anytime but
      *  you cannot add new axioms to compile after calling this method. */
     void insert_implication_temporary(
         const lf::logical_function_t &lf, std::string name);
+    
+    /** Inserts new inconsistency into knowledge base as temporal axiom.
+     *  This method can be called anytime but
+     *  you cannot add new axioms to compile after calling this method. */
     void insert_inconsistency_temporary(
         const lf::logical_function_t &lf, std::string name);
 
@@ -102,14 +110,14 @@ public:
         search_inconsistencies(const std::string &arity) const;
     hash_set<axiom_id_t> search_axiom_group(axiom_id_t id) const;
 
-    /** Return ditance between arity1 and arity2
+    /** Returns ditance between arity1 and arity2
      *  in a reachable-matrix in the current knowledge-base.
      *  If these arities are not reachable, then return -1. */
     float get_distance(
         const std::string &arity1, const std::string &arity2) const;
 
-    /** Set new distance-provider.
-     *  This function-object is used in making reachable-matrix. */
+    /** Sets new distance-provider.
+     *  This object is used in making reachable-matrix. */
     void set_distance_provider(distance_provider_t *ptr);
 
 private:
@@ -154,19 +162,28 @@ private:
         const lf::logical_function_t &lf, std::string name);
     bool _can_insert_axiom_to_compile() const;
     void insert_arity(const std::string &arity);
+
+    /** Outputs m_group_to_axioms to m_cdb_axiom_group. */
     void insert_axiom_group_to_cdb();
 
+    /** Creates reachable matrix.
+     *  This is a sub-routine of finalize. */
     void create_reachable_matrix();
-    void create_reachable_matrix_sub(
-        const std::string &arity, hash_map<size_t, float> *out);
+    
+    void _create_reachable_matrix_direct(
+        hash_map<size_t, hash_set<size_t, float> > *out);
+    void _create_reachable_matrix_indirect(
+        size_t key, hash_map<size_t, hash_set<size_t, float> > &base,
+        hash_map<size_t, float> *out);
 
-    /** Search axioms corresponding with given query.
+    /** Returns axioms corresponding with given query.
      *  @param dat A database of cdb to seach axiom.
      *  @param tmp A map of temporal axioms related with dat. */
     std::list<axiom_id_t> search_id_list(
         const std::string &query, const cdb_data_t *dat,
         const hash_map<std::string, hash_set<axiom_id_t> > *tmp) const;
 
+    /** Returns index of given arity in reachable-matrix. */
     inline const size_t* search_arity_index(const std::string &arity) const;
 
     inline std::string _get_name_of_unnamed_axiom();
@@ -196,7 +213,8 @@ private:
     hash_set<std::string> m_arity_set;
 
     hash_map<std::string, hash_set<axiom_id_t> >
-        m_name_to_axioms, m_lhs_to_axioms, m_rhs_to_axioms, m_inc_to_axioms, m_group_to_axioms;
+        m_name_to_axioms, m_lhs_to_axioms, m_rhs_to_axioms,
+        m_inc_to_axioms, m_group_to_axioms;
 
     /** Function object to provide distance between predicates. */
     distance_provider_t *m_rm_dist;
