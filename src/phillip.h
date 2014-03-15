@@ -26,7 +26,7 @@ class ilp_solver_t;
  *  This class is singleton class.
  *  The procedure of inference is following:
  *   - Create an instance of phillip_main_t.
- *   - Create components (*_factory & knowledge_base).
+ *   - Create components.
  *   - Set the components to phillip_main_t instance.
  *   - Call infer() with input observation. */
 class phillip_main_t
@@ -35,18 +35,19 @@ public:
     static inline phillip_main_t* get_instance();
     
     /** Infer a explanation to given observation.
-     *  You can get the results via accesser functions. */
-    void infer( const lf::input_t &input );
+     *  You can get the results via accesser functions.
+     *  @param do_append Identifies the option of file open, app or trunc. */
+    void infer(const lf::input_t &input, bool do_append = false);
     
     inline const lhs_enumerator_t* lhs_enumerator() const; 
     inline const ilp_converter_t*  ilp_convertor() const;
     inline const ilp_solver_t*     ilp_solver() const;
     inline const kb::knowledge_base_t *knowledge_base() const;
 
-    inline void set_lhs_enumerator( const lhs_enumerator_t* );
-    inline void set_ilp_convertor( const ilp_converter_t* );
-    inline void set_ilp_solver( const ilp_solver_t* );
-    inline void set_knowledge_base( kb::knowledge_base_t *kb );
+    inline void set_lhs_enumerator(const lhs_enumerator_t*);
+    inline void set_ilp_convertor(const ilp_converter_t*);
+    inline void set_ilp_solver(const ilp_solver_t*);
+    inline void set_knowledge_base(kb::knowledge_base_t *kb);
 
     inline void set_timeout(int t);
     inline void set_verbose(int v);
@@ -54,6 +55,7 @@ public:
     inline void set_param(const std::string &key, const std::string &param);
     inline void set_flag(const std::string &key);
     
+    inline const lf::input_t* get_input() const;
     inline const lf::logical_function_t* get_observation() const;
     inline const pg::proof_graph_t* get_latent_hypotheses_set() const;
     inline const ilp::ilp_problem_t* get_ilp_problem() const;
@@ -100,9 +102,9 @@ private:
     bool m_is_debugging;
 
     // ---- PRODUCTS OF INFERENCE
-    lf::logical_function_t *m_obs;
-    pg::proof_graph_t      *m_lhs;
-    ilp::ilp_problem_t     *m_ilp;
+    lf::input_t *m_input;
+    pg::proof_graph_t *m_lhs;
+    ilp::ilp_problem_t *m_ilp;
     std::vector<ilp::ilp_solution_t> m_sol;
 
     // ---- FOR MEASURE TIME

@@ -15,6 +15,9 @@ namespace ilp
 {
 
 
+bool ilp_problem_t::ms_do_economize = true;
+
+
 void constraint_t::print(
     std::string *p_out, const std::vector<variable_t> &var_instances ) const
 {
@@ -69,22 +72,23 @@ variable_idx_t ilp_problem_t::add_variable_of_hypernode(
     const std::vector<pg::node_idx_t> &hypernode = m_graph->hypernode(idx);
     if (hypernode.empty()) return -1;
 
-#ifdef DO_REDUCE_ILP_ENTITIES
-    /* IF A HYERNODE INCLUDE ONLY ONE LITERAL-NODE,
-     * USE THE NODE'S VARIABLE AS THE HYPERNODE'S VARIABLE. */
-    if (hypernode.size() == 1)
+    if (ms_do_economize)
     {
-        const pg::node_t &node = m_graph->node(hypernode.front());
-        if (not node.is_equality_node() and not node.is_non_equality_node())
+        /* IF A HYERNODE INCLUDE ONLY ONE LITERAL-NODE,
+        * USE THE NODE'S VARIABLE AS THE HYPERNODE'S VARIABLE. */
+        if (hypernode.size() == 1)
         {
-            variable_idx_t var = find_variable_with_node(hypernode.front());
-            if (var < 0 and do_add_requisite_variable)
-                var = add_variable_of_node(hypernode.front());
-            m_map_hypernode_to_variable[idx] = var;
-            return var;
+            const pg::node_t &node = m_graph->node(hypernode.front());
+            if (not node.is_equality_node() and not node.is_non_equality_node())
+            {
+                variable_idx_t var = find_variable_with_node(hypernode.front());
+                if (var < 0 and do_add_requisite_variable)
+                    var = add_variable_of_node(hypernode.front());
+                m_map_hypernode_to_variable[idx] = var;
+                return var;
+            }
         }
     }
-#endif
 
     std::string nodes =
         join(hypernode.begin(), hypernode.end(), "%d", ",");
@@ -475,26 +479,28 @@ double ilp_problem_t::get_value_of_objective_function(
 }
 
 
-void ilp_problem_t::print( std::ostream *os ) const
+void ilp_problem_t::print(std::ostream *os) const
 {
-    (*os) << "<ilp variables=\"" << m_variables.size()
-          << "\" constraints=\"" << m_constraints.size() << "\">" << std::endl;
+    (*os)
+        << "<ilp name=\"" << name()
+        << "\" variables=\"" << m_variables.size()
+        << "\" constraints=\"" << m_constraints.size() << "\">" << std::endl;
     
-    for( int i=0; i<m_variables.size(); i++ )
+    for (int i = 0; i < m_variables.size(); i++)
     {
         const variable_t &var = m_variables.at(i);
         (*os) << "<variable name=\"" << var.name()
               << "\" coefficient=\"" << var.objective_coefficient() << "\"";
-        if( is_constant_variable(i) )
+        if (is_constant_variable(i))
             (*os) << " fixed=\"" << const_variable_values().at(i) << "\"";
         (*os) << " />" << std::endl;
     }
     
-    for( int i=0; i<m_constraints.size(); i++ )
+    for (int i = 0; i < m_constraints.size(); i++)
     {
         const constraint_t &cons = m_constraints.at(i);
         std::string cons_exp;
-        cons.print( &cons_exp, m_variables );
+        cons.print(&cons_exp, m_variables);
         (*os) << "<constraint name=\"" << cons.name()
               << "\">" << cons_exp << "</constraint>" << std::endl;
     }
@@ -524,7 +530,8 @@ void ilp_problem_t::print_solution(
     assert(not state.empty());
 
     (*os)
-        << "<proofgraph state=\"" << state
+        << "<proofgraph name=\"" << name()
+        << "\" state=\"" << state
         << "\" objective=\"" << sol->value_of_objective_function()
         << "\">" << std::endl;
 
@@ -630,8 +637,8 @@ void ilp_problem_t::print_unification_in_solution(
 
 ilp_solution_t::ilp_solution_t(
     const ilp_problem_t *prob, solution_type_e sol_type,
-    const std::vector<double> &values)
-    : m_ilp(prob), m_solution_type(sol_type),
+    const std::vector<double> &values, const std::string &name)
+    : m_name(name), m_ilp(prob), m_solution_type(sol_type),
       m_optimized_values(values),
       m_constraints_sufficiency(prob->constraints().size(), false),
       m_value_of_objective_function(
@@ -672,7 +679,7 @@ std::string ilp_solution_t::to_string() const
 
 void ilp_solution_t::print(std::ostream *os) const
 {
-    (*os) << "<solution>" << std::endl;
+    (*os) << "<solution name=\"" << name() << "\">" << std::endl;
 
     for( int i=0; i<m_ilp->variables().size(); ++i )
     {

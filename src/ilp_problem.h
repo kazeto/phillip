@@ -10,9 +10,6 @@
 #include "./define.h"
 #include "./proof_graph.h"
 
-#define DO_REDUCE_ILP_ENTITIES
-
-
 namespace phil
 {
 
@@ -118,20 +115,26 @@ class ilp_problem_t
 public:
     static const int INVALID_CUT_OFF = INT_MIN;
 
-    inline ilp_problem_t( const pg::proof_graph_t* lhs );
+    static void enable_economization() { ms_do_economize = true; };
+    static void disable_economization() { ms_do_economize = false; }
+
+    inline ilp_problem_t(
+        const pg::proof_graph_t* lhs, const std::string &name = "");
+
+    inline const std::string& name() const { return m_name; }
 
     /** Add new variable to the objective-function.
      *  @return The index of added variable in m_variables. */
-    inline variable_idx_t add_variable( const variable_t &var );
+    inline variable_idx_t add_variable(const variable_t &var);
 
     /** Add new constraint.
      *  @return The index of added constraint in m_constraints. */
-    inline constraint_idx_t add_constraint( const constraint_t &con );
+    inline constraint_idx_t add_constraint(const constraint_t &con);
 
     /** Add new variable of the given node.
      *  @return The index of added variable in m_variables. */
     variable_idx_t add_variable_of_node(
-        pg::node_idx_t idx, double coef = 0.0 );
+        pg::node_idx_t idx, double coef = 0.0);
 
     /** Add new variable of the hypernode and related constraints.
      *  On calling this method, it is required that
@@ -139,7 +142,7 @@ public:
      *  @return The index of added variable in m_variables. */
     variable_idx_t add_variable_of_hypernode(
         pg::hypernode_idx_t idx, double coef = 0.0,
-        bool do_add_requisite_variable = false );
+        bool do_add_requisite_variable = false);
 
     /** Add constraint for dependency between the target node
      *  and hypernodes which have the node as its element.
@@ -163,9 +166,9 @@ public:
      *  @return The index of added constraint. */
     constraint_idx_t add_constraint_of_mutual_exclusion(
         pg::node_idx_t n1, pg::node_idx_t n2, const pg::unifier_t &uni,
-        bool do_add_requisite_variable = false );
+        bool do_add_requisite_variable = false);
     void add_constraints_of_mutual_exclusions(
-        bool do_add_requisite_variable = false );
+        bool do_add_requisite_variable = false);
 
     /** Add constraints about transitivity of unifications.
      *  On calling this method, it is required that
@@ -212,7 +215,7 @@ public:
     double get_value_of_objective_function(
         const std::vector<double> &values) const;
     
-    void print( std::ostream *os ) const;
+    void print(std::ostream *os) const;
     std::string to_string() const;
 
     virtual void print_solution(
@@ -230,6 +233,12 @@ protected:
      *  @return Number of added constraints. */
     size_t add_constrains_of_exclusive_chains(
         const std::list< hash_set<pg::edge_idx_t> > &exc);
+
+    // ---- FIELDS
+
+    static bool ms_do_economize;
+
+    std::string m_name;
 
     const pg::proof_graph_t* const m_graph;
     
@@ -266,8 +275,9 @@ public:
     /** Make an instance from current state of given lpp. */
     ilp_solution_t(
         const ilp_problem_t *prob, solution_type_e sol_type,
-        const std::vector<double> &values );
+        const std::vector<double> &values, const std::string &name = "");
 
+    inline const std::string& name() const { return m_name; }
     inline solution_type_e type() const;
     inline double value_of_objective_function() const;
 
@@ -289,6 +299,7 @@ public:
     void print_graph(std::ostream *os = &std::cout) const; 
    
 private:
+    std::string m_name;
     const ilp_problem_t* const m_ilp;
     solution_type_e m_solution_type;
     

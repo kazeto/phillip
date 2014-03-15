@@ -630,7 +630,7 @@ bool proof_graph_t::axiom_has_applied(
 
 void proof_graph_t::print(std::ostream *os) const
 {
-    (*os) << "<latent-hypotheses-set>" << std::endl;
+    (*os) << "<latent-hypotheses-set name=\"" << name() << "\">" << std::endl;
 
     print_nodes(os, "    ");
     print_axioms(os, "    ");

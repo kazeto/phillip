@@ -205,7 +205,9 @@ private:
 class proof_graph_t
 {        
 public:
-    inline proof_graph_t() {}
+    inline proof_graph_t(const std::string &name = "") : m_name(name) {}
+
+    inline const std::string& name() const { return m_name; }
     
     inline node_idx_t add_observation(const literal_t &lit, int depth = 0);
     inline node_idx_t add_label(const literal_t &lit, int depth = 0);
@@ -505,6 +507,8 @@ protected:
 
     // ---- VARIABLES
     
+    std::string m_name;
+
     std::vector<node_t> m_nodes;
     std::vector< std::vector<node_idx_t> > m_hypernodes;
     std::vector<edge_t> m_edges;

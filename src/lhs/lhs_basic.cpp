@@ -30,7 +30,7 @@ basic_lhs_enumerator_t(bool do_deduction, bool do_abduction)
 
 pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
 {
-    pg::proof_graph_t *out = new pg::proof_graph_t();
+    pg::proof_graph_t *out = new pg::proof_graph_t(sys()->get_input()->name);
     add_observations(out);
 
     for (int d = 0; (m_depth_max < 0 or d < m_depth_max); ++d)

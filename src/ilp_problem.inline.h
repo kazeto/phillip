@@ -169,8 +169,8 @@ inline std::string constraint_t::to_string(
 
 
 inline ilp_problem_t::ilp_problem_t(
-    const pg::proof_graph_t* lhs )
-    : m_graph(lhs), m_cutoff(INVALID_CUT_OFF)
+    const pg::proof_graph_t* lhs, const std::string &name)
+    : m_name(name), m_graph(lhs), m_cutoff(INVALID_CUT_OFF)
 {}
   
 

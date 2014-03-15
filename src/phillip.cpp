@@ -12,52 +12,54 @@ namespace phil
 phillip_main_t *phillip_main_t::ms_instance = NULL;
 
 
-void phillip_main_t::infer( const lf::input_t &input )
+void phillip_main_t::infer(const lf::input_t &input, bool do_append)
 {
     if( not can_infer() )
     {
-        print_error( "Henry cannot infer!!" );
-        if( m_lhs_enumerator == NULL )
-            print_error( "    - No lhs_enumerator!" );
-        if( m_ilp_convertor == NULL )
-            print_error( "    - No ilp_convertor!" );
-        if( m_ilp_solver == NULL )
-            print_error( "    - No ilp_solver!" );
-        if( m_kb == NULL )
-            print_error( "    - No knowledge_base!" );
+        print_error("Henry cannot infer!!");
+        if (m_lhs_enumerator == NULL)
+            print_error("    - No lhs_enumerator!");
+        if (m_ilp_convertor == NULL)
+            print_error("    - No ilp_convertor!");
+        if (m_ilp_solver == NULL)
+            print_error("    - No ilp_solver!");
+        if (m_kb == NULL)
+            print_error("    - No knowledge_base!");
 
         return;
     }
     
     reset_for_inference();
-    m_obs = new lf::logical_function_t( input.obs );
+    m_input = new lf::input_t(input);
+    std::ios::openmode mode = 
+        std::ios::out | (do_append ? std::ios::app : std::ios::trunc);
 
-    clock_t begin_infer( clock() );
+    clock_t begin_infer(clock());
     
-    IF_VERBOSE_2( "Generating latent-hypotheses-set..." );
-    clock_t begin_flhs( clock() );
+    IF_VERBOSE_2("Generating latent-hypotheses-set...");
+    clock_t begin_flhs(clock());
     m_lhs = m_lhs_enumerator->execute();
-    clock_t end_flhs( clock() );
+    clock_t end_flhs(clock());
     m_clock_for_enumeration += end_flhs - begin_flhs;
-    IF_VERBOSE_2( "Completed generating latent-hypotheses-set." );
+    IF_VERBOSE_2("Completed generating latent-hypotheses-set.");
 
     if (not param("path_lhs_out").empty())
     {
-        std::ofstream fo(param("path_lhs_out").c_str());
+        std::ofstream fo(param("path_lhs_out").c_str(), mode);
         m_lhs->print(&fo);
         fo.close();
     }
 
-    IF_VERBOSE_2( "Converting LHS into linear-programming-problems..." );
-    clock_t begin_flpp( clock() );
+    IF_VERBOSE_2("Converting LHS into linear-programming-problems...");
+    clock_t begin_flpp(clock());
     m_ilp = m_ilp_convertor->execute();
-    clock_t end_flpp( clock() );
+    clock_t end_flpp(clock());
     m_clock_for_convention += end_flpp - begin_flpp;
-    IF_VERBOSE_2( "Completed convertion into linear-programming-problems..." );
+    IF_VERBOSE_2("Completed convertion into linear-programming-problems...");
 
     if (not param("path_ilp_out").empty())
     {
-        std::ofstream fo(param("path_ilp_out").c_str());
+        std::ofstream fo(param("path_ilp_out").c_str(), mode);
         m_ilp->print(&fo);
         fo.close();
     }
@@ -74,7 +76,7 @@ void phillip_main_t::infer( const lf::input_t &input )
 
     if (not param("path_sol_out").empty())
     {
-        std::ofstream fo(param("path_sol_out").c_str());
+        std::ofstream fo(param("path_sol_out").c_str(), mode);
         for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
             sol->print(&fo);
         fo.close();
@@ -82,13 +84,13 @@ void phillip_main_t::infer( const lf::input_t &input )
 
     if (not param("path_out").empty())
     {
-        std::ofstream fo(param("path_out").c_str());
+        std::ofstream fo(param("path_out").c_str(), mode);
         for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
             sol->print_graph(&fo);
         fo.close();
     }
 
-    clock_t end_infer( clock() );
+    clock_t end_infer(clock());
     m_clock_for_infer += end_infer - begin_infer;
 
     if (flag("print_time"))

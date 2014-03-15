@@ -15,7 +15,7 @@ inline phillip_main_t *phillip_main_t::get_instance()
 
 inline phillip_main_t::phillip_main_t()
     : m_lhs_enumerator(NULL), m_ilp_convertor(NULL), m_ilp_solver(NULL),
-      m_kb(NULL), m_obs(NULL), m_lhs(NULL), m_ilp(NULL),
+      m_kb(NULL), m_input(NULL), m_lhs(NULL), m_ilp(NULL),
       m_timeout(-1), m_verboseness(0), m_is_debugging(false),
       m_clock_for_enumeration(0), m_clock_for_convention(0),
       m_clock_for_solution(0), m_clock_for_infer(0) {}
@@ -74,8 +74,12 @@ inline void phillip_main_t::set_flag(const std::string &key)
 { m_flags.insert(key); }
 
 
+inline const lf::input_t* phillip_main_t::get_input() const
+{ return m_input; }
+
+
 inline const lf::logical_function_t* phillip_main_t::get_observation() const
-{ return m_obs; }
+{ return (m_input != NULL) ? &m_input->obs : NULL; }
 
 
 inline const pg::proof_graph_t* phillip_main_t::get_latent_hypotheses_set() const
@@ -148,10 +152,10 @@ inline bool phillip_main_t::can_infer() const
 
 inline void phillip_main_t::reset_for_inference()
 {
-    if( m_obs != NULL ) delete m_obs;
-    if( m_lhs != NULL ) delete m_lhs;
-    if( m_ilp != NULL ) delete m_ilp;
-    m_obs = NULL;
+    if (m_input != NULL) delete m_input;
+    if (m_lhs != NULL) delete m_lhs;
+    if (m_ilp != NULL) delete m_ilp;
+    m_input = NULL;
     m_lhs = NULL;
     m_ilp = NULL;
     m_clock_for_enumeration = 0;
