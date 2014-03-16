@@ -20,7 +20,7 @@ enum logical_operator_t
     OPR_AND,            /**< And (as "^"). */
     OPR_OR,             /**< Or (as "v"). */
     OPR_IMPLICATION,    /**< Implication (as "=>"). */
-    OPR_INCONSISTENT    /**< Inconsistent (as "_|_"). */
+    OPR_INCONSISTENT    /**< Inconsistent (as "xor"). */
 };
 
 

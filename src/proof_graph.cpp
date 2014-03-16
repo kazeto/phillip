@@ -19,7 +19,7 @@ namespace pg
 std::string unifier_t::to_string() const
 {
     std::string exp;
-    for( size_t i = 0; i < m_substitutions.size(); i++ )
+    for (size_t i = 0; i < m_substitutions.size(); i++)
     {
         const literal_t &sub = m_substitutions.at(i);
 
@@ -29,6 +29,63 @@ std::string unifier_t::to_string() const
         exp += sub.terms.at(0).string() + "/" + sub.terms.at(1).string();
     }
     return "{" + exp + "}";
+}
+
+
+bool chain_candidate_t::operator>(const chain_candidate_t &x) const
+{
+    if (axiom_id != x.axiom_id) return (axiom_id > x.axiom_id);
+    if (is_forward != x.is_forward) return is_forward;
+    if (nodes.size() != x.nodes.size()) return (nodes.size() > x.nodes.size());
+
+    std::vector<node_idx_t>::const_iterator
+        it1(nodes.begin()), it2(x.nodes.begin());
+
+    for (; it1 != nodes.end(); ++it1, ++it2)
+    if ((*it1) != (*it2))
+        return ((*it1) > (*it2));
+
+    return false;
+}
+
+
+bool chain_candidate_t::operator<(const chain_candidate_t &x) const
+{
+    if (axiom_id != x.axiom_id) return (axiom_id < x.axiom_id);
+    if (is_forward != x.is_forward) return !is_forward;
+    if (nodes.size() != x.nodes.size()) return (nodes.size() < x.nodes.size());
+
+    std::vector<node_idx_t>::const_iterator
+        it1(nodes.begin()), it2(x.nodes.begin());
+
+    for (; it1 != nodes.end(); ++it1, ++it2)
+    if ((*it1) != (*it2))
+        return ((*it1) < (*it2));
+
+    return false;
+}
+
+
+bool chain_candidate_t::operator==(const chain_candidate_t &x) const
+{
+    if (axiom_id != x.axiom_id) return false;
+    if (is_forward != x.is_forward) return false;
+    if (nodes.size() != x.nodes.size()) return false;
+
+    std::vector<node_idx_t>::const_iterator
+        it1(nodes.begin()), it2(x.nodes.begin());
+
+    for (; it1 != nodes.end(); ++it1, ++it2)
+    if ((*it1) != (*it2))
+        return false;
+
+    return true;
+}
+
+
+bool chain_candidate_t::operator!=(const chain_candidate_t &x) const
+{
+    return not operator==(x);
 }
 
 
@@ -242,7 +299,10 @@ bool proof_graph_t::can_let_nodes_coexist(node_idx_t n1, node_idx_t n2) const
     {
         if (e2.count(*it) > 0) continue;
 
-        auto muexs = m_mutual_exclusive_edges.at(*it);
+        auto find = m_mutual_exclusive_edges.find(*it);
+        if (find == m_mutual_exclusive_edges.end()) continue;
+
+        const hash_set<edge_idx_t> &muexs(find->second);
         if (has_intersection(muexs.begin(), muexs.end(), e2.begin(), e2.end()))
             return false;
     }
@@ -367,9 +427,8 @@ void proof_graph_t::enumerate_children_edges(
 }
 
 
-std::list< std::vector<node_idx_t> >
-proof_graph_t::enumerate_targets_of_chain(
-    const lf::axiom_t &ax, bool is_backward, int max_depth) const
+std::set<chain_candidate_t> proof_graph_t::enumerate_candidates_for_chain(
+    const lf::axiom_t &ax, bool is_backward, int depth) const
 {
     std::vector<const literal_t*>
         lits = (is_backward ? ax.func.get_rhs() : ax.func.get_lhs());
@@ -379,22 +438,26 @@ proof_graph_t::enumerate_targets_of_chain(
         arities.push_back((*it)->get_predicate_arity());
 
     std::list<std::vector<node_idx_t> > targets =
-        _enumerate_nodes_list_with_arities(arities, max_depth);
-    hash_map<node_idx_t, hash_map<node_idx_t, bool> > log;
+        _enumerate_nodes_list_with_arities(arities, depth);
+    std::set<chain_candidate_t> out;
+
+    for (auto it = targets.begin(); it != targets.end(); ++it)
+        out.insert(chain_candidate_t(*it, ax.id, !is_backward));
 
     if (not sys()->flag("disable_omitting_invalid_chains"))
-        _omit_invalid_targets_for_chain(&targets);
+        _omit_invalid_candidates_for_chain(&out);
 
-    return targets;
+    return out;
 }
 
 
 std::list< std::vector<node_idx_t> >
 proof_graph_t::_enumerate_nodes_list_with_arities(
-    const std::vector<std::string> &arities, int depth_limit) const
+    const std::vector<std::string> &arities, int depth) const
 {
     std::vector< std::vector<node_idx_t> > candidates;
     std::list< std::vector<node_idx_t> > out;
+    bool do_ignore_depth = (depth < 0);
 
     for (auto it = arities.begin(); it != arities.end(); ++it)
     {
@@ -403,13 +466,10 @@ proof_graph_t::_enumerate_nodes_list_with_arities(
 
         std::vector<node_idx_t> _new;
         for (auto n = _idx->begin(); n != _idx->end(); ++n)
-        {
-            if (depth_limit < 0 or node(*n).depth() <= depth_limit)
-                _new.push_back(*n);
-        }
+        if (do_ignore_depth or node(*n).depth() <= depth)
+            _new.push_back(*n);
 
-        if (_new.empty())
-            return out;
+        if (_new.empty()) return out;
 
         candidates.push_back(_new);
     }
@@ -417,25 +477,31 @@ proof_graph_t::_enumerate_nodes_list_with_arities(
     std::vector<int> indices(arities.size(), 0);
     bool do_end_loop(false);
 
-    while( not do_end_loop )
+    while (not do_end_loop)
     {
-        out.push_back(std::vector<node_idx_t>());
+        std::vector<node_idx_t> _new;
+        bool is_valid(false);
+
         for (int i = 0; i < candidates.size(); ++i)
         {
             node_idx_t idx = candidates.at(i).at(indices[i]);
-            out.back().push_back(idx);
+            _new.push_back(idx);
+            if (do_ignore_depth or node(idx).depth() == depth)
+                is_valid = true;
         }
 
-        /* INCREMENT */
+        if (is_valid) out.push_back(_new);
+
+        // INCREMENT
         ++indices[0];
         for (int i = 0; i < candidates.size(); ++i)
         {
             if (indices[i] >= candidates[i].size())
             {
-                if( i < indices.size() - 1 )
+                if (i < indices.size() - 1)
                 {
                     indices[i] = 0;
-                    ++indices[i+1];
+                    ++indices[i + 1];
                 }
                 else do_end_loop = true;
             }
@@ -446,17 +512,17 @@ proof_graph_t::_enumerate_nodes_list_with_arities(
 }
 
 
-void proof_graph_t::_omit_invalid_targets_for_chain(
-    std::list<std::vector<node_idx_t> > *out) const
+void proof_graph_t::_omit_invalid_candidates_for_chain(
+    std::set<chain_candidate_t> *cands) const
 {
     hash_map<node_idx_t, hash_map<node_idx_t, bool> > log;
 
-    for (auto it = out->begin(); it != out->end();)
+    for (auto it = cands->begin(); it != cands->end();)
     {
         bool is_valid(true);
 
-        for (auto n1 = it->begin(); n1 != it->end() and is_valid; ++n1)
-        for (auto n2 = it->begin(); n2 != n1 and is_valid; ++n2)
+        for (auto n1 = it->nodes.begin(); n1 != it->nodes.end() and is_valid; ++n1)
+        for (auto n2 = it->nodes.begin(); n2 != n1 and is_valid; ++n2)
         {
             auto find1 = log.find(*n1);
             if (find1 != log.end())
@@ -475,7 +541,7 @@ void proof_graph_t::_omit_invalid_targets_for_chain(
         }
 
         if (is_valid) ++it;
-        else it = out->erase(it);
+        else it = cands->erase(it);
     }
 }
 

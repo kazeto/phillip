@@ -109,16 +109,13 @@ bool _load_config_file(
     char line[2048];
     std::ifstream fin( filename );
 
-    if( not fin )
+    if (not fin)
     {
-        phil::print_error(
-            phil::format(
-                "Cannot open setting file \"%s\"", filename ) );
+        print_error_fmt("Cannot open setting file \"%s\"", filename);
         return false;
     }
 
-    std::cerr << time_stamp() << "Loading setting file: \""
-              << filename << "\"" << std::endl;
+    print_console_fmt("Loading setting file \"%s\"", filename);
     
     while( not fin.eof() )
     {
@@ -154,7 +151,7 @@ bool _load_config_file(
 
 bool _interpret_option(
     int opt, const std::string &arg,
-    execution_configure_t *config, std::vector<std::string> *inputs )
+    execution_configure_t *config, std::vector<std::string> *inputs)
 {
     switch(opt)
     {
@@ -162,21 +159,21 @@ bool _interpret_option(
     case 'c': // ---- SET COMPONENT
     {
         int idx( arg.find('=') );
-        if( idx >= 0 )
+        if (idx >= 0)
         {
-            std::string type = arg.substr( 0, idx );
-            std::string key  = arg.substr( idx+1 );
-            if( type == "lhs" )
+            std::string type = arg.substr(0, idx);
+            std::string key = arg.substr(idx + 1);
+            if (type == "lhs")
             {
                 config->lhs_key = key;
                 return true;
             }
-            if( type == "ilp" )
+            if (type == "ilp")
             {
                 config->ilp_key = key;
                 return true;
             }
-            if( type == "sol" )
+            if (type == "sol")
             {
                 config->sol_key = key;
                 return true;

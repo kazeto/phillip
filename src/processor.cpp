@@ -15,7 +15,7 @@ namespace proc
     if( not x ){ \
         print_error( \
             format("Syntax error at line %d:", s.get_line_num()) \
-            + e + "\n" + s.get_stack()->to_string());                      \
+            + e + "\n" + s.get_stack()->to_string()); \
         throw; }
 
 
@@ -31,7 +31,7 @@ void parse_obs_t::process( const sexp::reader_t *reader )
         reader->is_root(), (*reader), "Function O should be root." );
 
     std::string name = "?";
-    int i_x = stack.find_functor(STR_AND);
+    int i_x = stack.find_functor("^");
     int i_y = stack.find_functor("label");
     int i_name = stack.find_functor("name");
     
@@ -39,7 +39,7 @@ void parse_obs_t::process( const sexp::reader_t *reader )
         name = stack.children.at(i_name)->children.at(1)->get_string();
     if( i_x < 0 )
     {
-        print_warning( "Input not found:" + name );
+        print_warning("Input not found:" + name);
         return;
     }
 
@@ -74,7 +74,7 @@ void compile_kb_t::process( const sexp::reader_t *reader )
         
     /* IDENTIFY THE LOGICAL FORM PART. */
     int idx_lf   = stack->find_functor( "=>" );
-    int idx_inc  = stack->find_functor( "_|_" );
+    int idx_inc  = stack->find_functor( "xor" );
     int idx_name = stack->find_functor( "name" );
         
     _assert_syntax(

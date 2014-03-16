@@ -25,14 +25,13 @@ public:
     std::string str; /**< Content of string-stack instance. */
   
     inline stack_t() : type(LIST_STACK) {}
-    inline stack_t( stack_type_e t ) : type(t) {}
-    inline stack_t( stack_type_e t,
-                    const std::string &e,
-                    std::list<stack_t> &stack_list );
+    inline stack_t(stack_type_e t) : type(t) {}
+    inline stack_t(
+        stack_type_e t, const std::string &e, std::list<stack_t> &stack_list);
 
-    int find_functor( const std::string &func_name ) const;
+    int find_functor(const std::string &func_name) const;
     
-    inline bool is_functor( const std::string &func_name="" ) const;
+    inline bool is_functor(const std::string &func_name = "") const;
     inline bool is_parameter() const;
     
     inline std::string get_string() const; /** Get str of this or children. */

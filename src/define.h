@@ -41,13 +41,6 @@ typedef long int index_t;
 typedef long int axiom_id_t;
 typedef std::string predicate_t;
 
-extern const std::string STR_IMPLICATION;
-extern const std::string STR_AND;
-extern const std::string STR_OR;
-extern const std::string STR_NOT;
-extern const std::string STR_INCONSISTENT;
-extern const std::string PRED_SUBSTITION;
-
 namespace kb { class knowledge_base_t; }
 
 

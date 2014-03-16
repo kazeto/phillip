@@ -8,38 +8,31 @@
 namespace phil
 {
 
-const std::string STR_IMPLICATION  = "=>";
-const std::string STR_AND          = "^";
-const std::string STR_OR           = "v";
-const std::string STR_NOT          = "!";
-const std::string STR_INCONSISTENT = "_|_";
-
-
 hash_map<std::string, unsigned> string_hash_t::ms_hashier;
 std::vector<std::string>        string_hash_t::ms_strs;
 unsigned                        string_hash_t::ms_issued_variable_count;
 
 
-literal_t::literal_t( const sexp::stack_t &s )
+literal_t::literal_t(const sexp::stack_t &s)
     : truth(true)
 {
-    if( s.is_functor() )
+    if (s.is_functor())
     {
         const std::string &str = s.children[0]->children[0]->str;
-        if( str.at(0) == '!' )
+        if (str.at(0) == '!')
         {
             truth = false;
-            predicate = predicate_t( str.substr(1) );
+            predicate = predicate_t(str.substr(1));
         }
         else
-            predicate = predicate_t( str );
-        
-        for( int i=1; i<s.children.size(); i++ )
+            predicate = predicate_t(str);
+
+        for (int i = 1; i < s.children.size(); i++)
         {
-            if( not s.children[i]->is_parameter() )
+            if (not s.children[i]->is_parameter())
             {
-                term_t term( s.children[i]->get_string() );
-                terms.push_back( term );
+                term_t term(s.children[i]->get_string());
+                terms.push_back(term);
             }
         }
     }

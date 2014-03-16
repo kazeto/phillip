@@ -12,6 +12,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <set>
 #include <ciso646>
 
 
@@ -201,6 +202,24 @@ private:
 };
 
 
+struct chain_candidate_t
+{
+    inline chain_candidate_t(
+        const std::vector<node_idx_t> &_nodes,
+        axiom_id_t _id, bool _is_forward)
+        : axiom_id(_id), nodes(_nodes), is_forward(_is_forward) {}
+
+    bool operator>(const chain_candidate_t &x) const;
+    bool operator<(const chain_candidate_t &x) const;
+    bool operator==(const chain_candidate_t &x) const;
+    bool operator!=(const chain_candidate_t &x) const;
+
+    const std::vector<node_idx_t> nodes;
+    const axiom_id_t axiom_id;
+    const bool is_forward;
+};
+
+
 /** A class to express proof-graph of latent-hypotheses-set. */
 class proof_graph_t
 {        
@@ -292,12 +311,17 @@ public:
     void enumerate_hypernodes_parents(
         hypernode_idx_t idx, std::list<hypernode_idx_t> *out) const;
 
-    /** Enumerate lists of node indices which given axiom is applicable to.
-     *  Following nodes are excluded from output:
+    /** Enumerate candidates for chaining.
+     *  Following candidates are excluded from output:
      *    - Are not feasible due to exclusiveness of chains.
-     *    - Maximum of their depth exceeds max_depth from output. */
-    std::list< std::vector<node_idx_t> > enumerate_targets_of_chain(
-        const lf::axiom_t &ax, bool is_backward, int max_depth = -1) const;
+     *    - Maximum of depth in its nodes exceeds depth.
+     *    - Do not have a node whose depth equals to depth.
+     *  @param ax          An axiom to apply.
+     *  @param is_backward Whether chaining is abductive.
+     *  @param depth       Target dpeth.
+     *                     If -1, limitation on depth will be ignored. */
+    std::set<chain_candidate_t> enumerate_candidates_for_chain(
+        const lf::axiom_t &ax, bool is_backward, int depth = -1) const;
     
     /** Return pointer of set of indices of hypernode
      *  which has the given node as its element.
@@ -405,16 +429,17 @@ protected:
     hypernode_idx_t chain(
         hypernode_idx_t from, const lf::axiom_t &axiom, bool is_backward);
 
-    /** This is a sub-routine of enumerate_targets_of_chain.
+    /** This is a sub-routine of enumerate_candidates_for_chain.
      *  Enumerates arrays of node indices which corresponds arities.
-     *  @param depth_limit Excludes nodes whose depth exceed this from target. */
+     *  @param depth Each vector's nodes must not exclude this in depth.
+                     And each vector must have a node whose depth equals to this. */
     std::list< std::vector<node_idx_t> > _enumerate_nodes_list_with_arities(
-        const std::vector<std::string> &arities, int depth_limit) const;
+        const std::vector<std::string> &arities, int depth) const;
 
-    /** This is a sub-routine of enumerate_targets_of_chain.
+    /** This is a sub-routine of enumerate_candidates_for_chain.
      *  Excludes nodes which includes any exclusive node pair. */
-    void _omit_invalid_targets_for_chain(
-        std::list<std::vector<node_idx_t> > *out) const;
+    void _omit_invalid_candidates_for_chain(
+        std::set<chain_candidate_t> *cands) const;
 
     /* This is a sub-routine of chain. */
     void _get_substitutions_for_chain(

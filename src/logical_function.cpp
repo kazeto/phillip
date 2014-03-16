@@ -24,26 +24,26 @@ logical_function_t::logical_function_t(
 logical_function_t::logical_function_t( const sexp::stack_t &s )
     : m_operator( OPR_UNDERSPECIFIED )
 {
-    if( s.is_functor("=>") )
+    if (s.is_functor("=>"))
     {
         m_operator = OPR_IMPLICATION;
-        m_branches.push_back( logical_function_t( *(s.children[1]) ) );
-        m_branches.push_back( logical_function_t( *(s.children[2]) ) );
+        m_branches.push_back(logical_function_t(*(s.children[1])));
+        m_branches.push_back(logical_function_t(*(s.children[2])));
     }
-    else if( s.is_functor("_|_") )
+    else if (s.is_functor("xor"))
     {
         m_operator = OPR_INCONSISTENT;
-        m_branches.push_back( logical_function_t( *(s.children[1]) ) );
-        m_branches.push_back( logical_function_t( *(s.children[2]) ) );
+        m_branches.push_back(logical_function_t(*(s.children[1])));
+        m_branches.push_back(logical_function_t(*(s.children[2])));
     }
-    else if( s.is_functor("^") or s.is_functor("v") )
+    else if (s.is_functor("^") or s.is_functor("v"))
     {
         m_operator = s.is_functor("^") ? OPR_AND : OPR_OR;
-        for( int i=1; i<s.children.size(); i++ )
+        for (int i = 1; i < s.children.size(); i++)
         {
             const sexp::stack_t &child = *(s.children[i]);
-            if( not child.is_parameter() )
-                m_branches.push_back( logical_function_t(child) );
+            if (not child.is_parameter())
+                m_branches.push_back(logical_function_t(child));
         }
     }
     else
