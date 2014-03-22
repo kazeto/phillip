@@ -202,6 +202,8 @@ private:
 };
 
 
+/** A class of a candidate of chaining.
+ *  This class can be used as the key of std::map or the value of std::set. */
 struct chain_candidate_t
 {
     inline chain_candidate_t(
@@ -248,7 +250,6 @@ public:
      *  @return Index of new hypernode resulted in forward-chaining. */
     inline hypernode_idx_t forward_chain(
         hypernode_idx_t target, const lf::axiom_t &axiom);
-
 
     inline const std::vector<node_t>& nodes() const;
     inline const node_t& node(node_idx_t i) const;
@@ -313,9 +314,9 @@ public:
 
     /** Enumerate candidates for chaining.
      *  Following candidates are excluded from output:
-     *    - Are not feasible due to exclusiveness of chains.
-     *    - Maximum of depth in its nodes exceeds depth.
-     *    - Do not have a node whose depth equals to depth.
+     *    - One is not feasible due to exclusiveness of chains.
+     *    - One includes a node whose depth exceeds target depth.
+     *    - One do not includes a node whose depth equals to target depth.
      *  @param ax          An axiom to apply.
      *  @param is_backward Whether chaining is abductive.
      *  @param depth       Target dpeth.
@@ -417,15 +418,26 @@ protected:
     static size_t get_hash_of_nodes(std::list<node_idx_t> nodes);
 
     /** Adds a new node and updates maps.
+     *  Here, mutual-exclusion and unification-assumptions for the new node
+     *  are considered automatically.
+     *  @param lit   A literal which the new node has.
+     *  @param type  The type of the new node.
+     *  @param depth The depth of the new node.
+     *  @param muexs If the mutual exclusions have been already enumerated,
+     *               you can give a pointer of them to this.
      *  @return The index of added new node. */
-    node_idx_t add_node(const literal_t &lit, node_type_e type, int depth);
+    node_idx_t add_node(
+        const literal_t &lit, node_type_e type, int depth,
+        std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *muexs = NULL);
 
     /** Adds a new edge.
      *  @return The index of added new edge. */
-    inline edge_idx_t add_edge( const edge_t &edge );
+    inline edge_idx_t add_edge(const edge_t &edge);
 
     /** Performs backward-chaining or forward-chaining.
-     *  Correspondence of each term is considered on chaining. */
+     *  Correspondence of each term is considered on chaining.
+     *  @return Index of the new hypernode.
+     *          If chaining has failed, returns -1. */
     hypernode_idx_t chain(
         hypernode_idx_t from, const lf::axiom_t &axiom, bool is_backward);
 
@@ -441,11 +453,13 @@ protected:
     void _omit_invalid_candidates_for_chain(
         std::set<chain_candidate_t> *cands) const;
 
-    /* This is a sub-routine of chain. */
+    /** This is a sub-routine of chain.
+     *  @param lits  Literals whom nodes hypothesized by this chain have.
+     *  @param sub   Map from terms in axiom to terms in proof-graph.
+     *  @param conds Conditions for this chaining. */
     void _get_substitutions_for_chain(
-        const std::vector<node_idx_t> &nodes,
-        const std::vector<const literal_t*> &li_from,
-        hash_map<term_t, term_t> *subs,
+        hypernode_idx_t from, const lf::axiom_t &axiom, bool is_backward,
+        std::vector<literal_t> *lits, hash_map<term_t, term_t> *sub,
         hash_map<term_t, hash_set<term_t> > *conds) const;
 
     /* This is a sub-routine of _get_substitutions_for_chain. */
@@ -458,22 +472,36 @@ protected:
     term_t _substitute_term_for_chain(
         const term_t &target, hash_map<term_t, term_t> *subs) const;
 
+    /** This is a sub-routine of chain.
+     *  @return Whether the chaining is valid. */
+    bool _check_mutual_exclusiveness_for_chain(
+        hypernode_idx_t from, const std::vector<literal_t> &to,
+        std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > *muexs) const;
+
     /** This is a sub-routine of add_node.
      *  Generates unification assumptions between target node
      *  and other nodes which have same predicate as target node has. */
     void _generate_unification_assumptions(node_idx_t target);
 
     /** This is a sub-routine of add_node.
-     *  Generates mutual exclusiveness between target node and other nodes. */
-    inline void _generate_mutual_exclusions(node_idx_t target);
+     *  Generates mutual exclusiveness between target node and other nodes.
+     *  @param muexs A pointer to the list of mutual exclusions to create.
+     *               If NULL, enumerate them in this method. */
+    void _generate_mutual_exclusions(
+        node_idx_t target,
+        std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *muexs = NULL);
 
     /** This is a sub-routine of generate_mutual_exclusion.
      *  Adds mutual-exclusions for target and nodes being inconsistent with it. */
-    void _generate_mutual_exclusion_for_inconsistent_nodes(node_idx_t target);
+    void _enumerate_mutual_exclusion_for_inconsistent_nodes(
+        const literal_t &target,
+        std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *out) const;
 
     /** This is a sub-routine of generate_mutual_exclusion.
      *  Adds mutual-exclusions between target and its counter nodes. */
-    void _generate_mutual_exclusion_for_counter_nodes(node_idx_t target);
+    void _enumerate_mutual_exclusion_for_counter_nodes(
+        const literal_t &target,
+        std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *out) const;
 
     /** This is a sub-routine of chain.
      *  @param is_node_base Gives the mode of enumerating candidate edges.
@@ -482,13 +510,13 @@ protected:
     void _generate_mutual_exclusion_for_edges(
         edge_idx_t target, bool is_node_base);
 
+    /** This is a sub-routine of _generate_mutual_exclusion_for_edges. */
     void _enumerate_exclusive_chains_from_node(
         node_idx_t from, std::list< std::list<edge_idx_t> > *out) const;
+
+    /** This is a sub-routine of _generate_mutual_exclusion_for_edges. */
     void _enumerate_exclusive_chains_from_hypernode(
         hypernode_idx_t from, std::list< std::list<edge_idx_t> > *out) const;
-
-    inline void _add_mutual_exclusion(
-        node_idx_t n1, node_idx_t n2, const unifier_t &uni);
 
     /** This is a sub-routine of generate_unification_assumptions.
      *  Return indices of node which is unifiable with target.
@@ -503,11 +531,6 @@ protected:
     /** Sub-routine of chain_for_unification.
      *  Add nodes for transitive unification around the given term. */
     void _add_nodes_of_transitive_unification(term_t t);
-
-    /** Sub-routine of _generate_mutual_exclusions_for_inconsistency.
-     *  Applies inconsistency between i-th node and j-th node. */
-    void _apply_inconsistency_sub(
-        node_idx_t i, node_idx_t j, const lf::axiom_t &axiom);
 
     inline bool _is_considered_unification(node_idx_t i, node_idx_t j) const;
     inline bool _is_considered_exclusion(node_idx_t i, node_idx_t j) const;
@@ -593,8 +616,7 @@ protected:
         /** Map from depth to indices of nodes assigned the depth. */
         hash_map<int, hash_set<node_idx_t> > depth_to_nodes;
 
-        /** Map from axiom-id
-         *  to indices of hypernode which has been applied the axiom. */
+        /** Map from axiom-id to hypernodes which have been applied the axiom. */
         hash_map< axiom_id_t, hash_set<hypernode_idx_t> >
             axiom_to_hypernodes_forward, axiom_to_hypernodes_backward;
 

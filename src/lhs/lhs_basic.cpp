@@ -42,7 +42,7 @@ pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
 
         if (cands.empty()) break;
 
-        // CREATE AXIOMS MAP
+        // ENUMERATE AXIOMS USED HERE
         for (auto it = cands.begin(); it != cands.end(); ++it)
         if (axioms.count(it->axiom_id) == 0)
             axioms[it->axiom_id] = base->get_axiom(it->axiom_id);
@@ -131,59 +131,6 @@ pg::proof_graph_t *graph, int depth) const
     }
 
     return out;
-}
-
-
-void basic_lhs_enumerator_t::chain(
-    pg::node_idx_t idx, pg::proof_graph_t *graph) const
-{
-    const kb::knowledge_base_t *base = sys()->knowledge_base();
-    const pg::node_t &_node = graph->node(idx);
-    std::string arity = _node.literal().get_predicate_arity();
-    std::list<axiom_id_t> axioms_abd = base->search_axioms_with_rhs(arity);
-    std::list<axiom_id_t> axioms_ded = base->search_axioms_with_lhs(arity);
-
-    std::list< std::pair<lf::axiom_t, bool> > axioms; // <axiom, is_deduction>
-    for (auto it = axioms_ded.begin(); it != axioms_ded.end(); ++it)
-        axioms.push_back(std::make_pair(base->get_axiom(*it), true));
-    for (auto it = axioms_abd.begin(); it != axioms_abd.end(); ++it)
-        axioms.push_back(std::make_pair(base->get_axiom(*it), false));
-
-    for (auto it = axioms.begin(); it != axioms.end(); ++it)
-    {
-        const lf::axiom_t &ax(it->first);
-        bool is_forward(it->second);
-        std::list< std::vector<pg::node_idx_t> > targets; // ERROR
-
-        for (auto v = targets.begin(); v != targets.end(); ++v)
-        {
-            pg::hypernode_idx_t from = graph->add_hypernode(*v);
-
-            // IF THIS CHAINING HAS BEEN ALREADY PERFORMED, SKIP IT.
-            if (graph->axiom_has_applied(from, ax, not is_forward))
-                continue;
-
-            pg::hypernode_idx_t to = is_forward ?
-                graph->forward_chain(from, ax) :
-                graph->backward_chain(from, ax);
-
-            // PRINT FOR DEBUG
-            if (sys()->verbose() == FULL_VERBOSE)
-            {
-                const std::vector<pg::node_idx_t>
-                    &hn_from = graph->hypernode(from),
-                    &hn_to = graph->hypernode(to);
-                std::string
-                    str_from = join(hn_from.begin(), hn_from.end(), "%d", ","),
-                    str_to = join(hn_to.begin(), hn_to.end(), "%d", ",");
-                std::string disp(
-                    is_forward ? "ForwardChain: " : "BackwardChain: ");
-                disp += format("%d:[%s] <= %s <= %d:[%s]",
-                    from, str_from.c_str(), ax.name.c_str(), to, str_to.c_str());
-                std::cerr << time_stamp() << disp << std::endl;
-            }
-        }
-    }
 }
 
 

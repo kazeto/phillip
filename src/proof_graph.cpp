@@ -842,7 +842,8 @@ void proof_graph_t::print_exclusiveness(
 
 
 node_idx_t proof_graph_t::add_node(
-    const literal_t &lit, node_type_e type, int depth)
+    const literal_t &lit, node_type_e type, int depth,
+    std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *muexs)
 {
     node_t add(lit, type, m_nodes.size(), depth);
     node_idx_t out = m_nodes.size();
@@ -874,7 +875,7 @@ node_idx_t proof_graph_t::add_node(
         m_maps.term_to_nodes[t].insert(out);
     }
 
-    _generate_mutual_exclusions(out);
+    _generate_mutual_exclusions(out, muexs);
     _generate_unification_assumptions(out);
 
     return out;
@@ -882,58 +883,41 @@ node_idx_t proof_graph_t::add_node(
 
 
 hypernode_idx_t proof_graph_t::chain(
-    hypernode_idx_t from, const lf::axiom_t &implication, bool is_backward )
+    hypernode_idx_t from, const lf::axiom_t &axiom, bool is_backward )
 {
     std::vector<literal_t> literals_to;
     hash_map<term_t, term_t> subs;
     hash_map<term_t, hash_set<term_t> > conds;
-
-    {
-        /* CREATE SUBSTITUTIONS */
-        const std::vector<node_idx_t> &indices_from = hypernode(from);
-        const lf::logical_function_t &lhs = implication.func.branch(0);
-        const lf::logical_function_t &rhs = implication.func.branch(1);
-        std::vector<const literal_t*>
-            ax_to( ( is_backward ? lhs : rhs ).get_all_literals() ),
-            ax_from( ( is_backward ? rhs : lhs ).get_all_literals() );
-
-        _get_substitutions_for_chain(indices_from, ax_from, &subs, &conds);
-        literals_to.assign(ax_to.size(), literal_t());
-
-        /* SUBSTITUTE TERMS */
-        for (size_t i = 0; i < ax_to.size(); ++i)
-        {
-            literals_to[i] = *ax_to.at(i);
-            for (size_t j = 0; j < literals_to[i].terms.size(); ++j)
-            {
-                term_t &term = literals_to[i].terms[j];
-                term = _substitute_term_for_chain(term, &subs);
-            }
-        }
-    }
-
     int depth = get_depth_of_deepest_node(from);
     if (depth >= 0) ++depth;
 
-    /* ADD NODES AND HYPERNODE */
-    std::vector<node_idx_t> hypernode_to( literals_to.size(), -1 );
+    _get_substitutions_for_chain(
+        from, axiom, is_backward, &literals_to, &subs, &conds);
+
+    // CHECK VARIDITY OF CHAINING ABOUT MUTUAL-EXCLUSIVENESS
+    std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > muexs;
+    if (_check_mutual_exclusiveness_for_chain(from, literals_to, &muexs))
+        return -1;
+
+    /* ADD NEW NODES AND NEW HYPERNODE TO THIS */
+    std::vector<node_idx_t> hypernode_to(literals_to.size(), -1);
     for (size_t i = 0; i < literals_to.size(); ++i)
     {
-        node_idx_t idx = add_node(literals_to[i], NODE_HYPOTHESIS, depth);
+        node_idx_t idx =
+            add_node(literals_to[i], NODE_HYPOTHESIS, depth, &muexs[i]);
         hypernode_to[i] = idx;
     }
-    hypernode_idx_t idx_hn_to = add_hypernode( hypernode_to );
+    hypernode_idx_t idx_hn_to = add_hypernode(hypernode_to);
 
-    /* SET MASTER-HYPERNODE */
+    /* SET MASTER-HYPERNODE OF EACH NEW NODE */
     for (auto it = hypernode_to.begin(); it != hypernode_to.end(); ++it)
         m_nodes[*it].set_master_hypernode(idx_hn_to);
 
     /* ADD EDGE */
-    edge_type_e type = is_backward ? EDGE_HYPOTHESIZE : EDGE_IMPLICATION;
-    edge_idx_t edge_idx =
-        add_edge(edge_t(type, from, idx_hn_to, implication.id));
+    edge_type_e type = (is_backward ? EDGE_HYPOTHESIZE : EDGE_IMPLICATION);
+    edge_idx_t edge_idx = add_edge(edge_t(type, from, idx_hn_to, axiom.id));
 
-    /* ADD CONDITIONAL SUBS */
+    /* ADD CONDITIONAL UNIFICATION FOR CHAIN */
     if (not conds.empty())
     {
         std::list< std::pair<term_t, term_t> > *cd =
@@ -945,9 +929,9 @@ hypernode_idx_t proof_graph_t::chain(
     }
 
     /* ADD AXIOM HISTORY */
-    (is_backward ?
-        m_maps.axiom_to_hypernodes_backward : m_maps.axiom_to_hypernodes_forward)
-        [implication.id].insert(from);
+    hash_map<axiom_id_t, hash_set<hypernode_idx_t> > &ax2hn = is_backward ?
+        m_maps.axiom_to_hypernodes_backward : m_maps.axiom_to_hypernodes_forward;
+    ax2hn[axiom.id].insert(from);
 
     bool flag(sys()->flag("enable_node_based_mutual_exclusive_chain"));
     _generate_mutual_exclusion_for_edges(edge_idx, flag);
@@ -957,17 +941,23 @@ hypernode_idx_t proof_graph_t::chain(
 
 
 void proof_graph_t::_get_substitutions_for_chain(
-    const std::vector<node_idx_t> &nodes,
-    const std::vector<const literal_t*> &lit,
-    hash_map<term_t, term_t> *subs,
+    hypernode_idx_t from, const lf::axiom_t &axiom, bool is_backward,
+    std::vector<literal_t> *lits, hash_map<term_t, term_t> *subs,
     hash_map<term_t, hash_set<term_t> > *conds) const
 {
-    assert(nodes.size() == lit.size());
+    const std::vector<node_idx_t> &indices_from = hypernode(from);
+    const lf::logical_function_t &lhs = axiom.func.branch(0);
+    const lf::logical_function_t &rhs = axiom.func.branch(1);
+    std::vector<const literal_t*>
+        ax_to((is_backward ? lhs : rhs).get_all_literals()),
+        ax_from((is_backward ? rhs : lhs).get_all_literals());
+    assert(indices_from.size() == ax_from.size());
 
-    for (size_t i=0; i<nodes.size(); ++i)
+    /* CREATE MAP OF TERMS */
+    for (size_t i=0; i<indices_from.size(); ++i)
     {
-        const literal_t &li_ax = *(lit.at(i));
-        const literal_t &li_hy = node(nodes.at(i)).literal();
+        const literal_t &li_ax = *(ax_from.at(i));
+        const literal_t &li_hy = node(indices_from.at(i)).literal();
 
         for (size_t j=0; j<li_ax.terms.size(); ++j)
         {
@@ -983,14 +973,27 @@ void proof_graph_t::_get_substitutions_for_chain(
                 std::string sub, suf(s_ax.substr(idx1 + 1));
 
                 if (idx2 != std::string::npos)
-                    if (suf == s_hy.substr(idx2 + 1))
-                        sub = (s_hy.substr(0, idx2));
+                if (suf == s_hy.substr(idx2 + 1))
+                    sub = (s_hy.substr(0, idx2));
+
                 if (sub.empty())
                     sub = (s_hy + "/" + suf);
 
                 _get_substitutions_for_chain_sub(
                     term_t(s_ax.substr(0, idx1)), term_t(sub), subs, conds);
             }
+        }
+    }
+
+    /* SUBSTITUTE TERMS IN LITERALS */
+    lits->assign(ax_to.size(), literal_t());
+    for (size_t i = 0; i < ax_to.size(); ++i)
+    {
+        (*lits)[i] = *ax_to.at(i);
+        for (size_t j = 0; j < (*lits)[i].terms.size(); ++j)
+        {
+            term_t &term = (*lits)[i].terms[j];
+            term = _substitute_term_for_chain(term, subs);
         }
     }
 }
@@ -1046,6 +1049,14 @@ term_t proof_graph_t::_substitute_term_for_chain(
 }
 
 
+bool proof_graph_t::_check_mutual_exclusiveness_for_chain(
+    hypernode_idx_t from, const std::vector<literal_t> &to,
+    std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > *muexs) const
+{
+    // TODO
+}
+
+
 int proof_graph_t::get_depth_of_deepest_node(hypernode_idx_t idx) const
 {
     int out = -1;
@@ -1097,11 +1108,51 @@ proof_graph_t::enumerate_mutual_exclusive_edges() const
 }
 
 
-void proof_graph_t::_generate_mutual_exclusion_for_inconsistent_nodes(node_idx_t idx)
+void proof_graph_t::_generate_mutual_exclusions(
+    node_idx_t target,
+    std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *muexs)
+{
+    const literal_t &lit = node(target).literal();
+    bool do_enumerate = (muexs == NULL);
+
+    if (do_enumerate)
+    {
+        muexs = new std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> >();
+        _enumerate_mutual_exclusion_for_inconsistent_nodes(lit, muexs);
+        _enumerate_mutual_exclusion_for_counter_nodes(lit, muexs);
+    }
+
+    // ADD MUTUAL EXCLUSIONS FOR INCONSISTENCY
+    for (auto it = muexs->begin(); it != muexs->end(); ++it)
+    {
+        node_idx_t idx2 = std::get<0>(*it);
+        const unifier_t uni = std::get<1>(*it);
+        axiom_id_t axiom_id = std::get<2>(*it);
+
+        IF_VERBOSE_FULL(
+            "Inconsistent: " + node(target).to_string() + ", "
+            + node(idx2).to_string() + uni.to_string());
+
+        if (axiom_id >= 0)
+        {
+            m_maps.node_to_inconsistency[target].insert(axiom_id);
+            m_maps.node_to_inconsistency[idx2].insert(axiom_id);
+        }
+        bool do_swap(target >= idx2);
+        node_idx_t n1(do_swap ? idx2 : target), n2(do_swap ? target : idx2);
+        m_mutual_exclusive_nodes[n1][n2] = uni;
+    }
+
+    if (do_enumerate) delete muexs;
+}
+
+
+void proof_graph_t::_enumerate_mutual_exclusion_for_inconsistent_nodes(
+    const literal_t &target,
+    std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *out) const
 {
     const kb::knowledge_base_t *kb = sys()->knowledge_base();
-    const node_t &target = node(idx);
-    std::string arity = target.literal().get_predicate_arity();
+    std::string arity = target.get_predicate_arity();
     std::list<axiom_id_t> axioms = kb->search_inconsistencies(arity);
 
     for (auto ax = axioms.begin(); ax != axioms.end(); ++ax)
@@ -1110,54 +1161,36 @@ void proof_graph_t::_generate_mutual_exclusion_for_inconsistent_nodes(node_idx_t
 
         const literal_t &lit1 = axiom.func.branch(0).literal();
         const literal_t &lit2 = axiom.func.branch(1).literal();
-        bool target_is_first = (lit1.get_predicate_arity() == arity);
+        bool do_rev = (lit1.get_predicate_arity() != arity);
 
-        const hash_set<node_idx_t> *idx_nodes = target_is_first ?
-            search_nodes_with_predicate(lit2.predicate, lit2.terms.size()) :
-            search_nodes_with_predicate(lit1.predicate, lit1.terms.size());
+        const hash_set<node_idx_t> *idx_nodes = do_rev ?
+            search_nodes_with_predicate(lit1.predicate, lit1.terms.size()) :
+            search_nodes_with_predicate(lit2.predicate, lit2.terms.size());
 
         if (idx_nodes == NULL) continue;
 
         for (auto it = idx_nodes->begin(); it != idx_nodes->end(); ++it)
         {
-            if (target_is_first)
-                _apply_inconsistency_sub(idx, *it, axiom);
-            else
-                _apply_inconsistency_sub(*it, idx, axiom);
+            const literal_t &target2 = node(*it).literal();
+            const literal_t &inc_1 = (do_rev ? lit2 : lit1);
+            const literal_t &inc_2 = (do_rev ? lit1 : lit2);
+            unifier_t uni;
+
+            for (unsigned t1 = 0; t1 < target.terms.size(); t1++)
+            for (unsigned t2 = 0; t2 < target2.terms.size(); t2++)
+            {
+                if (inc_1.terms.at(t1) == inc_2.terms.at(t2))
+                {
+                    const term_t &term1 = target.terms.at(t1);
+                    const term_t &term2 = target2.terms.at(t2);
+                    uni.add(term1, term2);
+                }
+            }
+
+            out->push_back(std::make_tuple(*it, uni, *ax));
         }
     }
 }
-
-
-void proof_graph_t::_apply_inconsistency_sub(
-    node_idx_t i, node_idx_t j, const lf::axiom_t &axiom )
-{
-    unifier_t uni;
-    const literal_t &inc_1 = axiom.func.branch(0).literal();
-    const literal_t &inc_2 = axiom.func.branch(1).literal();
-    const literal_t &target_1 = node(i).literal();
-    const literal_t &target_2 = node(j).literal();
-
-    for (unsigned t1 = 0; t1 < target_1.terms.size(); t1++)
-    for (unsigned t2 = 0; t2 < target_2.terms.size(); t2++)
-    {
-        if (inc_1.terms.at(t1) == inc_2.terms.at(t2))
-        {
-            const term_t &term1 = target_1.terms.at(t1);
-            const term_t &term2 = target_2.terms.at(t2);
-            uni.add(term1, term2);
-        }
-    }
-
-    IF_VERBOSE_FULL(
-        "Inconsistent: " + node(i).to_string() + ", "
-        + node(j).to_string() + uni.to_string() );
-    
-    m_maps.node_to_inconsistency[i].insert(axiom.id);
-    m_maps.node_to_inconsistency[j].insert(axiom.id);
-    _add_mutual_exclusion(i, j, uni);
-}
-
 
 
 void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
@@ -1341,26 +1374,23 @@ hypernode_idx_t proof_graph_t::add_hypernode(
 }
 
 
-void proof_graph_t::
-    _generate_mutual_exclusion_for_counter_nodes(node_idx_t idx)
+void proof_graph_t::_enumerate_mutual_exclusion_for_counter_nodes(
+    const literal_t &target,
+    std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *out) const
 {
-    const literal_t &l1 = node(idx).literal();
     const hash_set<node_idx_t>* indices =
-        search_nodes_with_predicate(l1.predicate, l1.terms.size());
+        search_nodes_with_predicate(target.predicate, target.terms.size());
 
     for (auto it = indices->begin(); it != indices->end(); ++it)
     {
-        if (*it == idx) continue;
-
         const literal_t &l2 = node(*it).literal();
 
-        if (l1.truth != l2.truth)
-        if (not _is_considered_exclusion(*it, idx))
+        if (target.truth != l2.truth)
         {
             unifier_t uni;
 
-            if (check_unifiability(l1, l2, true, &uni))
-                _add_mutual_exclusion(idx, *it, uni);
+            if (check_unifiability(target, l2, true, &uni))
+                out->push_back(std::make_tuple(*it, uni, -1));
         }
     }
 }

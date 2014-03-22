@@ -1,7 +1,6 @@
 /* -*- coding: utf-8 -*- */
 
-#ifndef INCLUDE_HENRY_HENRY_H
-#define INCLUDE_HENRY_HENRY_H
+#pragma once
 
 #include <string>
 #include <map>
@@ -131,5 +130,3 @@ inline phillip_main_t *sys() { return phillip_main_t::get_instance(); }
 
 #include "./phillip.inline.h"
 
-
-#endif

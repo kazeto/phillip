@@ -33,10 +33,6 @@ private:
      *  the second value is whether chaining is forward or not. */
     std::set<std::tuple<axiom_id_t, bool> > enumerate_applicable_axioms(
         pg::proof_graph_t *graph, int depth) const;
-
-    /** Perform backward-chaining from given node.
-     *  This method is sub-routine of execute(). */
-    void chain(pg::node_idx_t idx, pg::proof_graph_t *graph) const;
     
     bool m_do_deduction, m_do_abduction;
     int m_depth_max;
