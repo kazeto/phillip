@@ -68,19 +68,16 @@ void compile_kb_t::process( const sexp::reader_t *reader )
     /* SHOULD BE ROOT. */
     _assert_syntax(
         reader->is_root(), (*reader), "Function B should be root." );
-
-    IF_VERBOSE_FULL(
-        "Background knowledge " + stack->to_string() + " added." );
         
     /* IDENTIFY THE LOGICAL FORM PART. */
-    int idx_lf   = stack->find_functor( "=>" );
-    int idx_inc  = stack->find_functor( "xor" );
-    int idx_name = stack->find_functor( "name" );
+    int idx_lf = stack->find_functor("=>");
+    int idx_inc = stack->find_functor("xor");
+    int idx_name = stack->find_functor("name");
         
     _assert_syntax(
         (idx_lf != -1 or idx_inc != -1), (*reader),
-        "no logical connectors found." );    
-    
+        "no logical connectors found." );
+
     std::string name;
     if (idx_name >= 0)
         name = stack->children.at(idx_name)->children.at(1)->get_string();
@@ -95,12 +92,16 @@ void compile_kb_t::process( const sexp::reader_t *reader )
         lf::logical_function_t lf(*stack->children[idx]);
         if (idx_lf >= 0)
         {
+            IF_VERBOSE_FULL("add implication: " + stack->to_string());
+
             m_is_temporary ?
                 m_kb->insert_implication_temporary(lf, name) :
                 m_kb->insert_implication_for_compile(lf, name);
         }
         else if (idx_inc >= 0)
         {
+            IF_VERBOSE_FULL("add inconsistency: " + stack->to_string());
+
             m_is_temporary ?
                 m_kb->insert_inconsistency_temporary(lf, name) :
                 m_kb->insert_inconsistency_for_compile(lf, name);

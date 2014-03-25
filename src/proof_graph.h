@@ -186,8 +186,12 @@ public:
     inline void add(const term_t &x, const term_t &y);
     inline void add(const term_t &x, const std::string &var);
 
+    /** Returns whether this instance does not have any term. */
+    inline bool empty() const;
+
     /** Returns whether x corresponds with substituted variable by this. */
     inline bool has_applied(const term_t &x) const;
+
     std::string to_string() const;
 
 private:
@@ -259,6 +263,9 @@ public:
 
     inline const std::vector< std::vector<node_idx_t> >& hypernodes() const;
     inline const std::vector<node_idx_t>& hypernode(hypernode_idx_t i) const;
+
+    /** Returns a set of indices of observable nodes. */
+    hash_set<node_idx_t> enumerate_observations() const;
 
     std::list<std::tuple<node_idx_t, node_idx_t, unifier_t> >
         enumerate_mutual_exclusive_nodes() const;
@@ -353,11 +360,14 @@ public:
     inline const hash_set<term_t>* find_variable_cluster(term_t t) const;
     std::list< const hash_set<term_t>* > enumerate_variable_clusters() const;
 
-    /** Get list of chains which are needed to hypothesize given node. */
+    /** Returns a list of chains which are needed to hypothesize given node. */
     hash_set<edge_idx_t> enumerate_dependent_edges(node_idx_t) const;
 
-    /** Get list of chains which are needed to hypothesize given node. */
+    /** Returns a list of chains which are needed to hypothesize given node. */
     void enumerate_dependent_edges(node_idx_t, hash_set<edge_idx_t>*) const;
+
+    /** Returns a list of nodes which are needed to hypothesize given node. */
+    void enumerate_dependent_nodes(node_idx_t, hash_set<node_idx_t>*) const;
 
     /** Enumerates unification nodes
      *  which are needed to satisfy conditions for given chaining.
@@ -423,12 +433,8 @@ protected:
      *  @param lit   A literal which the new node has.
      *  @param type  The type of the new node.
      *  @param depth The depth of the new node.
-     *  @param muexs If the mutual exclusions have been already enumerated,
-     *               you can give a pointer of them to this.
      *  @return The index of added new node. */
-    node_idx_t add_node(
-        const literal_t &lit, node_type_e type, int depth,
-        std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *muexs = NULL);
+    node_idx_t add_node(const literal_t &lit, node_type_e type, int depth);
 
     /** Adds a new edge.
      *  @return The index of added new edge. */
@@ -473,7 +479,8 @@ protected:
         const term_t &target, hash_map<term_t, term_t> *subs) const;
 
     /** This is a sub-routine of chain.
-     *  @return Whether the chaining is valid. */
+     *  Returns Whether the chaining can be performed.
+     *  When returns false, the contents of muexs is invalid. */
     bool _check_mutual_exclusiveness_for_chain(
         hypernode_idx_t from, const std::vector<literal_t> &to,
         std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > *muexs) const;
@@ -550,7 +557,9 @@ protected:
         std::ostream *os, const std::string &indent) const;
     virtual void print_subs(
         std::ostream *os, const std::string &indent) const;
-    virtual void print_exclusiveness(
+    virtual void print_mutual_exclusive_nodes(
+        std::ostream *os, const std::string &indent) const;
+    virtual void print_mutual_exclusive_edges(
         std::ostream *os, const std::string &indent) const;
 
     // ---- VARIABLES

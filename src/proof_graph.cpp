@@ -174,6 +174,23 @@ void proof_graph_t::enumerate_dependent_edges(
 }
 
 
+void proof_graph_t::enumerate_dependent_nodes(
+    node_idx_t idx, hash_set<node_idx_t> *out) const
+{
+    hypernode_idx_t m = node(idx).get_master_hypernode();
+    if (m < 0) return;
+
+    edge_idx_t e = find_parental_edge(m);
+    auto _nodes = hypernode(edge(e).tail());
+
+    for (auto it = _nodes.begin(); it != _nodes.end(); ++it)
+    {
+        out->insert(*it);
+        enumerate_dependent_nodes(*it, out);
+    }
+}
+
+
 void proof_graph_t::_enumerate_exclusive_chains_from_node(
     node_idx_t from, std::list< std::list<edge_idx_t> > *out) const
 {
@@ -702,7 +719,8 @@ void proof_graph_t::print(std::ostream *os) const
     print_axioms(os, "    ");
     print_edges(os, "    ");
     print_subs(os, "    ");
-    print_exclusiveness(os, "    ");
+    print_mutual_exclusive_nodes(os, "    ");
+    print_mutual_exclusive_edges(os, "    ");
 
     (*os) << "</latent-hypotheses-set>" << std::endl;
 }
@@ -822,28 +840,64 @@ void proof_graph_t::print_subs(std::ostream *os, const std::string &indent) cons
 }
 
 
-void proof_graph_t::print_exclusiveness(
+void proof_graph_t::print_mutual_exclusive_nodes(
     std::ostream *os, const std::string &indent) const
 {
     const hash_map<node_idx_t, hash_map<node_idx_t, unifier_t> >
         &muexs = m_mutual_exclusive_nodes;
+    int num(0);
 
-    (*os) << "# mutual-exclusions:" << std::endl;
+    for (auto it = muexs.begin(); it != muexs.end(); ++it)
+        num += it->second.size();
+
+    (*os) << indent << "<mutual_exclusive_nodes num=\""
+        << num << "\">" << std::endl;
+
     for (auto it1 = muexs.begin(); it1 != muexs.end(); ++it1)
     for (auto it2 = it1->second.begin(); it2 != it1->second.end(); ++it2)
     {
         const node_t &n1 = node(it1->first);
         const node_t &n2 = node(it2->first);
 
-        (*os) << "    " << n1.to_string() << " _|_ " << n2.to_string()
-            << " : " << it2->second.to_string() << std::endl;
+        (*os)
+            << indent << "    <xor node1=\"" << n1.index()
+            << "\" node2=\"" << n2.index()
+            << "\" subs=\"" << it2->second.to_string() << "\">"
+            << n1.literal().to_string() << " _|_ "
+            << n2.literal().to_string() << "</xor>" << std::endl;
     }
+
+    (*os) << indent << "</mutual_exclusive_nodes>" << std::endl;
+}
+
+
+void proof_graph_t::print_mutual_exclusive_edges(
+    std::ostream *os, const std::string &indent) const
+{
+    const hash_map<edge_idx_t, hash_set<edge_idx_t> >
+        &muexs = m_mutual_exclusive_edges;
+    int num(0);
+
+    for (auto it = muexs.begin(); it != muexs.end(); ++it)
+        num += it->second.size();
+
+    (*os) << indent << "<mutual_exclusive_edges num=\""
+          << num << "\">" << std::endl;
+
+    for (auto it1 = muexs.begin(); it1 != muexs.end(); ++it1)
+    for (auto it2 = it1->second.begin(); it2 != it1->second.end(); ++it2)
+    {
+        (*os)
+            << indent << "    <xor edge1=\"" << it1->first
+            << "\" edge2=\"" << (*it2) << "\"></xor>" << std::endl;
+    }
+
+    (*os) << indent << "</mutual_exclusive_edges>" << std::endl;
 }
 
 
 node_idx_t proof_graph_t::add_node(
-    const literal_t &lit, node_type_e type, int depth,
-    std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *muexs)
+    const literal_t &lit, node_type_e type, int depth)
 {
     node_t add(lit, type, m_nodes.size(), depth);
     node_idx_t out = m_nodes.size();
@@ -875,9 +929,6 @@ node_idx_t proof_graph_t::add_node(
         m_maps.term_to_nodes[t].insert(out);
     }
 
-    _generate_mutual_exclusions(out, muexs);
-    _generate_unification_assumptions(out);
-
     return out;
 }
 
@@ -896,15 +947,15 @@ hypernode_idx_t proof_graph_t::chain(
 
     // CHECK VARIDITY OF CHAINING ABOUT MUTUAL-EXCLUSIVENESS
     std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > muexs;
-    if (_check_mutual_exclusiveness_for_chain(from, literals_to, &muexs))
-        return -1;
+    bool can_chain =
+        _check_mutual_exclusiveness_for_chain(from, literals_to, &muexs);
+    if (not can_chain) return -1;
 
     /* ADD NEW NODES AND NEW HYPERNODE TO THIS */
     std::vector<node_idx_t> hypernode_to(literals_to.size(), -1);
     for (size_t i = 0; i < literals_to.size(); ++i)
     {
-        node_idx_t idx =
-            add_node(literals_to[i], NODE_HYPOTHESIS, depth, &muexs[i]);
+        node_idx_t idx = add_node(literals_to[i], NODE_HYPOTHESIS, depth);
         hypernode_to[i] = idx;
     }
     hypernode_idx_t idx_hn_to = add_hypernode(hypernode_to);
@@ -933,8 +984,16 @@ hypernode_idx_t proof_graph_t::chain(
         m_maps.axiom_to_hypernodes_backward : m_maps.axiom_to_hypernodes_forward;
     ax2hn[axiom.id].insert(from);
 
+    /* GENERATE MUTUAL EXCLUSIONS BETWEEN CHAINS */
     bool flag(sys()->flag("enable_node_based_mutual_exclusive_chain"));
     _generate_mutual_exclusion_for_edges(edge_idx, flag);
+
+    /* GENERATE MUTUAL EXCLUSIONS & UNIFICATION ASSUMPTIONS */
+    for (size_t i = 0; i < literals_to.size(); ++i)
+    {
+        _generate_mutual_exclusions(hypernode_to[i], &muexs[i]);
+        _generate_unification_assumptions(hypernode_to[i]);
+    }
     
     return idx_hn_to;
 }
@@ -1053,7 +1112,41 @@ bool proof_graph_t::_check_mutual_exclusiveness_for_chain(
     hypernode_idx_t from, const std::vector<literal_t> &to,
     std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > *muexs) const
 {
-    // TODO
+    hash_set<node_idx_t> dep;
+    const std::vector<node_idx_t> &hn = hypernode(from);
+    bool do_disable =
+        sys()->flag("disable_check_mutual_exclusiveness_for_chain");
+
+    muexs->assign(
+        to.size(), std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> >());
+
+    // ENUMERATE DEPENDENT NODES
+    for (auto n = hn.begin(); n != hn.end(); ++n)
+    {
+        dep.insert(*n);
+        enumerate_dependent_nodes(*n, &dep);
+    }
+
+    for (int i = 0; i < to.size(); ++i)
+    {
+        // ENUMERATE MUTUAL EXCLUSIONS
+        _enumerate_mutual_exclusion_for_counter_nodes(to.at(i), &(*muexs)[i]);
+        _enumerate_mutual_exclusion_for_inconsistent_nodes(to.at(i), &(*muexs)[i]);
+        if (muexs->at(i).empty()) continue;
+
+        // CHECK VARIDITY
+        auto _muex = muexs->at(i);
+        for (auto it = _muex.begin(); it != _muex.end(); ++it)
+        {
+            node_idx_t n = std::get<0>(*it);
+            const unifier_t &uni = std::get<1>(*it);
+
+            if (not do_disable and dep.count(n) > 0 and uni.empty())
+                return false;
+        }
+    }
+
+    return true;
 }
 
 
@@ -1066,6 +1159,16 @@ int proof_graph_t::get_depth_of_deepest_node(hypernode_idx_t idx) const
         int depth = node(*it).depth();
         if (depth > out) out = depth;
     }
+    return out;
+}
+
+
+hash_set<node_idx_t> proof_graph_t::enumerate_observations() const
+{
+    hash_set<node_idx_t> out;
+    for (node_idx_t i = 0; i < nodes().size(); ++i)
+    if (node(i).type() == NODE_OBSERVABLE)
+        out.insert(i);
     return out;
 }
 
@@ -1215,7 +1318,7 @@ std::list<node_idx_t>
     std::list<node_idx_t> unifiables;
     unifier_t unifier;
     bool do_omit_invalid_unification(
-        not sys()->flag("disable_omitting-invalid-unification"));
+        not sys()->flag("disable_omitting_invalid_unification"));
 
     for (auto it = candidates->begin(); it != candidates->end(); ++it)
     {
@@ -1270,8 +1373,10 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
         {
             if (t1 > t2) std::swap(t1, t2);
             sub_node_idx = add_node(*sub, NODE_HYPOTHESIS, -1);
+
             m_maps.nodes_sub[t1][t2] = sub_node_idx;
             m_vc_unifiable.add(t1, t2);
+            _generate_mutual_exclusions(sub_node_idx);
             _add_nodes_of_transitive_unification(t1);
         }
 
@@ -1311,6 +1416,7 @@ void proof_graph_t::_add_nodes_of_transitive_unification(term_t t)
             node_idx_t idx = add_node(
                 literal_t("=", t1, t2), NODE_HYPOTHESIS, -1);
             m_maps.nodes_sub[t1][t2] = idx;
+            _generate_mutual_exclusions(idx);
         }
     }
 }
@@ -1380,6 +1486,8 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_counter_nodes(
 {
     const hash_set<node_idx_t>* indices =
         search_nodes_with_predicate(target.predicate, target.terms.size());
+
+    if (indices == NULL) return;
 
     for (auto it = indices->begin(); it != indices->end(); ++it)
     {

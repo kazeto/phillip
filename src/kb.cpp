@@ -144,6 +144,7 @@ void knowledge_base_t::finalize()
         _insert_cdb(m_name_to_axioms, &m_cdb_name);
         _insert_cdb(m_rhs_to_axioms, &m_cdb_rhs);
         _insert_cdb(m_lhs_to_axioms, &m_cdb_lhs);
+        _insert_cdb(m_inc_to_axioms, &m_cdb_inc_pred);
         insert_axiom_group_to_cdb();
 
         m_name_to_axioms.clear();
@@ -678,16 +679,17 @@ std::list<axiom_id_t> knowledge_base_t::search_id_list(
             const char *value = (const char*)
                 dat->get(query.c_str(), query.length(), &value_size);
 
-            if (value == NULL) return out;
-
-            size_t size(0), num_id(0);
-            size += binary_to<size_t>(value + size, &num_id);
-
-            for (int j = 0; j<num_id; ++j)
+            if (value != NULL)
             {
-                axiom_id_t id;
-                size += binary_to<axiom_id_t>(value + size, &id);
-                out.push_back(id);
+                size_t size(0), num_id(0);
+                size += binary_to<size_t>(value + size, &num_id);
+
+                for (int j = 0; j<num_id; ++j)
+                {
+                    axiom_id_t id;
+                    size += binary_to<axiom_id_t>(value + size, &id);
+                    out.push_back(id);
+                }
             }
         }
     }

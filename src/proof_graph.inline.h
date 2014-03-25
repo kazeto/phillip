@@ -126,11 +126,10 @@ inline void unifier_t::add( const term_t &x, const term_t &y )
 }
 
 
-inline void unifier_t::add(
-    const term_t &x, const std::string &var )
+inline void unifier_t::add(const term_t &x, const std::string &var)
 {
     term_t y(var);
-    add( x, y );
+    add(x, y);
 }
 
 
@@ -139,6 +138,12 @@ inline void unifier_t::clear()
     m_substitutions.clear();
     m_shortcuts.clear();
     m_mapping.clear();
+}
+
+
+inline bool unifier_t::empty() const
+{
+    return m_substitutions.empty();
 }
 
 
@@ -171,6 +176,8 @@ inline node_idx_t proof_graph_t::
     add_observation(const literal_t &lit, int depth)
 {
     int idx = add_node(lit, NODE_OBSERVABLE, depth);
+    _generate_mutual_exclusions(idx);
+    _generate_unification_assumptions(idx);
     return idx;
 }
 
