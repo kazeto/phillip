@@ -119,7 +119,10 @@ struct literal_t
         bool _truth = true);
     literal_t(const sexp::stack_t &s);
     
-    inline bool operator == (const literal_t &other) const;
+    bool operator > (const literal_t &x) const;
+    bool operator < (const literal_t &x) const;
+    bool operator == (const literal_t &x) const;
+    bool operator != (const literal_t &x) const;
 
     inline std::string to_string(bool f_colored = false) const;
     inline std::string get_predicate_arity(

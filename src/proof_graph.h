@@ -247,13 +247,13 @@ public:
      *  @param axiom The logical function of implication to use.
      *  @return Index of new hypernode resulted in backward-chaining. */
     inline hypernode_idx_t backward_chain(
-        hypernode_idx_t target, const lf::axiom_t &axiom);
+        const std::vector<node_idx_t> &target, const lf::axiom_t &axiom);
     
     /** Perform forward-chaining from the target node.
      *  @param axiom The logical function of implication to use.
      *  @return Index of new hypernode resulted in forward-chaining. */
     inline hypernode_idx_t forward_chain(
-        hypernode_idx_t target, const lf::axiom_t &axiom);
+        const std::vector<node_idx_t> &target, const lf::axiom_t &axiom);
 
     inline const std::vector<node_t>& nodes() const;
     inline const node_t& node(node_idx_t i) const;
@@ -445,7 +445,8 @@ protected:
      *  @return Index of the new hypernode.
      *          If chaining has failed, returns -1. */
     hypernode_idx_t chain(
-        hypernode_idx_t from, const lf::axiom_t &axiom, bool is_backward);
+        const std::vector<node_idx_t> &from,
+        const lf::axiom_t &axiom, bool is_backward);
 
     /** This is a sub-routine of enumerate_candidates_for_chain.
      *  Enumerates arrays of node indices which corresponds arities.
@@ -456,7 +457,7 @@ protected:
 
     /** This is a sub-routine of enumerate_candidates_for_chain.
      *  Excludes nodes which includes any exclusive node pair. */
-    void _omit_invalid_candidates_for_chain(
+    void _omit_invalid_chaining_candidates_with_coexistance(
         std::set<chain_candidate_t> *cands) const;
 
     /** This is a sub-routine of chain.
@@ -464,7 +465,8 @@ protected:
      *  @param sub   Map from terms in axiom to terms in proof-graph.
      *  @param conds Conditions for this chaining. */
     void _get_substitutions_for_chain(
-        hypernode_idx_t from, const lf::axiom_t &axiom, bool is_backward,
+        const std::vector<node_idx_t> &from,
+        const lf::axiom_t &axiom, bool is_backward,
         std::vector<literal_t> *lits, hash_map<term_t, term_t> *sub,
         hash_map<term_t, hash_set<term_t> > *conds) const;
 
@@ -479,11 +481,21 @@ protected:
         const term_t &target, hash_map<term_t, term_t> *subs) const;
 
     /** This is a sub-routine of chain.
-     *  Returns Whether the chaining can be performed.
-     *  When returns false, the contents of muexs is invalid. */
+     *  Returns whether the chaining is possible.
+     *  When returns false, the contents of muexs is invalid.
+     *  @param[out] muexs Mutual exclusions around new nodes. */
     bool _check_mutual_exclusiveness_for_chain(
-        hypernode_idx_t from, const std::vector<literal_t> &to,
-        std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > *muexs) const;
+        const std::vector<node_idx_t> &from,
+        const std::vector<literal_t> &to,
+        std::vector<std::list<
+        std::tuple<node_idx_t, unifier_t, axiom_id_t> > > *muexs) const;
+
+    /** This is a sub-routine of chain.
+     *  Returns whether the chaining is possible.
+     *  If new literals are included evidences, the chaining is impossible. */
+    bool _check_literals_overlap_for_chain(
+        const std::vector<node_idx_t> &from,
+        const std::vector<literal_t> &to) const;
 
     /** This is a sub-routine of add_node.
      *  Generates unification assumptions between target node
@@ -543,7 +555,8 @@ protected:
     inline bool _is_considered_exclusion(node_idx_t i, node_idx_t j) const;
 
     /** Return highest depth in nodes which given hypernode includes. */
-    int get_depth_of_deepest_node(hypernode_idx_t idx) const;
+    inline int get_depth_of_deepest_node(hypernode_idx_t idx) const;
+    int get_depth_of_deepest_node(const std::vector<node_idx_t> &nodes) const;
 
     /** If you want to make conditions for unification,
      *  you can override this method. */

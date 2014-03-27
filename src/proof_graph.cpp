@@ -462,7 +462,7 @@ std::set<chain_candidate_t> proof_graph_t::enumerate_candidates_for_chain(
         out.insert(chain_candidate_t(*it, ax.id, !is_backward));
 
     if (not sys()->flag("disable_omitting_invalid_chains"))
-        _omit_invalid_candidates_for_chain(&out);
+        _omit_invalid_chaining_candidates_with_coexistance(&out);
 
     return out;
 }
@@ -529,7 +529,7 @@ proof_graph_t::_enumerate_nodes_list_with_arities(
 }
 
 
-void proof_graph_t::_omit_invalid_candidates_for_chain(
+void proof_graph_t::_omit_invalid_chaining_candidates_with_coexistance(
     std::set<chain_candidate_t> *cands) const
 {
     hash_map<node_idx_t, hash_map<node_idx_t, bool> > log;
@@ -537,6 +537,7 @@ void proof_graph_t::_omit_invalid_candidates_for_chain(
     for (auto it = cands->begin(); it != cands->end();)
     {
         bool is_valid(true);
+        const std::vector<node_idx_t> &_nodes = it->nodes;
 
         for (auto n1 = it->nodes.begin(); n1 != it->nodes.end() and is_valid; ++n1)
         for (auto n2 = it->nodes.begin(); n2 != n1 and is_valid; ++n2)
@@ -886,11 +887,8 @@ void proof_graph_t::print_mutual_exclusive_edges(
 
     for (auto it1 = muexs.begin(); it1 != muexs.end(); ++it1)
     for (auto it2 = it1->second.begin(); it2 != it1->second.end(); ++it2)
-    {
-        (*os)
-            << indent << "    <xor edge1=\"" << it1->first
-            << "\" edge2=\"" << (*it2) << "\"></xor>" << std::endl;
-    }
+        (*os) << indent << "    <xor edge1=\"" << it1->first
+              << "\" edge2=\"" << (*it2) << "\"></xor>" << std::endl;
 
     (*os) << indent << "</mutual_exclusive_edges>" << std::endl;
 }
@@ -934,30 +932,35 @@ node_idx_t proof_graph_t::add_node(
 
 
 hypernode_idx_t proof_graph_t::chain(
-    hypernode_idx_t from, const lf::axiom_t &axiom, bool is_backward )
+    const std::vector<node_idx_t> &from,
+    const lf::axiom_t &axiom, bool is_backward)
 {
+    int depth = get_depth_of_deepest_node(from);
+    assert(depth >= 0);
+
     std::vector<literal_t> literals_to;
     hash_map<term_t, term_t> subs;
     hash_map<term_t, hash_set<term_t> > conds;
-    int depth = get_depth_of_deepest_node(from);
-    if (depth >= 0) ++depth;
 
     _get_substitutions_for_chain(
         from, axiom, is_backward, &literals_to, &subs, &conds);
 
-    // CHECK VARIDITY OF CHAINING ABOUT MUTUAL-EXCLUSIVENESS
+    /* CHECK VARIDITY OF CHAINING ABOUT OVERLAPPING LITERALS */
+    if (sys()->flag("disable_check_literals_overlap_for_chain"))
+    if (not _check_literals_overlap_for_chain(from, literals_to))
+        return -1;
+
+    /* CHECK VARIDITY OF CHAINING ABOUT MUTUAL-EXCLUSIVENESS */
     std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > muexs;
-    bool can_chain =
-        _check_mutual_exclusiveness_for_chain(from, literals_to, &muexs);
-    if (not can_chain) return -1;
+    if (not _check_mutual_exclusiveness_for_chain(from, literals_to, &muexs))
+        return -1;
+
+    hypernode_idx_t idx_hn_from = add_hypernode(from);
 
     /* ADD NEW NODES AND NEW HYPERNODE TO THIS */
     std::vector<node_idx_t> hypernode_to(literals_to.size(), -1);
     for (size_t i = 0; i < literals_to.size(); ++i)
-    {
-        node_idx_t idx = add_node(literals_to[i], NODE_HYPOTHESIS, depth);
-        hypernode_to[i] = idx;
-    }
+        hypernode_to[i] = add_node(literals_to[i], NODE_HYPOTHESIS, depth + 1);
     hypernode_idx_t idx_hn_to = add_hypernode(hypernode_to);
 
     /* SET MASTER-HYPERNODE OF EACH NEW NODE */
@@ -966,7 +969,8 @@ hypernode_idx_t proof_graph_t::chain(
 
     /* ADD EDGE */
     edge_type_e type = (is_backward ? EDGE_HYPOTHESIZE : EDGE_IMPLICATION);
-    edge_idx_t edge_idx = add_edge(edge_t(type, from, idx_hn_to, axiom.id));
+    edge_idx_t edge_idx =
+        add_edge(edge_t(type, idx_hn_from, idx_hn_to, axiom.id));
 
     /* ADD CONDITIONAL UNIFICATION FOR CHAIN */
     if (not conds.empty())
@@ -982,7 +986,7 @@ hypernode_idx_t proof_graph_t::chain(
     /* ADD AXIOM HISTORY */
     hash_map<axiom_id_t, hash_set<hypernode_idx_t> > &ax2hn = is_backward ?
         m_maps.axiom_to_hypernodes_backward : m_maps.axiom_to_hypernodes_forward;
-    ax2hn[axiom.id].insert(from);
+    ax2hn[axiom.id].insert(idx_hn_from);
 
     /* GENERATE MUTUAL EXCLUSIONS BETWEEN CHAINS */
     bool flag(sys()->flag("enable_node_based_mutual_exclusive_chain"));
@@ -1000,23 +1004,23 @@ hypernode_idx_t proof_graph_t::chain(
 
 
 void proof_graph_t::_get_substitutions_for_chain(
-    hypernode_idx_t from, const lf::axiom_t &axiom, bool is_backward,
+    const std::vector<node_idx_t> &from,
+    const lf::axiom_t &axiom, bool is_backward,
     std::vector<literal_t> *lits, hash_map<term_t, term_t> *subs,
     hash_map<term_t, hash_set<term_t> > *conds) const
 {
-    const std::vector<node_idx_t> &indices_from = hypernode(from);
     const lf::logical_function_t &lhs = axiom.func.branch(0);
     const lf::logical_function_t &rhs = axiom.func.branch(1);
     std::vector<const literal_t*>
         ax_to((is_backward ? lhs : rhs).get_all_literals()),
         ax_from((is_backward ? rhs : lhs).get_all_literals());
-    assert(indices_from.size() == ax_from.size());
+    assert(from.size() == ax_from.size());
 
     /* CREATE MAP OF TERMS */
-    for (size_t i=0; i<indices_from.size(); ++i)
+    for (size_t i=0; i<from.size(); ++i)
     {
         const literal_t &li_ax = *(ax_from.at(i));
-        const literal_t &li_hy = node(indices_from.at(i)).literal();
+        const literal_t &li_hy = node(from.at(i)).literal();
 
         for (size_t j=0; j<li_ax.terms.size(); ++j)
         {
@@ -1109,11 +1113,12 @@ term_t proof_graph_t::_substitute_term_for_chain(
 
 
 bool proof_graph_t::_check_mutual_exclusiveness_for_chain(
-    hypernode_idx_t from, const std::vector<literal_t> &to,
-    std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > *muexs) const
+    const std::vector<node_idx_t> &from,
+    const std::vector<literal_t> &to,
+    std::vector<std::list<
+    std::tuple<node_idx_t, unifier_t, axiom_id_t> > > *muexs) const
 {
     hash_set<node_idx_t> dep;
-    const std::vector<node_idx_t> &hn = hypernode(from);
     bool do_disable =
         sys()->flag("disable_check_mutual_exclusiveness_for_chain");
 
@@ -1121,7 +1126,7 @@ bool proof_graph_t::_check_mutual_exclusiveness_for_chain(
         to.size(), std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> >());
 
     // ENUMERATE DEPENDENT NODES
-    for (auto n = hn.begin(); n != hn.end(); ++n)
+    for (auto n = from.begin(); n != from.end(); ++n)
     {
         dep.insert(*n);
         enumerate_dependent_nodes(*n, &dep);
@@ -1150,10 +1155,35 @@ bool proof_graph_t::_check_mutual_exclusiveness_for_chain(
 }
 
 
-int proof_graph_t::get_depth_of_deepest_node(hypernode_idx_t idx) const
+bool proof_graph_t::_check_literals_overlap_for_chain(
+    const std::vector<node_idx_t> &from,
+    const std::vector<literal_t> &to) const
+{
+    /* ENUMERATE DEPENDANT NODES */
+    hash_set<node_idx_t> deps;
+    for (auto it = from.begin(); it != from.end(); ++it)
+    {
+        deps.insert(*it);
+        enumerate_dependent_nodes(*it, &deps);
+    }
+
+    /* ENUMERATE DEPENDANT LITERALS */
+    std::set<literal_t> lits;
+    for (auto it = deps.begin(); it != deps.end(); ++it)
+        lits.insert(node(*it).literal());
+
+    for (auto it = to.begin(); it != to.end(); ++it)
+    if (lits.count(*it) == 0)
+        return true;
+
+    return false;
+}
+
+
+int proof_graph_t::get_depth_of_deepest_node(
+    const std::vector<node_idx_t> &hn) const
 {
     int out = -1;
-    const std::vector<node_idx_t>& hn = hypernode(idx);
     for (auto it = hn.begin(); it != hn.end(); ++it)
     {
         int depth = node(*it).depth();

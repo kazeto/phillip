@@ -136,35 +136,21 @@ inline literal_t::literal_t(
 }
 
 
-inline bool literal_t::operator == (const literal_t &other) const
-{
-    if( truth != other.truth )               return false;
-    if( predicate != other.predicate )       return false;
-    if( terms.size() != other.terms.size() ) return false;
-    for( size_t i=0; i<terms.size(); i++ )
-    {
-        if( terms[i] != other.terms[i] )
-            return false;
-    }
-    return true;
-}
-
-
 inline std::string literal_t::to_string( bool f_colored ) const
 {
     std::string exp;
-    print( &exp, f_colored );
+    print(&exp, f_colored);
     return exp;
 }
 
 
 inline std::string literal_t::get_predicate_arity(
-    bool do_distinguish_negation ) const
+    bool do_distinguish_negation) const
 {
     std::string out = phil::format(
-        "%s/%d", predicate.c_str(), (int)terms.size() );
-    if( do_distinguish_negation and not truth ) out = "!" + out;
-    return std::string( out );
+        "%s/%d", predicate.c_str(), (int)terms.size());
+    if (do_distinguish_negation and not truth) out = "!" + out;
+    return std::string(out);
 }
 
 

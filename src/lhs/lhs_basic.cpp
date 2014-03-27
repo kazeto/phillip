@@ -51,20 +51,20 @@ pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
         for (auto it = cands.begin(); it != cands.end(); ++it)
         {
             const lf::axiom_t &axiom = axioms.at(it->axiom_id);
-            pg::hypernode_idx_t from = out->add_hypernode(it->nodes);
             pg::hypernode_idx_t to = it->is_forward ?
-                out->forward_chain(from, axiom) :
-                out->backward_chain(from, axiom);
+                out->forward_chain(it->nodes, axiom) :
+                out->backward_chain(it->nodes, axiom);
+            if (to < 0) continue;
 
             // PRINT FOR DEBUG
             if (sys()->verbose() == FULL_VERBOSE)
             {
+                pg::hypernode_idx_t from = out->add_hypernode(it->nodes);
                 const std::vector<pg::node_idx_t>
-                    &hn_from = out->hypernode(from),
-                    &hn_to = out->hypernode(to);
+                    &hn_from(it->nodes), &hn_to(out->hypernode(to));
                 std::string
-                    str_from = join(hn_from.begin(), hn_from.end(), "%d", ","),
-                    str_to = join(hn_to.begin(), hn_to.end(), "%d", ",");
+                    str_from(join(hn_from.begin(), hn_from.end(), "%d", ",")),
+                    str_to(join(hn_to.begin(), hn_to.end(), "%d", ","));
                 std::string disp(
                     it->is_forward ? "ForwardChain: " : "BackwardChain: ");
                 disp += format("%d:[%s] <= %s <= %d:[%s]",

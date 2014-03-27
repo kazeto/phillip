@@ -191,13 +191,17 @@ inline node_idx_t proof_graph_t::add_label(const literal_t &lit, int depth)
 
 
 inline hypernode_idx_t proof_graph_t::backward_chain(
-    hypernode_idx_t target, const lf::axiom_t &axiom )
-{ return chain( target, axiom, true ); }
+    const std::vector<node_idx_t> &target, const lf::axiom_t &axiom)
+{
+    return chain(target, axiom, true);
+}
 
 
 inline hypernode_idx_t proof_graph_t::forward_chain(
-    hypernode_idx_t target, const lf::axiom_t &axiom )
-{ return chain( target, axiom, false ); }
+    const std::vector<node_idx_t> &target, const lf::axiom_t &axiom)
+{
+    return chain(target, axiom, false);
+}
 
 
 inline const std::vector<node_t>& proof_graph_t::nodes() const
@@ -336,6 +340,12 @@ inline bool proof_graph_t::_is_considered_exclusion(
 
     hash_set<node_idx_t>::const_iterator it2 = it1->second.find(j);
     return it2 != it1->second.end();
+}
+
+
+inline int proof_graph_t::get_depth_of_deepest_node(hypernode_idx_t idx) const
+{
+    return get_depth_of_deepest_node(hypernode(idx));
 }
 
 

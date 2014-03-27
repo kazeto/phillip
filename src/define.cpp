@@ -41,6 +41,68 @@ literal_t::literal_t(const sexp::stack_t &s)
 }
 
 
+bool literal_t::operator > (const literal_t &x) const
+{
+    if (truth != x.truth) return truth;
+    if (predicate != x.predicate) return (predicate > x.predicate);
+    if (terms.size() != x.terms.size())
+        return (terms.size() > x.terms.size());
+
+    for (size_t i = 0; i < terms.size(); i++)
+    {
+        if (terms[i] != x.terms[i])
+            return terms[i] > x.terms[i];
+    }
+    return false;
+}
+
+
+bool literal_t::operator < (const literal_t &x) const
+{
+    if (truth != x.truth) return not truth;
+    if (predicate != x.predicate) return (predicate < x.predicate);
+    if (terms.size() != x.terms.size())
+        return (terms.size() < x.terms.size());
+
+    for (size_t i = 0; i < terms.size(); i++)
+    {
+        if (terms[i] != x.terms[i])
+            return terms[i] < x.terms[i];
+    }
+    return false;
+}
+
+
+bool literal_t::operator == (const literal_t &x) const
+{
+    if (truth != x.truth) return false;
+    if (predicate != x.predicate) return false;
+    if (terms.size() != x.terms.size()) return false;
+
+    for (size_t i = 0; i < terms.size(); i++)
+    {
+        if (terms[i] != x.terms[i])
+            return false;
+    }
+    return true;
+}
+
+
+bool literal_t::operator != (const literal_t &x) const
+{
+    if (truth != x.truth) return true;
+    if (predicate != x.predicate) return true;
+    if (terms.size() != x.terms.size()) return true;
+
+    for (size_t i = 0; i < terms.size(); i++)
+    {
+        if (terms[i] != x.terms[i])
+            return true;
+    }
+    return false;
+}
+
+
 /** Get string-expression of the literal. */
 void literal_t::print( std::string *p_out_str, bool f_colored ) const
 {
