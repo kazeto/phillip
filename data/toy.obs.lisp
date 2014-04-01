@@ -1,1 +1,1 @@
-(O (name nist_10636) (^ (animal x) (bark e1) (have e2) (tail y) (agt e1 x) (agt e2 x) (obj e2 y)))
+(O (name toy) (^ (pred1 x)))
