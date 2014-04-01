@@ -464,4 +464,23 @@ bool endswith(const std::string &str, const std::string &query)
 }
 
 
+std::string normalize_path(const std::string &target)
+{
+    std::string out(target);
+
+    for (int i = 0; i < out.length(); ++i)
+    {
+#ifdef _WIN32
+        if (out.at(i) == '/')
+            out[i] = '\\';
+#else
+        if (out.at(i) == '\\')
+            out[i] = '/';
+#endif
+    }
+
+    return out;
+}
+
+
 } // end phil

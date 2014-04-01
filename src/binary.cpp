@@ -74,7 +74,7 @@ bool parse_options(
 {
     int opt;
     
-    while( (opt = getopt(argc, argv, ACCEPTABLE_OPTIONS)) != -1 )
+    while ((opt = getopt(argc, argv, ACCEPTABLE_OPTIONS)) != -1)
     {
         std::string arg((optarg == NULL) ? "" : optarg);
         int ret = _interpret_option( opt, arg, config, inputs );
@@ -87,12 +87,13 @@ bool parse_options(
         }
     }
 
-    for( int i=optind; i<argc; i++ )
-        inputs->push_back( argv[i] );
+    for (int i = optind; i < argc; i++)
+        inputs->push_back(normalize_path(argv[i]));
 
     if( config->lhs != NULL ) delete config->lhs;
     if( config->ilp != NULL ) delete config->ilp;
     if( config->sol != NULL ) delete config->sol;
+
     config->lhs = _new_lhs_enumerator(config->lhs_key);
     config->ilp = _new_ilp_converter(config->ilp_key);
     config->sol = _new_ilp_solver(config->sol_key);
@@ -137,11 +138,11 @@ bool _load_config_file(
             {
                 print_error(
                     "Any error occured during parsing command line options:"
-                    + std::string(line) );
+                    + std::string(line));
             }
         }
-        if( spl.at(0).at(0) != '-' and spl.size() == 1 )
-            inputs->push_back( spl.at(0) );
+        if (spl.at(0).at(0) != '-' and spl.size() == 1)
+            inputs->push_back(normalize_path(spl.at(0)));
     }
 
     fin.close();
@@ -188,13 +189,14 @@ bool _interpret_option(
     
     case 'k': // ---- SET FILENAME OF KNOWLEDGE-BASE
     {
-        config->kb_name = arg;
+        config->kb_name = normalize_path(arg);
         return true;
     }
 
     case 'l': // ---- SET THE PATH OF PHILLIP CONFIGURE FILE
     {
-        _load_config_file( arg.c_str(), config, inputs );
+        std::string path = normalize_path(arg);
+        _load_config_file(path.c_str(), config, inputs);
         return true;
     }
     
@@ -219,9 +221,11 @@ bool _interpret_option(
         
         if( idx != std::string::npos )
         {
-            phil::sys()->set_param(
-                arg.substr(0, idx),
-                arg.substr(idx + 1));
+            std::string key = arg.substr(0, idx);
+            std::string val = arg.substr(idx + 1);
+            if (startswith(key, "path"))
+                val = normalize_path(val);
+            phil::sys()->set_param(key, val);
         }
         else
             phil::sys()->set_param(arg, "");

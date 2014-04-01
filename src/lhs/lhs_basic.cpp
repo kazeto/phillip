@@ -166,7 +166,7 @@ const pg::proof_graph_t *graph) const
 
         if (dist >= 0)
         {
-            std::pair<int, int> r = std::make_pair(dist, 0);
+            reachability_t r = { dist, 0 };
             out[*n1][*n2] = r;
             out[*n2][*n1] = r;
         }
@@ -183,22 +183,41 @@ basic_lhs_enumerator_t::compute_reachability_of_chaining(
     const std::vector<pg::node_idx_t> &from,
     const lf::axiom_t &axiom, bool is_forward) const
 {
-    std::vector<reachable_map_t> out;
-    reachable_map_t reach_from;
+    reachable_map_t rcs_from;
     std::vector<const literal_t*>
         literals = axiom.func.branch(is_forward ? 1 : 0).get_all_literals();
 
+    /* CREATE rcs_from, WHICH IS MAP OF REACHABILITY OF EVIDENCES */
     for (auto it1 = from.begin(); it1 != from.end(); ++it1)
     {
         auto find = reachability.find(*it1);
         if (find == reachability.end()) continue;
 
-        for (auto it2 = find->second.begin(); it2 != find->second.end(); ++it2)
+        const reachable_map_t &rc = find->second;
+        for (auto it2 = rc.begin(); it2 != rc.end(); ++it2)
         {
-            auto old = reach_from.find(it2->first);
-            // TODO
+            auto old = rcs_from.find(it2->first);
+            
+            if (old == rcs_from.end())
+                rcs_from[it2->first] = it2->second;
+            else if (old->second.distance > it2->second.distance)
+                rcs_from[it2->first] = it2->second;
         }
     }
+
+    std::vector<reachable_map_t> out(literals.size(), reachable_map_t());
+    for (int i = 0; i < literals.size(); ++i)
+    {
+        reachable_map_t &rc = out[i];
+        const literal_t &lit = *literals.at(i);
+        std::string arity = lit.get_predicate_arity();
+
+        for (auto it = rcs_from.begin(); it != rcs_from.end(); ++it)
+        {
+        }
+    }
+
+    return out;
 }
 
 

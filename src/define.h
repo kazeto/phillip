@@ -242,6 +242,8 @@ inline std::string get_file_name(const std::string &path);
 inline size_t get_file_size(const std::string &filename);
 inline size_t get_file_size(std::istream &ifs);
 
+std::string normalize_path(const std::string &target);
+
 /** Convert string into binary and return size of binary.
  *  The size of string must be less than 255. */
 inline size_t string_to_binary(const std::string &str, char *out);

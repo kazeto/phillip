@@ -25,11 +25,13 @@ public:
     virtual std::string repr() const;
     
 private:
+    struct reachability_t { int distance, reduncdancy; };
+
     /** A struct of reachability to a node.
      *  The key is index of the target node.
      *  The first value of a pair is minimum distance to the target node.
      *  The second value of a pair is redundancy of the target node.*/
-    typedef hash_map<pg::node_idx_t, std::pair<int, int> > reachable_map_t;
+    typedef hash_map<pg::node_idx_t, reachability_t > reachable_map_t;
 
     /** Creates reachability map for observations.
      *  Please call this method after adding observations to graph. */
