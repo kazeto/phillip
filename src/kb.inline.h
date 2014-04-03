@@ -53,6 +53,12 @@ search_inconsistencies(const std::string &arity) const
 }
 
 
+inline float knowledge_base_t::get_distance(const lf::axiom_t &axiom) const
+{
+    return (*m_rm_dist)(axiom);
+}
+
+
 inline const size_t* knowledge_base_t::
     search_arity_index(const std::string &arity) const
 {

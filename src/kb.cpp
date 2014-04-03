@@ -21,52 +21,10 @@ namespace kb
 const int BUFFER_SIZE = 512 * 512;
 
 
-basic_distance_provider_t::basic_distance_provider_t()
-{
-    std::string filename = sys()->param("path_functional_predicates");
-    if (not filename.empty())
-        load_functional_predicates(filename.c_str());
-}
-
-
-float basic_distance_provider_t::operator() (
-    const std::string &a1, const std::string &a2, const lf::axiom_t &ax) const
-{
-    if (not m_functional_predicates.empty())
-    {
-        if (m_functional_predicates.count(a1) > 0)
-            return -1.0f;
-        if (m_functional_predicates.count(a2) > 0)
-            return -1.0f;
-    }
-
-    return 1.0f;
-}
-
-
-void basic_distance_provider_t::load_functional_predicates(const char *filename)
-{
-    std::ifstream fi(filename);
-
-    if (fi.bad())
-        print_error_fmt("Cannot open file \"%s\"", filename);
-    else
-    {
-        char buf[BUFFER_SIZE];
-
-        while (not fi.eof())
-        {
-            fi.getline(buf, BUFFER_SIZE);
-            m_functional_predicates.insert(buf);
-        }
-
-        fi.close();
-    }
-}
-
-
 knowledge_base_t::knowledge_base_t(
-    const std::string &filename, float max_distance)
+    const std::string &filename,
+    distance_provider_type_e dist,
+    float max_distance)
     : m_state(STATE_NULL),
       m_filename(filename), m_max_distance(max_distance),
       m_cdb_id(filename + ".id.cdb"),
@@ -80,7 +38,9 @@ knowledge_base_t::knowledge_base_t(
       m_rm_dist(new basic_distance_provider_t()),
       m_num_compiled_axioms(0), m_num_temporary_axioms(0),
       m_num_unnamed_axioms(0)
-{}
+{
+    set_distance_provider(dist);
+}
 
 
 knowledge_base_t::~knowledge_base_t()
@@ -176,8 +136,10 @@ void knowledge_base_t::write_config(const char *filename) const
 {
     std::ofstream fo(
         filename, std::ios::out | std::ios::trunc | std::ios::binary);
+    char dist_type(m_rm_dist->type());
 
     fo.write((char*)&m_max_distance, sizeof(float));
+    fo.write(&dist_type, sizeof(char));
     fo.close();
 }
 
@@ -185,9 +147,13 @@ void knowledge_base_t::write_config(const char *filename) const
 void knowledge_base_t::read_config(const char *filename)
 {
     std::ifstream fi(filename, std::ios::in | std::ios::binary);
+    char dist_type;
 
     fi.read((char*)&m_max_distance, sizeof(float));
+    fi.read(&dist_type, sizeof(char));
     fi.close();
+
+    set_distance_provider(static_cast<distance_provider_type_e>(dist_type));
 }
 
 
@@ -593,9 +559,7 @@ void knowledge_base_t::_create_reachable_matrix_direct(
                 {
                     std::string arity2 = (*li)->get_predicate_arity();
                     size_t idx2 = *search_arity_index(arity2);
-                    float dist = is_forward ?
-                        (*m_rm_dist)(*ar, arity2, axiom) :
-                        (*m_rm_dist)(arity2, *ar, axiom);
+                    float dist = (*m_rm_dist)(axiom);
                     
                     if (dist >= 0.0f)
                     {
@@ -656,10 +620,22 @@ void knowledge_base_t::_create_reachable_matrix_indirect(
 }
 
 
-void knowledge_base_t::set_distance_provider(distance_provider_t *ptr)
+void knowledge_base_t::set_distance_provider(distance_provider_type_e t)
 {
-    delete m_rm_dist;
-    m_rm_dist = ptr;
+    distance_provider_t *ptr = NULL;
+    switch (t)
+    {
+    case DISTANCE_PROVIDER_BASIC:
+        ptr = new basic_distance_provider_t(); break;
+    case DISTANCE_PROVIDER_COST_BASED:
+        ptr = new cost_based_distance_provider_t(); break;
+    }
+
+    if (ptr != NULL)
+    {
+        delete m_rm_dist;
+        m_rm_dist = ptr;
+    }
 }
 
 
@@ -861,6 +837,14 @@ hash_set<float> knowledge_base_t::reachable_matrix_t::get(size_t idx) const
     return out;
 }
 
+
+float cost_based_distance_provider_t::operator()(const lf::axiom_t &ax) const
+{
+    const std::string &param = ax.func.param();
+    float out(-1.0f);
+    _sscanf(param.substr(1).c_str(), "%f", &out);
+    return out;
+}
 
 
 } // end kb

@@ -17,29 +17,23 @@ namespace kb
 {
 
 
+enum distance_provider_type_e
+{
+    DISTANCE_PROVIDER_UNDERSPECIFIED,
+    DISTANCE_PROVIDER_BASIC,
+    DISTANCE_PROVIDER_COST_BASED
+};
+
+
 /** This class define distance between predicates
  *  on creation of reachable-matrix. */
 class distance_provider_t
 {
 public:
-    virtual float operator() (
-        const std::string &a1, const std::string &a2,
-        const lf::axiom_t &ax) const = 0;
-};
+    virtual float operator() (const lf::axiom_t &ax) const = 0;
 
-
-class basic_distance_provider_t : public distance_provider_t
-{
-public:
-    basic_distance_provider_t();
-    virtual float operator() (
-        const std::string &a1, const std::string &a2,
-        const lf::axiom_t &ax) const;
-
-private:
-    void load_functional_predicates(const char *filename);
-
-    hash_set<std::string> m_functional_predicates;
+    virtual distance_provider_type_e type() const
+    { return DISTANCE_PROVIDER_UNDERSPECIFIED; }
 };
 
 
@@ -47,7 +41,8 @@ class knowledge_base_t
 {
 public:
     knowledge_base_t(
-        const std::string &filename, float max_distance = -1.0f);
+        const std::string &filename, distance_provider_type_e dist,
+        float max_distance = -1.0f);
     ~knowledge_base_t();
 
     /** Initializes knowledge base and
@@ -102,13 +97,12 @@ public:
     float get_distance(
         const std::string &arity1, const std::string &arity2) const;
 
-    /** Sets new distance-provider.
-     *  This object is used in making reachable-matrix. */
-    void set_distance_provider(distance_provider_t *ptr);
+    /** Returns distance between arity1 and arity2
+     *  by using the current distance-provider. */
+    inline float get_distance(const lf::axiom_t &axiom) const;
 
 private:
-    /** A class of reachable-matrix.
-     *  This is implemented with sqlite3. */
+    /** A class of reachable-matrix. */
     class reachable_matrix_t
     {
     public:
@@ -136,6 +130,10 @@ private:
 
     void write_config(const char *filename) const;
     void read_config(const char *filename);
+
+    /** Sets new distance-provider.
+     *  This object is used in making reachable-matrix. */
+    void set_distance_provider(distance_provider_type_e);
 
     void _insert_cdb(
         const std::string &name, const lf::logical_function_t &lf);
@@ -204,6 +202,25 @@ private:
     float m_max_distance; /**< Max distance in reachable matrix. */
 };
 
+
+class basic_distance_provider_t : public distance_provider_t
+{
+public:
+    virtual float operator() (const lf::axiom_t&) const
+    { return 1.0f; }
+
+    virtual distance_provider_type_e type() const
+    { return DISTANCE_PROVIDER_BASIC; }
+};
+
+
+class cost_based_distance_provider_t : public distance_provider_t
+{
+public:
+    virtual float operator()(const lf::axiom_t&) const;
+    virtual distance_provider_type_e type() const
+    { return DISTANCE_PROVIDER_COST_BASED; }
+};
 
 
 }

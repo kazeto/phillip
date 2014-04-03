@@ -30,9 +30,10 @@ const std::string USAGE =
     "    -o <NAME> : Set name of the observation to solve.\n"
     "    -T <INT>  : Set timeout. [second]\n"
     "  Options in compile_kb mode:\n"
-    "    -k <NAME> : Set filename of output of compile_kb.\n";
+    "    -k <NAME> : Set filename of output of compile_kb.\n"
+    "    -d <NAME> : Set the distance-provider of knowledge-base.";
 
-char ACCEPTABLE_OPTIONS[] = "c:f:k:l:m:o:p:t:v:P:T:";
+char ACCEPTABLE_OPTIONS[] = "c:d:f:k:l:m:o:p:t:v:P:T:";
 
 
 bool _load_config_file(
@@ -44,6 +45,7 @@ bool _interpret_option(
     int opt, const std::string &arg,
     execution_configure_t *option, std::vector<std::string> *inputs );
 
+kb::distance_provider_type_e _get_distance_provider_type(const std::string &arg);
 lhs_enumerator_t* _new_lhs_enumerator( const std::string &key );
 ilp_converter_t* _new_ilp_converter( const std::string &key );
 ilp_solver_t* _new_ilp_solver( const std::string &key );
@@ -134,7 +136,7 @@ bool _load_config_file(
             std::string arg = (spl.size() <= 1) ? "" : strip(spl.at(1), "\n");
             int ret = _interpret_option( opt, arg, config, inputs );
             
-            if( not ret )
+            if (not ret)
             {
                 print_error(
                     "Any error occured during parsing command line options:"
@@ -181,6 +183,18 @@ bool _interpret_option(
             }
         }
         return false;
+    }
+
+    case 'd': // ---- SET DISTANCE-PROVIDER
+    {
+        kb::distance_provider_type_e type =
+            _get_distance_provider_type(arg);
+        if (type != kb::DISTANCE_PROVIDER_UNDERSPECIFIED)
+        {
+            config->distance_type = type;
+            return true;
+        }
+        else return false;
     }
 
     case 'f':
@@ -264,11 +278,40 @@ bool _interpret_option(
 }
 
 
+kb::distance_provider_type_e _get_distance_provider_type(const std::string &arg)
+{
+    if (arg == "basic")
+        return kb::DISTANCE_PROVIDER_BASIC;
+    if (arg == "cost_based")
+        return kb::DISTANCE_PROVIDER_COST_BASED;
+
+    return kb::DISTANCE_PROVIDER_UNDERSPECIFIED;
+}
+
+
 lhs_enumerator_t* _new_lhs_enumerator( const std::string &key )
 {
-    if (key == "bidirection") return new lhs::basic_lhs_enumerator_t(true, true);
-    if (key == "abduction") return new lhs::basic_lhs_enumerator_t(false, true);
-    if (key == "deduction") return new lhs::basic_lhs_enumerator_t(true, false);
+    if (key == "bidirection")
+    {
+        return new lhs::basic_lhs_enumerator_t(
+            true, true,
+            sys()->param_float("max_depth"),
+            sys()->param_float("max_redundancy"));
+    }
+    if (key == "abduction")
+    {
+        return new lhs::basic_lhs_enumerator_t(
+            false, true,
+            sys()->param_float("max_depth"),
+            sys()->param_float("max_redundancy"));
+    }
+    if (key == "deduction")
+    {
+        return new lhs::basic_lhs_enumerator_t(
+            true, false,
+            sys()->param_float("max_depth"),
+            sys()->param_float("max_redundancy"));
+    }
     return NULL;
 }
 
@@ -301,7 +344,8 @@ bool preprocess( execution_configure_t *config )
     float max_dist = -1;
     _sscanf(sys()->param("kb_max_distance").c_str(), "%f", &max_dist);
 
-    config->kb = new kb::knowledge_base_t(config->kb_name, max_dist);
+    config->kb = new kb::knowledge_base_t(
+        config->kb_name, config->distance_type, max_dist);
 
     switch (config->mode)
     {

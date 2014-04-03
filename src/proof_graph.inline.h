@@ -15,10 +15,17 @@ namespace pg
 
 
 inline node_t::node_t(
-    const literal_t &lit, node_type_e type, node_idx_t idx, int depth )
+    const literal_t &lit, node_type_e type, node_idx_t idx,
+    int depth, const hash_set<node_idx_t> &ev)
     : m_type(type), m_literal(lit), m_index(idx), m_depth(depth),
-      m_master_hypernode_idx(-1)
+    m_master_hypernode_idx(-1), m_evidences(ev)
 {}
+
+
+inline const hash_set<pg::node_idx_t>& node_t::evidences() const
+{
+    return m_evidences;
+}
 
 
 inline const std::vector< std::pair<term_t, term_t> >&
@@ -175,7 +182,7 @@ proof_graph_t::unifiable_variable_clusters_set_t::is_in_same_cluster(
 inline node_idx_t proof_graph_t::
     add_observation(const literal_t &lit, int depth)
 {
-    int idx = add_node(lit, NODE_OBSERVABLE, depth);
+    int idx = add_node(lit, NODE_OBSERVABLE, depth, hash_set<node_idx_t>());
     _generate_mutual_exclusions(idx);
     _generate_unification_assumptions(idx);
     return idx;
@@ -184,7 +191,7 @@ inline node_idx_t proof_graph_t::
 
 inline node_idx_t proof_graph_t::add_label(const literal_t &lit, int depth)
 {
-    node_idx_t idx = add_node(lit, NODE_LABEL, depth);
+    node_idx_t idx = add_node(lit, NODE_LABEL, depth, hash_set<node_idx_t>());
     m_label_nodes.push_back(idx);
     return idx;
 }

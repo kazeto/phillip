@@ -65,7 +65,10 @@ public:
     inline bool is_debugging()  const;
 
     inline const hash_map<std::string, std::string>& params() const;
-    inline const std::string& param( const std::string &key ) const;
+    inline const std::string& param(const std::string &key) const;
+    inline int param_int(const std::string &key, int def = -1) const;
+    inline float param_float(const std::string &key, float def = -1.0f) const;
+
     inline const hash_set<std::string>& flags() const;
     inline bool flag(const std::string &key) const;
 

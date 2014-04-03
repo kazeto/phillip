@@ -42,6 +42,7 @@ struct execution_configure_t
     kb::knowledge_base_t *kb;
 
     std::string lhs_key, ilp_key, sol_key;
+    kb::distance_provider_type_e distance_type;
 };
 
 
@@ -50,8 +51,8 @@ struct execution_configure_t
  *  @param[out] inputs List of input filenames. */
 bool parse_options(
     int argc, char* argv[],
-    execution_configure_t    *config,
-    std::vector<std::string> *inputs );
+    execution_configure_t *config,
+    std::vector<std::string> *inputs);
 
 /** Preprocess about execution configure.
  *  Create instance of each component of phil according to config. */

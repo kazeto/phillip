@@ -355,8 +355,10 @@ template <class T> bool has_intersection(
     const T &s2_begin, const T &s2_end )
 {
     for (T i1 = s1_begin; i1 != s1_end; ++i1)
-        for (T i2=s2_begin; i2 != s2_end; ++i2 )
-            if (*i1 == *i2) return true;
+    for (T i2 = s2_begin; i2 != s2_end; ++i2)
+    if (*i1 == *i2)
+        return true;
+
     return false;
 }
 

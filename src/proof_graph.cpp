@@ -895,9 +895,10 @@ void proof_graph_t::print_mutual_exclusive_edges(
 
 
 node_idx_t proof_graph_t::add_node(
-    const literal_t &lit, node_type_e type, int depth)
+    const literal_t &lit, node_type_e type, int depth,
+    const hash_set<node_idx_t> &evidences)
 {
-    node_t add(lit, type, m_nodes.size(), depth);
+    node_t add(lit, type, m_nodes.size(), depth, evidences);
     node_idx_t out = m_nodes.size();
     
     m_nodes.push_back(add);
@@ -959,8 +960,12 @@ hypernode_idx_t proof_graph_t::chain(
 
     /* ADD NEW NODES AND NEW HYPERNODE TO THIS */
     std::vector<node_idx_t> hypernode_to(literals_to.size(), -1);
+    hash_set<node_idx_t> evidences = _enumerate_evidences_for_chain(from);
     for (size_t i = 0; i < literals_to.size(); ++i)
-        hypernode_to[i] = add_node(literals_to[i], NODE_HYPOTHESIS, depth + 1);
+    {
+        hypernode_to[i] =
+            add_node(literals_to[i], NODE_HYPOTHESIS, depth + 1, evidences);
+    }
     hypernode_idx_t idx_hn_to = add_hypernode(hypernode_to);
 
     /* SET MASTER-HYPERNODE OF EACH NEW NODE */
@@ -1118,19 +1123,12 @@ bool proof_graph_t::_check_mutual_exclusiveness_for_chain(
     std::vector<std::list<
     std::tuple<node_idx_t, unifier_t, axiom_id_t> > > *muexs) const
 {
-    hash_set<node_idx_t> dep;
+    hash_set<node_idx_t> dep = _enumerate_evidences_for_chain(from);
     bool do_disable =
         sys()->flag("disable_check_mutual_exclusiveness_for_chain");
 
     muexs->assign(
         to.size(), std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> >());
-
-    // ENUMERATE DEPENDENT NODES
-    for (auto n = from.begin(); n != from.end(); ++n)
-    {
-        dep.insert(*n);
-        enumerate_dependent_nodes(*n, &dep);
-    }
 
     for (int i = 0; i < to.size(); ++i)
     {
@@ -1159,13 +1157,7 @@ bool proof_graph_t::_check_literals_overlap_for_chain(
     const std::vector<node_idx_t> &from,
     const std::vector<literal_t> &to) const
 {
-    /* ENUMERATE DEPENDANT NODES */
-    hash_set<node_idx_t> deps;
-    for (auto it = from.begin(); it != from.end(); ++it)
-    {
-        deps.insert(*it);
-        enumerate_dependent_nodes(*it, &deps);
-    }
+    hash_set<node_idx_t> deps = _enumerate_evidences_for_chain(from);
 
     /* ENUMERATE DEPENDANT LITERALS */
     std::set<literal_t> lits;
@@ -1177,6 +1169,19 @@ bool proof_graph_t::_check_literals_overlap_for_chain(
         return true;
 
     return false;
+}
+
+
+hash_set<node_idx_t> proof_graph_t::_enumerate_evidences_for_chain(
+    const std::vector<node_idx_t> &from) const
+{
+    hash_set<node_idx_t> out;
+    for (auto it = from.begin(); it != from.end(); ++it)
+    {
+        auto ev = node(*it).evidences();
+        out.insert(ev.begin(), ev.end());
+    }
+    return out;
 }
 
 
@@ -1391,6 +1396,9 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
     if (not check_unifiability(node(i).literal(), node(j).literal(), false, &uni))
         return;
 
+    hash_set<node_idx_t> evidences =
+        _enumerate_evidences_for_chain(unified_nodes);
+
     /** CREATE UNIFICATION-NODES & UPDATE VARIABLES. */
     for (auto sub = uni.substitutions().begin();
         sub != uni.substitutions().end(); ++sub)
@@ -1402,7 +1410,7 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
         if (sub_node_idx < 0)
         {
             if (t1 > t2) std::swap(t1, t2);
-            sub_node_idx = add_node(*sub, NODE_HYPOTHESIS, -1);
+            sub_node_idx = add_node(*sub, NODE_HYPOTHESIS, -1, evidences);
 
             m_maps.nodes_sub[t1][t2] = sub_node_idx;
             m_vc_unifiable.add(t1, t2);
@@ -1444,7 +1452,8 @@ void proof_graph_t::_add_nodes_of_transitive_unification(term_t t)
             if (t1 > t2) std::swap(t1, t2);
 
             node_idx_t idx = add_node(
-                literal_t("=", t1, t2), NODE_HYPOTHESIS, -1);
+                literal_t("=", t1, t2), NODE_HYPOTHESIS,
+                -1, hash_set<node_idx_t>());
             m_maps.nodes_sub[t1][t2] = idx;
             _generate_mutual_exclusions(idx);
         }
@@ -1484,6 +1493,13 @@ size_t proof_graph_t::get_hash_of_nodes(std::list<node_idx_t> nodes)
     static std::hash<std::string> hasher;
     nodes.sort();
     return hasher(join(nodes.begin(), nodes.end(), "%d", ","));    
+}
+
+
+void proof_graph_t::clean_logs()
+{
+    m_logs.considered_unifications.clear();
+    m_logs.considered_exclusions.clear();
 }
 
 

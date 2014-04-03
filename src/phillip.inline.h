@@ -117,6 +117,22 @@ inline const std::string& phillip_main_t::param( const std::string &key ) const
 }
 
 
+inline int phillip_main_t::param_int(const std::string &key, int def) const
+{
+    int out(def);
+    _sscanf(param(key).c_str(), "%d", &out);
+    return out;
+}
+
+
+inline float phillip_main_t::param_float(const std::string &key, float def) const
+{
+    float out(def);
+    _sscanf(param(key).c_str(), "%f", &out);
+    return out;
+}
+
+
 inline const hash_set<std::string>& phillip_main_t::flags() const
 { return m_flags; }
 

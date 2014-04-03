@@ -1,7 +1,4 @@
-/* -*- coding: utf-8 -*- */
-
-#ifndef INCLUDE_HENRY_PROOF_GRAPH_H
-#define INCLUDE_HENRY_PROOF_GRAPH_H
+#pragma once
 
 /** Definition of classes related of proof-graphs.
  *  A proof-graph is used to express a latent-hypotheses-set.
@@ -70,9 +67,11 @@ public:
     /** @param lit   The literal assigned to this.
      *  @param type  The node type of this.
      *  @param idx   The index of this in proof_graph_t::m_nodes.
-     *  @param depth Distance from observations in the proof-graph. */
+     *  @param depth Distance from observations in the proof-graph.
+     *  @param ev    Indices of nodes which are evidences for this node. */
     inline node_t(
-        const literal_t &lit, node_type_e type, node_idx_t idx, int depth);
+        const literal_t &lit, node_type_e type, node_idx_t idx,
+        int depth, const hash_set<node_idx_t> &ev);
 
     inline node_type_e type() const         { return m_type; }
     inline const literal_t& literal() const { return m_literal; }
@@ -84,6 +83,9 @@ public:
      *  Observation and Labels have depth of 0.
      *  Unification-nodes have depth of -1. */
     inline int depth() const { return m_depth; }
+
+    /** Returns indices of nodes which are needs to hypothesize this node. */
+    inline const hash_set<pg::node_idx_t>& evidences() const;
 
     /** List of inconsistency of variables.
     *  If these are violated, this node cannot be hypothesized. */
@@ -116,6 +118,7 @@ private:
     node_idx_t  m_index;
     hypernode_idx_t m_master_hypernode_idx;
     int m_depth;
+    hash_set<node_idx_t> m_evidences;
 
     /** IDs of axioms which has been applied to this node. */
     hash_set<axiom_id_t> m_ids_axiom_used_forward, m_ids_axiom_used_backward;
@@ -231,6 +234,10 @@ class proof_graph_t
 {        
 public:
     inline proof_graph_t(const std::string &name = "") : m_name(name) {}
+
+    /** Deletes logs, which are needed only in creation of proof-graph.
+     *  Please call this after creation of proof-graph. */
+    void clean_logs();
 
     inline const std::string& name() const { return m_name; }
     
@@ -434,7 +441,9 @@ protected:
      *  @param type  The type of the new node.
      *  @param depth The depth of the new node.
      *  @return The index of added new node. */
-    node_idx_t add_node(const literal_t &lit, node_type_e type, int depth);
+    node_idx_t add_node(
+        const literal_t &lit, node_type_e type, int depth,
+        const hash_set<node_idx_t> &evidences);
 
     /** Adds a new edge.
      *  @return The index of added new edge. */
@@ -496,6 +505,11 @@ protected:
     bool _check_literals_overlap_for_chain(
         const std::vector<node_idx_t> &from,
         const std::vector<literal_t> &to) const;
+
+    /** This is a sub-routine of chain.
+     *  Returns evidences of new nodes by the chaining. */
+    hash_set<node_idx_t> _enumerate_evidences_for_chain(
+        const std::vector<node_idx_t> &from) const;
 
     /** This is a sub-routine of add_node.
      *  Generates unification assumptions between target node
@@ -595,12 +609,6 @@ protected:
     
     unifiable_variable_clusters_set_t m_vc_unifiable;
 
-    /** Set of pair of nodes
-     *  which its unifiability has been already considered.
-     *  KEY and VALUE express node pair, and KEY is less than VALUE. */
-    hash_map<node_idx_t, hash_set<node_idx_t> >
-        m_unification_assumptions_considered;
-    
     /** Indices of hypernodes which include unification-nodes. */
     hash_set<hypernode_idx_t> m_indices_of_unification_hypernodes;
 
@@ -610,7 +618,13 @@ protected:
 
     struct
     {
+        /** Set of pair of nodes
+        *  which its unifiability has been already considered.
+        *  KEY and VALUE express node pair, and KEY is less than VALUE. */
         hash_map<node_idx_t, hash_set<node_idx_t> > considered_unifications;
+        /** Set of pair of nodes
+        *  which its mutual-exclusiveness has been already considered.
+        *  KEY and VALUE express node pair, and KEY is less than VALUE. */
         hash_map<node_idx_t, hash_set<node_idx_t> > considered_exclusions;
     } m_logs;
 
@@ -677,4 +691,4 @@ protected:
 
 #include "proof_graph.inline.h"
 
-#endif
+

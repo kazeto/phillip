@@ -11,30 +11,13 @@ namespace lhs
 {
 
 
-basic_lhs_enumerator_t::
-basic_lhs_enumerator_t(bool do_deduction, bool do_abduction)
-: m_do_deduction(do_deduction), m_do_abduction(do_abduction),
-m_depth_max(-1), m_redundancy_max(-1)
-{
-    std::string depth_str = sys()->param("max_depth");
-    std::string redundancy_str = sys()->param("max_redundancy");
-
-    if (not depth_str.empty())
-    {
-        int depth;
-        int ret = _sscanf(depth_str.c_str(), "%d", &depth);
-        if (ret == 1 and depth > 0)
-            m_depth_max = depth;
-    }
-
-    if (not redundancy_str.empty())
-    {
-        int redundancy;
-        int ret = _sscanf(redundancy_str.c_str(), "%d", &redundancy);
-        if (ret == 1 and redundancy > 0)
-            m_redundancy_max = redundancy;
-    }
-}
+basic_lhs_enumerator_t::basic_lhs_enumerator_t(
+    bool do_deduction, bool do_abduction,
+    int max_depth, float max_distance, float max_redundancy)
+    : m_do_deduction(do_deduction), m_do_abduction(do_abduction),
+      m_depth_max(max_depth), m_distance_max(max_distance),
+      m_redundancy_max(max_redundancy)
+{}
 
 
 
@@ -50,9 +33,10 @@ pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
     for (int depth = 0; (m_depth_max < 0 or depth < m_depth_max); ++depth)
     {
         std::set<pg::chain_candidate_t> cands(enumerate_chain_candidates(graph, depth));
-        hash_map<axiom_id_t, lf::axiom_t> axioms;
 
         if (cands.empty()) break;
+
+        hash_map<axiom_id_t, lf::axiom_t> axioms;
 
         // ENUMERATE AXIOMS USED HERE
         for (auto it = cands.begin(); it != cands.end(); ++it)
@@ -63,30 +47,30 @@ pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
         for (auto it = cands.begin(); it != cands.end(); ++it)
         {
             const lf::axiom_t &axiom = axioms.at(it->axiom_id);
+            std::vector<reachable_map_t> reachability_new;
+            bool can_chain = compute_reachability_of_chaining(
+                graph, reachability, it->nodes, axiom, it->is_forward,
+                &reachability_new);
+
+            if (not can_chain) continue;
+
             pg::hypernode_idx_t to = it->is_forward ?
                 graph->forward_chain(it->nodes, axiom) :
                 graph->backward_chain(it->nodes, axiom);
             if (to < 0) continue;
 
-            // PRINT FOR DEBUG
+            // SET REACHABILITY OF NEW NODES
+            const std::vector<pg::node_idx_t> hn_to = graph->hypernode(to);
+            for (int i = 0; i < hn_to.size(); ++i)
+                reachability[hn_to.at(i)] = reachability_new.at(i);
+
+            // FOR DEBUG
             if (sys()->verbose() == FULL_VERBOSE)
-            {
-                pg::hypernode_idx_t from =
-                    graph->find_hypernode_with_ordered_nodes(it->nodes);
-                const std::vector<pg::node_idx_t>
-                    &hn_from(it->nodes), &hn_to(graph->hypernode(to));
-                std::string
-                    str_from(join(hn_from.begin(), hn_from.end(), "%d", ",")),
-                    str_to(join(hn_to.begin(), hn_to.end(), "%d", ","));
-                std::string disp(
-                    it->is_forward ? "ForwardChain: " : "BackwardChain: ");
-                disp += format("%d:[%s] <= %s <= %d:[%s]",
-                    from, str_from.c_str(), axiom.name.c_str(), to, str_to.c_str());
-                std::cerr << time_stamp() << disp << std::endl;
-            }
+                print_chain_for_debug(graph, axiom, (*it), to);
         }
     }
 
+    graph->clean_logs();
     return graph;
 }
 
@@ -160,13 +144,13 @@ const pg::proof_graph_t *graph) const
     {
         const pg::node_t &node1 = graph->node(*n1);
         const pg::node_t &node2 = graph->node(*n2);
-        int dist = kb->get_distance(
+        float dist = kb->get_distance(
             node1.literal().get_predicate_arity(),
             node2.literal().get_predicate_arity());
 
-        if (dist >= 0)
+        if (dist >= 0 and dist <= m_distance_max)
         {
-            reachability_t r = { dist, 0 };
+            reachability_t r = { dist, 0.0f };
             out[*n1][*n2] = r;
             out[*n2][*n1] = r;
         }
@@ -176,18 +160,28 @@ const pg::proof_graph_t *graph) const
 }
 
 
-std::vector<basic_lhs_enumerator_t::reachable_map_t>
-basic_lhs_enumerator_t::compute_reachability_of_chaining(
+bool basic_lhs_enumerator_t::compute_reachability_of_chaining(
     const pg::proof_graph_t *graph,
     const hash_map<pg::node_idx_t, reachable_map_t> &reachability,
     const std::vector<pg::node_idx_t> &from,
-    const lf::axiom_t &axiom, bool is_forward) const
+    const lf::axiom_t &axiom, bool is_forward,
+    std::vector<reachable_map_t> *out) const
 {
+    const kb::knowledge_base_t *base = sys()->knowledge_base();
+    hash_set<pg::node_idx_t> evidences;
+
+    /* CREATE evidences */
+    for (auto it = from.begin(); it != from.end(); ++it)
+    {
+        const pg::node_t &node = graph->node(*it);
+        evidences.insert(node.evidences().begin(), node.evidences().end());
+    }
+
     reachable_map_t rcs_from;
     std::vector<const literal_t*>
         literals = axiom.func.branch(is_forward ? 1 : 0).get_all_literals();
 
-    /* CREATE rcs_from, WHICH IS MAP OF REACHABILITY OF EVIDENCES */
+    /* CREATE rcs_from, WHICH IS A MAP OF REACHABILITY OF from */
     for (auto it1 = from.begin(); it1 != from.end(); ++it1)
     {
         auto find = reachability.find(*it1);
@@ -196,28 +190,68 @@ basic_lhs_enumerator_t::compute_reachability_of_chaining(
         const reachable_map_t &rc = find->second;
         for (auto it2 = rc.begin(); it2 != rc.end(); ++it2)
         {
+            /* IF TARGET IS INCLUDED IN evidences, EXCLUDES IT. */
+            if (evidences.count(it2->first) > 0) continue;
+
             auto old = rcs_from.find(it2->first);
-            
+
             if (old == rcs_from.end())
                 rcs_from[it2->first] = it2->second;
-            else if (old->second.distance > it2->second.distance)
+            else if (it2->second.distance < old->second.distance)
                 rcs_from[it2->first] = it2->second;
         }
     }
 
-    std::vector<reachable_map_t> out(literals.size(), reachable_map_t());
-    for (int i = 0; i < literals.size(); ++i)
-    {
-        reachable_map_t &rc = out[i];
-        const literal_t &lit = *literals.at(i);
-        std::string arity = lit.get_predicate_arity();
+    /* IF THE REACHABILITY OF from IS EMPTY,
+     * THIS CHAINING IS NOT NEEDED TO BE PERFORM. */
+    if (rcs_from.empty()) return false;
 
-        for (auto it = rcs_from.begin(); it != rcs_from.end(); ++it)
+    out->assign(literals.size(), reachable_map_t());
+    float base_distance = base->get_distance(axiom);
+
+    for (auto it = rcs_from.begin(); it != rcs_from.end(); ++it)
+    {
+        std::string arity =
+            graph->node(it->first).literal().get_predicate_arity();
+
+        for (int i = 0; i < literals.size(); ++i)
         {
+            std::string arity2 = literals.at(i)->get_predicate_arity();
+            float distance = base->get_distance(arity, arity2);
+            float redundancy = base_distance - (it->second.distance - distance);
+
+            if (distance >= 0.0f
+                and distance <= m_distance_max
+                and distance <= it->second.distance
+                and redundancy <= m_redundancy_max)
+            {
+                reachability_t rc = { distance, redundancy };
+                (*out)[i][it->first] = rc;
+            }
         }
     }
 
-    return out;
+    return true;
+}
+
+
+void basic_lhs_enumerator_t::print_chain_for_debug(
+    const pg::proof_graph_t *graph, const lf::axiom_t &axiom,
+    const pg::chain_candidate_t &cand, pg::hypernode_idx_t to) const
+{
+    pg::hypernode_idx_t from =
+        graph->find_hypernode_with_ordered_nodes(cand.nodes);
+    const std::vector<pg::node_idx_t>
+        &hn_from(cand.nodes), &hn_to(graph->hypernode(to));
+    std::string
+        str_from(join(hn_from.begin(), hn_from.end(), "%d", ",")),
+        str_to(join(hn_to.begin(), hn_to.end(), "%d", ","));
+    std::string disp(cand.is_forward ? "ForwardChain: " : "BackwardChain: ");
+
+    disp += format("%d:[%s] <= %s <= %d:[%s]",
+        from, str_from.c_str(), axiom.name.c_str(), to, str_to.c_str());
+
+    std::cerr << time_stamp() << disp << std::endl;
 }
 
 
