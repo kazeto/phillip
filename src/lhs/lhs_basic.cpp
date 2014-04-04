@@ -62,7 +62,10 @@ pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
             // SET REACHABILITY OF NEW NODES
             const std::vector<pg::node_idx_t> hn_to = graph->hypernode(to);
             for (int i = 0; i < hn_to.size(); ++i)
-                reachability[hn_to.at(i)] = reachability_new.at(i);
+            {
+                filter_unified_reachability(graph, hn_to[i], &reachability_new[i]);
+                reachability[hn_to.at(i)] = reachability_new[i];
+            }
 
             // FOR DEBUG
             if (sys()->verbose() == FULL_VERBOSE)
@@ -87,6 +90,10 @@ enumerate_chain_candidates(pg::proof_graph_t *graph, int depth) const
     {
         lf::axiom_t axiom = base->get_axiom(std::get<0>(*it));
         bool is_forward(std::get<1>(*it));
+
+        if ((is_forward and not m_do_deduction) or
+            (not is_forward and not m_do_abduction))
+            continue;
 
         std::set<pg::chain_candidate_t> cands =
             graph->enumerate_candidates_for_chain(axiom, !is_forward, depth);
@@ -232,6 +239,33 @@ bool basic_lhs_enumerator_t::compute_reachability_of_chaining(
     }
 
     return true;
+}
+
+
+void basic_lhs_enumerator_t::filter_unified_reachability(
+    const pg::proof_graph_t *graph, pg::node_idx_t target,
+    reachable_map_t *out) const
+{
+    const hash_set<pg::node_idx_t> *nodes =
+        graph->search_nodes_with_arity(
+        graph->node(target).literal().get_predicate_arity());
+    hash_set<pg::node_idx_t> evidences;
+
+    for (auto it = nodes->begin(); it != nodes->end(); ++it)
+    if (target != *it)
+    {
+        const pg::node_t n = graph->node(*it);
+        evidences.insert(*it);
+        evidences.insert(n.evidences().begin(), n.evidences().end());
+    }
+
+    for (auto it = out->begin(); it != out->end();)
+    {
+        if (evidences.count(it->first) > 0)
+            it = out->erase(it);
+        else
+            ++it;
+    }
 }
 
 

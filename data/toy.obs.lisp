@@ -1,1 +1,1 @@
-(O (name toy) (^ (pred1 x)))
+(O (name toy) (^ (john x) (tom y) (die y) (have x g) (gun g)))

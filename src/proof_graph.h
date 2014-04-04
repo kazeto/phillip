@@ -387,6 +387,7 @@ public:
 
     std::string edge_to_string(edge_idx_t i) const;
         
+    /** Whether the hypernode of hn includes only sub-nodes. */
     inline bool is_hypernode_for_unification(hypernode_idx_t hn) const;
 
     /** Returns whether given axioms has already applied to given hypernode. */
@@ -558,7 +559,7 @@ protected:
 
     /** This is sub-routine of generate_unification_assumptions.
      *  Add a node and an edge for unification between node[i] & node[j].
-     *  And, update m_vc_unifiable and m_maps.nodes_sub. */
+     *  And, update m_vc_unifiable and m_maps.terms_to_sub_node. */
     void _chain_for_unification(node_idx_t i, node_idx_t j);
 
     /** Sub-routine of chain_for_unification.
@@ -633,17 +634,12 @@ protected:
         /** Map from terms to the node index.
          *   - KEY1, KEY2 : Terms. KEY1 is less than KEY2.
          *   - VALUE : Index of node of "KEY1 == KEY2". */
-        hash_map<term_t, hash_map<term_t, node_idx_t> > nodes_sub;
+        hash_map<term_t, hash_map<term_t, node_idx_t> > terms_to_sub_node;
 
         /** Map from terms to the node index.
          *   - KEY1, KEY2 : Terms. KEY1 is less than KEY2.
          *   - VALUE : Index of node of "KEY1 != KEY2". */
-        hash_map<term_t, hash_map<term_t, node_idx_t> > nodes_negsub;
-
-        /** Map from a variable to constants
-         *  which are unified with the variable. */
-        hash_map<term_t, hash_set<term_t> > var_to_consts;
-        // ---- constants_sub
+        hash_map<term_t, hash_map<term_t, node_idx_t> > terms_to_negsub_node;
 
         /** Map from a node index
          *  to the set of inconsistency axioms related to it. */
@@ -664,22 +660,16 @@ protected:
         hash_map<predicate_t, hash_map<int, hash_set<node_idx_t> > >
             predicate_to_nodes;
 
-        /** Map to get hypernodes from node.
-         *   - KEY : Index of node.
-         *   - VALUE : Index of hypernode which includes KEY. */
+        /** Map to get hypernodes which include given node. */
         hash_map<node_idx_t, hash_set<hypernode_idx_t> > node_to_hypernode;
 
         /** Map to get hypernodes from hash of unordered-nodes. */
         hash_map<size_t, hash_set<hypernode_idx_t> > unordered_nodes_to_hypernode;
 
-        /** Map to get edges connecting some node.
-         *   - KEY : Index of node.
-         *   - VALUE : Index of edges which connect KEY. */
+        /** Map to get edges connecting given node. */
         hash_map< hypernode_idx_t, hash_set<edge_idx_t> > hypernode_to_edge;
 
-        /** Map to get node from term.
-         *   - KEY : Name of term.
-         *   - VALUE : Indices of nodes which have the term corresponding KEY. */
+        /** Map to get nodes which have given term. */
         hash_map<term_t, hash_set<node_idx_t> > term_to_nodes;
     } m_maps;
 };

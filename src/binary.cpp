@@ -295,21 +295,24 @@ lhs_enumerator_t* _new_lhs_enumerator( const std::string &key )
     {
         return new lhs::basic_lhs_enumerator_t(
             true, true,
-            sys()->param_float("max_depth"),
+            sys()->param_int("max_depth"),
+            sys()->param_float("max_distance"),
             sys()->param_float("max_redundancy"));
     }
     if (key == "abduction")
     {
         return new lhs::basic_lhs_enumerator_t(
             false, true,
-            sys()->param_float("max_depth"),
+            sys()->param_int("max_depth"),
+            sys()->param_float("max_distance"),
             sys()->param_float("max_redundancy"));
     }
     if (key == "deduction")
     {
         return new lhs::basic_lhs_enumerator_t(
             true, false,
-            sys()->param_float("max_depth"),
+            sys()->param_int("max_depth"),
+            sys()->param_float("max_distance"),
             sys()->param_float("max_redundancy"));
     }
     return NULL;

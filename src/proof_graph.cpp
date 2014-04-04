@@ -623,8 +623,8 @@ node_idx_t proof_graph_t::find_sub_node(term_t t1, term_t t2) const
 {
     if (t1 > t2) std::swap(t1, t2);
 
-    auto it = m_maps.nodes_sub.find(t1);
-    if (it == m_maps.nodes_sub.end())
+    auto it = m_maps.terms_to_sub_node.find(t1);
+    if (it == m_maps.terms_to_sub_node.end())
         return -1;
 
     auto it2 = it->second.find(t2);
@@ -639,8 +639,8 @@ node_idx_t proof_graph_t::find_neg_sub_node(term_t t1, term_t t2) const
 {
     if (t1 > t2) std::swap(t1, t2);
 
-    auto it = m_maps.nodes_negsub.find(t1);
-    if (it == m_maps.nodes_negsub.end())
+    auto it = m_maps.terms_to_negsub_node.find(t1);
+    if (it == m_maps.terms_to_negsub_node.end())
         return -1;
 
     auto it2 = it->second.find(t2);
@@ -911,15 +911,9 @@ node_idx_t proof_graph_t::add_node(
         if (t1 > t2) std::swap(t1, t2);
 
         if (lit.truth)
-        {
-            m_maps.nodes_sub[t1][t2] = out;
-            if (t1.is_constant() and not t2.is_constant())
-                m_maps.var_to_consts[t2].insert(t1);
-            else if (t2.is_constant() and not t1.is_constant())
-                m_maps.var_to_consts[t1].insert(t2);
-        }
+            m_maps.terms_to_sub_node[t1][t2] = out;
         else
-            m_maps.nodes_negsub[t1][t2] = out;
+            m_maps.terms_to_negsub_node[t1][t2] = out;
     }
     
     for (unsigned i = 0; i < lit.terms.size(); i++)
@@ -1412,7 +1406,7 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
             if (t1 > t2) std::swap(t1, t2);
             sub_node_idx = add_node(*sub, NODE_HYPOTHESIS, -1, evidences);
 
-            m_maps.nodes_sub[t1][t2] = sub_node_idx;
+            m_maps.terms_to_sub_node[t1][t2] = sub_node_idx;
             m_vc_unifiable.add(t1, t2);
             _generate_mutual_exclusions(sub_node_idx);
             _add_nodes_of_transitive_unification(t1);
@@ -1454,7 +1448,7 @@ void proof_graph_t::_add_nodes_of_transitive_unification(term_t t)
             node_idx_t idx = add_node(
                 literal_t("=", t1, t2), NODE_HYPOTHESIS,
                 -1, hash_set<node_idx_t>());
-            m_maps.nodes_sub[t1][t2] = idx;
+            m_maps.terms_to_sub_node[t1][t2] = idx;
             _generate_mutual_exclusions(idx);
         }
     }

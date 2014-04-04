@@ -1,3 +1,4 @@
-(B (name pred#a) (=> (^ (pred2 x) (pred3 x)) (pred1 y)))
-(B (name pred#b) (=> (^ (pred2 x) (pred4 x)) (pred1 y)))
-(B (name pred#c) (=> (^ (pred2 x) (pred5 x)) (pred1 y)))
+(B (name gun_shot) (=> (^ (have x y) (gun y)) (shot x z)))
+(B (name shot_kill) (=> (shot x y) (kill x y)))
+(B (name kill_die) (=> (kill x y) (die y)))
+(B (name sick_die) (=> (sick x) (die x)))
