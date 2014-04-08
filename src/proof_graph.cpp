@@ -1358,13 +1358,16 @@ std::list<node_idx_t>
         if (n1 > n2) std::swap(n1, n2);
 
         // IGNORE THE PAIR WHICH HAS BEEN CONSIDERED ALREADY.
-        if (_is_considered_unification(n1, n2))
+        if (_is_considered_unification(n1, n2)) continue;
+        else m_logs.considered_unifications[n1].insert(n2); // ADD TO LOG
+
+        // IF ONE IS THE ANCESTOR OF ANOTHER, THE PAIR CANNOT UNIFY.
+        if (node(n1).evidences().count(n2) > 0 or
+            node(n2).evidences().count(n1) > 0)
             continue;
 
-        m_logs.considered_unifications[n1].insert(n2); // ADD TO LOG
-
         bool unifiable = check_unifiability(
-            m_nodes[n1].literal(), m_nodes[n2].literal(), false, &unifier);
+            node(n1).literal(), node(n2).literal(), false, &unifier);
 
         // FILTERING WITH CO-EXISTENCY OF NODES
         if (unifiable and do_omit_invalid_unification)

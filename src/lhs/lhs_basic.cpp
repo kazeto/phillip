@@ -215,6 +215,7 @@ bool basic_lhs_enumerator_t::compute_reachability_of_chaining(
 
     out->assign(literals.size(), reachable_map_t());
     float base_distance = base->get_distance(axiom);
+    bool can_reach_somewhere(false);
 
     for (auto it = rcs_from.begin(); it != rcs_from.end(); ++it)
     {
@@ -234,11 +235,12 @@ bool basic_lhs_enumerator_t::compute_reachability_of_chaining(
             {
                 reachability_t rc = { distance, redundancy };
                 (*out)[i][it->first] = rc;
+                can_reach_somewhere = true;
             }
         }
     }
 
-    return true;
+    return can_reach_somewhere;
 }
 
 

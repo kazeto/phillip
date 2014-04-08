@@ -76,10 +76,10 @@ public:
     inline node_type_e type() const         { return m_type; }
     inline const literal_t& literal() const { return m_literal; }
 
-    /** Return the index of this node in a proof-graph. */
+    /** Returns the index of this node in a proof-graph. */
     inline index_t index() const { return m_index; }
 
-    /** Return the distance from nearest-observation in proof-graph.
+    /** Returns the distance from nearest-observation in proof-graph.
      *  Observation and Labels have depth of 0.
      *  Unification-nodes have depth of -1. */
     inline int depth() const { return m_depth; }
@@ -87,12 +87,12 @@ public:
     /** Returns indices of nodes which are needs to hypothesize this node. */
     inline const hash_set<pg::node_idx_t>& evidences() const;
 
-    /** List of inconsistency of variables.
-    *  If these are violated, this node cannot be hypothesized. */
+    /** Returns a list of inconsistency of variables.
+     *  If these are violated, this node cannot be hypothesized. */
     inline const std::vector< std::pair<term_t, term_t> >&
         get_conditions_for_non_equality_of_terms() const;
 
-    /** Return the index of hypernode
+    /** Returns the index of hypernode
      *  which was instantiated for instantiation of this node.
      *  CAUTION:
      *    If the node has plural parental-edges, this value is invalid.
@@ -119,9 +119,6 @@ private:
     hypernode_idx_t m_master_hypernode_idx;
     int m_depth;
     hash_set<node_idx_t> m_evidences;
-
-    /** IDs of axioms which has been applied to this node. */
-    hash_set<axiom_id_t> m_ids_axiom_used_forward, m_ids_axiom_used_backward;
 
     std::vector< std::pair<term_t, term_t> > m_conditions_neqs;
 };
