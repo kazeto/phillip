@@ -141,8 +141,7 @@ public:
      *  variables of nodes in the hypernode have been created.
      *  @return The index of added variable in m_variables. */
     variable_idx_t add_variable_of_hypernode(
-        pg::hypernode_idx_t idx, double coef = 0.0,
-        bool do_add_requisite_variable = false);
+        pg::hypernode_idx_t idx, double coef = 0.0);
 
     /** Add constraint for dependency between the target node
      *  and hypernodes which have the node as its element.
@@ -150,7 +149,7 @@ public:
      *  variables of target node and related hypernodes have been created.
      *  @return True when new constraints added. */
     constraint_idx_t add_constraint_of_dependence_of_node_on_hypernode(
-        pg::node_idx_t idx, bool do_add_requisite_variable = false);
+        pg::node_idx_t idx);
 
     /** Add constraint for dependency
      *  between the target hypernode and its parents.
@@ -158,27 +157,23 @@ public:
      *  variables of related hypernodes have been created.
      *  @return The index of added constraint. */
     constraint_idx_t add_constraint_of_dependence_of_hypernode_on_parents(
-        pg::hypernode_idx_t, bool do_add_requisite_variable = false);
+        pg::hypernode_idx_t);
 
     /** Add constraint for mutual-exclusion between terms.
      *  On calling this method, it is required that
      *  variables of related unification-nodes have been created.
      *  @return The index of added constraint. */
     constraint_idx_t add_constraint_of_mutual_exclusion(
-        pg::node_idx_t n1, pg::node_idx_t n2, const pg::unifier_t &uni,
-        bool do_add_requisite_variable = false);
-    void add_constraints_of_mutual_exclusions(
-        bool do_add_requisite_variable = false);
+        pg::node_idx_t n1, pg::node_idx_t n2, const pg::unifier_t &uni);
+    void add_constraints_of_mutual_exclusions();
 
     /** Add constraints about transitivity of unifications.
      *  On calling this method, it is required that
      *  variables of related unification-nodes have been created.
      *  @return Whether the process succeeded or not. */
     bool add_constraints_of_transitive_unification(
-        term_t t1, term_t t2, term_t t3,
-        bool do_add_requisite_variable = false);
-    void add_constraints_of_transitive_unifications(
-        bool do_add_requisite_variable = false);
+        term_t t1, term_t t2, term_t t3);
+    void add_constraints_of_transitive_unifications();
 
     void add_constrains_of_conditions_for_chain(pg::edge_idx_t idx);
     void add_constrains_of_exclusive_chains();
@@ -255,8 +250,8 @@ protected:
     hash_map<pg::node_idx_t, variable_idx_t> m_map_node_to_variable;
     hash_map<pg::hypernode_idx_t, variable_idx_t> m_map_hypernode_to_variable;
 
-    hash_set<size_t> m_hashes_of_term_triplet_for_transitive_unification;
-    hash_set<size_t> m_hashes_of_node_tuple_for_mutual_exclusion;
+    hash_set<std::string> m_log_of_term_triplet_for_transitive_unification;
+    hash_set<std::string> m_log_of_node_tuple_for_mutual_exclusion;
 };
 
 

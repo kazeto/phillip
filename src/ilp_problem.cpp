@@ -58,7 +58,7 @@ variable_idx_t
 {
     const pg::node_t &node = m_graph->node(idx);
     std::string lit = node.literal().to_string();
-    variable_t var( format("n(%d):%s", idx, lit.c_str()), coef );
+    variable_t var(format("n(%d):%s", idx, lit.c_str()), coef);
     variable_idx_t var_idx = add_variable(var);
     m_map_node_to_variable[idx] = var_idx;
 
@@ -67,7 +67,7 @@ variable_idx_t
 
 
 variable_idx_t ilp_problem_t::add_variable_of_hypernode(
-    pg::hypernode_idx_t idx, double coef, bool do_add_requisite_variable )
+    pg::hypernode_idx_t idx, double coef)
 {
     const std::vector<pg::node_idx_t> &hypernode = m_graph->hypernode(idx);
     if (hypernode.empty()) return -1;
@@ -82,8 +82,6 @@ variable_idx_t ilp_problem_t::add_variable_of_hypernode(
             if (not node.is_equality_node() and not node.is_non_equality_node())
             {
                 variable_idx_t var = find_variable_with_node(hypernode.front());
-                if (var < 0 and do_add_requisite_variable)
-                    var = add_variable_of_node(hypernode.front());
                 m_map_hypernode_to_variable[idx] = var;
                 return var;
             }
@@ -103,8 +101,6 @@ variable_idx_t ilp_problem_t::add_variable_of_hypernode(
     for( auto n = hypernode.begin(); n != hypernode.end(); ++n )
     {
         variable_idx_t v = find_variable_with_node(*n);
-        if (v < 0 and do_add_requisite_variable)
-            v = add_variable_of_node(*n);
         if (v < 0) return -1;
         cons.add_term(v, 1.0);
     }
@@ -118,15 +114,12 @@ variable_idx_t ilp_problem_t::add_variable_of_hypernode(
 }
 
 
-constraint_idx_t
-    ilp_problem_t::add_constraint_of_dependence_of_node_on_hypernode(
-    pg::node_idx_t idx, bool do_add_requisite_variable)
+constraint_idx_t ilp_problem_t::
+add_constraint_of_dependence_of_node_on_hypernode(pg::node_idx_t idx)
 {
     const pg::node_t &node = m_graph->node(idx);
 
     variable_idx_t var_node = find_variable_with_node(idx);
-    if (var_node < 0 and do_add_requisite_variable)
-        var_node = add_variable_of_node(idx);
     if (var_node < 0) return -1;
 
     hash_set<pg::hypernode_idx_t> masters;
@@ -161,9 +154,6 @@ constraint_idx_t
             return -1;
         }
 
-        if (var_master < 0 and do_add_requisite_variable)
-            var_master = add_variable_of_hypernode(*it, 0.0, true);
-
         if (var_master >= 0)
             con.add_term(var_master, 1.0);
     }
@@ -175,13 +165,10 @@ constraint_idx_t
 
 
 
-constraint_idx_t
-    ilp_problem_t::add_constraint_of_dependence_of_hypernode_on_parents
-    ( pg::hypernode_idx_t idx, bool do_add_requisite_variable )
+constraint_idx_t ilp_problem_t::
+add_constraint_of_dependence_of_hypernode_on_parents(pg::hypernode_idx_t idx)
 {
     variable_idx_t var = find_variable_with_hypernode(idx);
-    if (var < 0 and do_add_requisite_variable)
-        var = add_variable_of_hypernode(idx, 0.0, do_add_requisite_variable);
     if (var < 0) return -1;
 
     std::list<pg::hypernode_idx_t> parents;
@@ -194,10 +181,7 @@ constraint_idx_t
     for( auto hn = parents.begin(); hn != parents.end(); ++hn )
     {
         variable_idx_t v = find_variable_with_hypernode(*hn);
-        if (v < 0 and do_add_requisite_variable)
-            v = add_variable_of_hypernode(*hn, 0.0, do_add_requisite_variable);
-        if (v >= 0)
-            con.add_term( v, 1.0 );
+        if (v >= 0) con.add_term( v, 1.0 );
     }
 
     return add_constraint(con);
@@ -205,25 +189,17 @@ constraint_idx_t
 
 
 constraint_idx_t ilp_problem_t::add_constraint_of_mutual_exclusion(
-    pg::node_idx_t n1, pg::node_idx_t n2, const pg::unifier_t &uni,
-    bool do_add_requisite_variable)
+    pg::node_idx_t n1, pg::node_idx_t n2, const pg::unifier_t &uni)
 {
-    static std::hash< std::string > hasher;
-    size_t id = hasher((n1 < n2) ?
-        format("%d:%d", n1, n2) : format("%d:%d", n2, n1));
+    std::string key = (n1 < n2) ?
+        format("%d:%d", n1, n2) : format("%d:%d", n2, n1);
 
     /* IGNORE TUPLES WHICH HAVE BEEN CONSIDERED ALREADY. */
-    if(m_hashes_of_node_tuple_for_mutual_exclusion.count(id) > 0)
+    if(m_log_of_node_tuple_for_mutual_exclusion.count(key) > 0)
         return -1;
 
     variable_idx_t var1 = find_variable_with_node(n1);
     variable_idx_t var2 = find_variable_with_node(n2);
-
-    if( do_add_requisite_variable )
-    {
-        if (var1 < 0) var1 = add_variable_of_node(n1);
-        if (var2 < 0) var2 = add_variable_of_node(n2);
-    }
 
     if( var1 < 0 or var2 < 0 ) return -1;
 
@@ -247,67 +223,51 @@ constraint_idx_t ilp_problem_t::add_constraint_of_mutual_exclusion(
         if (sub_node < 0) return -1;
 
         variable_idx_t sub_var = find_variable_with_node(sub_node);
-        if (sub_var < 0 and do_add_requisite_variable)
-            sub_var = add_variable_of_node(sub_node);
         if (sub_var < 0) return -1;
 
         con.add_term(sub_var, 1.0);
         con.set_bound(con.bound() + 1.0);
     }
 
-    m_hashes_of_node_tuple_for_mutual_exclusion.insert(id);
+    m_log_of_node_tuple_for_mutual_exclusion.insert(key);
 
     return add_constraint(con);
 }
 
 
-void ilp_problem_t::add_constraints_of_mutual_exclusions(
-    bool do_add_requisite_variable )
+void ilp_problem_t::add_constraints_of_mutual_exclusions()
 {
     auto muexs = m_graph->enumerate_mutual_exclusive_nodes();
 
     for (auto it = muexs.begin(); it != muexs.end(); ++it)
     {
         add_constraint_of_mutual_exclusion(
-            std::get<0>(*it), std::get<1>(*it), std::get<2>(*it),
-            do_add_requisite_variable);
+            std::get<0>(*it), std::get<1>(*it), std::get<2>(*it));
     }
 }
 
 
 bool ilp_problem_t::add_constraints_of_transitive_unification(
-    term_t t1, term_t t2, term_t t3, bool do_add_requisite_variable )
+    term_t t1, term_t t2, term_t t3)
 {
-    static std::hash<std::string> hashier;
-    std::list<size_t> items;
-    items.push_back(t1.get_hash());
-    items.push_back(t2.get_hash());
-    items.push_back(t3.get_hash());
-    items.sort();
-    size_t id = hashier(join(items.begin(), items.end(), "%ld", ":"));
+    std::string key =
+        format("%ld:%ld:%ld", t1.get_hash(), t2.get_hash(), t3.get_hash());
 
     /* IGNORE TRIPLETS WHICH HAVE BEEN CONSIDERED ALREADY. */
-    if(m_hashes_of_term_triplet_for_transitive_unification.count(id) > 0)
+    if (m_log_of_term_triplet_for_transitive_unification.count(key) > 0)
         return false;
 
     pg::node_idx_t n_t1t2 = m_graph->find_sub_node(t1, t2);
     pg::node_idx_t n_t2t3 = m_graph->find_sub_node(t2, t3);
     pg::node_idx_t n_t3t1 = m_graph->find_sub_node(t3, t1);
 
-    if( n_t1t2 < 0 or n_t2t3 < 0 or n_t3t1 < 0 ) return false;
+    if (n_t1t2 < 0 or n_t2t3 < 0 or n_t3t1 < 0) return false;
 
     variable_idx_t v_t1t2 = find_variable_with_node(n_t1t2);
     variable_idx_t v_t2t3 = find_variable_with_node(n_t2t3);
     variable_idx_t v_t3t1 = find_variable_with_node(n_t3t1);
 
-    if( do_add_requisite_variable )
-    {
-        if (v_t1t2 < 0) v_t1t2 = add_variable_of_node(n_t1t2);
-        if (v_t2t3 < 0) v_t2t3 = add_variable_of_node(n_t2t3);
-        if (v_t3t1 < 0) v_t3t1 = add_variable_of_node(n_t3t1);
-    }
-
-    if( v_t1t2 < 0 or v_t2t3 < 0 or v_t3t1 < 0 ) return false;
+    if (v_t1t2 < 0 or v_t2t3 < 0 or v_t3t1 < 0) return false;
   
     std::string name1 =
         format("transitivity:(%s,%s,%s)",
@@ -342,14 +302,13 @@ bool ilp_problem_t::add_constraints_of_transitive_unification(
     add_laziness_of_constraint(idx_trans2);
     add_laziness_of_constraint(idx_trans3);
 
-    m_hashes_of_term_triplet_for_transitive_unification.insert(id);
+    m_log_of_term_triplet_for_transitive_unification.insert(key);
 
     return 1;
 }
 
 
-void ilp_problem_t::add_constraints_of_transitive_unifications(
-    bool do_add_requisite_variable )
+void ilp_problem_t::add_constraints_of_transitive_unifications()
 {
     std::list< const hash_set<term_t>* >
         clusters = m_graph->enumerate_variable_clusters();
@@ -364,7 +323,7 @@ void ilp_problem_t::add_constraints_of_transitive_unifications(
         for( size_t k = 0; k < j;            ++k )
         {
             add_constraints_of_transitive_unification(
-                terms[i], terms[j], terms[k], do_add_requisite_variable );
+                terms[i], terms[j], terms[k]);
         }
     }
 }
@@ -377,9 +336,9 @@ add_constrains_of_conditions_for_chain(pg::edge_idx_t idx)
     variable_idx_t head = find_variable_with_hypernode(edge.head());
     if (head < 0) return;
 
-    assert(
-        edge.type() == pg::EDGE_IMPLICATION or
-        edge.type() == pg::EDGE_HYPOTHESIZE);
+    if (edge.type() != pg::EDGE_IMPLICATION and
+        edge.type() != pg::EDGE_HYPOTHESIZE)
+        return;
 
     hash_set<pg::node_idx_t> conds;
     bool is_available = m_graph->check_availability_of_chain(idx, &conds);

@@ -75,6 +75,9 @@
     <ClCompile Include="..\src\lhs\lhs_basic.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\ilp\ilp_cost.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\binary.h">

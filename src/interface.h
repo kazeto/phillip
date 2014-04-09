@@ -30,7 +30,7 @@ public:
     
 protected:
     /** Add nodes of observations in phillip_main_t to LHS. */
-    static void add_observations( pg::proof_graph_t *target );
+    static void add_observations(pg::proof_graph_t *target);
 };
 
 

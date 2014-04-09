@@ -88,6 +88,7 @@
     <ClCompile Include="..\src\binary.cpp" />
     <ClCompile Include="..\src\ctypes.cpp" />
     <ClCompile Include="..\src\define.cpp" />
+    <ClCompile Include="..\src\ilp\ilp_cost.cpp" />
     <ClCompile Include="..\src\ilp\ilp_null.cpp" />
     <ClCompile Include="..\src\ilp\ilp_weight.cpp" />
     <ClCompile Include="..\src\ilp_problem.cpp" />
