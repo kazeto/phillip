@@ -498,13 +498,6 @@ protected:
         std::tuple<node_idx_t, unifier_t, axiom_id_t> > > *muexs) const;
 
     /** This is a sub-routine of chain.
-     *  Returns whether the chaining is possible.
-     *  If new literals are included evidences, the chaining is impossible. */
-    bool _check_literals_overlap_for_chain(
-        const std::vector<node_idx_t> &from,
-        const std::vector<literal_t> &to) const;
-
-    /** This is a sub-routine of chain.
      *  Returns evidences of new nodes by the chaining. */
     hash_set<node_idx_t> _enumerate_evidences_for_chain(
         const std::vector<node_idx_t> &from) const;

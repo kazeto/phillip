@@ -461,8 +461,9 @@ std::set<chain_candidate_t> proof_graph_t::enumerate_candidates_for_chain(
     for (auto it = targets.begin(); it != targets.end(); ++it)
         out.insert(chain_candidate_t(*it, ax.id, !is_backward));
 
-    if (not sys()->flag("disable_omitting_invalid_chains"))
+#ifndef DISABLE_CUTTING_LHS
         _omit_invalid_chaining_candidates_with_coexistance(&out);
+#endif
 
     return out;
 }
@@ -940,11 +941,6 @@ hypernode_idx_t proof_graph_t::chain(
     _get_substitutions_for_chain(
         from, axiom, is_backward, &literals_to, &subs, &conds);
 
-    /* CHECK VARIDITY OF CHAINING ABOUT OVERLAPPING LITERALS */
-    if (sys()->flag("disable_check_literals_overlap_for_chain"))
-    if (not _check_literals_overlap_for_chain(from, literals_to))
-        return -1;
-
     /* CHECK VARIDITY OF CHAINING ABOUT MUTUAL-EXCLUSIVENESS */
     std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > muexs;
     if (not _check_mutual_exclusiveness_for_chain(from, literals_to, &muexs))
@@ -1118,8 +1114,6 @@ bool proof_graph_t::_check_mutual_exclusiveness_for_chain(
     std::tuple<node_idx_t, unifier_t, axiom_id_t> > > *muexs) const
 {
     hash_set<node_idx_t> dep = _enumerate_evidences_for_chain(from);
-    bool do_disable =
-        sys()->flag("disable_check_mutual_exclusiveness_for_chain");
 
     muexs->assign(
         to.size(), std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> >());
@@ -1138,31 +1132,14 @@ bool proof_graph_t::_check_mutual_exclusiveness_for_chain(
             node_idx_t n = std::get<0>(*it);
             const unifier_t &uni = std::get<1>(*it);
 
-            if (not do_disable and dep.count(n) > 0 and uni.empty())
+#ifndef DISABLE_CUTTING_LHS
+            if (dep.count(n) > 0 and uni.empty())
                 return false;
+#endif
         }
     }
 
     return true;
-}
-
-
-bool proof_graph_t::_check_literals_overlap_for_chain(
-    const std::vector<node_idx_t> &from,
-    const std::vector<literal_t> &to) const
-{
-    hash_set<node_idx_t> deps = _enumerate_evidences_for_chain(from);
-
-    /* ENUMERATE DEPENDANT LITERALS */
-    std::set<literal_t> lits;
-    for (auto it = deps.begin(); it != deps.end(); ++it)
-        lits.insert(node(*it).literal());
-
-    for (auto it = to.begin(); it != to.end(); ++it)
-    if (lits.count(*it) == 0)
-        return true;
-
-    return false;
 }
 
 
@@ -1346,8 +1323,6 @@ std::list<node_idx_t>
         search_nodes_with_predicate(lit.predicate, lit.terms.size());
     std::list<node_idx_t> unifiables;
     unifier_t unifier;
-    bool do_omit_invalid_unification(
-        not sys()->flag("disable_omitting_invalid_unification"));
 
     for (auto it = candidates->begin(); it != candidates->end(); ++it)
     {
@@ -1369,9 +1344,11 @@ std::list<node_idx_t>
         bool unifiable = check_unifiability(
             node(n1).literal(), node(n2).literal(), false, &unifier);
 
-        // FILTERING WITH CO-EXISTENCY OF NODES
-        if (unifiable and do_omit_invalid_unification)
+#ifndef DISABLE_CUTTING_LHS
+        // FILTERING WITH CO-EXISTENCY OF UNIFIED NODES
+        if (unifiable)
             unifiable = can_let_nodes_coexist(n1, n2);
+#endif
 
         if (unifiable and can_unify_nodes(n1, n2))
             unifiables.push_back(*it);
@@ -1396,7 +1373,7 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
     hash_set<node_idx_t> evidences =
         _enumerate_evidences_for_chain(unified_nodes);
 
-    /** CREATE UNIFICATION-NODES & UPDATE VARIABLES. */
+    /* CREATE UNIFICATION-NODES & UPDATE VARIABLES. */
     for (auto sub = uni.substitutions().begin();
         sub != uni.substitutions().end(); ++sub)
     {

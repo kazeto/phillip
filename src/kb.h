@@ -199,7 +199,11 @@ private:
 
     /** Function object to provide distance between predicates. */
     distance_provider_t *m_rm_dist;
-    float m_max_distance; /**< Max distance in reachable matrix. */
+
+    /** The max distance in reachabilility matrix. */
+    float m_max_distance;
+
+    bool m_do_create_local_reachability_matrix;
 };
 
 

@@ -22,8 +22,7 @@ const int BUFFER_SIZE = 512 * 512;
 
 
 knowledge_base_t::knowledge_base_t(
-    const std::string &filename,
-    distance_provider_type_e dist,
+    const std::string &filename, distance_provider_type_e dist,
     float max_distance)
     : m_state(STATE_NULL),
       m_filename(filename), m_max_distance(max_distance),
