@@ -269,6 +269,15 @@ void cdb_data_t::finalize()
 const int BUFFER_SIZE_FOR_FMT = 256 * 256;
 char g_buffer_for_fmt[BUFFER_SIZE_FOR_FMT];
 
+struct { int year, month, day, hour, minuite, second; } TIME_BEGIN;
+
+
+void initialize()
+{
+    now(&TIME_BEGIN.year, &TIME_BEGIN.month, &TIME_BEGIN.day,
+        &TIME_BEGIN.hour, &TIME_BEGIN.minuite, &TIME_BEGIN.second);
+}
+
 
 void print_console_fmt(const char *format, ...)
 {
@@ -315,6 +324,18 @@ void print_warning_fmt(const char *format, ...)
 }
 
 
+void beginning_time(
+    int *year, int *month, int *day, int *hour, int *min, int *sec)
+{
+    *year = TIME_BEGIN.year;
+    *month = TIME_BEGIN.month;
+    *day = TIME_BEGIN.day;
+    *hour = TIME_BEGIN.hour;
+    *min = TIME_BEGIN.minuite;
+    *sec = TIME_BEGIN.second;
+}
+
+
 std::string format(const char *format, ...)
 {
     static const int SIZE = 256 * 256;
@@ -335,26 +356,22 @@ std::string format(const char *format, ...)
 
 std::string time_stamp()
 {
-#ifdef _WIN32
-    time_t t;
-    struct tm ltm;
-    time( &t );
-    localtime_s( &ltm, &t );
+    int year, month, day, hour, min, sec;
+    now(&year, &month, &day, &hour, &min, &sec);
 
+#ifdef _WIN32
     return format(
         "# %02d/%02d/%04d %02d:%02d:%02d | ",
-        1+ltm.tm_mon, ltm.tm_mday, 1900+ltm.tm_year,
-        ltm.tm_hour, ltm.tm_min, ltm.tm_sec );
+        month, day, year, hour, min, sec);
 #else
     time_t t;
     tm *p_ltm;
-    time( &t );
-    p_ltm = localtime( &t );
+    time(&t);
+    p_ltm = localtime(&t);
 
     return format(
         "\33[0;34m# %02d/%02d/%04d %02d:%02d:%02d\33[0m] ",
-        1+p_ltm->tm_mon, p_ltm->tm_mday, 1900+p_ltm->tm_year,
-        p_ltm->tm_hour, p_ltm->tm_min, p_ltm->tm_sec );
+        month, day, year, hour, min, sec);
 #endif
 }
 
@@ -477,6 +494,17 @@ std::string normalize_path(const std::string &target)
         if (out.at(i) == '\\')
             out[i] = '/';
 #endif
+    }
+
+    if (out.find("%TIME") >= 0)
+    {
+        int year, month, day, hour, minute, second;
+        beginning_time(&year, &month, &day, &hour, &minute, &second);
+
+        std::string _replace = format(
+            "%04d%02d%02d_%02d%02d%02d",
+            year, month, day, hour, minute, second);
+        out = replace(out, "%TIME", _replace);
     }
 
     return out;

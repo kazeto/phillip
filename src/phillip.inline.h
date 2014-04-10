@@ -13,14 +13,6 @@ inline phillip_main_t *phillip_main_t::get_instance()
 }
 
 
-inline phillip_main_t::phillip_main_t()
-    : m_lhs_enumerator(NULL), m_ilp_convertor(NULL), m_ilp_solver(NULL),
-      m_kb(NULL), m_input(NULL), m_lhs(NULL), m_ilp(NULL),
-      m_timeout(-1), m_verboseness(0), m_is_debugging(false),
-      m_clock_for_enumeration(0), m_clock_for_convention(0),
-      m_clock_for_solution(0), m_clock_for_infer(0) {}
-
-
 inline const lhs_enumerator_t* phillip_main_t::lhs_enumerator() const
 { return m_lhs_enumerator; }
 

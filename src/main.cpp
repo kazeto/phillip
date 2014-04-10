@@ -10,8 +10,9 @@
 int main(int argc, char* argv[])
 {
     using namespace phil;
+    initialize();
 
-    std::vector<std::string>   inputs;
+    std::vector<std::string> inputs;
     bin::execution_configure_t config;
 
     std::cerr << time_stamp() << "Phillip starts..." << std::endl;

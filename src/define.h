@@ -205,12 +205,19 @@ public:
 
 /* -------- Functions -------- */
 
+void initialize(); /// Call this function on starting phillip.
+
 inline void print_console(const std::string &str);
 inline void print_error(const std::string &str);
 inline void print_warning(const std::string &str);
 void print_console_fmt(const char *format, ...);
 void print_error_fmt(const char *format, ...);
 void print_warning_fmt(const char *format, ...);
+
+inline void now(
+    int *year, int *month, int *day, int *hour, int *min, int *sec);
+void beginning_time(
+    int *year, int *month, int *day, int *hour, int *min, int *sec);
 
 std::string format(const char *format, ...);
 std::string time_stamp();

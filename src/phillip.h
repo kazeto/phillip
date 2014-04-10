@@ -76,11 +76,11 @@ public:
     inline const long& get_clock_for_flpp()  const;
     inline const long& get_clock_for_fsol()  const;
     inline const long& get_clock_for_infer() const;
-    
+
 private:
     enum process_mode_e { MODE_COMPILE_KB, MODE_INPUT_OBS };
     
-    inline phillip_main_t();
+    phillip_main_t();
 
     bool interpret_option( int opt, const char *optarg );
     

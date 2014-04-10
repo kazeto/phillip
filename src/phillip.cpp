@@ -12,6 +12,15 @@ namespace phil
 phillip_main_t *phillip_main_t::ms_instance = NULL;
 
 
+inline phillip_main_t::phillip_main_t()
+: m_lhs_enumerator(NULL), m_ilp_convertor(NULL), m_ilp_solver(NULL),
+  m_kb(NULL), m_input(NULL), m_lhs(NULL), m_ilp(NULL),
+  m_timeout(-1), m_verboseness(0), m_is_debugging(false),
+  m_clock_for_enumeration(0), m_clock_for_convention(0),
+  m_clock_for_solution(0), m_clock_for_infer(0)
+{}
+
+
 void phillip_main_t::infer(const lf::input_t &input, bool do_append)
 {
     if( not can_infer() )

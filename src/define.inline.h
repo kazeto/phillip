@@ -193,6 +193,36 @@ inline void print_warning(const std::string &str)
 }
 
 
+inline void now(int *year, int *month, int *day, int *hour, int *min, int *sec)
+{
+#ifdef _WIN32
+    time_t t;
+    struct tm ltm;
+    time(&t);
+    localtime_s(&ltm, &t);
+
+    *year = 1900 + ltm.tm_year;
+    *month = 1 + ltm.tm_mon;
+    *day = ltm.tm_mday;
+    *hour = ltm.tm_hour;
+    *min = ltm.tm_min;
+    *sec = ltm.tm_sec;
+#else
+    time_t t;
+    tm *p_ltm;
+    time(&t);
+    p_ltm = localtime(&t);
+
+    *year = 1900 + p_ltm->tm_year;
+    *month = 1 + p_ltm->tm_mon;
+    *day = p_ltm->tm_mday;
+    *hour = p_ltm->tm_hour;
+    *min = p_ltm->tm_min;
+    *sec = p_ltm->tm_sec;
+#endif
+}
+
+
 inline bool do_exist_file(const std::string &path)
 {
     bool out(true);
