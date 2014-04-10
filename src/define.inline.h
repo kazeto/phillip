@@ -351,8 +351,7 @@ template <class T, class K> inline bool has_key( const T& map, const K& key )
 
 
 template <class T> bool has_intersection(
-    const T &s1_begin, const T &s1_end,
-    const T &s2_begin, const T &s2_end )
+    T s1_begin, T s1_end, T s2_begin, T s2_end)
 {
     for (T i1 = s1_begin; i1 != s1_end; ++i1)
     for (T i2 = s2_begin; i2 != s2_end; ++i2)

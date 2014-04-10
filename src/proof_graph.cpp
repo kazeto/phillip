@@ -320,7 +320,8 @@ bool proof_graph_t::can_let_nodes_coexist(node_idx_t n1, node_idx_t n2) const
         if (find == m_mutual_exclusive_edges.end()) continue;
 
         const hash_set<edge_idx_t> &muexs(find->second);
-        if (has_intersection(muexs.begin(), muexs.end(), e2.begin(), e2.end()))
+        if (has_intersection<hash_set<edge_idx_t>::const_iterator>(
+                muexs.begin(), muexs.end(), e2.begin(), e2.end()))
             return false;
     }
 

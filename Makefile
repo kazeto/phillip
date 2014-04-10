@@ -12,7 +12,7 @@ SOURCE = $(shell find src -name *.cpp)
 HEDDER = $(shell find src -name *.h)
 OBJS = $(SOURCE:.cpp=.o)
 
-MACROS = -DUSE_LP_SOLVE
+MACROS = -DDISABLE_CUTTING_LHS
 
 all: $(OBJS)
 	mkdir -p ./bin

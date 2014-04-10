@@ -269,7 +269,7 @@ template <class T, class K> inline bool has_key(const T& map, const K& key);
 
 /** Returns whether set1 and set2 have any intersection. */
 template <class T> bool has_intersection(
-    const T &s1_begin, const T &s1_end, const T &s2_begin, const T &s2_end);
+    T s1_begin, T s1_end, T s2_begin, T s2_end);
 
 /** Returns intersection of set1 and set2. */
 template <class T> hash_set<T> intersection(
