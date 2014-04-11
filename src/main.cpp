@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
         config.kb->prepare_query();
 
         for (auto it = parsed_inputs.begin(); it != parsed_inputs.end(); ++it)
-            sys()->infer(*it);
+            sys()->infer(*it, (it != parsed_inputs.begin()));
 
         config.kb->finalize();
     }

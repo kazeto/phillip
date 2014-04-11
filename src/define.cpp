@@ -449,7 +449,7 @@ std::string strip(const std::string &input, const char *targets)
 
 bool startswith(const std::string &str, const std::string &query)
 {
-    if (query.size() >= str.size())
+    if (query.size() <= str.size())
     {
         for (int i = 0; i < query.size(); ++i)
         {
@@ -465,7 +465,7 @@ bool startswith(const std::string &str, const std::string &query)
 
 bool endswith(const std::string &str, const std::string &query)
 {
-    if (query.size() >= str.size())
+    if (query.size() <= str.size())
     {
         int q = query.size() - 1;
         int s = query.size() - 1;
