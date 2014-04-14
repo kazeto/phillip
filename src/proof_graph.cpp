@@ -716,7 +716,13 @@ bool proof_graph_t::axiom_has_applied(
 
 void proof_graph_t::print(std::ostream *os) const
 {
-    (*os) << "<latent-hypotheses-set name=\"" << name() << "\">" << std::endl;
+    (*os) << "<latent-hypotheses-set name=\"" << name();
+#ifdef DISABLE_CUTTING_LHS
+    (*os) << "\" disable-cutting-lhs=\"yes";
+#endif
+    
+    (*os) << "\" time-out=\"" << (get_interruption_flag() ? "yes" : "no")
+          << "\">" << std::endl;
 
     print_nodes(os, "    ");
     print_axioms(os, "    ");
@@ -781,6 +787,7 @@ void proof_graph_t::print_edges(
     {
         const edge_t e = edge(i);
         std::string type;
+        
         if (e.type() < EDGE_USER_DEFINED)
         {
             switch (e.type())

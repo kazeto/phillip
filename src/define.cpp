@@ -123,16 +123,16 @@ void literal_t::print( std::string *p_out_str, bool f_colored ) const
 
     for( int i=0; i<terms.size(); i++ )
     {
+        (*p_out_str) += " ";
 #ifdef _WIN32
-        (*p_out_str) += " " + terms[i].string();
+        (*p_out_str) += terms[i].string();
 #else
-        if( f_colored )
+        if (f_colored)
         {
             const int &_color = color[(terms[i].get_hash()) % 8];
-            (*p_out_str) +=
-                format(
-                    "\33[0;%dm%s\33[0m",
-                    _color, terms[i].string().c_str() );
+            (*p_out_str) += format(
+                "\33[0;%dm%s\33[0m",
+                _color, terms[i].string().c_str() );
         }
         else
             (*p_out_str) += terms[i].string();

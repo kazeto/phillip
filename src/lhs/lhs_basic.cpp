@@ -1,6 +1,7 @@
 /* -*- coding:utf-8 -*- */
 
 
+#include <ctime>
 #include "./lhs_enumerator.h"
 
 
@@ -22,9 +23,11 @@ basic_lhs_enumerator_t::basic_lhs_enumerator_t(
 
 pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
 {
-    const kb::knowledge_base_t *base = sys()->knowledge_base();
-    pg::proof_graph_t *graph = new pg::proof_graph_t(sys()->get_input()->name);
+    const kb::knowledge_base_t *base(sys()->knowledge_base());
+    pg::proof_graph_t *graph(new pg::proof_graph_t(sys()->get_input()->name));
+    time_t begin, now;
 
+    time(&begin);
     add_observations(graph);
 
 #ifndef DISABLE_CUTTING_LHS
@@ -48,6 +51,14 @@ pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
         // EXECUTE CHAINING
         for (auto it = cands.begin(); it != cands.end(); ++it)
         {
+            // CHECK TIME-OUT
+            time(&now);
+            if (sys()->is_timeout(now - begin))
+            {
+                graph->set_interruption_flag(true);
+                break;
+            }
+            
             const lf::axiom_t &axiom = axioms.at(it->axiom_id);
 
 #ifndef DISABLE_CUTTING_LHS
@@ -78,6 +89,8 @@ pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
             if (sys()->verbose() == FULL_VERBOSE)
                 print_chain_for_debug(graph, axiom, (*it), to);
         }
+
+        if (graph->get_interruption_flag()) break;
     }
 
     graph->clean_logs();

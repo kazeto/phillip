@@ -45,11 +45,11 @@ inline void phillip_main_t::set_knowledge_base( kb::knowledge_base_t *kb )
 { m_kb = kb; }
 
 
-inline void phillip_main_t::set_timeout( int t )
+inline void phillip_main_t::set_timeout(int t)
 { m_timeout = t; }
 
 
-inline void phillip_main_t::set_verbose( int v )
+inline void phillip_main_t::set_verbose(int v)
 { m_verboseness = v; }
 
 
@@ -86,8 +86,12 @@ inline const std::vector<ilp::ilp_solution_t>& phillip_main_t::get_solutions() c
 { return m_sol; }
 
 
-inline const int& phillip_main_t::timeout() const
+inline int phillip_main_t::timeout() const
 { return m_timeout; }
+
+
+inline bool phillip_main_t::is_timeout(int sec) const
+{ return (m_timeout > 0 and sec >= m_timeout); }
 
 
 inline const int& phillip_main_t::verbose() const

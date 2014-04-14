@@ -61,7 +61,9 @@ public:
     inline const ilp::ilp_problem_t* get_ilp_problem() const;
     inline const std::vector<ilp::ilp_solution_t>& get_solutions() const;
     
-    inline const int& timeout() const;
+    inline int timeout() const;
+    inline bool is_timeout(int sec) const;
+    
     inline const int& verbose() const;
     inline bool is_debugging()  const;
 

@@ -264,7 +264,7 @@ bool _interpret_option(
     case 'T': // ---- SET TIMEOUT [SECOND]
     {
         int t;
-        _sscanf( arg.c_str(), "%d", &t );
+        _sscanf(arg.c_str(), "%d", &t);
         phil::sys()->set_timeout(t);
         return true;
     }

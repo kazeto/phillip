@@ -15,11 +15,10 @@ int main(int argc, char* argv[])
     std::vector<std::string> inputs;
     bin::execution_configure_t config;
 
-    std::cerr << time_stamp() << "Phillip starts..." << std::endl;
+    print_console("Phillip starts...");
     
     bin::parse_options(argc, argv, &config, &inputs);
-    std::cerr << time_stamp()
-        << "Phillip has completed parsing comand options." << std::endl;
+    print_console("Phillip has completed parsing comand options.");
 
     bin::preprocess(&config);
 
@@ -31,8 +30,7 @@ int main(int argc, char* argv[])
     if (do_compile)
     {
         proc::processor_t processor;
-        std::cerr << time_stamp()
-            << "Compiling knowledge-base ..." << std::endl;
+        print_console("Compiling knowledge-base ...");
 
         config.kb->prepare_compile();
 
@@ -41,8 +39,7 @@ int main(int argc, char* argv[])
 
         config.kb->finalize();
 
-        std::cerr << time_stamp()
-            << "Completed to compile knowledge-base." << std::endl;
+        print_console("Completed to compile knowledge-base.");
     }
 
     /* INFERENCE */
@@ -51,19 +48,22 @@ int main(int argc, char* argv[])
         std::vector<lf::input_t> parsed_inputs;
         proc::processor_t processor;
 
-        std::cerr << time_stamp()
-            << "Loading observations ..." << std::endl;
+        print_console("Loading observations ...");
 
         processor.add_component(new proc::parse_obs_t(&parsed_inputs));
         processor.process(inputs);
 
-        std::cerr << time_stamp()
-            << "Completed to load observations." << std::endl;
+        print_console("Completed to load observations.");
+        print_console_fmt("    # of observations: %d", parsed_inputs.size());
 
         config.kb->prepare_query();
 
-        for (auto it = parsed_inputs.begin(); it != parsed_inputs.end(); ++it)
-            sys()->infer(*it, (it != parsed_inputs.begin()));
+        for (int i = 0; i < parsed_inputs.size(); ++i)
+        {
+            const lf::input_t &ipt = parsed_inputs.at(i);
+            print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
+            sys()->infer(ipt, (i != 0));
+        }
 
         config.kb->finalize();
     }

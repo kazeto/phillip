@@ -1,7 +1,7 @@
 /* -*- coding: utf-8 -*- */
 
 
-#include <time.h>
+#include <ctime>
 #include "./phillip.h"
 
 
@@ -50,7 +50,10 @@ void phillip_main_t::infer(const lf::input_t &input, bool do_append)
     m_lhs = m_lhs_enumerator->execute();
     clock_t end_flhs(clock());
     m_clock_for_enumeration += end_flhs - begin_flhs;
-    IF_VERBOSE_2("Completed generating latent-hypotheses-set.");
+    IF_VERBOSE_2(
+        m_lhs->get_interruption_flag() ?
+        "Interrupted generating latent-hypotheses-set." :
+        "Completed generating latent-hypotheses-set.");
 
     if (not param("path_lhs_out").empty())
     {

@@ -6,13 +6,12 @@
 TARGET = ./bin/phil
 CXX = g++
 OPTS = -O2 -std=c++11 -g
+#OPTS = -O2 -std=c++11 -g -DDISABLE_CUTTING_LHS
 LDFLAGS = -Lsrc/lib/lpsolve55
 
 SOURCE = $(shell find src -name *.cpp)
 HEDDER = $(shell find src -name *.h)
 OBJS = $(SOURCE:.cpp=.o)
-
-MACROS = -DDISABLE_CUTTING_LHS
 
 all: $(OBJS)
 	mkdir -p ./bin

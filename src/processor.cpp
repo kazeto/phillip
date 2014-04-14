@@ -164,7 +164,7 @@ void processor_t::process( std::vector<std::string> inputs )
         {
             if( file_size != 0 )
             {
-                int read_bytes( reader.get_read_bytes() );
+                size_t read_bytes(reader.get_read_bytes());
                 int progress( 100 * read_bytes / file_size );
                 if( notified.count(progress) == 0 )
                 {

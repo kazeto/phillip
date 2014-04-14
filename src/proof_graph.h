@@ -230,7 +230,11 @@ struct chain_candidate_t
 class proof_graph_t
 {        
 public:
-    inline proof_graph_t(const std::string &name = "") : m_name(name) {}
+    inline proof_graph_t(const std::string &name = "")
+        : m_name(name), m_has_interrupted(false) {}
+
+    void set_interruption_flag(bool flag) { m_has_interrupted = flag; }
+    bool get_interruption_flag() const { return m_has_interrupted; }
 
     /** Deletes logs, which are needed only in creation of proof-graph.
      *  Please call this after creation of proof-graph. */
@@ -583,6 +587,7 @@ protected:
     // ---- VARIABLES
     
     std::string m_name;
+    bool m_has_interrupted; /// For time-out.
 
     std::vector<node_t> m_nodes;
     std::vector< std::vector<node_idx_t> > m_hypernodes;
