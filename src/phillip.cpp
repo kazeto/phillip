@@ -14,11 +14,28 @@ phillip_main_t *phillip_main_t::ms_instance = NULL;
 
 inline phillip_main_t::phillip_main_t()
 : m_lhs_enumerator(NULL), m_ilp_convertor(NULL), m_ilp_solver(NULL),
-  m_kb(NULL), m_input(NULL), m_lhs(NULL), m_ilp(NULL),
-  m_timeout(-1), m_verboseness(0), m_is_debugging(false),
-  m_clock_for_enumeration(0), m_clock_for_convention(0),
-  m_clock_for_solution(0), m_clock_for_infer(0)
+m_kb(NULL), m_input(NULL), m_lhs(NULL), m_ilp(NULL),
+m_timeout(-1), m_verboseness(0), m_is_debugging(false),
+m_clock_for_enumeration(0), m_clock_for_convention(0),
+m_clock_for_solution(0), m_clock_for_infer(0)
 {}
+
+
+std::ofstream* _open_file(const std::string &path, std::ios::openmode mode)
+{
+    if (not path.empty())
+    {
+        std::ofstream *fo = new std::ofstream(path.c_str(), mode);
+        if (fo->good())
+            return fo;
+        else
+        {
+            print_error_fmt("Cannot open file: \"%s\"", path.c_str());
+            delete fo;
+        }
+    }
+    return NULL;
+}
 
 
 void phillip_main_t::infer(const lf::input_t &input, bool do_append)
@@ -42,6 +59,7 @@ void phillip_main_t::infer(const lf::input_t &input, bool do_append)
     m_input = new lf::input_t(input);
     std::ios::openmode mode = 
         std::ios::out | (do_append ? std::ios::app : std::ios::trunc);
+    std::ofstream *fo(NULL);
 
     clock_t begin_infer(clock());
     
@@ -55,11 +73,10 @@ void phillip_main_t::infer(const lf::input_t &input, bool do_append)
         "Interrupted generating latent-hypotheses-set." :
         "Completed generating latent-hypotheses-set.");
 
-    if (not param("path_lhs_out").empty())
+    if ((fo = _open_file(param("path_lhs_out"), mode)) != NULL)
     {
-        std::ofstream fo(param("path_lhs_out").c_str(), mode);
-        m_lhs->print(&fo);
-        fo.close();
+        m_lhs->print(fo);
+        delete fo;
     }
 
     IF_VERBOSE_2("Converting LHS into linear-programming-problems...");
@@ -69,37 +86,34 @@ void phillip_main_t::infer(const lf::input_t &input, bool do_append)
     m_clock_for_convention += end_flpp - begin_flpp;
     IF_VERBOSE_2("Completed convertion into linear-programming-problems...");
 
-    if (not param("path_ilp_out").empty())
+    if ((fo = _open_file(param("path_ilp_out"), mode)) != NULL)
     {
-        std::ofstream fo(param("path_ilp_out").c_str(), mode);
-        m_ilp->print(&fo);
-        fo.close();
+        m_ilp->print(fo);
+        delete fo;
     }
 
-    IF_VERBOSE_2( "Solving..." );
-    clock_t begin_fsol( clock() );
+    IF_VERBOSE_2("Solving...");
+    clock_t begin_fsol(clock());
     m_ilp_solver->execute(&m_sol);
-    clock_t end_fsol( clock() );
+    clock_t end_fsol(clock());
     m_clock_for_solution += end_fsol - begin_fsol;
-    IF_VERBOSE_2( "Completed inference." );
+    IF_VERBOSE_2("Completed inference.");
 
     for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
         sol->print_graph();
 
-    if (not param("path_sol_out").empty())
+    if ((fo = _open_file(param("path_sol_out"), mode)) != NULL)
     {
-        std::ofstream fo(param("path_sol_out").c_str(), mode);
         for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
-            sol->print(&fo);
-        fo.close();
+            sol->print(fo);
+        delete fo;
     }
 
-    if (not param("path_out").empty())
+    if ((fo = _open_file(param("path_out"), mode)) != NULL)
     {
-        std::ofstream fo(param("path_out").c_str(), mode);
         for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
-            sol->print_graph(&fo);
-        fo.close();
+            sol->print_graph(fo);
+        delete fo;
     }
 
     clock_t end_infer(clock());

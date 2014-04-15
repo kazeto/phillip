@@ -2,5 +2,6 @@
 (B (name shot_kill) (=> (shot x y) (kill x y)))
 (B (name kill_die) (=> (kill x y) (die y)))
 (B (name sick_die) (=> (sick x) (die x)))
+(B (name cough_sick) (=> (sick x) (cough x)))
 
-(B (name sick_xor_kill) (=> (sick x) (kill x y))
+(B (name sick_xor_kill) (xor (sick x) (kill x y)))

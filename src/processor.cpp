@@ -60,9 +60,9 @@ void compile_kb_t::prepare()
 
 void compile_kb_t::process( const sexp::reader_t *reader )
 {    
-    const sexp::stack_t *stack( reader->get_stack() );
+    const sexp::stack_t *stack(reader->get_stack());
 
-    if( not stack->is_functor("B") or m_kb == NULL )
+    if (not stack->is_functor("B") or m_kb == NULL)
         return;
 
     /* SHOULD BE ROOT. */

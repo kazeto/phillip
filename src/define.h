@@ -205,7 +205,8 @@ public:
 
 /* -------- Functions -------- */
 
-void initialize(); /// Call this function on starting phillip.
+/** Call this function on starting phillip. */
+void initialize();
 
 inline void print_console(const std::string &str);
 inline void print_error(const std::string &str);

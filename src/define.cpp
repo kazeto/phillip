@@ -1,6 +1,5 @@
 /* -*- coding: utf-8 -*- */
 
-
 #include <cstring>
 #include "./define.h"
 
