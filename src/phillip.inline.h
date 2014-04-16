@@ -13,6 +13,13 @@ inline phillip_main_t *phillip_main_t::get_instance()
 }
 
 
+inline void phillip_main_t::infer(const lf::input_t &input)
+{
+    std::vector<lf::input_t> inputs(1, input);
+    infer(inputs, 0);
+}
+
+
 inline const lhs_enumerator_t* phillip_main_t::lhs_enumerator() const
 { return m_lhs_enumerator; }
 

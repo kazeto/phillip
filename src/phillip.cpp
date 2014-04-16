@@ -38,7 +38,7 @@ std::ofstream* _open_file(const std::string &path, std::ios::openmode mode)
 }
 
 
-void phillip_main_t::infer(const lf::input_t &input, bool do_append)
+void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
 {
     if( not can_infer() )
     {
@@ -55,11 +55,13 @@ void phillip_main_t::infer(const lf::input_t &input, bool do_append)
         return;
     }
     
-    reset_for_inference();
-    m_input = new lf::input_t(input);
-    std::ios::openmode mode = 
-        std::ios::out | (do_append ? std::ios::app : std::ios::trunc);
+    bool is_begin(idx == 0), is_end(idx == inputs.size() - 1);
+    std::ios::openmode mode =
+        std::ios::out | (is_begin ? std::ios::trunc : std::ios::app);
     std::ofstream *fo(NULL);
+
+    reset_for_inference();
+    m_input = new lf::input_t(inputs.at(idx));
 
     clock_t begin_infer(clock());
     
@@ -75,7 +77,9 @@ void phillip_main_t::infer(const lf::input_t &input, bool do_append)
 
     if ((fo = _open_file(param("path_lhs_out"), mode)) != NULL)
     {
+        if (is_begin) (*fo) << "<phillip>" << std::endl;
         m_lhs->print(fo);
+        if (is_end) (*fo) << "</phillip>" << std::endl;
         delete fo;
     }
 
@@ -88,7 +92,9 @@ void phillip_main_t::infer(const lf::input_t &input, bool do_append)
 
     if ((fo = _open_file(param("path_ilp_out"), mode)) != NULL)
     {
+        if (is_begin) (*fo) << "<phillip>" << std::endl;
         m_ilp->print(fo);
+        if (is_end) (*fo) << "</phillip>" << std::endl;
         delete fo;
     }
 
@@ -104,15 +110,19 @@ void phillip_main_t::infer(const lf::input_t &input, bool do_append)
 
     if ((fo = _open_file(param("path_sol_out"), mode)) != NULL)
     {
+        if (is_begin) (*fo) << "<phillip>" << std::endl;
         for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
             sol->print(fo);
+        if (is_end) (*fo) << "</phillip>" << std::endl;
         delete fo;
     }
 
     if ((fo = _open_file(param("path_out"), mode)) != NULL)
     {
+        if (is_begin) (*fo) << "<phillip>" << std::endl;
         for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
             sol->print_graph(fo);
+        if (is_end) (*fo) << "</phillip>" << std::endl;
         delete fo;
     }
 

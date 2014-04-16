@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
         {
             const lf::input_t &ipt = parsed_inputs.at(i);
             print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
-            sys()->infer(ipt, (i != 0));
+            sys()->infer(parsed_inputs, i);
         }
 
         config.kb->finalize();

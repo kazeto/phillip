@@ -35,9 +35,10 @@ public:
     
     /** Infer a explanation to given observation.
      *  You can get the results via accesser functions.
-     *  @param do_append Identifies the option of file output,
-     *                   std::ios::app or std::ios::trunc. */
-    void infer(const lf::input_t &input, bool do_append = false);
+     *  @param inputs A list of observations.
+     *  @param idx    Index of an observation to infer. */
+    void infer(const std::vector<lf::input_t> &inputs, size_t idx);
+    inline void infer(const lf::input_t &input);
     
     inline const lhs_enumerator_t* lhs_enumerator() const; 
     inline const ilp_converter_t*  ilp_convertor() const;
