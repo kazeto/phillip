@@ -25,6 +25,7 @@ class variable_t;
 class constraint_t;
 class ilp_problem_t;
 class ilp_solution_t;
+class ilp_solution_interpreter_t;
 
 
 enum constraint_operator_e
@@ -119,7 +120,9 @@ public:
     static void disable_economization() { ms_do_economize = false; }
 
     inline ilp_problem_t(
-        const pg::proof_graph_t* lhs, const std::string &name = "");
+        const pg::proof_graph_t* lhs, ilp_solution_interpreter_t *si,
+        const std::string &name = "");
+    virtual ~ilp_problem_t();
 
     inline const std::string& name() const { return m_name; }
 
@@ -213,6 +216,13 @@ public:
     void print(std::ostream *os) const;
     std::string to_string() const;
 
+    inline bool node_is_active(
+        const ilp_solution_t &sol, pg::node_idx_t idx) const;
+    inline bool hypernode_is_active(
+        const ilp_solution_t &sol, pg::hypernode_idx_t idx) const;
+    inline bool edge_is_active(
+        const ilp_solution_t &sol, pg::edge_idx_t idx) const;
+
     virtual void print_solution(
         const ilp_solution_t *sol, std::ostream *os) const;
 
@@ -252,6 +262,8 @@ protected:
 
     hash_set<std::string> m_log_of_term_triplet_for_transitive_unification;
     hash_set<std::string> m_log_of_node_tuple_for_mutual_exclusion;
+
+    ilp_solution_interpreter_t *m_solution_interpreter;
 };
 
 
@@ -273,13 +285,11 @@ public:
         const std::vector<double> &values, const std::string &name = "");
 
     inline const std::string& name() const { return m_name; }
+    inline const ilp::ilp_problem_t* problem() const { return m_ilp; }
     inline solution_type_e type() const;
     inline double value_of_objective_function() const;
 
     inline bool variable_is_active(variable_idx_t) const;
-    inline bool node_is_active(pg::node_idx_t) const;
-    inline bool hypernode_is_active(pg::hypernode_idx_t) const;
-    inline bool edge_is_active(pg::edge_idx_t) const;
     inline bool constraint_is_satisfied(constraint_idx_t idx) const;
 
     /** Exclude unsatisfied constraints from targets
@@ -301,6 +311,30 @@ private:
     std::vector<double> m_optimized_values;
     std::vector<bool> m_constraints_sufficiency;
     double m_value_of_objective_function;
+};
+
+
+class ilp_solution_interpreter_t
+{
+public:
+    virtual bool node_is_active(
+        const ilp_solution_t&, pg::node_idx_t) const = 0;
+    virtual bool hypernode_is_active(
+        const ilp_solution_t&, pg::node_idx_t) const = 0;
+    virtual bool edge_is_active(
+        const ilp_solution_t&, pg::edge_idx_t) const = 0;
+};
+
+
+class basic_solution_interpreter_t : public ilp_solution_interpreter_t
+{
+public:
+    virtual bool node_is_active(
+        const ilp_solution_t&, pg::node_idx_t) const;
+    virtual bool hypernode_is_active(
+        const ilp_solution_t&, pg::node_idx_t) const;
+    virtual bool edge_is_active(
+        const ilp_solution_t&, pg::edge_idx_t) const;
 };
 
 

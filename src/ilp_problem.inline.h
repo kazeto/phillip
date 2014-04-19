@@ -169,8 +169,10 @@ inline std::string constraint_t::to_string(
 
 
 inline ilp_problem_t::ilp_problem_t(
-    const pg::proof_graph_t* lhs, const std::string &name)
-    : m_name(name), m_graph(lhs), m_cutoff(INVALID_CUT_OFF)
+    const pg::proof_graph_t* lhs, ilp_solution_interpreter_t *si,
+    const std::string &name)
+    : m_name(name), m_graph(lhs), m_cutoff(INVALID_CUT_OFF),
+      m_solution_interpreter(si)
 {}
   
 
@@ -279,6 +281,35 @@ inline variable_idx_t
 }
 
 
+inline variable_idx_t ilp_problem_t::find_variable_with_hypernode(
+    pg::hypernode_idx_t idx ) const
+{
+    auto it = m_map_hypernode_to_variable.find(idx);
+    return ( it != m_map_hypernode_to_variable.end() ) ? it->second : -1;
+}
+
+
+inline bool ilp_problem_t::node_is_active(
+    const ilp_solution_t &sol, pg::node_idx_t idx) const
+{
+    return m_solution_interpreter->node_is_active(sol, idx);
+}
+
+
+inline bool ilp_problem_t::hypernode_is_active(
+    const ilp_solution_t &sol, pg::hypernode_idx_t idx) const
+{
+    return m_solution_interpreter->hypernode_is_active(sol, idx);
+}
+
+
+inline bool ilp_problem_t::edge_is_active(
+    const ilp_solution_t &sol, pg::edge_idx_t idx) const
+{
+    return m_solution_interpreter->edge_is_active(sol, idx);
+}
+
+
 inline solution_type_e ilp_solution_t::type() const
 {
     return m_solution_type;
@@ -291,40 +322,11 @@ inline double ilp_solution_t::value_of_objective_function() const
 }
 
 
-inline variable_idx_t ilp_problem_t::find_variable_with_hypernode(
-    pg::hypernode_idx_t idx ) const
-{
-    auto it = m_map_hypernode_to_variable.find(idx);
-    return ( it != m_map_hypernode_to_variable.end() ) ? it->second : -1;
-}
 
 
 inline bool ilp_solution_t::variable_is_active( variable_idx_t idx ) const
 {
     return (idx >= 0) ? (m_optimized_values.at(idx) > 0.5) : false;
-}
-
-
-inline bool ilp_solution_t::node_is_active( pg::node_idx_t idx ) const
-{
-    variable_idx_t var = m_ilp->find_variable_with_node(idx);
-    return (var >= 0) ? variable_is_active(var) : false;
-}
-
-
-inline bool ilp_solution_t::hypernode_is_active( pg::hypernode_idx_t idx ) const
-{
-    variable_idx_t var = m_ilp->find_variable_with_hypernode(idx);
-    return (var >= 0) ? variable_is_active(var) : false;
-}
-
-
-inline bool ilp_solution_t::edge_is_active(pg::edge_idx_t idx) const
-{
-    const pg::edge_t &edge = m_ilp->proof_graph()->edge(idx);
-    return
-        hypernode_is_active(edge.tail()) and
-        hypernode_is_active(edge.head());
 }
 
 

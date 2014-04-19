@@ -39,6 +39,7 @@ public:
     inline const logical_function_t& branch(int i) const;
     inline const literal_t& literal() const;
     inline const std::string& param() const;
+    bool param2double(double *out) const;
 
     /** Return string of logical-function. */
     inline std::string to_string(bool f_colored = false) const;

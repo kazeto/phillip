@@ -29,8 +29,10 @@ inline const hash_set<pg::node_idx_t>& node_t::evidences() const
 
 
 inline const std::vector< std::pair<term_t, term_t> >&
-    node_t::get_conditions_for_non_equality_of_terms() const
-{ return m_conditions_neqs; }
+node_t::get_conditions_for_non_equality_of_terms() const
+{
+    return m_conditions_neqs;
+}
 
 
 inline void node_t::set_master_hypernode(hypernode_idx_t idx)
@@ -84,6 +86,12 @@ inline edge_t::edge_t(
 inline bool edge_t::is_chain_edge() const
 {
     return type() == EDGE_HYPOTHESIZE or type() == EDGE_IMPLICATION;
+}
+
+
+inline bool edge_t::is_unify_edge() const
+{
+    return type() == EDGE_UNIFICATION;
 }
 
 
@@ -176,6 +184,15 @@ proof_graph_t::unifiable_variable_clusters_set_t::is_in_same_cluster(
     auto i_v2 = m_map_v2c.find(t2);
     if( i_v2 == m_map_v2c.end() ) return false;
     return ( i_v1->second == i_v2->second );
+}
+
+
+inline proof_graph_t::proof_graph_t(const std::string &name)
+: m_name(name), m_is_timeout(false)
+{
+#ifdef DISABLE_CUTTING_LHS
+    add_attribute("disable-cutting-lhs", "yes");
+#endif
 }
 
 
@@ -306,9 +323,15 @@ inline const hash_set<term_t>*
 { return m_vc_unifiable.find_cluster(t); }
 
 
-inline bool
-proof_graph_t::is_hypernode_for_unification( hypernode_idx_t idx ) const
+inline bool proof_graph_t::
+is_hypernode_for_unification(hypernode_idx_t idx) const
 { return m_indices_of_unification_hypernodes.count(idx) > 0; }
+
+
+inline void proof_graph_t::add_attribute(const std::string &name, const std::string &value)
+{
+    m_attributes[name] = value;
+}
 
 
 inline edge_idx_t proof_graph_t::add_edge( const edge_t &edge )

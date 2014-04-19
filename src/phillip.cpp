@@ -71,7 +71,7 @@ void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
     clock_t end_flhs(clock());
     m_clock_for_enumeration += end_flhs - begin_flhs;
     IF_VERBOSE_2(
-        m_lhs->get_interruption_flag() ?
+        m_lhs->is_timeout() ?
         "Interrupted generating latent-hypotheses-set." :
         "Completed generating latent-hypotheses-set.");
 

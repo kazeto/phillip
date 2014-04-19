@@ -151,6 +151,7 @@ public:
     inline axiom_id_t axiom_id()  const { return m_axiom_id; }
 
     inline bool is_chain_edge() const;
+    inline bool is_unify_edge() const;
 
 private:
     edge_type_e m_type;
@@ -230,11 +231,10 @@ struct chain_candidate_t
 class proof_graph_t
 {        
 public:
-    inline proof_graph_t(const std::string &name = "")
-        : m_name(name), m_has_interrupted(false) {}
+    inline proof_graph_t(const std::string &name = "");
 
-    void set_interruption_flag(bool flag) { m_has_interrupted = flag; }
-    bool get_interruption_flag() const { return m_has_interrupted; }
+    inline void timeout(bool flag) { m_is_timeout = flag; }
+    inline bool is_timeout() const { return m_is_timeout; }
 
     /** Deletes logs, which are needed only in creation of proof-graph.
      *  Please call this after creation of proof-graph. */
@@ -362,6 +362,9 @@ public:
     /** Return index of the substitution nodes which hypothesized by transitivity */
     node_idx_t find_transitive_sub_node(node_idx_t i, node_idx_t j) const;
 
+    /** Returns index of the unifying edge which unifies node i & j. */
+    edge_idx_t find_unifying_edge(node_idx_t i, node_idx_t j) const;
+
     /** Insert sub-nodes being transitive to target into target. */
     void insert_transitive_sub_node(hash_set<node_idx_t> *target) const;
 
@@ -394,6 +397,8 @@ public:
     /** Returns whether given axioms has already applied to given hypernode. */
     bool axiom_has_applied(
         hypernode_idx_t hn, const lf::axiom_t &ax, bool is_backward) const;
+
+    inline void add_attribute(const std::string &name, const std::string &value);
 
     virtual void print(std::ostream *os) const;
 
@@ -587,7 +592,7 @@ protected:
     // ---- VARIABLES
     
     std::string m_name;
-    bool m_has_interrupted; /// For time-out.
+    bool m_is_timeout; /// For time-out.
 
     std::vector<node_t> m_nodes;
     std::vector< std::vector<node_idx_t> > m_hypernodes;
@@ -595,6 +600,9 @@ protected:
     
     /** List of index of node which is label. */
     std::vector<node_idx_t> m_label_nodes;
+
+    /** These are written in xml-file of output as attributes. */
+    hash_map<std::string, std::string> m_attributes;
     
     /** Mutual exclusiveness betwen two nodes.
      *  If unifier of third value is satisfied,

@@ -145,6 +145,7 @@ struct literal_t
 class henry_component_interface_t
 {    
 public:
+    virtual ~henry_component_interface_t() {}
     /** Return ability to execute this component on current setting.
      *  @param[out] disp Error messages to be printed when return false. */
     virtual bool is_available(std::list<std::string> *disp) const = 0;

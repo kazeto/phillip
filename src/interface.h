@@ -26,6 +26,7 @@ class ilp_solution_t;
 class lhs_enumerator_t : public henry_component_interface_t
 {
 public:
+    virtual ~lhs_enumerator_t() {}
     virtual pg::proof_graph_t* execute() const = 0;
     
 protected:
@@ -38,6 +39,7 @@ protected:
 class ilp_converter_t : public henry_component_interface_t
 {
 public:
+    virtual ~ilp_converter_t() {}
     virtual ilp::ilp_problem_t* execute() const = 0;
 };
 
@@ -46,6 +48,7 @@ public:
 class ilp_solver_t : public henry_component_interface_t
 {
 public:
+    virtual ~ilp_solver_t() {}
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const = 0;
 };
 

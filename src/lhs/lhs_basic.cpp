@@ -55,7 +55,7 @@ pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
             time(&now);
             if (sys()->is_timeout(now - begin))
             {
-                graph->set_interruption_flag(true);
+                graph->timeout(true);
                 break;
             }
             
@@ -90,7 +90,7 @@ pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
                 print_chain_for_debug(graph, axiom, (*it), to);
         }
 
-        if (graph->get_interruption_flag()) break;
+        if (graph->is_timeout()) break;
     }
 
     graph->clean_logs();
@@ -253,7 +253,6 @@ bool basic_lhs_enumerator_t::compute_reachability_of_chaining(
 
             if (distance >= 0.0f
                 and distance <= m_distance_max
-                and distance <= it->second.distance
                 and redundancy <= m_redundancy_max)
             {
                 reachability_t rc = { distance, redundancy };

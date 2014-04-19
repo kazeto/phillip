@@ -668,6 +668,31 @@ node_idx_t proof_graph_t::
 }
 
 
+edge_idx_t proof_graph_t::find_unifying_edge(node_idx_t i, node_idx_t j) const
+{
+    hypernode_idx_t hn(-1);
+    {
+        // TIPS: UNIFYING HYPERNODE IS ASCENDING-ORDER
+        if (i >= j) std::swap(i, j);
+        std::vector<node_idx_t> _hn;
+        _hn.push_back(i);
+        _hn.push_back(j);
+        hn = find_hypernode_with_ordered_nodes(_hn);
+        if (hn < 0) return -1;
+    }
+
+    const hash_set<edge_idx_t> *es = search_edges_with_hypernode(hn);
+    for (auto it = es->begin(); it != es->end(); ++it)
+    {
+        const edge_t &e = edge(*it);
+        if (e.type() == EDGE_UNIFICATION and e.tail() == hn)
+            return (*it);
+    }
+
+    return -1;
+}
+
+
 void proof_graph_t::insert_transitive_sub_node(hash_set<node_idx_t> *target) const
 {
     hash_set<node_idx_t> add;
@@ -717,12 +742,13 @@ bool proof_graph_t::axiom_has_applied(
 void proof_graph_t::print(std::ostream *os) const
 {
     (*os) << "<latent-hypotheses-set name=\"" << name();
-#ifdef DISABLE_CUTTING_LHS
-    (*os) << "\" disable-cutting-lhs=\"yes";
-#endif
+
+
+    (*os) << "\" time-out=\"" << (is_timeout() ? "yes" : "no");
+    for (auto it = m_attributes.begin(); it != m_attributes.end(); ++it)
+        (*os) << "\" " << it->first << "=\"" << it->second;
     
-    (*os) << "\" time-out=\"" << (get_interruption_flag() ? "yes" : "no")
-          << "\">" << std::endl;
+    (*os) << "\">" << std::endl;
 
     print_nodes(os, "    ");
     print_axioms(os, "    ");
@@ -1371,7 +1397,8 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
     std::vector<node_idx_t> unified_nodes; // FROM
     std::vector<node_idx_t> unify_nodes; // TO
     unifier_t uni;
-
+    
+    if (i >= j) std::swap(i, j);
     unified_nodes.push_back(i);
     unified_nodes.push_back(j);
 

@@ -30,6 +30,7 @@ enum distance_provider_type_e
 class distance_provider_t
 {
 public:
+    virtual ~distance_provider_t() {}
     virtual float operator() (const lf::axiom_t &ax) const = 0;
 
     virtual distance_provider_type_e type() const

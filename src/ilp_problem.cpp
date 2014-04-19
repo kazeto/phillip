@@ -53,6 +53,12 @@ void constraint_t::print(
 }
 
 
+ilp_problem_t::~ilp_problem_t()
+{
+    delete m_solution_interpreter;
+}
+
+
 variable_idx_t
     ilp_problem_t::add_variable_of_node( pg::node_idx_t idx, double coef )
 {
@@ -514,7 +520,7 @@ void ilp_problem_t::print_node_in_solution(
     variable_idx_t idx = find_variable_with_node(i);
     if (idx < 0) return;
 
-    bool is_active = sol->node_is_active(i);
+    bool is_active = node_is_active(*sol, i);
     std::string type;
 
     switch (node.type())
@@ -554,7 +560,7 @@ void ilp_problem_t::print_chain_in_solution(
     (*os)
         << "<explanation id=\"" << i
         << "\" tail=\"" << s_from << "\" head=\"" << s_to
-        << "\" active=\"" << (sol->edge_is_active(i) ? "yes" : "no")
+        << "\" active=\"" << (edge_is_active(*sol, i) ? "yes" : "no")
         << "\" backward=\"" << (is_backward ? "yes" : "no")
         << "\" axiom=\"" << axiom_name
         << "\">" << m_graph->edge_to_string(i)
@@ -588,7 +594,7 @@ void ilp_problem_t::print_unification_in_solution(
         "<unification l1=\"%d\" l2=\"%d\" unifier=\"%s\" active=\"%s\">",
         hn_from[0], hn_from[1],
         join(subs.begin(), subs.end(), ", ").c_str(),
-        sol->edge_is_active(i) ? "yes" : "no"));
+        edge_is_active(*sol, i) ? "yes" : "no"));
     disp += "</unification>";
     (*os) << disp << std::endl;
 }
@@ -662,6 +668,33 @@ void ilp_solution_t::print(std::ostream *os) const
 void ilp_solution_t::print_graph(std::ostream *os) const
 {
     m_ilp->print_solution(this, os);
+}
+
+
+
+bool basic_solution_interpreter_t::node_is_active(
+    const ilp_solution_t &sol, pg::node_idx_t idx) const
+{
+    variable_idx_t var = sol.problem()->find_variable_with_node(idx);
+    return (var >= 0) ? sol.variable_is_active(var) : false;
+}
+
+
+bool basic_solution_interpreter_t::hypernode_is_active(
+    const ilp_solution_t &sol, pg::hypernode_idx_t idx) const
+{
+    variable_idx_t var = sol.problem()->find_variable_with_hypernode(idx);
+    return (var >= 0) ? sol.variable_is_active(var) : false;
+}
+
+
+bool basic_solution_interpreter_t::edge_is_active(
+    const ilp_solution_t &sol, pg::edge_idx_t idx) const
+{
+    const pg::edge_t &edge = sol.problem()->proof_graph()->edge(idx);
+    return
+        hypernode_is_active(sol, edge.tail()) and
+        hypernode_is_active(sol, edge.head());
 }
 
 
