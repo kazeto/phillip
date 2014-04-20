@@ -322,6 +322,8 @@ lhs_enumerator_t* _new_lhs_enumerator( const std::string &key )
 ilp_converter_t* _new_ilp_converter( const std::string &key )
 {
     if (key == "null") return new ilp::null_converter_t();
+    if (key == "weighted") return new ilp::weighted_converter_t();
+    if (key == "costed")   return new ilp::costed_converter_t();
     return NULL;
 }
 

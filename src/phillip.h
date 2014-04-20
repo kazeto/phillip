@@ -76,10 +76,14 @@ public:
     inline const hash_set<std::string>& flags() const;
     inline bool flag(const std::string &key) const;
 
-    inline const long& get_clock_for_flhs()  const;
-    inline const long& get_clock_for_flpp()  const;
-    inline const long& get_clock_for_fsol()  const;
+    inline const long& get_clock_for_lhs()  const;
+    inline const long& get_clock_for_ilp()  const;
+    inline const long& get_clock_for_sol()  const;
     inline const long& get_clock_for_infer() const;
+    inline float get_time_for_lhs()  const;
+    inline float get_time_for_ilp()  const;
+    inline float get_time_for_sol()  const;
+    inline float get_time_for_infer() const;
 
 private:
     enum process_mode_e { MODE_COMPILE_KB, MODE_INPUT_OBS };
@@ -114,9 +118,9 @@ private:
     std::vector<ilp::ilp_solution_t> m_sol;
 
     // ---- FOR MEASURE TIME
-    long m_clock_for_enumeration;
-    long m_clock_for_convention;
-    long m_clock_for_solution;
+    long m_clock_for_enumerate;
+    long m_clock_for_convert;
+    long m_clock_for_solve;
     long m_clock_for_infer;
 };
 

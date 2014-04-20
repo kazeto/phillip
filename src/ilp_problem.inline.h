@@ -163,17 +163,23 @@ inline std::string constraint_t::to_string(
     const std::vector<variable_t> &vars ) const
 {
     std::string exp;
-    print( &exp, vars );
+    print(&exp, vars);
     return exp;
 }
 
 
 inline ilp_problem_t::ilp_problem_t(
-    const pg::proof_graph_t* lhs, ilp_solution_interpreter_t *si,
-    const std::string &name)
-    : m_name(name), m_graph(lhs), m_cutoff(INVALID_CUT_OFF),
-      m_solution_interpreter(si)
+    const pg::proof_graph_t* lhs, solution_interpreter_t *si,
+    bool do_maximize, const std::string &name)
+    : m_name(name), m_do_maximize(do_maximize),
+      m_graph(lhs), m_cutoff(INVALID_CUT_OFF), m_solution_interpreter(si)
 {}
+
+
+inline void ilp_problem_t::add_xml_decorator(solution_xml_decorator_t *p_dec)
+{
+    m_xml_decorators.push_back(p_dec);
+}
   
 
 inline variable_idx_t ilp_problem_t::add_variable( const variable_t &var )
@@ -286,6 +292,13 @@ inline variable_idx_t ilp_problem_t::find_variable_with_hypernode(
 {
     auto it = m_map_hypernode_to_variable.find(idx);
     return ( it != m_map_hypernode_to_variable.end() ) ? it->second : -1;
+}
+
+
+inline void ilp_problem_t::add_attributes(
+    const std::string &key, const std::string &value)
+{
+    m_attributes[key] = value;
 }
 
 

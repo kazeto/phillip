@@ -25,8 +25,8 @@ weighted_converter_t::~weighted_converter_t()
 ilp::ilp_problem_t* weighted_converter_t::execute() const
 {
     const pg::proof_graph_t *graph = sys()->get_latent_hypotheses_set();
-    ilp::ilp_problem_t *prob =
-        new ilp::ilp_problem_t(graph, new ilp::basic_solution_interpreter_t());
+    ilp::ilp_problem_t *prob = new ilp::ilp_problem_t(
+        graph, new ilp::basic_solution_interpreter_t(), false);
 
     // ADD VARIABLES FOR NODES
     for (pg::node_idx_t i = 0; i < graph->nodes().size(); ++i)
@@ -60,6 +60,10 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
     add_variables_for_observation_cost(graph, *sys()->get_input(), prob, &node2costvar);
     add_variables_for_hypothesis_cost(graph, prob, &node2costvar);
     add_constraints_for_cost(graph, prob, node2costvar);
+
+    prob->add_xml_decorator(
+        new weighted_solution_xml_decorator_t(node2costvar));
+    prob->add_attributes("converter", "weighted");
 
     return prob;
 }
@@ -115,9 +119,11 @@ void weighted_converter_t::add_variables_for_hypothesis_cost(
 {
     for (int depth = 1;; ++depth)
     {
-        hash_set<pg::hypernode_idx_t> hns;
         const hash_set<pg::node_idx_t>
             *nodes = graph->search_nodes_with_depth(depth);
+        if (nodes == NULL) break;
+
+        hash_set<pg::hypernode_idx_t> hns;
         for (auto it = nodes->begin(); it != nodes->end(); ++it)
             hns.insert(graph->node(*it).get_master_hypernode());
 
@@ -157,8 +163,8 @@ void weighted_converter_t::add_constraints_for_cost(
 {
     for (auto it = node2costvar.begin(); it != node2costvar.end(); ++it)
     {
-        pg::node_idx_t node = it->first;
-        ilp::variable_idx_t nodevar = prob->find_variable_with_node(node);
+        pg::node_idx_t n_idx = it->first;
+        ilp::variable_idx_t nodevar = prob->find_variable_with_node(n_idx);
         ilp::variable_idx_t costvar = it->second;
 
         // IF THE TARGET NODE IS HYPOTHESIZE,
@@ -168,27 +174,36 @@ void weighted_converter_t::add_constraints_for_cost(
         //   - IT HAS BEEN UNIFIED WITH A NODE WHOSE COST IS LESS THAN IT.
 
         ilp::constraint_t cons(
-            format("cost-payment(n:%d)", node), ilp::OPR_GREATER_EQ, 0.0);
+            format("cost-payment(n:%d)", n_idx), ilp::OPR_GREATER_EQ, 0.0);
         cons.add_term(nodevar, -1.0);
         cons.add_term(costvar, 1.0);
 
         hash_set<pg::edge_idx_t> edges;
         const hash_set<pg::hypernode_idx_t> *hns =
-            graph->search_hypernodes_with_node(node);
+            graph->search_hypernodes_with_node(n_idx);
 
         if (hns != NULL)
         for (auto hn = hns->begin(); hn != hns->end(); ++hn)
         {
             const hash_set<pg::edge_idx_t>
                 *es = graph->search_edges_with_hypernode(*hn);
+            if (es == NULL) continue;
 
-            if (es != NULL)
             for (auto e = es->begin(); e != es->end(); ++e)
             {
                 const pg::edge_t edge = graph->edge(*e);
-                if (edge.tail() == *hn)
-                if (edge.is_chain_edge() or edge.is_unify_edge())
+                if (edge.tail() != *hn) continue;
+
+                if (edge.is_chain_edge())
                     edges.insert(*e);
+                else if (edge.is_unify_edge())
+                {
+                    auto from = graph->hypernode(edge.tail());
+                    double cost1 = get_cost(from[0], prob, node2costvar);
+                    double cost2 = get_cost(from[1], prob, node2costvar);
+                    if ((n_idx == from[0]) == (cost1 > cost2))
+                        edges.insert(*e);
+                }
             }
         }
 
@@ -202,6 +217,16 @@ void weighted_converter_t::add_constraints_for_cost(
 
         prob->add_constraint(cons);
     }
+}
+
+
+double weighted_converter_t::get_cost(
+    pg::node_idx_t idx, const ilp::ilp_problem_t *prob,
+    const hash_map<pg::node_idx_t, ilp::variable_idx_t> &node2costvar) const
+{
+    auto find = node2costvar.find(idx);
+    return (find != node2costvar.end()) ?
+        prob->variable(find->second).objective_coefficient() : 0.0;
 }
 
 
@@ -239,12 +264,42 @@ std::vector<double> weighted_converter_t::basic_weight_provider_t::operator()(
         lf::logical_function_t branch =
             axiom.func.branch(edge.type() == pg::EDGE_HYPOTHESIZE ? 0 : 1);
 
-        for (int i = 0; i < weights.size(); ++i)
-            branch.branch(i).param2double(&weights[i]);
+        if (weights.size() == 1 and branch.is_operator(lf::OPR_LITERAL))
+            branch.param2double(&weights[0]);
+        else
+        {
+            for (int i = 0; i < weights.size(); ++i)
+                branch.branch(i).param2double(&weights[i]);
+        }
     }
 
     return weights;
 }
+
+
+weighted_converter_t::weighted_solution_xml_decorator_t::
+weighted_solution_xml_decorator_t(
+const hash_map<pg::node_idx_t, ilp::variable_idx_t> &node2costvar)
+: m_node2costvar(node2costvar)
+{}
+
+
+void weighted_converter_t::weighted_solution_xml_decorator_t::
+get_literal_attributes(
+const ilp_solution_t *sol, pg::node_idx_t idx,
+hash_map<std::string, std::string> *out) const
+{
+    auto find = m_node2costvar.find(idx);
+    if (find != m_node2costvar.end())
+    {
+        variable_idx_t costvar = find->second;
+        double cost(sol->problem()->variable(costvar).objective_coefficient());
+        (*out)["cost"] = format("%lf", cost);
+        (*out)["paid-cost"] = sol->variable_is_active(costvar) ? "yes" : "no";
+    }
+}
+
+
 
 
 }

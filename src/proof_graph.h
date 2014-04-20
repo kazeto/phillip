@@ -576,18 +576,12 @@ protected:
      *  you can override this method. */
     virtual bool can_unify_nodes(node_idx_t, node_idx_t) const { return true; }
 
-    virtual void print_nodes(
-        std::ostream *os, const std::string &indent) const;
-    virtual void print_axioms(
-        std::ostream *os, const std::string &indent) const;
-    virtual void print_edges(
-        std::ostream *os, const std::string &indent) const;
-    virtual void print_subs(
-        std::ostream *os, const std::string &indent) const;
-    virtual void print_mutual_exclusive_nodes(
-        std::ostream *os, const std::string &indent) const;
-    virtual void print_mutual_exclusive_edges(
-        std::ostream *os, const std::string &indent) const;
+    virtual void print_nodes(std::ostream *os) const;
+    virtual void print_axioms(std::ostream *os) const;
+    virtual void print_edges(std::ostream *os) const;
+    virtual void print_subs(std::ostream *os) const;
+    virtual void print_mutual_exclusive_nodes(std::ostream *os) const;
+    virtual void print_mutual_exclusive_edges(std::ostream *os) const;
 
     // ---- VARIABLES
     

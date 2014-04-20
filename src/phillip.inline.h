@@ -144,20 +144,42 @@ inline bool phillip_main_t::flag(const std::string &key) const
 { return m_flags.find(key) != m_flags.end(); }
 
 
-inline const long& phillip_main_t::get_clock_for_flhs() const
-{ return m_clock_for_enumeration; }
+inline const long& phillip_main_t::get_clock_for_lhs() const
+{ return m_clock_for_enumerate; }
 
 
-inline const long& phillip_main_t::get_clock_for_flpp() const
-{ return m_clock_for_convention; }
+inline const long& phillip_main_t::get_clock_for_ilp() const
+{ return m_clock_for_convert; }
 
 
-inline const long& phillip_main_t::get_clock_for_fsol() const
-{ return m_clock_for_solution; }
+inline const long& phillip_main_t::get_clock_for_sol() const
+{ return m_clock_for_solve; }
 
 
 inline const long& phillip_main_t::get_clock_for_infer() const
 { return m_clock_for_infer; }
+
+
+inline float phillip_main_t::get_time_for_lhs()  const
+{ return (float)m_clock_for_enumerate / (float)CLOCKS_PER_SEC; }
+
+
+inline float phillip_main_t::get_time_for_ilp()  const
+{
+    return (float)m_clock_for_convert / (float)CLOCKS_PER_SEC;
+}
+
+
+inline float phillip_main_t::get_time_for_sol()  const
+{
+    return (float)m_clock_for_solve / (float)CLOCKS_PER_SEC;
+}
+
+
+inline float phillip_main_t::get_time_for_infer() const
+{
+    return (float)m_clock_for_infer / (float)CLOCKS_PER_SEC;
+}
 
 
 inline bool phillip_main_t::can_infer() const
@@ -177,9 +199,9 @@ inline void phillip_main_t::reset_for_inference()
     m_input = NULL;
     m_lhs = NULL;
     m_ilp = NULL;
-    m_clock_for_enumeration = 0;
-    m_clock_for_convention = 0;
-    m_clock_for_solution = 0;
+    m_clock_for_enumerate = 0;
+    m_clock_for_convert = 0;
+    m_clock_for_solve = 0;
     m_clock_for_infer = 0;
     m_sol.clear();
 }

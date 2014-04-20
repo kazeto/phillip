@@ -741,33 +741,35 @@ bool proof_graph_t::axiom_has_applied(
 
 void proof_graph_t::print(std::ostream *os) const
 {
-    (*os) << "<latent-hypotheses-set name=\"" << name();
+    (*os)
+        << "<latent-hypotheses-set name=\"" << name()
+        << "\" time=\"" << sys()->get_time_for_lhs()
+        << "\" time-out=\"" << (is_timeout() ? "yes" : "no");
 
-
-    (*os) << "\" time-out=\"" << (is_timeout() ? "yes" : "no");
     for (auto it = m_attributes.begin(); it != m_attributes.end(); ++it)
         (*os) << "\" " << it->first << "=\"" << it->second;
     
     (*os) << "\">" << std::endl;
 
-    print_nodes(os, "    ");
-    print_axioms(os, "    ");
-    print_edges(os, "    ");
-    print_subs(os, "    ");
-    print_mutual_exclusive_nodes(os, "    ");
-    print_mutual_exclusive_edges(os, "    ");
+    print_nodes(os);
+    print_axioms(os);
+    print_edges(os);
+    print_subs(os);
+    print_mutual_exclusive_nodes(os);
+    print_mutual_exclusive_edges(os);
 
     (*os) << "</latent-hypotheses-set>" << std::endl;
 }
 
 
-void proof_graph_t::print_nodes(
-    std::ostream *os, const std::string &indent) const
+void proof_graph_t::print_nodes(std::ostream *os) const
 {
-    (*os) << indent << "<nodes num=\"" << m_nodes.size() << "\">" << std::endl;
+    (*os) << "<nodes num=\"" << m_nodes.size() << "\">" << std::endl;
+
     for (auto i = 0; i < m_nodes.size(); ++i)
     {
-        (*os) << indent << "    <node "
+        (*os)
+            << "<node "
             << "index=\"" << i
             << "\" depth=\"" << node(i).depth()
             << "\" master=\"" << node(i).get_master_hypernode()
@@ -775,40 +777,41 @@ void proof_graph_t::print_nodes(
             << "</node>"
             << std::endl;
     }
-    (*os) << indent << "</nodes>" << std::endl;
+
+    (*os) << "</nodes>" << std::endl;
 }
 
 
-void proof_graph_t::print_axioms(
-    std::ostream *os, const std::string &indent) const
+void proof_graph_t::print_axioms(std::ostream *os) const
 {
     hash_set<axiom_id_t> set_axioms;
     std::list<axiom_id_t> list_axioms;
+
     for (auto it = m_edges.begin(); it != m_edges.end(); ++it)
     if (it->axiom_id() >= 0)
         set_axioms.insert(it->axiom_id());
+
     list_axioms.assign(set_axioms.begin(), set_axioms.end());
     list_axioms.sort();
 
-    (*os) << indent
-        << "<axioms num=\"" << list_axioms.size() << "\">" << std::endl;
+    (*os) << "<axioms num=\"" << list_axioms.size() << "\">" << std::endl;
     for (auto ax = list_axioms.begin(); ax != list_axioms.end(); ++ax)
     {
         lf::axiom_t axiom = sys()->knowledge_base()->get_axiom(*ax);
-        (*os) << indent << "    <axiom "
+        (*os)
+            << "<axiom "
             << "id=\"" << axiom.id
             << "\" name=\"" << axiom.name
             << "\">" << axiom.func.to_string()
             << "</axiom>" << std::endl;
     }
-    (*os) << indent << "</axioms>" << std::endl;
+    (*os) << "</axioms>" << std::endl;
 }
 
 
-void proof_graph_t::print_edges(
-    std::ostream *os, const std::string &indent) const
+void proof_graph_t::print_edges(std::ostream *os) const
 {
-    (*os) << indent << "<edges num=\"" << m_edges.size() << "\">" << std::endl;
+    (*os) << "<edges num=\"" << m_edges.size() << "\">" << std::endl;
     for (auto i = 0; i < m_edges.size(); ++i)
     {
         const edge_t e = edge(i);
@@ -827,8 +830,7 @@ void proof_graph_t::print_edges(
         }
         else type = format("user-defined(%d)", e.type());
 
-        (*os) << indent << "    <edge "
-              << "id=\"" << i << "\" type=\"" << type
+        (*os) << "<edge id=\"" << i << "\" type=\"" << type
               << "\" tail=\"" << e.tail() << "\" head=\"" << e.head()
               << "\" axiom=\"" << e.axiom_id();
 
@@ -849,35 +851,28 @@ void proof_graph_t::print_edges(
         (*os) << "\">" << edge_to_string(i)
               << "</edge>" << std::endl;
     }
-    (*os) << indent << "</edges>" << std::endl;
+    (*os) << "</edges>" << std::endl;
 }
 
 
-void proof_graph_t::print_subs(std::ostream *os, const std::string &indent) const
+void proof_graph_t::print_subs(std::ostream *os) const
 {
     auto subs = m_vc_unifiable.clusters();
-    (*os) << indent << "<substitutions>" << std::endl;
+    (*os) << "<substitutions>" << std::endl;
 
     for (auto it = subs.begin(); it != subs.end(); ++it)
     {
-        (*os) << indent << "    <cluster "
-            << "id=\"" << it->first << "\">" << std::endl;
-
+        (*os) << "<cluster id=\"" << it->first << "\">" << std::endl;
         for (auto t = it->second.begin(); t != it->second.end(); ++t)
-        {
-            (*os) << indent << "        <term>"
-                  << t->string() << "</term>" << std::endl;
-        }
-
-        (*os) << indent << "    </cluster>" << std::endl;
+            (*os) << "<term>" << t->string() << "</term>" << std::endl;
+        (*os) << "</cluster>" << std::endl;
     }
 
-    (*os) << indent << "</substitutions>" << std::endl;
+    (*os) << "</substitutions>" << std::endl;
 }
 
 
-void proof_graph_t::print_mutual_exclusive_nodes(
-    std::ostream *os, const std::string &indent) const
+void proof_graph_t::print_mutual_exclusive_nodes(std::ostream *os) const
 {
     const hash_map<node_idx_t, hash_map<node_idx_t, unifier_t> >
         &muexs = m_mutual_exclusive_nodes;
@@ -886,8 +881,8 @@ void proof_graph_t::print_mutual_exclusive_nodes(
     for (auto it = muexs.begin(); it != muexs.end(); ++it)
         num += it->second.size();
 
-    (*os) << indent << "<mutual_exclusive_nodes num=\""
-        << num << "\">" << std::endl;
+    (*os) << "<mutual_exclusive_nodes num=\""
+          << num << "\">" << std::endl;
 
     for (auto it1 = muexs.begin(); it1 != muexs.end(); ++it1)
     for (auto it2 = it1->second.begin(); it2 != it1->second.end(); ++it2)
@@ -896,19 +891,18 @@ void proof_graph_t::print_mutual_exclusive_nodes(
         const node_t &n2 = node(it2->first);
 
         (*os)
-            << indent << "    <xor node1=\"" << n1.index()
+            << "<xor node1=\"" << n1.index()
             << "\" node2=\"" << n2.index()
             << "\" subs=\"" << it2->second.to_string() << "\">"
             << n1.literal().to_string() << " _|_ "
             << n2.literal().to_string() << "</xor>" << std::endl;
     }
 
-    (*os) << indent << "</mutual_exclusive_nodes>" << std::endl;
+    (*os) << "</mutual_exclusive_nodes>" << std::endl;
 }
 
 
-void proof_graph_t::print_mutual_exclusive_edges(
-    std::ostream *os, const std::string &indent) const
+void proof_graph_t::print_mutual_exclusive_edges(std::ostream *os) const
 {
     const hash_map<edge_idx_t, hash_set<edge_idx_t> >
         &muexs = m_mutual_exclusive_edges;
@@ -917,15 +911,14 @@ void proof_graph_t::print_mutual_exclusive_edges(
     for (auto it = muexs.begin(); it != muexs.end(); ++it)
         num += it->second.size();
 
-    (*os) << indent << "<mutual_exclusive_edges num=\""
-          << num << "\">" << std::endl;
+    (*os) << "<mutual_exclusive_edges num=\"" << num << "\">" << std::endl;
 
     for (auto it1 = muexs.begin(); it1 != muexs.end(); ++it1)
     for (auto it2 = it1->second.begin(); it2 != it1->second.end(); ++it2)
-        (*os) << indent << "    <xor edge1=\"" << it1->first
+        (*os) << "<xor edge1=\"" << it1->first
               << "\" edge2=\"" << (*it2) << "\"></xor>" << std::endl;
 
-    (*os) << indent << "</mutual_exclusive_edges>" << std::endl;
+    (*os) << "</mutual_exclusive_edges>" << std::endl;
 }
 
 

@@ -16,8 +16,8 @@ inline phillip_main_t::phillip_main_t()
 : m_lhs_enumerator(NULL), m_ilp_convertor(NULL), m_ilp_solver(NULL),
 m_kb(NULL), m_input(NULL), m_lhs(NULL), m_ilp(NULL),
 m_timeout(-1), m_verboseness(0), m_is_debugging(false),
-m_clock_for_enumeration(0), m_clock_for_convention(0),
-m_clock_for_solution(0), m_clock_for_infer(0)
+m_clock_for_enumerate(0), m_clock_for_convert(0),
+m_clock_for_solve(0), m_clock_for_infer(0)
 {}
 
 
@@ -69,7 +69,7 @@ void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
     clock_t begin_flhs(clock());
     m_lhs = m_lhs_enumerator->execute();
     clock_t end_flhs(clock());
-    m_clock_for_enumeration += end_flhs - begin_flhs;
+    m_clock_for_enumerate += end_flhs - begin_flhs;
     IF_VERBOSE_2(
         m_lhs->is_timeout() ?
         "Interrupted generating latent-hypotheses-set." :
@@ -87,7 +87,7 @@ void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
     clock_t begin_flpp(clock());
     m_ilp = m_ilp_convertor->execute();
     clock_t end_flpp(clock());
-    m_clock_for_convention += end_flpp - begin_flpp;
+    m_clock_for_convert += end_flpp - begin_flpp;
     IF_VERBOSE_2("Completed convertion into linear-programming-problems...");
 
     if ((fo = _open_file(param("path_ilp_out"), mode)) != NULL)
@@ -102,7 +102,9 @@ void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
     clock_t begin_fsol(clock());
     m_ilp_solver->execute(&m_sol);
     clock_t end_fsol(clock());
-    m_clock_for_solution += end_fsol - begin_fsol;
+    m_clock_for_solve += end_fsol - begin_fsol;
+    clock_t end_infer(clock());
+    m_clock_for_infer += end_infer - begin_infer;
     IF_VERBOSE_2("Completed inference.");
 
     for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
@@ -126,20 +128,14 @@ void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
         delete fo;
     }
 
-    clock_t end_infer(clock());
-    m_clock_for_infer += end_infer - begin_infer;
 
     if (flag("print_time"))
     {
-        float time_lhs = (float)m_clock_for_enumeration / CLOCKS_PER_SEC;
-        float time_ilp = (float)m_clock_for_convention / CLOCKS_PER_SEC;
-        float time_sol = (float)m_clock_for_solution / CLOCKS_PER_SEC;
-        float time_inf = (float)m_clock_for_infer / CLOCKS_PER_SEC;
         print_console("execution time:");
-        print_console_fmt("    lhs: %.2f", time_lhs);
-        print_console_fmt("    ilp: %.2f", time_ilp);
-        print_console_fmt("    sol: %.2f", time_sol);
-        print_console_fmt("    all: %.2f", time_inf);
+        print_console_fmt("    lhs: %.2f", get_time_for_lhs());
+        print_console_fmt("    ilp: %.2f", get_time_for_ilp());
+        print_console_fmt("    sol: %.2f", get_time_for_sol());
+        print_console_fmt("    all: %.2f", get_time_for_infer());
     }
 }
 

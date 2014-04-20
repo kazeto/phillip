@@ -56,6 +56,8 @@ void constraint_t::print(
 ilp_problem_t::~ilp_problem_t()
 {
     delete m_solution_interpreter;
+    for (auto it = m_xml_decorators.begin(); it != m_xml_decorators.end(); ++it)
+        delete *it;
 }
 
 
@@ -448,8 +450,15 @@ void ilp_problem_t::print(std::ostream *os) const
 {
     (*os)
         << "<ilp name=\"" << name()
-        << "\" variables=\"" << m_variables.size()
-        << "\" constraints=\"" << m_constraints.size() << "\">" << std::endl;
+        << "\" maxmize=\"" << (do_maximize() ? "yes" : "no")
+        << "\" time=\"" << sys()->get_time_for_ilp();
+
+    for (auto attr = m_attributes.begin(); attr != m_attributes.end(); ++attr)
+        (*os) << "\" " << attr->first << "=\"" << attr->second;
+
+    (*os)
+        << "\">" << std::endl
+        << "<variables num=\"" << m_variables.size() << "\">" << std::endl;
     
     for (int i = 0; i < m_variables.size(); i++)
     {
@@ -461,6 +470,11 @@ void ilp_problem_t::print(std::ostream *os) const
         (*os) << " />" << std::endl;
     }
     
+    (*os)
+        << "</variables>" << std::endl
+        << "<constraints num=\"" << m_constraints.size()
+        << "\">" << std::endl;
+
     for (int i = 0; i < m_constraints.size(); i++)
     {
         const constraint_t &cons = m_constraints.at(i);
@@ -470,15 +484,7 @@ void ilp_problem_t::print(std::ostream *os) const
               << "\">" << cons_exp << "</constraint>" << std::endl;
     }
     
-    (*os) << "</ilp>";
-}
-
-
-std::string ilp_problem_t::to_string() const
-{
-    std::ostringstream exp;
-    print(&exp);
-    return exp.str();
+    (*os) << "</constraints>" << std::endl << "</ilp>";
 }
 
 
@@ -500,103 +506,172 @@ void ilp_problem_t::print_solution(
         << "\" objective=\"" << sol->value_of_objective_function()
         << "\">" << std::endl;
 
-    for (int i = 0; i < m_graph->nodes().size(); ++i)
-        print_node_in_solution(i, sol, os);
-    for (int i = 0; i < m_graph->edges().size(); ++i)
-        print_chain_in_solution(i, sol, os);
-    for (int i = 0; i < m_graph->edges().size(); ++i)
-        print_unification_in_solution(i, sol, os);
+    (*os)
+        << "<time lhs=\"" << sys()->get_time_for_lhs()
+        << "\" ilp=\"" << sys()->get_time_for_ilp()
+        << "\" sol=\"" << sys()->get_time_for_sol()
+        << "\" all=\"" << sys()->get_time_for_infer()
+        << "\"></time>" << std::endl;
+
+    _print_literals_in_solution(sol, os);
+    _print_explanations_in_solution(sol, os);
+    _print_unifications_in_solution(sol, os);
     
     (*os) << "</proofgraph>" << std::endl;
 }
 
 
-void ilp_problem_t::print_node_in_solution(
-    pg::node_idx_t i, const ilp_solution_t *sol, std::ostream *os) const
+void ilp_problem_t::_print_literals_in_solution(
+    const ilp_solution_t *sol, std::ostream *os) const
 {
-    const pg::node_t &node = m_graph->node(i);
-    if (node.is_equality_node() or node.is_non_equality_node()) return;
-
-    variable_idx_t idx = find_variable_with_node(i);
-    if (idx < 0) return;
-
-    bool is_active = node_is_active(*sol, i);
-    std::string type;
-
-    switch (node.type())
+    std::list< std::pair<pg::node_idx_t, variable_idx_t> > indices;
+    for (int i = 0; i < m_graph->nodes().size(); ++i)
     {
-    case pg::NODE_UNDERSPECIFIED: type = "underspecified"; break;
-    case pg::NODE_OBSERVABLE: type = "observable"; break;
-    case pg::NODE_HYPOTHESIS: type = "hypothesis"; break;
-    case pg::NODE_LABEL: type = "label"; break;
-    }
-
-    (*os) << "<literal id=\"" << i << "\" type=\"" << type
-        << "\" depth=\"" << node.depth()
-        << "\" active=\"" << (is_active ? "yes" : "no")
-        << "\">" << node.to_string() << "</literal>" << std::endl;
-}
-
-
-void ilp_problem_t::print_chain_in_solution(
-    pg::edge_idx_t i, const ilp_solution_t *sol, std::ostream *os) const
-{
-    const kb::knowledge_base_t *base = sys()->knowledge_base();
-    const pg::edge_t& edge = m_graph->edge(i);
-    if( edge.type() == pg::EDGE_UNIFICATION ) return;
-
-    const std::vector<pg::node_idx_t>
-        &hn_from(m_graph->hypernode(edge.tail())),
-        &hn_to(m_graph->hypernode(edge.head()));
-    bool is_backward = (edge.type() == pg::EDGE_HYPOTHESIZE);
-    std::string
-        s_from(join(hn_from.begin(), hn_from.end(), "%d", ",")),
-        s_to(join(hn_to.begin(), hn_to.end(), "%d", ",")),
-        axiom_name = "_blank";
-
-    if (edge.axiom_id() >= 0)
-        axiom_name = base->get_axiom(edge.axiom_id()).name;
-
-    (*os)
-        << "<explanation id=\"" << i
-        << "\" tail=\"" << s_from << "\" head=\"" << s_to
-        << "\" active=\"" << (edge_is_active(*sol, i) ? "yes" : "no")
-        << "\" backward=\"" << (is_backward ? "yes" : "no")
-        << "\" axiom=\"" << axiom_name
-        << "\">" << m_graph->edge_to_string(i)
-        << "</explanation>" << std::endl;
-}
-
-
-void ilp_problem_t::print_unification_in_solution(
-    pg::edge_idx_t i, const ilp_solution_t *sol, std::ostream *os) const
-{
-    const pg::edge_t& edge = m_graph->edge(i);
-    if( edge.type() != pg::EDGE_UNIFICATION ) return;
-
-    std::vector<std::string> subs;
-    if (edge.head() >= 0)
-    {
-        const std::vector<pg::node_idx_t>
-            &hn_to(m_graph->hypernode(edge.head()));
-        for( auto it=hn_to.begin(); it!=hn_to.end(); ++it )
+        const pg::node_t &node = m_graph->node(i);
+        if (not node.is_equality_node() and not node.is_non_equality_node())
         {
-            const literal_t &lit = m_graph->node(*it).literal();
-            assert(lit.predicate == "=");
-            subs.push_back(
-                lit.terms[0].string() + "=" + lit.terms[1].string());
+            variable_idx_t idx = find_variable_with_node(i);
+            if (idx >= 0)
+                indices.push_back(std::make_pair(i, idx));
         }
     }
 
-    const std::vector<pg::node_idx_t>
-        &hn_from(m_graph->hypernode(edge.tail()));
-    std::string disp(format(
-        "<unification l1=\"%d\" l2=\"%d\" unifier=\"%s\" active=\"%s\">",
-        hn_from[0], hn_from[1],
-        join(subs.begin(), subs.end(), ", ").c_str(),
-        edge_is_active(*sol, i) ? "yes" : "no"));
-    disp += "</unification>";
-    (*os) << disp << std::endl;
+    (*os) << "<literals num=\"" << indices.size() << "\">" << std::endl;
+
+    for (auto it = indices.begin(); it != indices.end(); ++it)
+    {
+        pg::node_idx_t n_idx = it->first;
+        variable_idx_t v_idx = it->second;
+        const pg::node_t &node = m_graph->node(n_idx);
+        bool is_active = node_is_active(*sol, n_idx);
+        std::string type;
+
+        switch (node.type())
+        {
+        case pg::NODE_UNDERSPECIFIED: type = "underspecified"; break;
+        case pg::NODE_OBSERVABLE:     type = "observable";     break;
+        case pg::NODE_HYPOTHESIS:     type = "hypothesis";     break;
+        case pg::NODE_LABEL:          type = "label";          break;
+        }
+
+        (*os)
+            << "<literal id=\"" << n_idx
+            << "\" type=\"" << type
+            << "\" depth=\"" << node.depth()
+            << "\" active=\"" << (is_active ? "yes" : "no");
+
+        hash_map<std::string, std::string> attributes;
+        for (auto dec = m_xml_decorators.begin(); dec != m_xml_decorators.end(); ++dec)
+            (*dec)->get_literal_attributes(sol, n_idx, &attributes);
+        for (auto attr = attributes.begin(); attr != attributes.end(); ++attr)
+            (*os) << "\" " << attr->first << "=\"" << attr->second;
+
+        (*os)
+            << "\">" << node.to_string() << "</literal>" << std::endl;
+    }
+
+    (*os) << "</literals>" << std::endl;
+}
+
+
+void ilp_problem_t::_print_explanations_in_solution(
+    const ilp_solution_t *sol, std::ostream *os) const
+{
+    const kb::knowledge_base_t *base = sys()->knowledge_base();
+    std::list<pg::edge_idx_t> indices;
+
+    for (int i = 0; i < m_graph->edges().size(); ++i)
+    if (m_graph->edge(i).is_chain_edge())
+        indices.push_back(i);
+
+    (*os) << "<explanations num=\"" << indices.size() << "\">" << std::endl;
+
+    for (auto it = indices.begin(); it != indices.end(); ++it)
+    {
+        const pg::edge_t &edge = m_graph->edge(*it);
+        const std::vector<pg::node_idx_t>
+            &hn_from(m_graph->hypernode(edge.tail())),
+            &hn_to(m_graph->hypernode(edge.head()));
+        bool is_backward = (edge.type() == pg::EDGE_HYPOTHESIZE);
+        std::string
+            s_from(join(hn_from.begin(), hn_from.end(), "%d", ",")),
+            s_to(join(hn_to.begin(), hn_to.end(), "%d", ",")),
+            axiom_name = "_blank";
+
+        if (edge.axiom_id() >= 0)
+            axiom_name = base->get_axiom(edge.axiom_id()).name;
+
+        (*os)
+            << "<explanation id=\"" << (*it)
+            << "\" tail=\"" << s_from << "\" head=\"" << s_to
+            << "\" active=\"" << (edge_is_active(*sol, *it) ? "yes" : "no")
+            << "\" backward=\"" << (is_backward ? "yes" : "no")
+            << "\" axiom=\"" << axiom_name;
+
+        hash_map<std::string, std::string> attributes;
+        for (auto dec = m_xml_decorators.begin(); dec != m_xml_decorators.end(); ++dec)
+            (*dec)->get_explanation_attributes(sol, *it, &attributes);
+        for (auto attr = attributes.begin(); attr != attributes.end(); ++attr)
+            (*os) << "\" " << attr->first << "=\"" << attr->second;
+
+        (*os)
+            << "\">" << m_graph->edge_to_string(*it)
+            << "</explanation>" << std::endl;
+    }
+
+    (*os) << "</explanations>" << std::endl;
+}
+
+
+void ilp_problem_t::_print_unifications_in_solution(
+    const ilp_solution_t *sol, std::ostream *os) const
+{
+    std::list<pg::edge_idx_t> indices;
+    for (int i = 0; i < m_graph->edges().size(); ++i)
+    if (m_graph->edge(i).is_unify_edge())
+        indices.push_back(i);
+
+    (*os) << "<unifications num=\"" << indices.size() << "\">" << std::endl;
+
+    for (auto it = indices.begin(); it != indices.end(); ++it)
+    {
+        const pg::edge_t& edge = m_graph->edge(*it);
+        std::vector<std::string> subs;
+
+        if (edge.head() >= 0)
+        {
+            const std::vector<pg::node_idx_t>
+                &hn_to(m_graph->hypernode(edge.head()));
+            for (auto it = hn_to.begin(); it != hn_to.end(); ++it)
+            {
+                const literal_t &lit = m_graph->node(*it).literal();
+                assert(lit.predicate == "=");
+                subs.push_back(
+                    lit.terms[0].string() + "=" + lit.terms[1].string());
+            }
+        }
+
+        const std::vector<pg::node_idx_t>
+            &hn_from(m_graph->hypernode(edge.tail()));
+        (*os)
+            << "<unification l1=\"" << hn_from[0]
+            << "\" l2=\"" << hn_from[1]
+            << "\" unifier=\"" << join(subs.begin(), subs.end(), ", ")
+            << "\" active=\"" << (edge_is_active(*sol, *it) ? "yes" : "no");
+
+        hash_map<std::string, std::string> attributes;
+        for (auto dec = m_xml_decorators.begin(); dec != m_xml_decorators.end(); ++dec)
+            (*dec)->get_unification_attributes(sol, *it, &attributes);
+        for (auto attr = attributes.begin(); attr != attributes.end(); ++attr)
+            (*os) << "\" " << attr->first << "=\"" << attr->second;
+
+        (*os)
+            << "\">"
+            << m_graph->edge_to_string(*it)
+            << "</unification>" << std::endl;
+    }
+
+    (*os) << "</unifications>" << std::endl;
 }
 
 
@@ -644,7 +719,11 @@ std::string ilp_solution_t::to_string() const
 
 void ilp_solution_t::print(std::ostream *os) const
 {
-    (*os) << "<solution name=\"" << name() << "\">" << std::endl;
+    (*os)
+        << "<solution name=\"" << name()
+        << "\" time=\"" << sys()->get_time_for_sol() << "\">" << std::endl
+        << "<variables num=\"" << m_ilp->variables().size()
+        << "\">" << std::endl;
 
     for( int i=0; i<m_ilp->variables().size(); ++i )
     {
@@ -654,14 +733,20 @@ void ilp_solution_t::print(std::ostream *os) const
               << "\">"<< m_optimized_values[i] <<"</variable>" << std::endl;
     }
 
+    (*os) << "</variables>" << std::endl
+          << "<constarints num=\"" << m_ilp->constraints().size()
+          << "\">" << std::endl;
+
     for( int i=0; i<m_ilp->constraints().size(); i++ )
     {
         const constraint_t &cons = m_ilp->constraint(i);
         (*os) << "<constraint name=\"" << cons.name() << "\">"
               << (m_constraints_sufficiency.at(i) ? "1" : "0")
               << "</constraint>" << std::endl;
-    }    
-    (*os) << "</solution>";
+    }
+
+    (*os) << "</constraints>" << std::endl
+          << "</solution>";
 }
 
 

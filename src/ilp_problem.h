@@ -25,7 +25,9 @@ class variable_t;
 class constraint_t;
 class ilp_problem_t;
 class ilp_solution_t;
-class ilp_solution_interpreter_t;
+
+class solution_interpreter_t;
+class solution_xml_decorator_t;
 
 
 enum constraint_operator_e
@@ -120,11 +122,16 @@ public:
     static void disable_economization() { ms_do_economize = false; }
 
     inline ilp_problem_t(
-        const pg::proof_graph_t* lhs, ilp_solution_interpreter_t *si,
-        const std::string &name = "");
+        const pg::proof_graph_t* lhs, solution_interpreter_t *si,
+        bool do_maximize, const std::string &name = "");
     virtual ~ilp_problem_t();
 
+    /** Add a new decorator for outputting xml-files.
+     *  You can use this method to customize output. */
+    inline void add_xml_decorator(solution_xml_decorator_t *p_dec);
+
     inline const std::string& name() const { return m_name; }
+    inline bool do_maximize() const { return m_do_maximize; }
 
     /** Add new variable to the objective-function.
      *  @return The index of added variable in m_variables. */
@@ -213,26 +220,37 @@ public:
     double get_value_of_objective_function(
         const std::vector<double> &values) const;
     
+    inline void add_attributes(
+        const std::string &key, const std::string &value);
     void print(std::ostream *os) const;
-    std::string to_string() const;
 
+    /** Returns whether the given node is active in the solution.
+     *  The solution-interpreter is used in this method. */
     inline bool node_is_active(
         const ilp_solution_t &sol, pg::node_idx_t idx) const;
+
+    /** Returns whether the given hypernode is active in the solution.
+     *  The solution-interpreter is used in this method. */
     inline bool hypernode_is_active(
         const ilp_solution_t &sol, pg::hypernode_idx_t idx) const;
+
+    /** Returns whether the given edge is active in the solution.
+     *  The solution-interpreter is used in this method. */
     inline bool edge_is_active(
         const ilp_solution_t &sol, pg::edge_idx_t idx) const;
 
-    virtual void print_solution(
+    /** Print a xml-formatted proof-graph of the given solution.
+     *  You can customize its format by adding xml-decorators. */
+    void print_solution(
         const ilp_solution_t *sol, std::ostream *os) const;
 
 protected:
-    virtual void print_node_in_solution(
-        pg::node_idx_t i, const ilp_solution_t *sol, std::ostream *os) const;
-    virtual void print_chain_in_solution(
-        pg::edge_idx_t i, const ilp_solution_t *sol, std::ostream *os) const;
-    virtual void print_unification_in_solution(
-        pg::edge_idx_t i, const ilp_solution_t *sol, std::ostream *os) const;
+    void _print_literals_in_solution(
+        const ilp_solution_t *sol, std::ostream *os) const;
+    void _print_explanations_in_solution(
+        const ilp_solution_t *sol, std::ostream *os) const;
+    void _print_unifications_in_solution(
+        const ilp_solution_t *sol, std::ostream *os) const;
 
     /** A sub-routine of add_constraints_of_exclusiveness_of_chains_from_*.
      *  @return Number of added constraints. */
@@ -244,6 +262,7 @@ protected:
     static bool ms_do_economize;
 
     std::string m_name;
+    bool m_do_maximize;
 
     const pg::proof_graph_t* const m_graph;
     
@@ -263,7 +282,9 @@ protected:
     hash_set<std::string> m_log_of_term_triplet_for_transitive_unification;
     hash_set<std::string> m_log_of_node_tuple_for_mutual_exclusion;
 
-    ilp_solution_interpreter_t *m_solution_interpreter;
+    hash_map<std::string, std::string> m_attributes;
+    solution_interpreter_t *m_solution_interpreter;
+    std::list<solution_xml_decorator_t*> m_xml_decorators;
 };
 
 
@@ -314,7 +335,10 @@ private:
 };
 
 
-class ilp_solution_interpreter_t
+/** A base function class to interpret solutions.
+ *  This class defines how to interpret an ilp-solution
+ *  on writing its proof-graph. */
+class solution_interpreter_t
 {
 public:
     virtual bool node_is_active(
@@ -326,7 +350,8 @@ public:
 };
 
 
-class basic_solution_interpreter_t : public ilp_solution_interpreter_t
+/** A class defindes how to interpret an ilp-solution on basic way. */
+class basic_solution_interpreter_t : public solution_interpreter_t
 {
 public:
     virtual bool node_is_active(
@@ -335,6 +360,25 @@ public:
         const ilp_solution_t&, pg::node_idx_t) const;
     virtual bool edge_is_active(
         const ilp_solution_t&, pg::edge_idx_t) const;
+};
+
+
+/** A base function class to customize xml-formatted outputs of solution. */
+class solution_xml_decorator_t
+{
+public:
+    virtual void get_literal_attributes(
+        const ilp_solution_t *sol,
+        pg::node_idx_t idx,
+        hash_map<std::string, std::string> *out) const {}
+    virtual void get_explanation_attributes(
+        const ilp_solution_t *sol,
+        pg::edge_idx_t idx,
+        hash_map<std::string, std::string> *out) const {}
+    virtual void get_unification_attributes(
+        const ilp_solution_t *sol,
+        pg::edge_idx_t idx,
+        hash_map<std::string, std::string> *out) const {}
 };
 
 

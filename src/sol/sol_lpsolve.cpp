@@ -97,7 +97,8 @@ void lp_solve_t::initialize(const ilp::ilp_problem_t *prob, ::lprec **rec) const
 
     *rec = ::make_lp(0, variables.size());
     ::set_obj_fn(*rec, &vars[0]);
-    ::set_maxim(*rec);
+    prob->do_maximize() ?
+        ::set_maxim(*rec) : ::set_minim(*rec);
 
     // SET ALL VARIABLES TO INTEGER
     for (size_t i = 0; i < variables.size(); ++i)

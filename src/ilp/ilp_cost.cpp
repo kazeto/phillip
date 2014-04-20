@@ -24,8 +24,8 @@ costed_converter_t::~costed_converter_t()
 ilp::ilp_problem_t* costed_converter_t::execute() const
 {
     const pg::proof_graph_t *graph = sys()->get_latent_hypotheses_set();
-    ilp::ilp_problem_t *prob =
-        new ilp::ilp_problem_t(graph, new ilp::basic_solution_interpreter_t());
+    ilp::ilp_problem_t *prob = new ilp::ilp_problem_t(
+        graph, new ilp::basic_solution_interpreter_t(), true);
 
     // ADD VARIABLES FOR NODES
     for (pg::node_idx_t i = 0; i < graph->nodes().size(); ++i)

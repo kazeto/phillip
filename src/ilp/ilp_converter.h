@@ -42,6 +42,22 @@ public:
             const pg::proof_graph_t*, pg::edge_idx_t) const;
     };
 
+    class weighted_solution_xml_decorator_t
+        : public ilp::solution_xml_decorator_t
+    {
+    public:
+        weighted_solution_xml_decorator_t(
+            const hash_map<pg::node_idx_t, ilp::variable_idx_t> &node2costvar);
+        virtual void get_literal_attributes(
+            const ilp_solution_t *sol, pg::node_idx_t idx,
+            hash_map<std::string, std::string> *out) const;
+        virtual void get_edge_attributes(
+            const ilp_solution_t *sol, pg::edge_idx_t idx,
+            hash_map<std::string, std::string> *out) const {}
+    private:
+        hash_map<pg::node_idx_t, ilp::variable_idx_t> m_node2costvar;
+    };
+
     weighted_converter_t(
         double default_obs_cost = 10.0,
         weight_provider_t *ptr = NULL);
@@ -63,6 +79,9 @@ protected:
         hash_map<pg::node_idx_t, ilp::variable_idx_t> *node2costvar) const;
     void add_constraints_for_cost(
         const pg::proof_graph_t *graph, ilp::ilp_problem_t *prob,
+        const hash_map<pg::node_idx_t, ilp::variable_idx_t> &node2costvar) const;
+    double get_cost(
+        pg::node_idx_t idx, const ilp::ilp_problem_t *prob,
         const hash_map<pg::node_idx_t, ilp::variable_idx_t> &node2costvar) const;
 
     double m_default_observation_cost;
