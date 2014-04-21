@@ -330,10 +330,10 @@ ilp_converter_t* _new_ilp_converter( const std::string &key )
 
 ilp_solver_t* _new_ilp_solver( const std::string &key )
 {
-    if (key == "null")   return new sol::null_solver_t();
-    if (key == "gltk")   return new sol::gnu_linear_programming_kit_t();
-    if (key == "lpsol")  return new sol::lp_solve_t();
-    if (key == "gurobi") return new sol::gurobi_t();
+    if (key == "null")    return new sol::null_solver_t();
+    if (key == "gltk")    return new sol::gnu_linear_programming_kit_t();
+    if (key == "lpsolve") return new sol::lp_solve_t();
+    if (key == "gurobi")  return new sol::gurobi_t();
     return NULL;
 }
 

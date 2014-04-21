@@ -307,6 +307,7 @@ public:
 
     inline const std::string& name() const { return m_name; }
     inline const ilp::ilp_problem_t* problem() const { return m_ilp; }
+    inline void set_solution_type(solution_type_e t) { m_solution_type = t; }
     inline solution_type_e type() const;
     inline double value_of_objective_function() const;
 

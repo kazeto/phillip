@@ -253,7 +253,7 @@ bool basic_lhs_enumerator_t::compute_reachability_of_chaining(
 
             if (distance >= 0.0f
                 and distance <= m_distance_max
-                and redundancy <= m_redundancy_max)
+                and (m_redundancy_max < 0.0 or redundancy <= m_redundancy_max))
             {
                 reachability_t rc = { distance, redundancy };
                 (*out)[i][it->first] = rc;

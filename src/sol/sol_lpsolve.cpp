@@ -19,14 +19,13 @@ void lp_solve_t::execute(
     ::lprec *rec(NULL);
     hash_set<ilp::constraint_idx_t>
         lazy_cons(prob->get_lazy_constraints());
-    bool do_break(false);
     bool disable_cutting_plane(sys()->flag("disable_cutting_plane"));
     bool do_cutting_plane(not lazy_cons.empty() and not disable_cutting_plane);
     
     initialize(prob, &rec);
     
     size_t num_loop(0);
-    while (not do_break)
+    while (true)
     {
         if (do_cutting_plane)
         {
@@ -35,20 +34,29 @@ void lp_solve_t::execute(
                 << (num_loop++) << std::endl;
         }
 
-        ::solve(rec);
-        ::get_variables(rec, &vars[0]);
-        ilp::ilp_solution_t sol(prob, ilp::SOLUTION_OPTIMAL, vars);
+        int ret = ::solve(rec);
+        ilp::ilp_solution_t *sol = NULL;
+        bool do_break(false);
 
-        if (not lazy_cons.empty() and not disable_cutting_plane)
+        if (ret == OPTIMAL or ret == SUBOPTIMAL)
         {
-            hash_set<ilp::constraint_idx_t> filtered;
-            sol.filter_unsatisfied_constraints(&lazy_cons, &filtered);
-            
-            if (not filtered.empty())
+            ::get_variables(rec, &vars[0]);
+            ilp::solution_type_e type = (ret == OPTIMAL) ?
+                ilp::SOLUTION_OPTIMAL : ilp::SOLUTION_SUB_OPTIMAL;
+            sol = new ilp::ilp_solution_t(prob, type, vars);
+
+            if (not lazy_cons.empty() and not disable_cutting_plane)
             {
-                // ADD VIOLATED CONSTRAINTS
-                for (auto it = filtered.begin(); it != filtered.end(); ++it)
-                    add_constraint(prob, *it, &rec);
+                hash_set<ilp::constraint_idx_t> filtered;
+                sol->filter_unsatisfied_constraints(&lazy_cons, &filtered);
+            
+                if (not filtered.empty())
+                {
+                    // ADD VIOLATED CONSTRAINTS
+                    for (auto it = filtered.begin(); it != filtered.end(); ++it)
+                        add_constraint(prob, *it, &rec);
+                }
+                else do_break = true;
             }
             else do_break = true;
         }
@@ -57,7 +65,15 @@ void lp_solve_t::execute(
         if (do_break)
         {
             ::delete_lp(rec);
-            out->push_back(sol);
+
+            if (sol == NULL)
+                sol = new ilp::ilp_solution_t(
+                    prob, ilp::SOLUTION_NOT_AVAILABLE,
+                    std::vector<double>(0.0, prob->variables().size()));
+            
+            out->push_back(*sol);
+            delete sol;
+            break;
         }
     }
 #endif
@@ -99,6 +115,8 @@ void lp_solve_t::initialize(const ilp::ilp_problem_t *prob, ::lprec **rec) const
     ::set_obj_fn(*rec, &vars[0]);
     prob->do_maximize() ?
         ::set_maxim(*rec) : ::set_minim(*rec);
+    if (sys()->timeout() > 0)
+        ::set_timeout(*rec, sys()->timeout());
 
     // SET ALL VARIABLES TO INTEGER
     for (size_t i = 0; i < variables.size(); ++i)

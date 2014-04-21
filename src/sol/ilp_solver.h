@@ -11,7 +11,7 @@
 #endif
 
 #ifdef USE_LP_SOLVE
-#include "../lib/lpsolve55/lp_lib.h"
+#include <lp_lib.h>
 #endif
 
 #ifdef USE_GUROBI
@@ -72,6 +72,7 @@ private:
 };
 
 
+/** A class of ilp_solver with Gurobi-optimizer. */
 class gurobi_t : public ilp_solver_t
 {
 public:
@@ -84,8 +85,11 @@ public:
 private:
     void add_variables(
         GRBModel *model, hash_map<ilp::variable_idx_t, GRBVar> *vars) const;
-    void add_constraints(
-        GRBModel *model, hash_map<ilp::variable_idx_t, GRBVar> *vars) const;
+    void add_constraint(
+        GRBModel *model, ilp::constraint_idx_t idx,
+        const hash_map<ilp::variable_idx_t, GRBVar> &vars) const;
+    ilp::ilp_solution_t convert(
+        GRBModel *model, const hash_map<ilp::variable_idx_t, GRBVar> &vars) const;
 #endif
 };
 
