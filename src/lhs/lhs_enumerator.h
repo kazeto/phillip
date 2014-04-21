@@ -27,7 +27,7 @@ public:
     virtual std::string repr() const;
 
 private:
-    struct reachability_t { float distance, reduncdancy; };
+    struct reachability_t { float distance, redundancy; };
     typedef hash_map<pg::node_idx_t, reachability_t > reachable_map_t;
 
     /** This is a sub-routine of execute.

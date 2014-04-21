@@ -249,6 +249,7 @@ bool basic_lhs_enumerator_t::compute_reachability_of_chaining(
             std::string arity2 = literals.at(i)->get_predicate_arity();
             float distance = base->get_distance(arity, arity2);
             float redundancy =
+                it->second.redundancy +
                 base_distance - (it->second.distance - distance);
 
             if (distance >= 0.0f
