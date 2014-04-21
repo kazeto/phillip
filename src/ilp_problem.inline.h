@@ -295,6 +295,20 @@ inline variable_idx_t ilp_problem_t::find_variable_with_hypernode(
 }
 
 
+inline const hash_map<pg::node_idx_t, variable_idx_t>&
+ilp_problem_t::node_to_variable() const
+{
+    return m_map_node_to_variable;
+}
+
+
+inline const hash_map<pg::hypernode_idx_t, variable_idx_t>&
+ilp_problem_t::hypernode_to_variable() const
+{
+    return m_map_hypernode_to_variable;
+}
+
+
 inline void ilp_problem_t::add_attributes(
     const std::string &key, const std::string &value)
 {

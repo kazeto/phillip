@@ -162,7 +162,7 @@ hash_set<edge_idx_t> proof_graph_t::enumerate_dependent_edges(node_idx_t idx) co
 void proof_graph_t::enumerate_dependent_edges(
     node_idx_t idx, hash_set<edge_idx_t> *out) const
 {
-    hypernode_idx_t m = node(idx).get_master_hypernode();
+    hypernode_idx_t m = node(idx).master_hypernode();
     if (m < 0) return;
 
     edge_idx_t e = find_parental_edge(m);
@@ -177,7 +177,7 @@ void proof_graph_t::enumerate_dependent_edges(
 void proof_graph_t::enumerate_dependent_nodes(
     node_idx_t idx, hash_set<node_idx_t> *out) const
 {
-    hypernode_idx_t m = node(idx).get_master_hypernode();
+    hypernode_idx_t m = node(idx).master_hypernode();
     if (m < 0) return;
 
     edge_idx_t e = find_parental_edge(m);
@@ -772,7 +772,7 @@ void proof_graph_t::print_nodes(std::ostream *os) const
             << "<node "
             << "index=\"" << i
             << "\" depth=\"" << node(i).depth()
-            << "\" master=\"" << node(i).get_master_hypernode()
+            << "\" master=\"" << node(i).master_hypernode()
             << "\">" << node(i).literal().to_string()
             << "</node>"
             << std::endl;

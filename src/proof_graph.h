@@ -97,7 +97,7 @@ public:
      *  CAUTION:
      *    If the node has plural parental-edges, this value is invalid.
      *    Such case can occurs when the node is a substituion node. */
-    inline hypernode_idx_t get_master_hypernode() const;
+    inline hypernode_idx_t master_hypernode() const;
     inline void set_master_hypernode(hypernode_idx_t idx);
 
     /** If true, this node is a substitution node. */

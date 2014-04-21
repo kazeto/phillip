@@ -147,11 +147,12 @@ public:
         pg::node_idx_t idx, double coef = 0.0);
 
     /** Add new variable of the hypernode and related constraints.
-     *  On calling this method, it is required that
+     *  If adds the constraint for its member, it is required that
      *  variables of nodes in the hypernode have been created.
      *  @return The index of added variable in m_variables. */
     variable_idx_t add_variable_of_hypernode(
-        pg::hypernode_idx_t idx, double coef = 0.0);
+        pg::hypernode_idx_t idx, double coef = 0.0,
+        bool do_add_constraint_for_member = true);
 
     /** Add constraint for dependency between the target node
      *  and hypernodes which have the node as its element.
@@ -212,10 +213,14 @@ public:
 
     /** Return the index of variable corresponding to the given hypernode.
      *  If no variable is found, return -1. */
-    inline variable_idx_t
-        find_variable_with_hypernode(pg::hypernode_idx_t) const;
+    inline variable_idx_t find_variable_with_hypernode(pg::hypernode_idx_t) const;
     template<class T> variable_idx_t
         find_variable_with_hypernode_unordered(T begin, T end) const;
+
+    inline const hash_map<pg::node_idx_t, variable_idx_t>&
+        node_to_variable() const;
+    inline const hash_map<pg::hypernode_idx_t, variable_idx_t>&
+        hypernode_to_variable() const;
     
     double get_value_of_objective_function(
         const std::vector<double> &values) const;

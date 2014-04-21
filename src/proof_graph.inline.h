@@ -41,7 +41,7 @@ inline void node_t::set_master_hypernode(hypernode_idx_t idx)
 }
 
 
-inline hypernode_idx_t node_t::get_master_hypernode() const
+inline hypernode_idx_t node_t::master_hypernode() const
 {
     return m_master_hypernode_idx;
 }

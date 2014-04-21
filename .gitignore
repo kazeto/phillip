@@ -8,8 +8,7 @@ conf/*
 !conf/toy.*
 
 ; LIBS
-src/lib/lpsolve55/*
-!src/lib/lpsolve55/HOWTOUSE
+lpsolve55/*
 
 ; FOR UNIX
 *.o

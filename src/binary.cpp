@@ -323,6 +323,7 @@ ilp_converter_t* _new_ilp_converter( const std::string &key )
 {
     if (key == "null") return new ilp::null_converter_t();
     if (key == "weighted") return new ilp::weighted_converter_t();
+    if (key == "cmp_weighted") return new ilp::compressed_weighted_converter_t();
     if (key == "costed")   return new ilp::costed_converter_t();
     return NULL;
 }

@@ -42,11 +42,11 @@ public:
             const pg::proof_graph_t*, pg::edge_idx_t) const;
     };
 
-    class weighted_solution_xml_decorator_t
+    class my_xml_decorator_t
         : public ilp::solution_xml_decorator_t
     {
     public:
-        weighted_solution_xml_decorator_t(
+        my_xml_decorator_t(
             const hash_map<pg::node_idx_t, ilp::variable_idx_t> &node2costvar);
         virtual void get_literal_attributes(
             const ilp_solution_t *sol, pg::node_idx_t idx,
@@ -86,6 +86,56 @@ protected:
 
     double m_default_observation_cost;
     weight_provider_t *m_weight_provider;
+};
+
+
+/** A class of ilp-converter for a weight-based evaluation function. */
+class compressed_weighted_converter_t : public weighted_converter_t
+{
+public:
+    class my_xml_decorator_t : public ilp::solution_xml_decorator_t
+    {
+    public:
+        my_xml_decorator_t(const hash_map<pg::node_idx_t, double> &node2cost);
+        virtual void get_literal_attributes(
+            const ilp_solution_t *sol, pg::node_idx_t idx,
+            hash_map<std::string, std::string> *out) const;
+        virtual void get_edge_attributes(
+            const ilp_solution_t *sol, pg::edge_idx_t idx,
+            hash_map<std::string, std::string> *out) const {}
+    private:
+        hash_map<pg::node_idx_t, double> m_node2cost;
+    };
+
+    class my_solution_interpreter_t : public solution_interpreter_t
+    {
+    public:
+        virtual bool node_is_active(
+            const ilp_solution_t&, pg::node_idx_t) const;
+        virtual bool hypernode_is_active(
+            const ilp_solution_t&, pg::node_idx_t) const;
+        virtual bool edge_is_active(
+            const ilp_solution_t&, pg::edge_idx_t) const;
+    };
+
+    compressed_weighted_converter_t(double default_obs_cost = 10.0, weight_provider_t *ptr = NULL);
+    virtual ilp::ilp_problem_t* execute() const;
+    virtual bool is_available(std::list<std::string>*) const;
+    virtual std::string repr() const;
+
+protected:
+    void add_constraints_for_edge(
+        const pg::proof_graph_t *graph, ilp::ilp_problem_t *prob,
+        pg::edge_idx_t idx) const;
+    void compute_observation_cost(
+        const pg::proof_graph_t *graph,
+        hash_map<pg::node_idx_t, double> *node2cost) const;
+    void compute_hypothesis_cost(
+        const pg::proof_graph_t *graph,
+        hash_map<pg::node_idx_t, double> *node2cost) const;
+    void assign_costs(
+        const pg::proof_graph_t *graph, ilp::ilp_problem_t *prob,
+        const hash_map<pg::node_idx_t, double> &node2cost) const;
 };
 
 

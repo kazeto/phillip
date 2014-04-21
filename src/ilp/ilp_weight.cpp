@@ -62,7 +62,7 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
     add_constraints_for_cost(graph, prob, node2costvar);
 
     prob->add_xml_decorator(
-        new weighted_solution_xml_decorator_t(node2costvar));
+        new my_xml_decorator_t(node2costvar));
     prob->add_attributes("converter", "weighted");
 
     return prob;
@@ -125,7 +125,7 @@ void weighted_converter_t::add_variables_for_hypothesis_cost(
 
         hash_set<pg::hypernode_idx_t> hns;
         for (auto it = nodes->begin(); it != nodes->end(); ++it)
-            hns.insert(graph->node(*it).get_master_hypernode());
+            hns.insert(graph->node(*it).master_hypernode());
 
         for (auto hn = hns.begin(); hn != hns.end(); ++hn)
         {
@@ -277,14 +277,14 @@ std::vector<double> weighted_converter_t::basic_weight_provider_t::operator()(
 }
 
 
-weighted_converter_t::weighted_solution_xml_decorator_t::
-weighted_solution_xml_decorator_t(
+weighted_converter_t::my_xml_decorator_t::
+my_xml_decorator_t(
 const hash_map<pg::node_idx_t, ilp::variable_idx_t> &node2costvar)
 : m_node2costvar(node2costvar)
 {}
 
 
-void weighted_converter_t::weighted_solution_xml_decorator_t::
+void weighted_converter_t::my_xml_decorator_t::
 get_literal_attributes(
 const ilp_solution_t *sol, pg::node_idx_t idx,
 hash_map<std::string, std::string> *out) const

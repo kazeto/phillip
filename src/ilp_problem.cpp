@@ -75,7 +75,7 @@ variable_idx_t
 
 
 variable_idx_t ilp_problem_t::add_variable_of_hypernode(
-    pg::hypernode_idx_t idx, double coef)
+    pg::hypernode_idx_t idx, double coef, bool do_add_constraint_for_member)
 {
     const std::vector<pg::node_idx_t> &hypernode = m_graph->hypernode(idx);
     if (hypernode.empty()) return -1;
@@ -90,8 +90,11 @@ variable_idx_t ilp_problem_t::add_variable_of_hypernode(
             if (not node.is_equality_node() and not node.is_non_equality_node())
             {
                 variable_idx_t var = find_variable_with_node(hypernode.front());
-                m_map_hypernode_to_variable[idx] = var;
-                return var;
+                if (var >= 0)
+                {
+                    m_map_hypernode_to_variable[idx] = var;
+                    return var;
+                }
             }
         }
     }
@@ -101,21 +104,24 @@ variable_idx_t ilp_problem_t::add_variable_of_hypernode(
     std::string name = format("hn(%d):n(%s)", idx, nodes.c_str());
     variable_idx_t var = add_variable(variable_t(name, coef));
 
-    /* FOR A HYPERNODE BEING TRUE, NODES IN IT MUST BE TRUE TOO.
-    * IF ALL NODES IN A HYPERNODE ARE TRUE, THE HYPERNODE MUST BE TRUE TOO. */
-    constraint_t cons(
-        format("hn_n_dependency:hn(%d):n(%s)", idx, nodes.c_str()),
-        OPR_RANGE, 0.0, 0.0);
-    for( auto n = hypernode.begin(); n != hypernode.end(); ++n )
+    if (do_add_constraint_for_member)
     {
-        variable_idx_t v = find_variable_with_node(*n);
-        if (v < 0) return -1;
-        cons.add_term(v, 1.0);
-    }
+        /* FOR A HYPERNODE BEING TRUE, NODES IN IT MUST BE TRUE TOO.
+        * IF ALL NODES IN A HYPERNODE ARE TRUE, THE HYPERNODE MUST BE TRUE TOO. */
+        constraint_t cons(
+            format("hn_n_dependency:hn(%d):n(%s)", idx, nodes.c_str()),
+            OPR_RANGE, 0.0, 0.0);
+        for (auto n = hypernode.begin(); n != hypernode.end(); ++n)
+        {
+            variable_idx_t v = find_variable_with_node(*n);
+            if (v < 0) return -1;
+            cons.add_term(v, 1.0);
+        }
 
-    cons.set_bound(0.0, 1.0 * (cons.terms().size() - 1));
-    cons.add_term(var, -1.0 * cons.terms().size());
-    add_constraint(cons);
+        cons.set_bound(0.0, 1.0 * (cons.terms().size() - 1));
+        cons.add_term(var, -1.0 * cons.terms().size());
+        add_constraint(cons);
+    }
 
     m_map_hypernode_to_variable[idx] = var;
     return var;
@@ -133,8 +139,8 @@ add_constraint_of_dependence_of_node_on_hypernode(pg::node_idx_t idx)
     hash_set<pg::hypernode_idx_t> masters;
     if (not node.is_equality_node() and not node.is_non_equality_node())
     {
-        if (node.get_master_hypernode() >= 0)
-            masters.insert(node.get_master_hypernode());
+        if (node.master_hypernode() >= 0)
+            masters.insert(node.master_hypernode());
     }
     else if (node.is_equality_node())
     {
@@ -525,24 +531,19 @@ void ilp_problem_t::print_solution(
 void ilp_problem_t::_print_literals_in_solution(
     const ilp_solution_t *sol, std::ostream *os) const
 {
-    std::list< std::pair<pg::node_idx_t, variable_idx_t> > indices;
+    std::list<pg::node_idx_t> indices;
     for (int i = 0; i < m_graph->nodes().size(); ++i)
     {
         const pg::node_t &node = m_graph->node(i);
         if (not node.is_equality_node() and not node.is_non_equality_node())
-        {
-            variable_idx_t idx = find_variable_with_node(i);
-            if (idx >= 0)
-                indices.push_back(std::make_pair(i, idx));
-        }
+            indices.push_back(i);
     }
 
     (*os) << "<literals num=\"" << indices.size() << "\">" << std::endl;
 
     for (auto it = indices.begin(); it != indices.end(); ++it)
     {
-        pg::node_idx_t n_idx = it->first;
-        variable_idx_t v_idx = it->second;
+        pg::node_idx_t n_idx = (*it);
         const pg::node_t &node = m_graph->node(n_idx);
         bool is_active = node_is_active(*sol, n_idx);
         std::string type;
