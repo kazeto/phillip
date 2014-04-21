@@ -484,7 +484,8 @@ void ilp_problem_t::print(std::ostream *os) const
               << "\">" << cons_exp << "</constraint>" << std::endl;
     }
     
-    (*os) << "</constraints>" << std::endl << "</ilp>";
+    (*os) << "</constraints>" << std::endl
+          << "</ilp>" << std::endl;
 }
 
 
@@ -746,7 +747,7 @@ void ilp_solution_t::print(std::ostream *os) const
     }
 
     (*os) << "</constraints>" << std::endl
-          << "</solution>";
+          << "</solution>" << std::endl;
 }
 
 
