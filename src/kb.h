@@ -159,6 +159,10 @@ private:
         size_t key, hash_map<size_t, hash_map<size_t, float> > &base,
         hash_map<size_t, float> *out);
 
+    void extend_inconsistency();
+    void _enumerate_deducible_literals(
+        const literal_t &target, hash_set<literal_t> *out) const;
+
     /** Returns axioms corresponding with given query.
      *  @param dat A database of cdb to seach axiom.
      *  @param tmp A map of temporal axioms related with dat. */

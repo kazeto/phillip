@@ -100,6 +100,8 @@ void knowledge_base_t::finalize()
 
     if (m_state == STATE_COMPILE)
     {
+        extend_inconsistency();
+
         _insert_cdb(m_name_to_axioms, &m_cdb_name);
         _insert_cdb(m_rhs_to_axioms, &m_cdb_rhs);
         _insert_cdb(m_lhs_to_axioms, &m_cdb_lhs);
@@ -351,13 +353,12 @@ void knowledge_base_t::_insert_cdb(
     char buffer[SIZE];
 
     /* AXIOM => BINARY-DATA */
-    size_t size = lf.write_binary( buffer );
-    size += to_binary<axiom_id_t>(
-        m_num_compiled_axioms, buffer + size);
+    size_t size = lf.write_binary(buffer);
+    size += to_binary<axiom_id_t>(m_num_compiled_axioms, buffer + size);
     size += string_to_binary(
         (name.empty() ? _get_name_of_unnamed_axiom() : name),
         buffer + size);
-    assert( size < BUFFER_SIZE );
+    assert(size < BUFFER_SIZE);
 
     /* INSERT AXIOM TO CDB.ID */
     m_cdb_id.put(&m_num_compiled_axioms, sizeof(axiom_id_t), buffer, size);
@@ -379,10 +380,10 @@ void knowledge_base_t::_insert_cdb(
     for( auto it=ids.begin(); it!=ids.end(); ++it )
     {
         size_t read_size = sizeof(size_t) + sizeof(axiom_id_t) * it->second.size();
-        assert( read_size < SIZE );
+        assert(read_size < SIZE);
 
-        int size = to_binary<size_t>( it->second.size(), buffer );
-        for( auto id=it->second.begin(); id!=it->second.end(); ++id )
+        int size = to_binary<size_t>(it->second.size(), buffer);
+        for (auto id = it->second.begin(); id != it->second.end(); ++id)
             size += to_binary<axiom_id_t>(*id, buffer + size);
 
         dat->put(it->first.c_str(), it->first.length(), buffer, size);
@@ -616,6 +617,38 @@ void knowledge_base_t::_create_reachable_matrix_indirect(
 
         current = next;
     }
+}
+
+// #define _DEV
+
+void knowledge_base_t::extend_inconsistency()
+{
+#ifdef _DEV
+    m_cdb_id.prepare_query();
+    std::ofstream fo(
+        (m_cdb_inc_pred.filename() + ".temporary").c_str(),
+        std::ios::out | std::ios::trunc | std::ios::binary);
+
+    hash_set<axiom_id_t> considered;
+
+    for (auto it = m_inc_to_axioms.begin(); it != m_inc_to_axioms.end(); ++it)
+    {
+
+
+        for (auto ax = it->second.begin(); ax != it->second.end(); ++ax)
+        {
+            lf::axiom_t axiom = get_axiom(*ax);
+            auto literals = axiom.func.get_all_literals();
+            if (literals.size() != 2) continue;
+        }
+    }
+#endif
+}
+
+
+void knowledge_base_t::_enumerate_deducible_literals(
+    const literal_t &target, hash_set<literal_t> *out) const
+{
 }
 
 

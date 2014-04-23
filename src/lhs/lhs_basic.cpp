@@ -30,7 +30,7 @@ pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
     time(&begin);
     add_observations(graph);
 
-#ifndef DISABLE_CUTTING_LHS
+#ifndef DISABLE_REACHABLE_MATRIX
     hash_map<pg::node_idx_t, reachable_map_t>
         reachability = compute_reachability_of_observations(graph);
 #endif
@@ -61,7 +61,7 @@ pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
             
             const lf::axiom_t &axiom = axioms.at(it->axiom_id);
 
-#ifndef DISABLE_CUTTING_LHS
+#ifndef DISABLE_REACHABLE_MATRIX
             std::vector<reachable_map_t> reachability_new;
             bool can_chain = compute_reachability_of_chaining(
                 graph, reachability, it->nodes, axiom, it->is_forward,
@@ -74,7 +74,7 @@ pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
                 graph->backward_chain(it->nodes, axiom);
             if (to < 0) continue;
 
-#ifndef DISABLE_CUTTING_LHS
+#ifndef DISABLE_REACHABLE_MATRIX
             // SET REACHABILITY OF NEW NODES
             const std::vector<pg::node_idx_t> hn_to = graph->hypernode(to);
             for (int i = 0; i < hn_to.size(); ++i)
