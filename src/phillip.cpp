@@ -21,6 +21,19 @@ m_clock_for_solve(0), m_clock_for_infer(0)
 {}
 
 
+phillip_main_t::~phillip_main_t()
+{
+    if (m_lhs_enumerator != NULL) delete m_lhs_enumerator;
+    if (m_ilp_convertor != NULL)  delete m_ilp_convertor;
+    if (m_ilp_solver != NULL)     delete m_ilp_solver;
+    if (m_kb != NULL) delete m_kb;
+
+    if (m_input != NULL) delete m_input;
+    if (m_lhs != NULL)   delete m_lhs;
+    if (m_ilp != NULL)   delete m_ilp;
+}
+
+
 std::ofstream* _open_file(const std::string &path, std::ios::openmode mode)
 {
     if (not path.empty())

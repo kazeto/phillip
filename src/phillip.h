@@ -32,6 +32,7 @@ class phillip_main_t
 {
 public:
     static inline phillip_main_t* get_instance();
+    ~phillip_main_t();
     
     /** Infer a explanation to given observation.
      *  You can get the results via accesser functions.
@@ -40,14 +41,18 @@ public:
     void infer(const std::vector<lf::input_t> &inputs, size_t idx);
     inline void infer(const lf::input_t &input);
     
-    inline const lhs_enumerator_t* lhs_enumerator() const; 
+    inline const lhs_enumerator_t* lhs_enumerator() const;
+    inline lhs_enumerator_t* lhs_enumerator();
     inline const ilp_converter_t*  ilp_convertor() const;
+    inline ilp_converter_t*  ilp_convertor();
     inline const ilp_solver_t*     ilp_solver() const;
+    inline ilp_solver_t*     ilp_solver();
     inline const kb::knowledge_base_t *knowledge_base() const;
+    inline kb::knowledge_base_t *knowledge_base();
 
-    inline void set_lhs_enumerator(const lhs_enumerator_t*);
-    inline void set_ilp_convertor(const ilp_converter_t*);
-    inline void set_ilp_solver(const ilp_solver_t*);
+    inline void set_lhs_enumerator(lhs_enumerator_t*);
+    inline void set_ilp_convertor(ilp_converter_t*);
+    inline void set_ilp_solver(ilp_solver_t*);
     inline void set_knowledge_base(kb::knowledge_base_t *kb);
 
     inline void set_timeout(int t);
@@ -80,6 +85,7 @@ public:
     inline const long& get_clock_for_ilp()  const;
     inline const long& get_clock_for_sol()  const;
     inline const long& get_clock_for_infer() const;
+
     inline float get_time_for_lhs()  const;
     inline float get_time_for_ilp()  const;
     inline float get_time_for_sol()  const;
@@ -98,9 +104,9 @@ private:
     static phillip_main_t *ms_instance;
     
     // ---- FUNCTION CLASS OF EACH PROCEDURE
-    const lhs_enumerator_t *m_lhs_enumerator;
-    const ilp_converter_t  *m_ilp_convertor;
-    const ilp_solver_t     *m_ilp_solver;
+    lhs_enumerator_t *m_lhs_enumerator;
+    ilp_converter_t  *m_ilp_convertor;
+    ilp_solver_t     *m_ilp_solver;
 
     kb::knowledge_base_t *m_kb;
     

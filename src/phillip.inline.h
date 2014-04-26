@@ -21,35 +21,83 @@ inline void phillip_main_t::infer(const lf::input_t &input)
 
 
 inline const lhs_enumerator_t* phillip_main_t::lhs_enumerator() const
-{ return m_lhs_enumerator; }
+{
+    return m_lhs_enumerator;
+}
+
+
+inline lhs_enumerator_t* phillip_main_t::lhs_enumerator()
+{
+    return m_lhs_enumerator;
+}
 
 
 inline const ilp_converter_t* phillip_main_t::ilp_convertor() const
-{ return m_ilp_convertor; }
+{
+    return m_ilp_convertor;
+}
+
+
+inline ilp_converter_t* phillip_main_t::ilp_convertor()
+{
+    return m_ilp_convertor;
+}
 
 
 inline const ilp_solver_t* phillip_main_t::ilp_solver() const
-{ return m_ilp_solver; }
+{
+    return m_ilp_solver;
+}
+
+
+inline ilp_solver_t* phillip_main_t::ilp_solver()
+{
+    return m_ilp_solver;
+}
 
 
 inline const kb::knowledge_base_t* phillip_main_t::knowledge_base() const
-{ return m_kb; }
+{
+    return m_kb;
+}
 
 
-inline void phillip_main_t::set_lhs_enumerator( const lhs_enumerator_t *ptr )
-{ m_lhs_enumerator = ptr; }
+inline kb::knowledge_base_t* phillip_main_t::knowledge_base()
+{
+    return m_kb;
+}
 
 
-inline void phillip_main_t::set_ilp_convertor( const ilp_converter_t *ptr )
-{ m_ilp_convertor = ptr; }
+inline void phillip_main_t::set_lhs_enumerator(lhs_enumerator_t *ptr)
+{
+    if (m_lhs_enumerator != NULL)
+        delete m_lhs_enumerator;
+    m_lhs_enumerator = ptr;
+}
 
 
-inline void phillip_main_t::set_ilp_solver( const ilp_solver_t *ptr )
-{ m_ilp_solver = ptr; }
+inline void phillip_main_t::set_ilp_convertor(ilp_converter_t *ptr)
+{
+    if (m_ilp_convertor != NULL)
+        delete m_ilp_convertor;
+    m_ilp_convertor = ptr;
+}
 
 
-inline void phillip_main_t::set_knowledge_base( kb::knowledge_base_t *kb )
-{ m_kb = kb; }
+inline void phillip_main_t::set_ilp_solver(ilp_solver_t *ptr)
+{
+    if (m_ilp_solver != NULL)
+        delete m_ilp_solver;
+    m_ilp_solver = ptr;
+}
+
+
+inline void phillip_main_t::set_knowledge_base(kb::knowledge_base_t *kb)
+{
+    if (m_kb != NULL)
+        delete m_kb;
+    m_kb = kb;
+}
 
 
 inline void phillip_main_t::set_timeout(int t)
@@ -194,8 +242,8 @@ inline bool phillip_main_t::can_infer() const
 inline void phillip_main_t::reset_for_inference()
 {
     if (m_input != NULL) delete m_input;
-    if (m_lhs != NULL) delete m_lhs;
-    if (m_ilp != NULL) delete m_ilp;
+    if (m_lhs != NULL)   delete m_lhs;
+    if (m_ilp != NULL)   delete m_ilp;
     m_input = NULL;
     m_lhs = NULL;
     m_ilp = NULL;

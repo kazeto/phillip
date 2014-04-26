@@ -143,23 +143,26 @@ protected:
 class costed_converter_t : public ilp_converter_t
 {
 public:
-    struct cost_provider_t {
+    class cost_provider_t {
+    public:
         virtual ~cost_provider_t() {}
-        virtual double operator()(
+        virtual double edge_cost(
             const pg::proof_graph_t*, pg::edge_idx_t) const = 0;
+        virtual double node_cost(
+            const pg::proof_graph_t*, pg::node_idx_t) const = 0;
     };
 
-    struct fixed_cost_provider_t : public cost_provider_t {
-        fixed_cost_provider_t(double c = 1.0) : cost(c) {}
-        virtual double operator()(
-            const pg::proof_graph_t*, pg::edge_idx_t) const;
-        double cost;
+    class basic_cost_provider_t : public cost_provider_t {
+    public:
+        basic_cost_provider_t(
+            double default_cost, double literal_unify_cost, double term_unify_cost);
+        virtual double edge_cost(const pg::proof_graph_t*, pg::edge_idx_t) const;
+        virtual double node_cost(const pg::proof_graph_t*, pg::node_idx_t) const;
+    private:
+        double m_default_axiom_cost, m_literal_unifying_cost, m_term_unifying_cost;
     };
 
-    struct basic_cost_provider_t : public cost_provider_t {
-        virtual double operator()(
-            const pg::proof_graph_t*, pg::edge_idx_t) const;
-    };
+    static cost_provider_t* parse_string_to_cost_provider(const std::string&);
 
     costed_converter_t(cost_provider_t *ptr = NULL);
     ~costed_converter_t();

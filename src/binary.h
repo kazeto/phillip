@@ -30,18 +30,12 @@ enum execution_mode_e
 struct execution_configure_t
 {
     execution_configure_t();
-    ~execution_configure_t();
     
     execution_mode_e mode;
     std::string kb_name;         /// Filename of compile_kb's output.
     std::string target_obs_name; /// Name of observation to solve.
 
-    lhs_enumerator_t *lhs;
-    ilp_converter_t  *ilp;
-    ilp_solver_t     *sol;
-    kb::knowledge_base_t *kb;
-
-    std::string lhs_key, ilp_key, sol_key;
+    std::string lhs_key, ilp_key, sol_key, dist_key;
     kb::distance_provider_type_e distance_type;
 };
 
@@ -56,7 +50,7 @@ bool parse_options(
 
 /** Preprocess about execution configure.
  *  Create instance of each component of phil according to config. */
-bool preprocess( execution_configure_t *config );
+bool preprocess(execution_configure_t *config);
 
 
 extern const std::string USAGE;

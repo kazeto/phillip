@@ -29,15 +29,16 @@ int main(int argc, char* argv[])
     /* COMPILING KNOWLEDGE-BASE */
     if (do_compile)
     {
+        kb::knowledge_base_t *kb = sys()->knowledge_base();
         proc::processor_t processor;
         print_console("Compiling knowledge-base ...");
 
-        config.kb->prepare_compile();
+        kb->prepare_compile();
 
-        processor.add_component( new proc::compile_kb_t(config.kb) );
+        processor.add_component(new proc::compile_kb_t(kb));
         processor.process(inputs);
 
-        config.kb->finalize();
+        kb->finalize();
 
         print_console("Completed to compile knowledge-base.");
     }
@@ -56,7 +57,7 @@ int main(int argc, char* argv[])
         print_console("Completed to load observations.");
         print_console_fmt("    # of observations: %d", parsed_inputs.size());
 
-        config.kb->prepare_query();
+        sys()->knowledge_base()->prepare_query();
 
         for (int i = 0; i < parsed_inputs.size(); ++i)
         {
@@ -65,6 +66,6 @@ int main(int argc, char* argv[])
             sys()->infer(parsed_inputs, i);
         }
 
-        config.kb->finalize();
+        sys()->knowledge_base()->finalize();
     }
 }

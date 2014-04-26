@@ -30,41 +30,30 @@ const std::string USAGE =
     "    -o <NAME> : Set name of the observation to solve.\n"
     "    -T <INT>  : Set timeout. [second]\n"
     "  Options in compile_kb mode:\n"
-    "    -k <NAME> : Set filename of output of compile_kb.\n"
-    "    -d <NAME> : Set the distance-provider of knowledge-base.";
+    "    -k <NAME> : Set filename of output of compile_kb.\n";
 
-char ACCEPTABLE_OPTIONS[] = "c:d:f:k:l:m:o:p:t:v:P:T:";
+char ACCEPTABLE_OPTIONS[] = "c:f:k:l:m:o:p:t:v:P:T:";
 
 
 bool _load_config_file(
     const char *filename,
-    execution_configure_t *option, std::vector<std::string> *inputs );
+    execution_configure_t *option, std::vector<std::string> *inputs);
 
 /** @return Validity of input. */
 bool _interpret_option(
     int opt, const std::string &arg,
-    execution_configure_t *option, std::vector<std::string> *inputs );
+    execution_configure_t *option, std::vector<std::string> *inputs);
 
 kb::distance_provider_type_e _get_distance_provider_type(const std::string &arg);
-lhs_enumerator_t* _new_lhs_enumerator( const std::string &key );
-ilp_converter_t* _new_ilp_converter( const std::string &key );
-ilp_solver_t* _new_ilp_solver( const std::string &key );
+lhs_enumerator_t* _new_lhs_enumerator(const std::string &key);
+ilp_converter_t* _new_ilp_converter(const std::string &key);
+ilp_solver_t* _new_ilp_solver(const std::string &key);
 
 
 
 execution_configure_t::execution_configure_t()
-    : mode(EXE_MODE_UNDERSPECIFIED), kb_name( "kb.cdb" ),
-      lhs(NULL), ilp(NULL), sol(NULL), kb(NULL)
+    : mode(EXE_MODE_UNDERSPECIFIED), kb_name("kb.cdb")
 {}
-
-
-execution_configure_t::~execution_configure_t()
-{
-    if (lhs != NULL) delete lhs;
-    if (ilp != NULL) delete ilp;
-    if (sol != NULL) delete sol;
-    if (kb  != NULL) delete kb;
-}
 
 
 /** Parse command line options.
@@ -81,7 +70,7 @@ bool parse_options(
         std::string arg((optarg == NULL) ? "" : optarg);
         int ret = _interpret_option( opt, arg, config, inputs );
         
-        if( not ret )
+        if (not ret)
         {
             print_error(
                 "Any error occured during parsing command line options:"
@@ -91,14 +80,6 @@ bool parse_options(
 
     for (int i = optind; i < argc; i++)
         inputs->push_back(normalize_path(argv[i]));
-
-    if( config->lhs != NULL ) delete config->lhs;
-    if( config->ilp != NULL ) delete config->ilp;
-    if( config->sol != NULL ) delete config->sol;
-
-    config->lhs = _new_lhs_enumerator(config->lhs_key);
-    config->ilp = _new_ilp_converter(config->ilp_key);
-    config->sol = _new_ilp_solver(config->sol_key);
 
     return true;
 }
@@ -181,20 +162,13 @@ bool _interpret_option(
                 config->sol_key = key;
                 return true;
             }
+            if (type == "dist")
+            {
+                config->dist_key = key;
+                return true;
+            }
         }
         return false;
-    }
-
-    case 'd': // ---- SET DISTANCE-PROVIDER
-    {
-        kb::distance_provider_type_e type =
-            _get_distance_provider_type(arg);
-        if (type != kb::DISTANCE_PROVIDER_UNDERSPECIFIED)
-        {
-            config->distance_type = type;
-            return true;
-        }
-        else return false;
     }
 
     case 'f':
@@ -324,7 +298,13 @@ ilp_converter_t* _new_ilp_converter( const std::string &key )
     if (key == "null") return new ilp::null_converter_t();
     if (key == "weighted") return new ilp::weighted_converter_t();
     if (key == "cmp_weighted") return new ilp::compressed_weighted_converter_t();
-    if (key == "costed")   return new ilp::costed_converter_t();
+    if (key == "costed")
+    {
+        const std::string &param = sys()->param("cost_provider");
+        ilp::costed_converter_t::cost_provider_t *ptr =
+            ilp::costed_converter_t::parse_string_to_cost_provider(param);
+        return new ilp::costed_converter_t(ptr);
+    }
     return NULL;
 }
 
@@ -339,27 +319,44 @@ ilp_solver_t* _new_ilp_solver( const std::string &key )
 }
 
 
-bool preprocess( execution_configure_t *config )
+bool preprocess(execution_configure_t *config)
 {
     if (config->mode == EXE_MODE_UNDERSPECIFIED)
     {
         print_error("Execution mode is underspecified!!");
         return false;
     }
-    
-    float max_dist = -1;
-    _sscanf(sys()->param("kb_max_distance").c_str(), "%f", &max_dist);
 
-    config->kb = new kb::knowledge_base_t(
+    if (not config->dist_key.empty())
+    {
+        kb::distance_provider_type_e type =
+            _get_distance_provider_type(config->dist_key);
+        if (type != kb::DISTANCE_PROVIDER_UNDERSPECIFIED)
+            config->distance_type = type;
+        else
+        {
+            print_warning_fmt(
+                "The key of distance-provider is invalid: %s",
+                config->dist_key.c_str());
+        }
+    }
+
+    float max_dist = sys()->param_float("kb_max_distance", -1.0);
+
+    lhs_enumerator_t *lhs = _new_lhs_enumerator(config->lhs_key);
+    ilp_converter_t *ilp = _new_ilp_converter(config->ilp_key);
+    ilp_solver_t *sol = _new_ilp_solver(config->sol_key);
+
+    kb::knowledge_base_t *kb = new kb::knowledge_base_t(
         config->kb_name, config->distance_type, max_dist);
 
     switch (config->mode)
     {
     case EXE_MODE_INFERENCE:
-        if (config->lhs) phil::sys()->set_lhs_enumerator(config->lhs);
-        if (config->ilp) phil::sys()->set_ilp_convertor(config->ilp);
-        if (config->sol) phil::sys()->set_ilp_solver(config->sol);
-        if (config->kb ) phil::sys()->set_knowledge_base(config->kb);
+        if (lhs != NULL) phil::sys()->set_lhs_enumerator(lhs);
+        if (ilp != NULL) phil::sys()->set_ilp_convertor(ilp);
+        if (sol != NULL) phil::sys()->set_ilp_solver(sol);
+        if (kb != NULL)  phil::sys()->set_knowledge_base(kb);
         return true;
     case EXE_MODE_COMPILE_KB:
         return true;
