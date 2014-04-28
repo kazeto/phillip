@@ -1,4 +1,4 @@
-#include <regex>
+//#include <regex>
 #include "./ilp_converter.h"
 
 namespace phil
@@ -11,6 +11,7 @@ namespace ilp
 costed_converter_t::cost_provider_t* costed_converter_t::
 parse_string_to_cost_provider(const std::string &str)
 {
+    /*
     if (not str.empty())
     {
         std::regex pattern(
@@ -33,6 +34,7 @@ parse_string_to_cost_provider(const std::string &str)
 
         print_error("The parameter for cost-provider is invalid: " + str);
     }
+    */
 
     return NULL;
 }
