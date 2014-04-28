@@ -44,3 +44,7 @@ clean:
 
 tar:
 	tar cvzf $(TARGET).tar.gz $(SOURCE) $(HEDDER) Makefile
+
+test:
+	bin/phil -l conf/toy.compile.conf
+	bin/phil -l conf/toy.inference.conf
