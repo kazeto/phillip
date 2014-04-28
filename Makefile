@@ -8,8 +8,7 @@ USE_LP_SOLVE = yes
 
 TARGET = ./bin/phil
 CXX = g++
-OPTS = -O2 -std=c++11 -g -DDISABLE_CUTTING_LHS
-#OPTS = -O2 -std=c++11 -g
+OPTS = -O2 -std=c++11 -g
 
 SOURCE = $(shell find src -name *.cpp)
 HEDDER = $(shell find src -name *.h)
