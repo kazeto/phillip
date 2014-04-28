@@ -36,7 +36,6 @@ struct execution_configure_t
     std::string target_obs_name; /// Name of observation to solve.
 
     std::string lhs_key, ilp_key, sol_key, dist_key;
-    kb::distance_provider_type_e distance_type;
 };
 
 
@@ -50,7 +49,7 @@ bool parse_options(
 
 /** Preprocess about execution configure.
  *  Create instance of each component of phil according to config. */
-bool preprocess(execution_configure_t *config);
+bool preprocess(const execution_configure_t &config);
 
 
 extern const std::string USAGE;

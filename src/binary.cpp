@@ -319,38 +319,39 @@ ilp_solver_t* _new_ilp_solver( const std::string &key )
 }
 
 
-bool preprocess(execution_configure_t *config)
+bool preprocess(const execution_configure_t &config)
 {
-    if (config->mode == EXE_MODE_UNDERSPECIFIED)
+    if (config.mode == EXE_MODE_UNDERSPECIFIED)
     {
         print_error("Execution mode is underspecified!!");
         return false;
     }
 
-    if (not config->dist_key.empty())
+    kb::distance_provider_type_e dist_type(kb::DISTANCE_PROVIDER_BASIC);
+    if (not config.dist_key.empty())
     {
-        kb::distance_provider_type_e type =
-            _get_distance_provider_type(config->dist_key);
-        if (type != kb::DISTANCE_PROVIDER_UNDERSPECIFIED)
-            config->distance_type = type;
+        kb::distance_provider_type_e _type =
+            _get_distance_provider_type(config.dist_key);
+        if (_type != kb::DISTANCE_PROVIDER_UNDERSPECIFIED)
+            dist_type = _type;
         else
         {
             print_warning_fmt(
                 "The key of distance-provider is invalid: %s",
-                config->dist_key.c_str());
+                config.dist_key.c_str());
         }
     }
 
     float max_dist = sys()->param_float("kb_max_distance", -1.0);
 
-    lhs_enumerator_t *lhs = _new_lhs_enumerator(config->lhs_key);
-    ilp_converter_t *ilp = _new_ilp_converter(config->ilp_key);
-    ilp_solver_t *sol = _new_ilp_solver(config->sol_key);
+    lhs_enumerator_t *lhs = _new_lhs_enumerator(config.lhs_key);
+    ilp_converter_t *ilp = _new_ilp_converter(config.ilp_key);
+    ilp_solver_t *sol = _new_ilp_solver(config.sol_key);
 
     kb::knowledge_base_t *kb = new kb::knowledge_base_t(
-        config->kb_name, config->distance_type, max_dist);
+        config.kb_name, dist_type, max_dist);
 
-    switch (config->mode)
+    switch (config.mode)
     {
     case EXE_MODE_INFERENCE:
         if (lhs != NULL) phil::sys()->set_lhs_enumerator(lhs);
@@ -359,6 +360,7 @@ bool preprocess(execution_configure_t *config)
         if (kb != NULL)  phil::sys()->set_knowledge_base(kb);
         return true;
     case EXE_MODE_COMPILE_KB:
+        if (kb != NULL)  phil::sys()->set_knowledge_base(kb);
         return true;
     default:
         return false;

@@ -20,7 +20,7 @@ int main(int argc, char* argv[])
     bin::parse_options(argc, argv, &config, &inputs);
     print_console("Phillip has completed parsing comand options.");
 
-    bin::preprocess(&config);
+    bin::preprocess(config);
 
     bool do_compile =
         (config.mode == bin::EXE_MODE_COMPILE_KB) or
