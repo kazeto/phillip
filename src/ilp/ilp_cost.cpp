@@ -1,4 +1,3 @@
-//#include <regex>
 #include "./ilp_converter.h"
 
 namespace phil
@@ -11,22 +10,18 @@ namespace ilp
 costed_converter_t::cost_provider_t* costed_converter_t::
 parse_string_to_cost_provider(const std::string &str)
 {
-    /*
     if (not str.empty())
     {
-        std::regex pattern(
-            "^basic\\(\\s*"
-            "([+-]?\\d*[\\.]?\\d+),\\s*"
-            "([+-]?\\d*[\\.]?\\d+),\\s*"
-            "([+-]?\\d*[\\.]?\\d+)\\s*"
-            "\\)\\s*$");
-        std::smatch sm;
-        if (std::regex_match(str, sm, pattern))
+        std::string pred;
+        std::vector<std::string> terms;
+        parse_string_as_function_call(str, &pred, &terms);
+
+        if (pred == "basic" and terms.size() == 3)
         {
             float def_cost, lit_unif_cost, term_unif_cost;
-            _sscanf(sm[1].str().c_str(), "%f", &def_cost);
-            _sscanf(sm[2].str().c_str(), "%f", &lit_unif_cost);
-            _sscanf(sm[3].str().c_str(), "%f", &term_unif_cost);
+            _sscanf(terms.at(0).c_str(), "%f", &def_cost);
+            _sscanf(terms.at(1).c_str(), "%f", &lit_unif_cost);
+            _sscanf(terms.at(2).c_str(), "%f", &term_unif_cost);
 
             return new basic_cost_provider_t(
                 def_cost, lit_unif_cost, term_unif_cost);
@@ -34,7 +29,6 @@ parse_string_to_cost_provider(const std::string &str)
 
         print_error("The parameter for cost-provider is invalid: " + str);
     }
-    */
 
     return NULL;
 }

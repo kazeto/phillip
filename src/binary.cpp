@@ -256,7 +256,7 @@ kb::distance_provider_type_e _get_distance_provider_type(const std::string &arg)
 {
     if (arg == "basic")
         return kb::DISTANCE_PROVIDER_BASIC;
-    if (arg == "cost_based")
+    if (arg == "cost")
         return kb::DISTANCE_PROVIDER_COST_BASED;
 
     return kb::DISTANCE_PROVIDER_UNDERSPECIFIED;
@@ -296,8 +296,15 @@ lhs_enumerator_t* _new_lhs_enumerator( const std::string &key )
 ilp_converter_t* _new_ilp_converter( const std::string &key )
 {
     if (key == "null") return new ilp::null_converter_t();
-    if (key == "weighted") return new ilp::weighted_converter_t();
-    if (key == "cmp_weighted") return new ilp::compressed_weighted_converter_t();
+    if (key == "weighted")
+    {
+        double obs = sys()->param_float("default_obs_cost", 10.0);
+        const std::string &param = sys()->param("weight_provider");
+        ilp::weighted_converter_t::weight_provider_t *ptr =
+            ilp::weighted_converter_t::parse_string_to_weight_provider(param);
+
+        return new ilp::weighted_converter_t(obs, ptr);
+    }
     if (key == "costed")
     {
         const std::string &param = sys()->param("cost_provider");

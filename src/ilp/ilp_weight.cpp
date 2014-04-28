@@ -7,6 +7,34 @@ namespace ilp
 {
 
 
+weighted_converter_t::weight_provider_t* weighted_converter_t::
+parse_string_to_weight_provider(const std::string &str)
+{
+    if (not str.empty())
+    {
+        std::string pred;
+        std::vector<std::string> terms;
+        parse_string_as_function_call(str, &pred, &terms);
+
+        if (pred == "fixed" and terms.size() == 1)
+        {
+            double weight;
+            _sscanf(terms.at(0).c_str(), "%lf", &weight);
+            return new fixed_weight_provider_t(weight);
+        }
+
+        if (pred == "basic" and terms.size() == 0)
+        {
+            return new basic_weight_provider_t();
+        }
+
+        print_error("The parameter for weight-provider is invalid: " + str);
+    }
+
+    return NULL;
+}
+
+
 weighted_converter_t::weighted_converter_t(
     double default_obs_cost, weight_provider_t *ptr)
 : m_default_observation_cost(default_obs_cost), m_weight_provider(ptr)
@@ -247,7 +275,7 @@ std::vector<double> weighted_converter_t::fixed_weight_provider_t::operator()(
 {
     const pg::edge_t &edge = graph->edge(idx);
     size_t size = graph->hypernode(edge.head()).size();
-    return std::vector<double>(size, weight / double(size));
+    return std::vector<double>(size, m_weight / double(size));
 }
 
 

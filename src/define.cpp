@@ -510,4 +510,31 @@ std::string normalize_path(const std::string &target)
 }
 
 
+bool parse_string_as_function_call(
+    const std::string &str, std::string *pred, std::vector<std::string> *terms)
+{
+    if (not str.empty())
+    {
+        int br_begin = str.find('(');
+        int br_end = str.find(')');
+
+        if (br_begin < 0 and br_end < 0)
+        {
+            *pred = str;
+            return true;
+        }
+        else if (br_begin > 0 and br_end > br_begin)
+        {
+            *pred = str.substr(0, br_begin);
+            *terms = split(str.substr(br_begin + 1, br_end - br_begin - 1), ",");
+            for (auto it = terms->begin(); it != terms->end(); ++it)
+                (*it) = strip(*it, " ");
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
 } // end phil

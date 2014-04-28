@@ -24,20 +24,24 @@ public:
 class weighted_converter_t : public ilp_converter_t
 {
 public:
-    struct weight_provider_t {
+    class weight_provider_t {
+    public:
         virtual ~weight_provider_t() {}
         virtual std::vector<double> operator()(
             const pg::proof_graph_t*, pg::edge_idx_t) const = 0;
     };
 
-    struct fixed_weight_provider_t : public weight_provider_t {
-        fixed_weight_provider_t(double w = 1.2) : weight(w) {}
+    class fixed_weight_provider_t : public weight_provider_t {
+    public:
+        fixed_weight_provider_t(double w) : m_weight(w) {}
         virtual std::vector<double> operator()(
             const pg::proof_graph_t*, pg::edge_idx_t) const;
-        double weight;
+    private:
+        double m_weight;
     };
 
-    struct basic_weight_provider_t : public weight_provider_t {
+    class basic_weight_provider_t : public weight_provider_t {
+    public:
         virtual std::vector<double> operator()(
             const pg::proof_graph_t*, pg::edge_idx_t) const;
     };
@@ -58,10 +62,13 @@ public:
         hash_map<pg::node_idx_t, ilp::variable_idx_t> m_node2costvar;
     };
 
+    static weight_provider_t* parse_string_to_weight_provider(const std::string &str);
+
     weighted_converter_t(
         double default_obs_cost = 10.0,
         weight_provider_t *ptr = NULL);
     ~weighted_converter_t();
+
     virtual ilp::ilp_problem_t* execute() const;
     virtual bool is_available(std::list<std::string>*) const;
     virtual std::string repr() const;
@@ -86,56 +93,6 @@ protected:
 
     double m_default_observation_cost;
     weight_provider_t *m_weight_provider;
-};
-
-
-/** A class of ilp-converter for a weight-based evaluation function. */
-class compressed_weighted_converter_t : public weighted_converter_t
-{
-public:
-    class my_xml_decorator_t : public ilp::solution_xml_decorator_t
-    {
-    public:
-        my_xml_decorator_t(const hash_map<pg::node_idx_t, double> &node2cost);
-        virtual void get_literal_attributes(
-            const ilp_solution_t *sol, pg::node_idx_t idx,
-            hash_map<std::string, std::string> *out) const;
-        virtual void get_edge_attributes(
-            const ilp_solution_t *sol, pg::edge_idx_t idx,
-            hash_map<std::string, std::string> *out) const {}
-    private:
-        hash_map<pg::node_idx_t, double> m_node2cost;
-    };
-
-    class my_solution_interpreter_t : public solution_interpreter_t
-    {
-    public:
-        virtual bool node_is_active(
-            const ilp_solution_t&, pg::node_idx_t) const;
-        virtual bool hypernode_is_active(
-            const ilp_solution_t&, pg::node_idx_t) const;
-        virtual bool edge_is_active(
-            const ilp_solution_t&, pg::edge_idx_t) const;
-    };
-
-    compressed_weighted_converter_t(double default_obs_cost = 10.0, weight_provider_t *ptr = NULL);
-    virtual ilp::ilp_problem_t* execute() const;
-    virtual bool is_available(std::list<std::string>*) const;
-    virtual std::string repr() const;
-
-protected:
-    void add_constraints_for_edge(
-        const pg::proof_graph_t *graph, ilp::ilp_problem_t *prob,
-        pg::edge_idx_t idx) const;
-    void compute_observation_cost(
-        const pg::proof_graph_t *graph,
-        hash_map<pg::node_idx_t, double> *node2cost) const;
-    void compute_hypothesis_cost(
-        const pg::proof_graph_t *graph,
-        hash_map<pg::node_idx_t, double> *node2cost) const;
-    void assign_costs(
-        const pg::proof_graph_t *graph, ilp::ilp_problem_t *prob,
-        const hash_map<pg::node_idx_t, double> &node2cost) const;
 };
 
 

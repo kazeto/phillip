@@ -93,7 +93,6 @@
     <ClCompile Include="..\src\ilp\ilp_cost.cpp" />
     <ClCompile Include="..\src\ilp\ilp_null.cpp" />
     <ClCompile Include="..\src\ilp\ilp_weight.cpp" />
-    <ClCompile Include="..\src\ilp\ilp_weight_cmp.cpp" />
     <ClCompile Include="..\src\ilp_problem.cpp" />
     <ClCompile Include="..\src\interface.cpp" />
     <ClCompile Include="..\src\kb.cpp" />
