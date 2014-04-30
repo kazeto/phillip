@@ -1,3 +1,5 @@
+[Mm]akefile
+
 ; DATA
 data/*
 !data/toy.obs.lisp
