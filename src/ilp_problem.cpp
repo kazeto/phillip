@@ -736,7 +736,7 @@ void ilp_solution_t::print(std::ostream *os) const
     }
 
     (*os) << "</variables>" << std::endl
-          << "<constarints num=\"" << m_ilp->constraints().size()
+          << "<constraints num=\"" << m_ilp->constraints().size()
           << "\">" << std::endl;
 
     for( int i=0; i<m_ilp->constraints().size(); i++ )

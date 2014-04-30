@@ -14,25 +14,22 @@ void lp_solve_t::execute(
     std::vector<ilp::ilp_solution_t> *out ) const
 {
 #ifdef USE_LP_SOLVE
+    /* CURRENTLY, CUTTING-PLANE-INFERENCE ON LP-SOLVE IS PROHIBITED. */
+    bool do_cpi = false;
+    
     const ilp::ilp_problem_t *prob = sys()->get_ilp_problem();
     std::vector<double> vars(prob->variables().size(), 0);
     ::lprec *rec(NULL);
-    hash_set<ilp::constraint_idx_t>
-        lazy_cons(prob->get_lazy_constraints());
-    bool disable_cutting_plane(sys()->flag("disable_cutting_plane"));
-    bool do_cutting_plane(not lazy_cons.empty() and not disable_cutting_plane);
-    
-    initialize(prob, &rec);
+    hash_set<ilp::constraint_idx_t> lazy_cons = do_cpi ?
+        prob->get_lazy_constraints() : hash_set<ilp::constraint_idx_t>();
+
+    initialize(prob, &rec, do_cpi);
     
     size_t num_loop(0);
     while (true)
     {
-        if (do_cutting_plane)
-        {
-            std::cerr
-                << time_stamp() << "begin: cutting-plane loop #"
-                << (num_loop++) << std::endl;
-        }
+        if (do_cpi)
+            print_console_fmt("begin: cutting-plane loop #", (num_loop++));
 
         int ret = ::solve(rec);
         ilp::ilp_solution_t *sol = NULL;
@@ -45,7 +42,7 @@ void lp_solve_t::execute(
                 ilp::SOLUTION_OPTIMAL : ilp::SOLUTION_SUB_OPTIMAL;
             sol = new ilp::ilp_solution_t(prob, type, vars);
 
-            if (not lazy_cons.empty() and not disable_cutting_plane)
+            if (not lazy_cons.empty() and do_cpi)
             {
                 hash_set<ilp::constraint_idx_t> filtered;
                 sol->filter_unsatisfied_constraints(&lazy_cons, &filtered);
@@ -98,15 +95,15 @@ std::string lp_solve_t::repr() const
 
 #ifdef USE_LP_SOLVE
 
-void lp_solve_t::initialize(const ilp::ilp_problem_t *prob, ::lprec **rec) const
+void lp_solve_t::initialize(
+    const ilp::ilp_problem_t *prob, ::lprec **rec, bool do_cpi) const
 {
     const std::vector<ilp::variable_t> &variables = prob->variables();
     const std::vector<ilp::constraint_t> &constraints = prob->constraints();
     const hash_set<ilp::constraint_idx_t>
         &lazy_cons = prob->get_lazy_constraints();
-    bool disable_cutting_plane(sys()->flag("disable_cutting_plane"));
 
-    // SET OBJECTIVE FUNCTIONS
+    // SETS OBJECTIVE FUNCTIONS.
     std::vector<double> vars(variables.size() + 1, 0);
     for (size_t i = 0; i < variables.size(); ++i)
         vars[i+1] = variables.at(i).objective_coefficient();
@@ -118,21 +115,20 @@ void lp_solve_t::initialize(const ilp::ilp_problem_t *prob, ::lprec **rec) const
     if (sys()->timeout() > 0)
         ::set_timeout(*rec, sys()->timeout());
 
-    // SET ALL VARIABLES TO INTEGER
+    // SETS ALL VARIABLES TO INTEGER.
     for (size_t i = 0; i < variables.size(); ++i)
     {
         ::set_int(*rec, i + 1, true);
         ::set_upbo(*rec, i + 1, 1.0);
     }
 
-    // ADD NOT LAZY CONSTRAINTS
+    // ADDS CONSTRAINTS.
+    // IF DOES CUTTING-PLANE-INFERENCE, LAZY CONSTRAINTS ARE NOT ADDED.
     for (size_t i = 0; i < constraints.size(); ++i)
-    {
-        if (lazy_cons.count(i) == 0 or disable_cutting_plane)
-            add_constraint(prob, i, rec);
-    }
+    if (lazy_cons.count(i) == 0 or not do_cpi)
+        add_constraint(prob, i, rec);
 
-    // ADD CONSTRAINTS FOR CONSTS
+    // ADDS CONSTRAINTS FOR CONSTANTS.
     const hash_map<ilp::variable_idx_t, double>
         &consts = prob->const_variable_values();
     for (auto it = consts.begin(); it != consts.end(); ++it)

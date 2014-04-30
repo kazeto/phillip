@@ -64,7 +64,8 @@ public:
 
 #ifdef USE_LP_SOLVE
 private:
-    void initialize(const ilp::ilp_problem_t *prob, ::lprec **rec) const;
+    void initialize(
+        const ilp::ilp_problem_t *prob, ::lprec **rec, bool do_cpi) const;
     void add_constraint(
         const ilp::ilp_problem_t *prob, ilp::constraint_idx_t idx,
         ::lprec **rec) const;

@@ -24,12 +24,12 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
     hash_map<ilp::variable_idx_t, GRBVar> vars;
     hash_set<ilp::constraint_idx_t>
         lazy_cons(prob->get_lazy_constraints());
-    bool disable_cutting_plane(sys()->flag("disable_cutting_plane"));
-    bool do_cutting_plane(not lazy_cons.empty() and not disable_cutting_plane);
+    bool do_cpi(not lazy_cons.empty() and not sys()->flag("disable_cpi"));
     
     add_variables(&model, &vars);
+    
     for (int i = 0; i < prob->constraints().size(); ++i)
-    if (lazy_cons.count(i) == 0)
+    if (lazy_cons.count(i) == 0 or not do_cpi)
         add_constraint(&model, i, vars);
 
     GRBEXECUTE(
@@ -43,9 +43,9 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
     size_t num_loop(0);
     while (true)
     {
-        if (do_cutting_plane)
-            print_console_fmt("begin: cutting-plane loop #%d", (num_loop++));
-        
+        if (do_cpi)
+            print_console_fmt("begin: Cutting-Plane-Inference #%d", (num_loop++));
+
         GRBEXECUTE(model.optimize());
 
         if (model.get(GRB_IntAttr_SolCount) == 0)
@@ -61,7 +61,7 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
             ilp::ilp_solution_t sol = convert(&model, vars);
             bool do_break(false);
 
-            if (not lazy_cons.empty() and not disable_cutting_plane)
+            if (not lazy_cons.empty() and do_cpi)
             {
                 hash_set<ilp::constraint_idx_t> filtered;
                 sol.filter_unsatisfied_constraints(&lazy_cons, &filtered);
@@ -155,7 +155,7 @@ void gurobi_t::add_constraint(
             model->addConstr(expr, GRB_GREATER_EQUAL, c.lower_bound(), name);
             break;
         case ilp::OPR_RANGE:
-            model->addConstr(expr, c.lower_bound(), c.upper_bound(), name);
+            model->addRange(expr, c.lower_bound(), c.upper_bound(), name);
             break;
         });
 }
@@ -165,10 +165,14 @@ ilp::ilp_solution_t gurobi_t::convert(
     GRBModel *model, const hash_map<ilp::variable_idx_t, GRBVar> &vars) const
 {
     const ilp::ilp_problem_t *prob = sys()->get_ilp_problem();
-    std::vector<double> values(0, prob->variables().size());
+    std::vector<double> values(prob->variables().size(), 0);
 
     GRBVar *p_vars = model->getVars();
     double *p_values = model->get(GRB_DoubleAttr_X, p_vars, values.size());
+
+    print_console_fmt("size = %d", values.size());
+    print_console_fmt("%08x", p_vars);
+    print_console_fmt("%08x", p_values);
     
     for (int i = 0; i < prob->variables().size(); ++i)
         values[i] = p_values[i];
