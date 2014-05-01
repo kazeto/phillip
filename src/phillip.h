@@ -31,7 +31,7 @@ class ilp_solver_t;
 class phillip_main_t
 {
 public:
-    static inline phillip_main_t* get_instance();
+    static phillip_main_t* get_instance();
     ~phillip_main_t();
     
     /** Infer a explanation to given observation.

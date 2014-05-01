@@ -12,7 +12,14 @@ namespace phil
 phillip_main_t *phillip_main_t::ms_instance = NULL;
 
 
-inline phillip_main_t::phillip_main_t()
+phillip_main_t *phillip_main_t::get_instance()
+{
+    static phillip_main_t singleton;
+    return &singleton;
+}
+
+
+phillip_main_t::phillip_main_t()
 : m_lhs_enumerator(NULL), m_ilp_convertor(NULL), m_ilp_solver(NULL),
 m_kb(NULL), m_input(NULL), m_lhs(NULL), m_ilp(NULL),
 m_timeout(-1), m_verboseness(0), m_is_debugging(false),
