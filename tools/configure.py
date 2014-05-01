@@ -47,13 +47,12 @@ def main():
     if ask_yes_no('USE-LP-SOLVE'):
         write(['# USE-LP-SOLVE',
                'OPTS += -DUSE_LP_SOLVE',
-               'IDFLAGS += -I$(LPSOLVE_HOME)',
-               'LDFLAGS += -L$(LPSOLVE_HOME) -llpsolve55'])
+               'LDFLAGS += -llpsolve55'])
         
     if ask_yes_no('USE-GUROBI'):
-        write(['OPTS += -DUSE_GUROBI',
-               'IDFLAGS += -I$(GUROBI_HOME)/include',
-               'LDFLAGS += -L$(GUROBI_HOME)/lib -lgurobi_c++ -lgurobi56 -lpthread'])
+        write(['# USE-GUROBI',
+               'OPTS += -DUSE_GUROBI',
+               'LDFLAGS += -lgurobi_c++ -lgurobi56 -lpthread'])
 
     if _disable_rm or _disable_cut_lhs:
         disp = ['# FOR DEBUG']
