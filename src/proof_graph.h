@@ -161,48 +161,46 @@ private:
 };
 
 
-/** A class to handle unifications of terms.
+/** A class to express unifications of terms.
  *  This class assumes that each unification is one-to-one.
- *  Namely, (x = y) and (x = z) at same time is invalid. */
+ *  Therefore, for example,
+ *  a unifier which has both of (= x y) and (= x z) is invalid. */
 class unifier_t
 {
 public:
     inline unifier_t() {};
-
-    /** @param x,y Terms unified. */
     inline unifier_t(const term_t& x, const term_t& y);
+
+    bool operator==(const unifier_t &x) const;
+
+    /** Substitute variables in the given literal.
+    *  e.g. (= x y) & p(y) --apply--> p(x) */
+    void operator()(literal_t *p_out_lit) const;
 
     inline void clear();
 
-    /** @return The term which is unified with x. */
-    inline const term_t& map(const term_t &x) const;
-
-    inline const std::vector<literal_t>& substitutions() const;
-
-    /** Substitute variables in the given literal.
-     *  e.g. (x = y) & p(x) --apply--> p(y) */
-    inline void apply(literal_t *p_out_lit) const;
-
     /** Add pair of term which are unified. */
-    inline void add(const term_t &x, const term_t &y);
-    inline void add(const term_t &x, const std::string &var);
+    inline void add(term_t x, term_t y);
+
+    inline const std::set<literal_t>& substitutions() const;
+
+    /** Returns the term which x is substituted to.
+     *  If not found, returns NULL. */
+    inline const term_t* find_substitution_term(const term_t &x) const;
 
     /** Returns whether this instance does not have any term. */
     inline bool empty() const;
 
-    /** Returns whether x corresponds with substituted variable by this. */
-    inline bool has_applied(const term_t &x) const;
+    bool do_contain(const unifier_t &x) const;
 
     std::string to_string() const;
 
 private:
     /** The list of unification-assumptions. */
-    std::vector<literal_t> m_substitutions;
+    std::set<literal_t> m_substitutions;
 
-    /** Map from a term to the index of substitution which includes it. */
-    hash_map<term_t, index_t> m_shortcuts;
-
-    /** Map from a term to the term unified with it. */
+    /** Map from the term before substitution
+     *  to the term after substitution. */
     hash_map<term_t, term_t> m_mapping;
 };
 
@@ -391,9 +389,6 @@ public:
     bool check_availability_of_chain(
         pg::edge_idx_t idx, hash_set<node_idx_t> *out) const;
 
-    /** Returns whether given nodes can coexist. */
-    bool can_let_nodes_coexist(node_idx_t n1, node_idx_t n2) const;
-
     std::string edge_to_string(edge_idx_t i) const;
         
     /** Whether the hypernode of hn includes only sub-nodes. */
@@ -560,6 +555,14 @@ protected:
      *  Return indices of node which is unifiable with target.
      *  Node pairs which has been considered once are ignored. */
     std::list<node_idx_t> _enumerate_unifiable_nodes(node_idx_t target);
+
+    /** This is a sub-routine of
+     *  _omit_invalid_chaining_candidates_with_coexistence
+     *  and _enumerate_unifiable_nodes.
+     *  @param uni The pointer of unifier between n1 and n2.
+     *  @return Whether given nodes can coexist. */
+    bool _check_nodes_coexistency(
+        node_idx_t n1, node_idx_t n2, const unifier_t *uni = NULL) const;
 
     /** This is sub-routine of generate_unification_assumptions.
      *  Add a node and an edge for unification between node[i] & node[j].

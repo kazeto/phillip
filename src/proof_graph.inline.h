@@ -99,59 +99,33 @@ inline unifier_t::unifier_t( const term_t &x, const term_t &y )
 { add(x, y); }
 
 
-inline const term_t& unifier_t::map(const term_t &x) const
+inline const term_t* unifier_t::find_substitution_term(const term_t &x) const
 {
-    static const term_t s_empty("");
-    hash_map<term_t, term_t>::const_iterator it( m_mapping.find(x) );
-    return ( it == m_mapping.end() ) ? s_empty : it->second;
+    auto found = m_mapping.find(x);
+    return (found != m_mapping.end()) ? &(found->second) : NULL;
 }
 
 
-inline const std::vector<literal_t>& unifier_t::substitutions() const
-{ return m_substitutions; }
-
-
-inline void unifier_t::apply( literal_t *p_out_lit ) const
+inline const std::set<literal_t>& unifier_t::substitutions() const
 {
-    for( size_t i=0; i<p_out_lit->terms.size(); i++ )
-    {
-        term_t &term = p_out_lit->terms[i];
-        hash_map<term_t, index_t>::const_iterator
-            iter_sc = m_shortcuts.find( term );
-
-        if( iter_sc == m_shortcuts.end() ) continue;
-      
-        if( term == m_substitutions.at(iter_sc->second).terms[0] )
-            term = m_substitutions.at(iter_sc->second).terms[1];
-    }
+    return m_substitutions;
 }
 
 
-inline bool unifier_t::has_applied( const term_t &x ) const
-{ return m_shortcuts.find(x) != m_shortcuts.end(); }
-
-
-inline void unifier_t::add( const term_t &x, const term_t &y )
+inline void unifier_t::add(term_t x, term_t y)
 {
-    if( has_applied(x) ) return;
-    
-    m_substitutions.push_back( literal_t( "=", x, y ) );
-    m_shortcuts[x] = m_substitutions.size()-1;
-    m_mapping[x]   = y;
-}
+    if (x == y) return;
+    if (x < y) std::swap(x, y);
 
-
-inline void unifier_t::add(const term_t &x, const std::string &var)
-{
-    term_t y(var);
-    add(x, y);
+    literal_t added("=", x, y);
+    m_substitutions.insert(added);
+    m_mapping[x] = y;
 }
 
 
 inline void unifier_t::clear()
 {
     m_substitutions.clear();
-    m_shortcuts.clear();
     m_mapping.clear();
 }
 

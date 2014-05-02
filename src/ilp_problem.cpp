@@ -224,7 +224,7 @@ constraint_idx_t ilp_problem_t::add_constraint_of_mutual_exclusion(
     con.add_term(var2, 1.0);
 
     bool f_fails = false;
-    const std::vector<literal_t> &subs = uni.substitutions();
+    const std::set<literal_t> &subs = uni.substitutions();
 
     for (auto sub = subs.begin(); sub != subs.end(); ++sub)
     {

@@ -16,17 +16,65 @@ namespace pg
 {
 
 
+bool unifier_t::operator==(const unifier_t &x) const
+{
+    const hash_map<term_t, term_t> &map1(m_mapping), &map2(x.m_mapping);
+    if (map1.size() != map2.size()) return false;
+
+    for (auto it = map1.begin(); it != map1.end(); ++it)
+    {
+        auto found = map2.find(it->first);
+        if (found == map2.end())
+            return false;
+        if (found->second != it->second)
+            return false;
+    }
+
+    return true;
+}
+
+
+void unifier_t::operator()(literal_t *p_out_lit) const
+{
+    for (size_t i = 0; i < p_out_lit->terms.size(); i++)
+    {
+        term_t &term = p_out_lit->terms[i];
+        auto found = m_mapping.find(term);
+
+        if (found != m_mapping.end())
+            term = found->second;
+    }
+}
+
+
+bool unifier_t::do_contain(const unifier_t &x) const
+{
+    const hash_map<term_t, term_t> &map1(m_mapping), &map2(x.m_mapping);
+    if (map1.size() < map2.size()) return false;
+
+    for (auto it = map2.begin(); it != map2.end(); ++it)
+    {
+        auto found = map1.find(it->first);
+        if (found == map1.end())
+            return false;
+        if (found->second != it->second)
+            return false;
+    }
+
+    return true;
+}
+
+
 std::string unifier_t::to_string() const
 {
     std::string exp;
-    for (size_t i = 0; i < m_substitutions.size(); i++)
+    for (auto sub = m_substitutions.begin(); sub != m_substitutions.end(); ++sub)
     {
-        const literal_t &sub = m_substitutions.at(i);
-
-        if (sub.terms.at(0) == sub.terms.at(1)) continue;
-        if (not exp.empty()) exp += ", ";
-
-        exp += sub.terms.at(0).string() + "/" + sub.terms.at(1).string();
+        if (sub->terms.at(0) != sub->terms.at(1))
+        {
+            if (not exp.empty()) exp += ", ";
+            exp += sub->terms.at(0).string() + "/" + sub->terms.at(1).string();
+        }
     }
     return "{" + exp + "}";
 }
@@ -305,7 +353,8 @@ bool proof_graph_t::check_availability_of_chain(
 }
 
 
-bool proof_graph_t::can_let_nodes_coexist(node_idx_t n1, node_idx_t n2) const
+bool proof_graph_t::_check_nodes_coexistency(
+    node_idx_t n1, node_idx_t n2, const unifier_t *uni) const
 {
     hash_set<edge_idx_t>
         e1(enumerate_dependent_edges(n1)),
@@ -335,16 +384,23 @@ bool proof_graph_t::can_let_nodes_coexist(node_idx_t n1, node_idx_t n2) const
 
     for (auto it = ns1.begin(); it != ns1.end(); ++it)
     {
-        // A EDGE SHARED BY ns1 and ns2 IS SKIPPED.
+        // A NODE SHARED BY ns1 and ns2 IS SKIPPED.
         if (ns2.count(*it) > 0) continue;
 
         for (auto it2 = ns2.begin(); it2 != ns2.end(); ++it2)
         {
-            const unifier_t *uni =
+            const unifier_t *_uni =
                 search_mutual_exclusion_of_node(*it, *it2);
-            if (uni != NULL)
-            if (uni->empty())
-                return false;
+            if (_uni != NULL)
+            {
+                if (_uni->empty()) return false;
+
+                // IF uni IS GIVEN, CHECKS UNIFIABILITY BETWEEN n1 AND n2.
+                // THIS METHOD RETURNS FALSE IF THE UNIFICATION BETWEEN n1 AND n2
+                // VIOLATES ANY MUTUAL-EXCLUSION.
+                if (uni != NULL)
+                if (uni->do_contain(*_uni)) return false;
+            }
         }
     }
 
@@ -580,7 +636,7 @@ void proof_graph_t::_omit_invalid_chaining_candidates_with_coexistance(
                 }
             }
 
-            bool can_coexist = can_let_nodes_coexist(*n1, *n2);
+            bool can_coexist = _check_nodes_coexistency(*n1, *n2);
             log[*n1][*n2] = log[*n2][*n1] = can_coexist;
             is_valid = can_coexist;
         }
@@ -1402,7 +1458,7 @@ std::list<node_idx_t>
 #ifndef DISABLE_CUTTING_LHS
         // FILTERING WITH CO-EXISTENCY OF UNIFIED NODES
         if (unifiable)
-            unifiable = can_let_nodes_coexist(n1, n2);
+            unifiable = _check_nodes_coexistency(n1, n2, &unifier);
 #endif
 
         if (unifiable and can_unify_nodes(n1, n2))
@@ -1430,8 +1486,8 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
         _enumerate_evidences_for_chain(unified_nodes);
 
     /* CREATE UNIFICATION-NODES & UPDATE VARIABLES. */
-    for (auto sub = uni.substitutions().begin();
-        sub != uni.substitutions().end(); ++sub)
+    const std::set<literal_t> &subs = uni.substitutions();
+    for (auto sub = subs.begin(); sub != subs.end(); ++sub)
     {
         term_t t1(sub->terms[0]), t2(sub->terms[1]);
         if (t1 == t2) continue;
