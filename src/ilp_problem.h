@@ -91,17 +91,17 @@ public:
     inline double lower_bound() const;
     inline double upper_bound() const;
 
-    inline void set_bound( double lower, double upper );
-    inline void set_bound( double target );
+    inline void set_bound(double lower, double upper);
+    inline void set_bound(double target);
     
     void print(
         std::string *p_out,
         const std::vector<variable_t> &var_instances) const;
 
-    inline std::string to_string( const std::vector<variable_t> &vars ) const;
+    inline std::string to_string(const std::vector<variable_t> &vars) const;
     
 private:    
-    inline bool _is_satisfied( double sol ) const;
+    inline bool _is_satisfied(double sol) const;
     
     std::string m_name;
     constraint_operator_e m_operator;

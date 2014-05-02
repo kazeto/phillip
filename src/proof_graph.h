@@ -280,6 +280,11 @@ public:
 
     std::list<hash_set<edge_idx_t> > enumerate_mutual_exclusive_edges() const;
 
+    /** Return pointer of unifier for mutual-exclusiveness between given nodes.
+     *  If not found, return NULL. */
+    inline const unifier_t* search_mutual_exclusion_of_node(
+        node_idx_t n1, node_idx_t n2) const;
+
     /** Return pointer of set of nodes whose literal has given term.
      *  If any node was found, return NULL. */
     inline const hash_set<node_idx_t>* search_nodes_with_term(term_t term) const;
@@ -386,7 +391,7 @@ public:
     bool check_availability_of_chain(
         pg::edge_idx_t idx, hash_set<node_idx_t> *out) const;
 
-    /** Returns whether given nodes can coexist in some hypothesis. */
+    /** Returns whether given nodes can coexist. */
     bool can_let_nodes_coexist(node_idx_t n1, node_idx_t n2) const;
 
     std::string edge_to_string(edge_idx_t i) const;

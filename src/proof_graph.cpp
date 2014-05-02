@@ -314,15 +314,38 @@ bool proof_graph_t::can_let_nodes_coexist(node_idx_t n1, node_idx_t n2) const
 
     for (auto it = e1.begin(); it != e1.end(); ++it)
     {
+        // A EDGE SHARED BY e1 AND e2 IS SKIPPED.
         if (e2.count(*it) > 0) continue;
 
-        auto find = m_mutual_exclusive_edges.find(*it);
-        if (find == m_mutual_exclusive_edges.end()) continue;
+        auto found = m_mutual_exclusive_edges.find(*it);
+        if (found == m_mutual_exclusive_edges.end()) continue;
 
-        const hash_set<edge_idx_t> &muexs(find->second);
+        auto muex_edges = found->second;
         if (has_intersection<hash_set<edge_idx_t>::const_iterator>(
-                muexs.begin(), muexs.end(), e2.begin(), e2.end()))
+            muex_edges.begin(), muex_edges.end(), e2.begin(), e2.end()))
             return false;
+    }
+
+    hash_set<node_idx_t> ns1, ns2;
+    enumerate_dependent_nodes(n1, &ns1);
+    enumerate_dependent_nodes(n2, &ns2);
+    ns1.insert(n1);
+    ns2.insert(n2);
+    if (ns1.size() > ns2.size()) std::swap(ns1, ns2);
+
+    for (auto it = ns1.begin(); it != ns1.end(); ++it)
+    {
+        // A EDGE SHARED BY ns1 and ns2 IS SKIPPED.
+        if (ns2.count(*it) > 0) continue;
+
+        for (auto it2 = ns2.begin(); it2 != ns2.end(); ++it2)
+        {
+            const unifier_t *uni =
+                search_mutual_exclusion_of_node(*it, *it2);
+            if (uni != NULL)
+            if (uni->empty())
+                return false;
+        }
     }
 
     return true;
@@ -539,10 +562,12 @@ void proof_graph_t::_omit_invalid_chaining_candidates_with_coexistance(
     for (auto it = cands->begin(); it != cands->end();)
     {
         bool is_valid(true);
-        const std::vector<node_idx_t> &_nodes = it->nodes;
+        const std::vector<node_idx_t> &ns = it->nodes;
 
-        for (auto n1 = it->nodes.begin(); n1 != it->nodes.end() and is_valid; ++n1)
-        for (auto n2 = it->nodes.begin(); n2 != n1 and is_valid; ++n2)
+        // IF ANY PAIR OF NODES IN EVIDENCE CANNOT CO-EXIST,
+        // THE CHAIN FROM THEM IS INVALID.
+        for (auto n1 = ns.begin(); n1 != ns.end() and is_valid; ++n1)
+        for (auto n2 = ns.begin(); n2 != n1 and is_valid; ++n2)
         {
             auto find1 = log.find(*n1);
             if (find1 != log.end())
@@ -1274,8 +1299,10 @@ void proof_graph_t::_generate_mutual_exclusions(
             m_maps.node_to_inconsistency[target].insert(axiom_id);
             m_maps.node_to_inconsistency[idx2].insert(axiom_id);
         }
-        bool do_swap(target >= idx2);
-        node_idx_t n1(do_swap ? idx2 : target), n2(do_swap ? target : idx2);
+
+        node_idx_t
+            n1((target >= idx2) ? idx2 : target),
+            n2((target >= idx2) ? target : idx2);
         m_mutual_exclusive_nodes[n1][n2] = uni;
     }
 
@@ -1319,7 +1346,7 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_inconsistent_nodes(
                 {
                     const term_t &term1 = target.terms.at(t1);
                     const term_t &term2 = target2.terms.at(t2);
-                    uni.add(term1, term2);
+                    if (term1 != term2) uni.add(term1, term2);
                 }
             }
 
@@ -1331,7 +1358,8 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_inconsistent_nodes(
 
 void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
 {
-    if (node(target).is_equality_node() or node(target).is_non_equality_node())
+    if (node(target).is_equality_node() or
+        node(target).is_non_equality_node())
         return;
 
     std::list<node_idx_t> unifiables = _enumerate_unifiable_nodes(target);

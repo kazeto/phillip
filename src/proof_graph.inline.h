@@ -254,6 +254,20 @@ proof_graph_t::hypernode( hypernode_idx_t i ) const
 { return m_hypernodes.at(i); }
 
 
+inline const unifier_t* proof_graph_t::search_mutual_exclusion_of_node(
+    node_idx_t n1, node_idx_t n2) const
+{
+    if (n1 > n2) std::swap(n1, n2);
+    auto found1 = m_mutual_exclusive_nodes.find(n1);
+    if (found1 == m_mutual_exclusive_nodes.end()) return NULL;
+
+    auto found2 = found1->second.find(n2);
+    if (found2 == found1->second.end()) return NULL;
+
+    return &found2->second;
+}
+
+
 inline const hash_set<node_idx_t>*
 proof_graph_t::search_nodes_with_term( term_t term ) const
 {
