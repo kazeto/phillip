@@ -72,10 +72,13 @@
     <ClCompile Include="..\src\ilp\ilp_weight.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\lhs\lhs_basic.cpp">
+    <ClCompile Include="..\src\ilp\ilp_cost.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ilp\ilp_cost.cpp">
+    <ClCompile Include="..\src\lhs\lhs_a_star.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\lhs\lhs_depth.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>

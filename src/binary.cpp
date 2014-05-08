@@ -263,32 +263,32 @@ kb::distance_provider_type_e _get_distance_provider_type(const std::string &arg)
 }
 
 
-lhs_enumerator_t* _new_lhs_enumerator( const std::string &key )
+lhs_enumerator_t* _new_lhs_enumerator(const std::string &key)
 {
-    if (key == "bidirection")
-    {
-        return new lhs::basic_lhs_enumerator_t(
-            true, true,
-            sys()->param_int("max_depth"),
-            sys()->param_float("max_distance"),
-            sys()->param_float("max_redundancy"));
-    }
-    if (key == "abduction")
-    {
-        return new lhs::basic_lhs_enumerator_t(
-            false, true,
-            sys()->param_int("max_depth"),
-            sys()->param_float("max_distance"),
-            sys()->param_float("max_redundancy"));
-    }
-    if (key == "deduction")
-    {
-        return new lhs::basic_lhs_enumerator_t(
-            true, false,
-            sys()->param_int("max_depth"),
-            sys()->param_float("max_distance"),
-            sys()->param_float("max_redundancy"));
-    }
+    if (key == "a*:bidirection")
+        return new lhs::a_star_based_enumerator_t(true, true);
+    if (key == "a*:abduction")
+        return new lhs::a_star_based_enumerator_t(false, true);
+    if (key == "a*:deduction")
+        return new lhs::a_star_based_enumerator_t(true, false);
+    if (key == "depth:bidirection" or key == "bidirection")
+        return new lhs::depth_based_enumerator_t(
+        true, true,
+        sys()->param_int("max_depth"),
+        sys()->param_float("max_distance"),
+        sys()->param_float("max_redundancy"));
+    if (key == "depth:abduction"  or key == "abduction")
+        return new lhs::depth_based_enumerator_t(
+        false, true,
+        sys()->param_int("max_depth"),
+        sys()->param_float("max_distance"),
+        sys()->param_float("max_redundancy"));
+    if (key == "depth:deduction" or key == "deduction")
+        return new lhs::depth_based_enumerator_t(
+        true, false,
+        sys()->param_int("max_depth"),
+        sys()->param_float("max_distance"),
+        sys()->param_float("max_redundancy"));
     return NULL;
 }
 

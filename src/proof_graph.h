@@ -73,8 +73,9 @@ public:
         const literal_t &lit, node_type_e type, node_idx_t idx,
         int depth, const hash_set<node_idx_t> &ev);
 
-    inline node_type_e type() const         { return m_type; }
+    inline node_type_e type() const { return m_type; }
     inline const literal_t& literal() const { return m_literal; }
+    inline std::string arity() const { return m_literal.get_predicate_arity(); }
 
     /** Returns the index of this node in a proof-graph. */
     inline index_t index() const { return m_index; }
@@ -329,18 +330,6 @@ public:
         hypernode_idx_t idx, std::list<hypernode_idx_t> *out) const;
     void enumerate_hypernodes_parents(
         hypernode_idx_t idx, std::list<hypernode_idx_t> *out) const;
-
-    /** Enumerate candidates for chaining.
-     *  Following candidates are excluded from output:
-     *    - One is not feasible due to exclusiveness of chains.
-     *    - One includes a node whose depth exceeds target depth.
-     *    - One do not includes a node whose depth equals to target depth.
-     *  @param ax          An axiom to apply.
-     *  @param is_backward Whether chaining is abductive.
-     *  @param depth       Target dpeth.
-     *                     If -1, limitation on depth will be ignored. */
-    std::set<chain_candidate_t> enumerate_candidates_for_chain(
-        const lf::axiom_t &ax, bool is_backward, int depth = -1) const;
     
     /** Return pointer of set of indices of hypernode
      *  which has the given node as its element.
@@ -388,6 +377,11 @@ public:
      *  @return Whether the chaining is possible. */
     bool check_availability_of_chain(
         pg::edge_idx_t idx, hash_set<node_idx_t> *out) const;
+
+    /** Excludes nodes which includes any exclusive node pair.
+     *  @param ptr_cands Pointer of container of chain_candidate_t. */
+    template <class ContainerPtr>
+    void erase_invalid_chain_candidates_with_coexistence(ContainerPtr ptr_cands) const;
 
     std::string edge_to_string(edge_idx_t i) const;
         
@@ -464,17 +458,9 @@ protected:
         const std::vector<node_idx_t> &from,
         const lf::axiom_t &axiom, bool is_backward);
 
-    /** This is a sub-routine of enumerate_candidates_for_chain.
-     *  Enumerates arrays of node indices which corresponds arities.
-     *  @param depth Each vector's nodes must not exclude this in depth.
-                     And each vector must have a node whose depth equals to this. */
-    std::list< std::vector<node_idx_t> > _enumerate_nodes_list_with_arities(
-        const std::vector<std::string> &arities, int depth) const;
 
-    /** This is a sub-routine of enumerate_candidates_for_chain.
-     *  Excludes nodes which includes any exclusive node pair. */
-    void _omit_invalid_chaining_candidates_with_coexistance(
-        std::set<chain_candidate_t> *cands) const;
+
+
 
     /** This is a sub-routine of chain.
      *  @param lits  Literals whom nodes hypothesized by this chain have.

@@ -96,7 +96,8 @@
     <ClCompile Include="..\src\ilp_problem.cpp" />
     <ClCompile Include="..\src\interface.cpp" />
     <ClCompile Include="..\src\kb.cpp" />
-    <ClCompile Include="..\src\lhs\lhs_basic.cpp" />
+    <ClCompile Include="..\src\lhs\lhs_a_star.cpp" />
+    <ClCompile Include="..\src\lhs\lhs_depth.cpp" />
     <ClCompile Include="..\src\lib\getopt_win.cpp" />
     <ClCompile Include="..\src\logical_function.cpp" />
     <ClCompile Include="..\src\main.cpp" />

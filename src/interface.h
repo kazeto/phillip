@@ -39,8 +39,19 @@ protected:
 class ilp_converter_t : public henry_component_interface_t
 {
 public:
+    struct enumeration_stopper_t
+    {
+        virtual bool operator()(const pg::proof_graph_t*) const { return false; }
+    };
+
     virtual ~ilp_converter_t() {}
     virtual ilp::ilp_problem_t* execute() const = 0;
+
+    /** Returns an instance of function class
+     *  to judge whether enumeration should be discontinued.
+     *  This is called by lhs_enumerator_t. */
+    virtual enumeration_stopper_t* enumeration_stopper() const
+    { return new enumeration_stopper_t(); }
 };
 
 

@@ -298,6 +298,16 @@ proof_graph_t::search_hypernodes_with_node( node_idx_t node_idx ) const
 }
 
 
+template<class It> const hash_set<hypernode_idx_t>*
+proof_graph_t::find_hypernode_with_unordered_nodes(It begin, It end) const
+{
+    size_t hash = get_hash_of_nodes(std::list<node_idx_t>(begin, end));
+    auto find = m_maps.unordered_nodes_to_hypernode.find(hash);
+    return (find != m_maps.unordered_nodes_to_hypernode.end()) ?
+        &(find->second) : NULL;
+}
+
+
 inline hypernode_idx_t
     proof_graph_t::find_parental_hypernode( hypernode_idx_t idx ) const
 {
@@ -309,6 +319,44 @@ inline hypernode_idx_t
 inline const hash_set<term_t>*
     proof_graph_t::find_variable_cluster( term_t t ) const
 { return m_vc_unifiable.find_cluster(t); }
+
+
+template <class ContainerPtr>
+void proof_graph_t::erase_invalid_chain_candidates_with_coexistence(
+    ContainerPtr ptr_cands) const
+{
+    hash_map<node_idx_t, hash_map<node_idx_t, bool> > log;
+
+    for (auto it = ptr_cands->begin(); it != ptr_cands->end();)
+    {
+        bool is_valid(true);
+        const std::vector<node_idx_t> &ns = it->nodes;
+
+        // IF ANY PAIR OF NODES IN EVIDENCE CANNOT CO-EXIST,
+        // THE CHAIN FROM THEM IS INVALID.
+        for (auto n1 = ns.begin(); n1 != ns.end() and is_valid; ++n1)
+        for (auto n2 = ns.begin(); n2 != n1 and is_valid; ++n2)
+        {
+            auto find1 = log.find(*n1);
+            if (find1 != log.end())
+            {
+                auto find2 = find1->second.find(*n2);
+                if (find2 != find1->second.end())
+                {
+                    is_valid = find2->second;
+                    continue;
+                }
+            }
+
+            bool can_coexist = _check_nodes_coexistency(*n1, *n2);
+            log[*n1][*n2] = log[*n2][*n1] = can_coexist;
+            is_valid = can_coexist;
+        }
+
+        if (is_valid) ++it;
+        else it = ptr_cands->erase(it);
+    }
+}
 
 
 inline bool proof_graph_t::

@@ -2,6 +2,7 @@
 
 #include <set>
 #include <tuple>
+#include <queue>
 
 #include "../phillip.h"
 
@@ -15,13 +16,106 @@ namespace lhs
 
 
 /** A class to create latent-hypotheses-set of abduction.
- *  Creation is limited with depth. */
-class basic_lhs_enumerator_t : public lhs_enumerator_t
+ *  Creation is performed with following the mannar of A* search. */
+class a_star_based_enumerator_t : public lhs_enumerator_t
 {
 public:
-    basic_lhs_enumerator_t(
+    a_star_based_enumerator_t(bool do_deduction, bool do_abduction);
+    virtual pg::proof_graph_t* execute() const;
+    virtual bool is_available(std::list<std::string>*) const;
+    virtual std::string repr() const;
+
+private:
+    struct reachability_t
+    {
+        pg::node_idx_t from, to;
+        float distance, redundancy;
+    };
+
+    class reachability_manager_t
+    {
+    public:
+        struct shorter_distance_t {
+            inline bool operator()(const reachability_t &a, const reachability_t &b) const;
+        };
+
+        inline const reachability_t& top() const { return m_list.front(); }
+        inline const reachability_t& at(pg::node_idx_t i) { m_map.at(i); }
+        inline const hash_map<pg::node_idx_t,
+            hash_map<pg::node_idx_t, const reachability_t*> >& map() const { return m_map; }
+        inline bool empty() const { return m_list.empty(); }
+
+        inline void add(const reachability_t &x);
+        inline void erase(const reachability_t &x);
+        void erase(pg::node_idx_t from, pg::node_idx_t to);
+        void erase(hash_set<pg::node_idx_t> froms, pg::node_idx_t target);
+
+        template <class It> void insert(It begin, It end);
+
+    private:
+        std::list<reachability_t> m_list;
+        hash_map<pg::node_idx_t,
+            hash_map<pg::node_idx_t, const reachability_t*> > m_map;
+    };
+
+    /** This is a sub-routine of execute.
+     *  Creates reachability map for observations. */
+    void initialize_reachability(
+        const pg::proof_graph_t*, reachability_manager_t*) const;
+
+    /** This is a sub-routine of execute.
+     *  Computes reachability of new nodes
+     *  and returns possibility of the chaining. */
+    bool compute_reachability_of_chaining(
+        const pg::proof_graph_t *graph, const reachability_manager_t &rm,
+        const std::vector<pg::node_idx_t> &from, const lf::axiom_t &axiom,
+        bool is_forward, std::vector<std::list<reachability_t> > *out) const;
+
+    /** This is a sub-routine of execute.
+     *  Gets candidates of chaining from nodes which includes a target node. */
+    void enumerate_chain_candidates(
+        const pg::proof_graph_t *graph, pg::node_idx_t i,
+        std::set<pg::chain_candidate_t> *out) const;
+
+    /** Enumerate candidates for chaining.
+     *  Following candidates are excluded from output:
+     *    - One is not feasible due to exclusiveness of chains.
+     *    - One do not includes a target node. */
+    void enumerate_chain_candidates_sub(
+        const pg::proof_graph_t *graph, const lf::axiom_t &ax, bool is_backward,
+        pg::node_idx_t target, std::set<pg::chain_candidate_t> *out) const;
+
+    /** Returns arrays of nodes whose arities are same as given arities.
+    *  @param arities Arrays of arities to search.
+    *  @param target  Each vector must include this node. */
+    std::list< std::vector<pg::node_idx_t> > enumerate_nodes_array_with_arities(
+        const pg::proof_graph_t *graph,
+        const std::vector<std::string> &arities, pg::node_idx_t target) const;
+
+    /** This is a sub-routine of execute.
+     *  @param target Reachabilities whose from-index equals to idx. */
+    void erase_satisfied_reachability(
+        const pg::proof_graph_t *graph, pg::node_idx_t idx,
+        std::list<reachability_t> *target,
+        std::list<reachability_t> *erased) const;
+
+    void print_chain_for_debug(
+        const pg::proof_graph_t *graph, const lf::axiom_t &axiom,
+        const pg::chain_candidate_t &cand, pg::hypernode_idx_t to) const;
+    
+    bool m_do_deduction, m_do_abduction;
+};
+
+
+/** A class to create latent-hypotheses-set of abduction.
+ *  Creation is limited with depth. */
+class depth_based_enumerator_t : public lhs_enumerator_t
+{
+public:
+    depth_based_enumerator_t(
         bool do_deduction, bool do_abduction,
-        int max_depth, float max_distance, float max_redundancy);
+        int max_depth, float max_distance, float max_redundancy,
+        bool do_disable_reachable_matrix = false);
     virtual pg::proof_graph_t* execute() const;
     virtual bool is_available(std::list<std::string>*) const;
     virtual std::string repr() const;
@@ -31,13 +125,13 @@ private:
     typedef hash_map<pg::node_idx_t, reachability_t > reachable_map_t;
 
     /** This is a sub-routine of execute.
-     *  Creates reachability map for observations. */
+    *  Creates reachability map for observations. */
     hash_map<pg::node_idx_t, reachable_map_t>
         compute_reachability_of_observations(const pg::proof_graph_t*) const;
 
     /** This is a sub-routine of execute.
-     *  Computes reachability of new nodes
-     *  and returns possibility of the chaining. */
+    *  Computes reachability of new nodes
+    *  and returns possibility of the chaining. */
     bool compute_reachability_of_chaining(
         const pg::proof_graph_t *graph,
         const hash_map<pg::node_idx_t, reachable_map_t> &reachability,
@@ -46,19 +140,31 @@ private:
         std::vector<reachable_map_t> *out) const;
 
     /** This is a sub-routine of execute.
-     *  Gets candidates of chaining from nodes containing a node
-     *  whose depth is equals to given depth. */
+    *  Gets candidates of chaining from nodes containing a node
+    *  whose depth is equals to given depth. */
     std::set<pg::chain_candidate_t> enumerate_chain_candidates(
-        pg::proof_graph_t *graph, int depth) const;
+        const pg::proof_graph_t *graph, int depth) const;
 
-    /** This is a sub-routine of enumerate_chain_candidate.
-     *  In each tuple, the first value is the axiom-id of the chaining,
-     *  the second value is whether chaining is forward or not. */
-    std::set<std::tuple<axiom_id_t, bool> > enumerate_applicable_axioms(
-        pg::proof_graph_t *graph, int depth) const;
+    /** Enumerate candidates for chaining.
+     *  Following candidates are excluded from output:
+     *    - One is not feasible due to exclusiveness of chains.
+     *    - One includes a node whose depth exceeds target depth.
+     *    - One do not includes a node whose depth equals to target depth.
+     *  @param depth       Target dpeth.
+     *                     If -1, limitation on depth will be ignored. */
+    void enumerate_chain_candidates_sub(
+        const pg::proof_graph_t *graph, const lf::axiom_t &ax, bool is_backward,
+        int depth, std::set<pg::chain_candidate_t> *out) const;
+
+    /** Returns arrays of nodes whose arities are same as given arities.
+    *  @param arities Arrays of arities to search.
+    *  @param target  Each vector must include this node. */
+    std::list< std::vector<pg::node_idx_t> > enumerate_nodes_array_with_arities(
+        const pg::proof_graph_t *graph,
+        const std::vector<std::string> &arities, int depth) const;
 
     /** This is a sub-routine of execute.
-     *  Erases satisfied reachabilities from out. */
+    *  Erases satisfied reachabilities from out. */
     void filter_unified_reachability(
         const pg::proof_graph_t *graph, pg::node_idx_t target,
         reachable_map_t *out) const;
@@ -66,11 +172,50 @@ private:
     void print_chain_for_debug(
         const pg::proof_graph_t *graph, const lf::axiom_t &axiom,
         const pg::chain_candidate_t &cand, pg::hypernode_idx_t to) const;
-    
+
     bool m_do_deduction, m_do_abduction;
     int m_depth_max;
     float m_distance_max, m_redundancy_max;
+    bool m_do_disable_reachable_matrix;
 };
+
+
+
+/* -------- INLINE METHODS -------- */
+
+
+inline bool a_star_based_enumerator_t::reachability_manager_t::
+shorter_distance_t::operator()(const reachability_t &a, const reachability_t &b) const
+{
+    return a.distance < b.distance;
+}
+
+
+inline void a_star_based_enumerator_t::
+reachability_manager_t::add(const reachability_t &x)
+{
+    m_list.push_back(x);
+    m_map[x.from][x.to] = &m_list.back();
+    m_list.sort(shorter_distance_t());
+}
+
+
+inline void a_star_based_enumerator_t::
+reachability_manager_t::erase(const reachability_t &x)
+{
+    erase(x.from, x.to);
+}
+
+
+template <class It> void a_star_based_enumerator_t::reachability_manager_t::insert(It begin, It end)
+{
+    for (auto it = begin; it != end; ++it)
+    {
+        m_list.push_back(*it);
+        m_map[it->from][it->to] = &m_list.back();
+    }
+    m_list.sort(shorter_distance_t());
+}
 
 
 }

@@ -12,28 +12,29 @@ namespace lhs
 {
 
 
-basic_lhs_enumerator_t::basic_lhs_enumerator_t(
+depth_based_enumerator_t::depth_based_enumerator_t(
     bool do_deduction, bool do_abduction,
-    int max_depth, float max_distance, float max_redundancy)
+    int max_depth, float max_distance, float max_redundancy,
+    bool do_disable_reachable_matrix)
     : m_do_deduction(do_deduction), m_do_abduction(do_abduction),
       m_depth_max(max_depth), m_distance_max(max_distance),
-      m_redundancy_max(max_redundancy)
+      m_redundancy_max(max_redundancy),
+      m_do_disable_reachable_matrix(do_disable_reachable_matrix)
 {}
 
 
-pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
+pg::proof_graph_t* depth_based_enumerator_t::execute() const
 {
     const kb::knowledge_base_t *base(sys()->knowledge_base());
     pg::proof_graph_t *graph(new pg::proof_graph_t(sys()->get_input()->name));
+    hash_map<pg::node_idx_t, reachable_map_t> reachability;
     time_t begin, now;
 
     time(&begin);
     add_observations(graph);
 
-#ifndef DISABLE_REACHABLE_MATRIX
-    hash_map<pg::node_idx_t, reachable_map_t>
+    if (not m_do_disable_reachable_matrix)
         reachability = compute_reachability_of_observations(graph);
-#endif
 
     for (int depth = 0; (m_depth_max < 0 or depth < m_depth_max); ++depth)
     {
@@ -60,33 +61,42 @@ pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
             }
             
             const lf::axiom_t &axiom = axioms.at(it->axiom_id);
+            pg::hypernode_idx_t to(-1);
 
-#ifndef DISABLE_REACHABLE_MATRIX
-            std::vector<reachable_map_t> reachability_new;
-            bool can_chain = compute_reachability_of_chaining(
-                graph, reachability, it->nodes, axiom, it->is_forward,
-                &reachability_new);
-            if (not can_chain) continue;
-#endif
-
-            pg::hypernode_idx_t to = it->is_forward ?
-                graph->forward_chain(it->nodes, axiom) :
-                graph->backward_chain(it->nodes, axiom);
-            if (to < 0) continue;
-
-#ifndef DISABLE_REACHABLE_MATRIX
-            // SET REACHABILITY OF NEW NODES
-            const std::vector<pg::node_idx_t> hn_to = graph->hypernode(to);
-            for (int i = 0; i < hn_to.size(); ++i)
+            if (m_do_disable_reachable_matrix)
             {
-                filter_unified_reachability(
-                    graph, hn_to[i], &reachability_new[i]);
-                reachability[hn_to.at(i)] = reachability_new[i];
+                to = it->is_forward ?
+                    graph->forward_chain(it->nodes, axiom) :
+                    graph->backward_chain(it->nodes, axiom);
             }
-#endif
+            else
+            {
+                std::vector<reachable_map_t> reachability_new;
+
+                if (not compute_reachability_of_chaining(
+                    graph, reachability, it->nodes, axiom,
+                    it->is_forward, &reachability_new))
+                    continue;
+
+                to = it->is_forward ?
+                    graph->forward_chain(it->nodes, axiom) :
+                    graph->backward_chain(it->nodes, axiom);
+
+                if (to >= 0)
+                {
+                    // SET REACHABILITY OF NEW NODES
+                    const std::vector<pg::node_idx_t> hn_to = graph->hypernode(to);
+                    for (int i = 0; i < hn_to.size(); ++i)
+                    {
+                        filter_unified_reachability(
+                            graph, hn_to[i], &reachability_new[i]);
+                        reachability[hn_to.at(i)] = reachability_new[i];
+                    }
+                }
+            }
 
             // FOR DEBUG
-            if (sys()->verbose() == FULL_VERBOSE)
+            if (to >= 0 and sys()->verbose() == FULL_VERBOSE)
                 print_chain_for_debug(graph, axiom, (*it), to);
         }
 
@@ -98,61 +108,133 @@ pg::proof_graph_t* basic_lhs_enumerator_t::execute() const
 }
 
 
-std::set<pg::chain_candidate_t> basic_lhs_enumerator_t::
-enumerate_chain_candidates(pg::proof_graph_t *graph, int depth) const
+std::set<pg::chain_candidate_t> depth_based_enumerator_t::
+enumerate_chain_candidates(const pg::proof_graph_t *graph, int depth) const
 {
     const kb::knowledge_base_t *base = sys()->knowledge_base();
-    std::set<std::tuple<axiom_id_t, bool> > axioms =
-        enumerate_applicable_axioms(graph, depth);
     std::set<pg::chain_candidate_t> out;
+
+    std::set<std::tuple<axiom_id_t, bool> > axioms;
+    {
+        const hash_set<pg::node_idx_t>
+            *nodes = graph->search_nodes_with_depth(depth);
+
+        /* ENUMERATE AXIOMS TO USE */
+        if (nodes != NULL)
+        for (auto it = nodes->begin(); it != nodes->end(); ++it)
+        {
+            const pg::node_t &n = graph->node(*it);
+            std::string arity = n.literal().get_predicate_arity();
+
+            if (m_do_deduction)
+            {
+                std::list<axiom_id_t> _axioms =
+                    base->search_axioms_with_lhs(arity);
+                for (auto ax = _axioms.begin(); ax != _axioms.end(); ++ax)
+                    axioms.insert(std::make_tuple(*ax, true));
+            }
+            if (m_do_abduction)
+            {
+                std::list<axiom_id_t> _axioms =
+                    base->search_axioms_with_rhs(arity);
+                for (auto ax = _axioms.begin(); ax != _axioms.end(); ++ax)
+                    axioms.insert(std::make_tuple(*ax, false));
+            }
+        }
+    }
 
     for (auto it = axioms.begin(); it != axioms.end(); ++it)
     {
         lf::axiom_t axiom = base->get_axiom(std::get<0>(*it));
-        bool is_forward(std::get<1>(*it));
-
-        if ((is_forward and not m_do_deduction) or
-            (not is_forward and not m_do_abduction))
-            continue;
-
-        std::set<pg::chain_candidate_t> cands =
-            graph->enumerate_candidates_for_chain(axiom, !is_forward, depth);
-        out.insert(cands.begin(), cands.end());
+        enumerate_chain_candidates_sub(
+            graph, axiom, not std::get<1>(*it), depth, &out);
     }
 
     return out;
 }
 
 
-std::set<std::tuple<axiom_id_t, bool> >
-basic_lhs_enumerator_t::enumerate_applicable_axioms(
-pg::proof_graph_t *graph, int depth) const
+void depth_based_enumerator_t::enumerate_chain_candidates_sub(
+    const pg::proof_graph_t *graph, const lf::axiom_t &ax, bool is_backward,
+    int depth, std::set<pg::chain_candidate_t> *out) const
 {
-    const kb::knowledge_base_t *base = sys()->knowledge_base();
-    const hash_set<pg::node_idx_t>
-        *nodes = graph->search_nodes_with_depth(depth);
-    std::set<std::tuple<axiom_id_t, bool> > out;
+    std::vector<const literal_t*>
+        lits = (is_backward ? ax.func.get_rhs() : ax.func.get_lhs());
+    std::vector<std::string> arities;
 
-    if (nodes == NULL) return out;
+    for (auto it = lits.begin(); it != lits.end(); ++it)
+        arities.push_back((*it)->get_predicate_arity());
 
-    for (auto it = nodes->begin(); it != nodes->end(); ++it)
+    std::list<std::vector<pg::node_idx_t> > targets =
+        enumerate_nodes_array_with_arities(graph, arities, depth);
+    std::set<pg::chain_candidate_t> _out;
+
+    for (auto it = targets.begin(); it != targets.end(); ++it)
+        _out.insert(pg::chain_candidate_t(*it, ax.id, !is_backward));
+
+#ifndef DISABLE_CUTTING_LHS
+    graph->erase_invalid_chain_candidates_with_coexistence(&_out);
+#endif
+
+    out->insert(_out.begin(), _out.end());
+}
+
+
+std::list< std::vector<pg::node_idx_t> >
+depth_based_enumerator_t::enumerate_nodes_array_with_arities(
+const pg::proof_graph_t *graph,
+const std::vector<std::string> &arities, int depth) const
+{
+    std::vector< std::vector<pg::node_idx_t> > candidates;
+    std::list< std::vector<pg::node_idx_t> > out;
+    bool do_ignore_depth = (depth < 0);
+
+    for (auto it = arities.begin(); it != arities.end(); ++it)
     {
-        const pg::node_t &n = graph->node(*it);
-        std::string arity = n.literal().get_predicate_arity();
+        const hash_set<pg::node_idx_t> *_idx = graph->search_nodes_with_arity(*it);
+        if (_idx == NULL) return out;
 
-        if (m_do_deduction)
+        std::vector<pg::node_idx_t> _new;
+        for (auto n = _idx->begin(); n != _idx->end(); ++n)
+        if (do_ignore_depth or graph->node(*n).depth() <= depth)
+            _new.push_back(*n);
+
+        if (_new.empty()) return out;
+
+        candidates.push_back(_new);
+    }
+
+    std::vector<int> indices(arities.size(), 0);
+    bool do_end_loop(false);
+
+    while (not do_end_loop)
+    {
+        std::vector<pg::node_idx_t> _new;
+        bool is_valid(false);
+
+        for (int i = 0; i < candidates.size(); ++i)
         {
-            std::list<axiom_id_t> axioms =
-                base->search_axioms_with_lhs(arity);
-            for (auto ax = axioms.begin(); ax != axioms.end(); ++ax)
-                out.insert(std::make_tuple(*ax, true));
+            pg::node_idx_t idx = candidates.at(i).at(indices[i]);
+            _new.push_back(idx);
+            if (do_ignore_depth or graph->node(idx).depth() == depth)
+                is_valid = true;
         }
-        if (m_do_abduction)
+
+        if (is_valid) out.push_back(_new);
+
+        // INCREMENT
+        ++indices[0];
+        for (int i = 0; i < candidates.size(); ++i)
         {
-            std::list<axiom_id_t> axioms =
-                base->search_axioms_with_rhs(arity);
-            for (auto ax = axioms.begin(); ax != axioms.end(); ++ax)
-                out.insert(std::make_tuple(*ax, false));
+            if (indices[i] >= candidates[i].size())
+            {
+                if (i < indices.size() - 1)
+                {
+                    indices[i] = 0;
+                    ++indices[i + 1];
+                }
+                else do_end_loop = true;
+            }
         }
     }
 
@@ -160,8 +242,8 @@ pg::proof_graph_t *graph, int depth) const
 }
 
 
-hash_map<pg::node_idx_t, basic_lhs_enumerator_t::reachable_map_t>
-basic_lhs_enumerator_t::compute_reachability_of_observations(
+hash_map<pg::node_idx_t, depth_based_enumerator_t::reachable_map_t>
+depth_based_enumerator_t::compute_reachability_of_observations(
 const pg::proof_graph_t *graph) const
 {
     hash_map<pg::node_idx_t, reachable_map_t> out;
@@ -189,7 +271,7 @@ const pg::proof_graph_t *graph) const
 }
 
 
-bool basic_lhs_enumerator_t::compute_reachability_of_chaining(
+bool depth_based_enumerator_t::compute_reachability_of_chaining(
     const pg::proof_graph_t *graph,
     const hash_map<pg::node_idx_t, reachable_map_t> &reachability,
     const std::vector<pg::node_idx_t> &from,
@@ -267,7 +349,7 @@ bool basic_lhs_enumerator_t::compute_reachability_of_chaining(
 }
 
 
-void basic_lhs_enumerator_t::filter_unified_reachability(
+void depth_based_enumerator_t::filter_unified_reachability(
     const pg::proof_graph_t *graph, pg::node_idx_t target,
     reachable_map_t *out) const
 {
@@ -294,7 +376,7 @@ void basic_lhs_enumerator_t::filter_unified_reachability(
 }
 
 
-void basic_lhs_enumerator_t::print_chain_for_debug(
+void depth_based_enumerator_t::print_chain_for_debug(
     const pg::proof_graph_t *graph, const lf::axiom_t &axiom,
     const pg::chain_candidate_t &cand, pg::hypernode_idx_t to) const
 {
@@ -314,11 +396,11 @@ void basic_lhs_enumerator_t::print_chain_for_debug(
 }
 
 
-bool basic_lhs_enumerator_t::is_available(std::list<std::string>*) const
+bool depth_based_enumerator_t::is_available(std::list<std::string>*) const
 { return true; }
 
 
-std::string basic_lhs_enumerator_t::repr() const
+std::string depth_based_enumerator_t::repr() const
 {
     std::string name = m_do_deduction ?
         (m_do_abduction ? "BasicEnumerator" : "BasicDeductiveEnumerator") :
