@@ -95,6 +95,22 @@ std::string lp_solve_t::repr() const
 
 #ifdef USE_LP_SOLVE
 
+void lp_handler(::lprec *lp, void *userhandle, char *buf)
+{
+    std::string line(buf);
+    int i(0);
+    for (int j = 0; j < line.length(); ++j)
+    {
+        if (line.at(j) == '\n')
+        {
+            if (j - i > 0 and not (j - i == 1 and line.at(i) == ' '))
+                print_console(line.substr(i, j - i) + "$");
+            i = j + 1;
+        }
+    }
+}
+
+
 void lp_solve_t::initialize(
     const ilp::ilp_problem_t *prob, ::lprec **rec, bool do_cpi) const
 {
@@ -114,7 +130,9 @@ void lp_solve_t::initialize(
         ::set_maxim(*rec) : ::set_minim(*rec);
     if (sys()->timeout() > 0)
         ::set_timeout(*rec, sys()->timeout());
-    ::set_outputstream(*rec, stderr);
+    
+    ::set_outputfile(*rec, "");
+    ::put_logfunc(*rec, lp_handler, NULL);
 
     // SETS ALL VARIABLES TO INTEGER.
     for (size_t i = 0; i < variables.size(); ++i)
