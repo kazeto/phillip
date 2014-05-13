@@ -37,7 +37,7 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
         model.set(
             GRB_IntAttr_ModelSense,
             (prob->do_maximize() ? GRB_MAXIMIZE : GRB_MINIMIZE));
-        mode.getEnv().set(GRB_IntParam_OutputFlag, m_do_output_flag ? 1 : 0);
+        model.getEnv().set(GRB_IntParam_OutputFlag, m_do_output_log ? 1 : 0);
         if (sys()->timeout() > 0)
             model.getEnv().set(GRB_DoubleParam_TimeLimit, sys()->timeout()););
     
