@@ -57,16 +57,10 @@
     <ClCompile Include="..\src\s_expression.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\sol\sol_glpk.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\sol\sol_gurobi.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\sol\sol_lpsolve.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\sol\sol_plain.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ilp\ilp_weight.cpp">
@@ -79,6 +73,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\lhs\lhs_depth.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\sol\sol_null.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>

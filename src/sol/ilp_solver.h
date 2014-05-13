@@ -37,22 +37,6 @@ public:
 };
 
 
-/** A class of ilp_solver with GLPK. */
-class gnu_linear_programming_kit_t : public ilp_solver_t
-{
-public:
-    gnu_linear_programming_kit_t();
-    virtual void execute(std::vector<ilp::ilp_solution_t> *out) const;
-    virtual bool is_available( std::list<std::string> *error_messages ) const;
-    virtual std::string repr() const;
-
-#ifdef USE_GLPK
-private:
-    void setup( glp_prob *ilp ) const;
-#endif
-};
-
-
 /** A class of ilp_solver with LP-Solve. */
 class lp_solve_t : public ilp_solver_t
 {
@@ -77,13 +61,13 @@ private:
 class gurobi_t : public ilp_solver_t
 {
 public:
-    gurobi_t() {}
+    gurobi_t(bool do_output_log) : m_do_output_log(do_output_log) {}
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const;
     virtual bool is_available(std::list<std::string> *error_messages) const;
     virtual std::string repr() const;
 
-#ifdef USE_GUROBI
 private:
+#ifdef USE_GUROBI
     void add_variables(
         GRBModel *model, hash_map<ilp::variable_idx_t, GRBVar> *vars) const;
     void add_constraint(
@@ -92,6 +76,8 @@ private:
     ilp::ilp_solution_t convert(
         GRBModel *model, const hash_map<ilp::variable_idx_t, GRBVar> &vars) const;
 #endif
+
+    bool m_do_output_log;
 };
 
 

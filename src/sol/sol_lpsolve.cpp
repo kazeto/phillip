@@ -114,6 +114,7 @@ void lp_solve_t::initialize(
         ::set_maxim(*rec) : ::set_minim(*rec);
     if (sys()->timeout() > 0)
         ::set_timeout(*rec, sys()->timeout());
+    ::set_outputstream(*rec, stderr);
 
     // SETS ALL VARIABLES TO INTEGER.
     for (size_t i = 0; i < variables.size(); ++i)
