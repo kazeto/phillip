@@ -408,6 +408,18 @@ bool proof_graph_t::_check_nodes_coexistency(
 }
 
 
+std::string proof_graph_t::hypernode2str(hypernode_idx_t i) const
+{
+    if (i >= 0 and i < m_hypernodes.size())
+    {
+        const std::vector<node_idx_t>& tail = hypernode(i);
+        return format("%d:{", i) + join(tail.begin(), tail.end(), "%d", ",") + "}";
+    }
+    else
+        return "-1:{}";
+}
+
+
 std::string proof_graph_t::edge_to_string( edge_idx_t i ) const
 {
     std::ostringstream str_edge;
@@ -720,7 +732,7 @@ void proof_graph_t::print_nodes(std::ostream *os) const
             << "<node "
             << "index=\"" << i
             << "\" depth=\"" << node(i).depth()
-            << "\" master=\"" << node(i).master_hypernode()
+            << "\" master=\"" << hypernode2str(node(i).master_hypernode())
             << "\">" << node(i).literal().to_string()
             << "</node>"
             << std::endl;
@@ -779,7 +791,8 @@ void proof_graph_t::print_edges(std::ostream *os) const
         else type = format("user-defined(%d)", e.type());
 
         (*os) << "<edge id=\"" << i << "\" type=\"" << type
-              << "\" tail=\"" << e.tail() << "\" head=\"" << e.head()
+              << "\" tail=\"" << hypernode2str(e.tail())
+              << "\" head=\"" << hypernode2str(e.head())
               << "\" axiom=\"" << e.axiom_id();
 
         auto conds = m_subs_of_conditions_for_chain.find(i);

@@ -52,8 +52,8 @@
     <script type="text/javascript">
       function setTexImage(img_id, tex) {
       var img = document.getElementById(img_id);
-      /* var url = "http://chart.apis.google.com/chart?cht=tx&chl=" + encodeURIComponent(tex); */
-      var url = "http://formula.s21g.com/?" + encodeURIComponent(tex) + ".png";
+      var url = "http://chart.apis.google.com/chart?cht=tx&chl=" + encodeURIComponent(tex);
+      /* var url = "http://formula.s21g.com/?" + encodeURIComponent(tex) + ".png"; */
       img.alt = tex;
       img.src = url;
       }
@@ -112,8 +112,8 @@
     
     <script>
       setTexImage("algorithm-0", "Given.\\hspace{10px} O,\\ B,\\ E");
-      setTexImage("algorithm-1", "Return.\\hspace{10px}\\mathop{\\rm arg~max}_{\\{H|H \\cap B \\models O\\}}E(H)");
-      setTexImage("algorithm-2", "P = \\{H|H \\cap B \\models O\\}");
+      setTexImage("algorithm-1", "Return.\\hspace{10px}{arg\\ max}_{\\{H|H \\cap B \\supset O\\}}E(H)");
+      setTexImage("algorithm-2", "\\{H|H \\cap B \\supset O\\}");
     </script>
 
     
@@ -631,7 +631,26 @@
 	      <span class="code">-p weight_provider=[FUNCTION]</span><br>
 	      推論の重みを与えるためのコンポーネントを指定します．<br>
 	      現在使用可能なコンポーネントは次の2つです．<br>
-	      なお，デフォルトでは <span class="code">-p weight_provider=basic</span> が設定されています．
+	      なお，デフォルトでは <span class="code">-p weight_provider=basic(1.2)</span> が設定されています．
+	      <ul type="circle">
+		<li>
+		  <span class="code">-p weight_provider=basic([FLOAT])</span><br>
+		  基本コンポーネントです．<br>
+		  このコンポーネントでは，公理の重みには公理中の各リテラルが持つパラメータ値を採用します．<br>
+		  公理中のリテラルに浮動小数値を表すパラメータが設定されていない場合は，重みの合計がデフォルト値になるように重みを均等に割り当てます．<br>
+		  ただし，少なくとも一つ浮動小数値を表すパラメータを持つリテラルが存在する場合には，
+		  それらのリテラルには各パラメータが表す値を割り当てた上で，その他のリテラルには <span class="monospace">0.0</span> が割り当てられます．<br>
+		  例えば以下の例では，1つめの公理を使って逆向き推論を行った時の重みは <span class="monospace">1.5</span>，
+		  2つめの公理を使って逆向き推論を行った時の重みはそれぞれ <span class="monospace">{0.6, 0.6}</span>，
+		  3つめの公理を使って逆向き推論を行った時の重みはそれぞれ <span class="monospace">{0.0, 1.3}</span> となります
+		  （重みのデフォルト値が <span class="monospace">1.2</span> の場合）．
+		  <div class="code">
+		    (B (=> (p x :1.5) (q x)))<br>
+		    (B (=> (^ (p x) (q y)) (r x)))<br>
+		    (B (=> (^ (s x) (t y :1.3)) (r x)))
+		  </div>
+		</li>
+	      </ul>
 	    </li>
 	    <li>
 	      <span class="code">-p default_obs_cost=[FLOAT]</span><br>

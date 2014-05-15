@@ -31,24 +31,16 @@ public:
             const pg::proof_graph_t*, pg::edge_idx_t) const = 0;
     };
 
-    class fixed_weight_provider_t : public weight_provider_t {
+    class basic_weight_provider_t : public weight_provider_t {
     public:
-        fixed_weight_provider_t(double w) : m_weight(w) {}
+        basic_weight_provider_t(double default_weight) : m_default_weight(default_weight) {}
         virtual std::vector<double> operator()(
             const pg::proof_graph_t*, pg::edge_idx_t) const;
     private:
-        double m_weight;
+        double m_default_weight;
     };
 
-    class basic_weight_provider_t : public weight_provider_t {
-    public:
-        virtual std::vector<double> operator()(
-            const pg::proof_graph_t*, pg::edge_idx_t) const;
-    };
-
-    class my_xml_decorator_t
-        : public ilp::solution_xml_decorator_t
-    {
+    class my_xml_decorator_t : public ilp::solution_xml_decorator_t {
     public:
         my_xml_decorator_t(
             const hash_map<pg::node_idx_t, ilp::variable_idx_t> &node2costvar);
@@ -60,6 +52,10 @@ public:
             hash_map<std::string, std::string> *out) const {}
     private:
         hash_map<pg::node_idx_t, ilp::variable_idx_t> m_node2costvar;
+    };
+
+    class my_enumeration_stopper_t : public ilp_converter_t::enumeration_stopper_t {
+        virtual bool operator()(const pg::proof_graph_t*) const;
     };
 
     static weight_provider_t* parse_string_to_weight_provider(const std::string &str);
@@ -117,6 +113,10 @@ public:
         virtual double node_cost(const pg::proof_graph_t*, pg::node_idx_t) const;
     private:
         double m_default_axiom_cost, m_literal_unifying_cost, m_term_unifying_cost;
+    };
+
+    class my_enumeration_stopper_t : public ilp_converter_t::enumeration_stopper_t {
+        virtual bool operator()(const pg::proof_graph_t*) const;
     };
 
     static cost_provider_t* parse_string_to_cost_provider(const std::string&);

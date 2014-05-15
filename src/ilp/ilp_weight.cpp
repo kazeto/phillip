@@ -16,16 +16,12 @@ parse_string_to_weight_provider(const std::string &str)
         std::vector<std::string> terms;
         parse_string_as_function_call(str, &pred, &terms);
 
-        if (pred == "fixed" and terms.size() == 1)
+        if (pred == "basic")
         {
-            double weight;
-            _sscanf(terms.at(0).c_str(), "%lf", &weight);
-            return new fixed_weight_provider_t(weight);
-        }
-
-        if (pred == "basic" and terms.size() == 0)
-        {
-            return new basic_weight_provider_t();
+            double weight(1.2);
+            if (terms.size() >= 1)
+                _sscanf(terms.at(0).c_str(), "%lf", &weight);
+            return new basic_weight_provider_t(weight);
         }
 
         print_error("The parameter for weight-provider is invalid: " + str);
@@ -40,7 +36,7 @@ weighted_converter_t::weighted_converter_t(
 : m_default_observation_cost(default_obs_cost), m_weight_provider(ptr)
 {
     if (ptr == NULL)
-        m_weight_provider = new basic_weight_provider_t();
+        m_weight_provider = new basic_weight_provider_t(1.2);
 }
 
 
@@ -270,21 +266,14 @@ std::string weighted_converter_t::repr() const
 }
 
 
-std::vector<double> weighted_converter_t::fixed_weight_provider_t::operator()(
-    const pg::proof_graph_t *graph, pg::edge_idx_t idx) const
-{
-    const pg::edge_t &edge = graph->edge(idx);
-    size_t size = graph->hypernode(edge.head()).size();
-    return std::vector<double>(size, m_weight / double(size));
-}
-
-
 std::vector<double> weighted_converter_t::basic_weight_provider_t::operator()(
     const pg::proof_graph_t *graph, pg::edge_idx_t idx) const
 {
     const kb::knowledge_base_t *base = sys()->knowledge_base();
     const pg::edge_t &edge = graph->edge(idx);
-    std::vector<double> weights(graph->hypernode(edge.head()).size(), 1.0);
+    size_t size = graph->hypernode(edge.head()).size();
+    std::vector<double> weights(size, 0.0);
+    bool do_use_default(true);
 
     if (edge.is_chain_edge())
     {
@@ -293,13 +282,24 @@ std::vector<double> weighted_converter_t::basic_weight_provider_t::operator()(
             axiom.func.branch(edge.type() == pg::EDGE_HYPOTHESIZE ? 0 : 1);
 
         if (weights.size() == 1 and branch.is_operator(lf::OPR_LITERAL))
-            branch.param2double(&weights[0]);
+        {
+            if (branch.param2double(&weights[0]))
+                do_use_default = false;
+        }
         else
         {
             for (int i = 0; i < weights.size(); ++i)
-                branch.branch(i).param2double(&weights[i]);
+            {
+                if (branch.branch(i).param2double(&weights[i]))
+                    do_use_default = false;
+                else
+                    weights[i] = 0.0;
+            }
         }
     }
+
+    if (do_use_default)
+        weights.assign(size, m_default_weight / (double)size);
 
     return weights;
 }

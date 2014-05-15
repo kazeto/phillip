@@ -605,7 +605,8 @@ void ilp_problem_t::_print_explanations_in_solution(
 
         (*os)
             << "<explanation id=\"" << (*it)
-            << "\" tail=\"" << s_from << "\" head=\"" << s_to
+            << "\" tail=\"" << m_graph->hypernode2str(edge.tail())
+            << "\" head=\"" << m_graph->hypernode2str(edge.head())
             << "\" active=\"" << (edge_is_active(*sol, *it) ? "yes" : "no")
             << "\" backward=\"" << (is_backward ? "yes" : "no")
             << "\" axiom=\"" << axiom_name;

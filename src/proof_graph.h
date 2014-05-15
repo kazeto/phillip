@@ -383,6 +383,7 @@ public:
     template <class ContainerPtr>
     void erase_invalid_chain_candidates_with_coexistence(ContainerPtr ptr_cands) const;
 
+    std::string hypernode2str(hypernode_idx_t i) const;
     std::string edge_to_string(edge_idx_t i) const;
         
     /** Whether the hypernode of hn includes only sub-nodes. */
@@ -457,10 +458,6 @@ protected:
     hypernode_idx_t chain(
         const std::vector<node_idx_t> &from,
         const lf::axiom_t &axiom, bool is_backward);
-
-
-
-
 
     /** This is a sub-routine of chain.
      *  @param lits  Literals whom nodes hypothesized by this chain have.

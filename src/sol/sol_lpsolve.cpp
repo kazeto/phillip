@@ -95,7 +95,14 @@ std::string lp_solve_t::repr() const
 
 #ifdef USE_LP_SOLVE
 
+#ifdef _WIN32
+typedef void(__WINAPI lphandlestr_func)(::lprec *lp, void *userhandle, char *buf);
+
+
+void __WINAPI lp_handler(::lprec *lp, void *userhandle, char *buf)
+#else
 void lp_handler(::lprec *lp, void *userhandle, char *buf)
+#endif
 {
     std::string line(buf);
     int i(0);
