@@ -103,7 +103,7 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
         if (graph->is_timeout()) break;
     }
 
-    graph->clean_logs();
+    graph->post_process();
     return graph;
 }
 

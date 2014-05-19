@@ -317,8 +317,16 @@ inline hypernode_idx_t
 
 
 inline const hash_set<term_t>*
-    proof_graph_t::find_variable_cluster( term_t t ) const
-{ return m_vc_unifiable.find_cluster(t); }
+proof_graph_t::find_variable_cluster( term_t t ) const
+{
+    return m_vc_unifiable.find_cluster(t);
+}
+
+
+inline bool proof_graph_t::do_disregard_hypernode(hypernode_idx_t idx) const
+{
+    return m_hypernodes_disregarded.count(idx) > 0;
+}
 
 
 template <class ContainerPtr>

@@ -36,14 +36,6 @@ typedef index_t node_idx_t;
 typedef index_t edge_idx_t;
 typedef index_t hypernode_idx_t;
 
-typedef hash_map<int, std::vector<hypernode_idx_t> > node_hypernode_map_t;
-typedef hash_map<size_t, std::vector<index_t> > eqhash_t;
-typedef hash_map<index_t, std::vector<index_t> > edge_set_t;
-typedef hash_map<term_t, std::vector<index_t> > term_map_t;
-typedef hash_map<term_t, hash_map<index_t, std::vector<index_t> > > node_map_t;
-typedef hash_map<index_t, hash_set<term_t> > cluster_t;
-typedef hash_map<term_t, index_t>            variable_mapper_t;
-
 class node_t;
 class edge_t;
 class proof_graph_t;
@@ -235,9 +227,9 @@ public:
     inline void timeout(bool flag) { m_is_timeout = flag; }
     inline bool is_timeout() const { return m_is_timeout; }
 
-    /** Deletes logs, which are needed only in creation of proof-graph.
-     *  Please call this after creation of proof-graph. */
-    void clean_logs();
+    /** Deletes logs and enumerate hypernodes to be disregarded.
+     *  Call this method after creation of proof-graph. */
+    void post_process();
 
     inline const std::string& name() const { return m_name; }
     
@@ -311,6 +303,9 @@ public:
     inline const hash_set<edge_idx_t>*
         search_edges_with_hypernode(hypernode_idx_t idx) const;
 
+    /** Return the indices of edges which are related with given node. */
+    hash_set<edge_idx_t> enumerate_edges_with_node(node_idx_t idx) const;
+
     /** Return the index of edge connects between
      *  the given hypernode and its parent hypernode.
      *  If any edge is not found, return -1. */
@@ -322,14 +317,12 @@ public:
      *  If any hypernode was not found, return -1. */
     inline hypernode_idx_t find_parental_hypernode(hypernode_idx_t idx) const;
 
-    void enumerate_parental_edges(
-        hypernode_idx_t idx, std::list<edge_idx_t> *out) const;
-    void enumerate_children_edges(
-        hypernode_idx_t idx, std::list<edge_idx_t> *out) const;
-    void enumerate_hypernodes_children(
-        hypernode_idx_t idx, std::list<hypernode_idx_t> *out) const;
-    void enumerate_hypernodes_parents(
-        hypernode_idx_t idx, std::list<hypernode_idx_t> *out) const;
+    void enumerate_parental_edges(hypernode_idx_t idx, hash_set<edge_idx_t> *out) const;
+    void enumerate_children_edges(hypernode_idx_t idx, hash_set<edge_idx_t> *out) const;
+    void enumerate_parental_hypernodes(hypernode_idx_t idx, hash_set<hypernode_idx_t> *out) const;
+    void enumerate_children_hypernodes(hypernode_idx_t idx, hash_set<hypernode_idx_t> *out) const;
+
+    void enumerate_overlapping_hypernodes(hypernode_idx_t idx, hash_set<hypernode_idx_t> *out) const;
     
     /** Return pointer of set of indices of hypernode
      *  which has the given node as its element.
@@ -371,6 +364,8 @@ public:
 
     /** Returns a list of nodes which are needed to hypothesize given node. */
     void enumerate_dependent_nodes(node_idx_t, hash_set<node_idx_t>*) const;
+
+    inline bool do_disregard_hypernode(hypernode_idx_t idx) const;
 
     /** Enumerates unification nodes
      *  which are needed to satisfy conditions for given chaining.
@@ -556,6 +551,15 @@ protected:
      *  Add nodes for transitive unification around the given term. */
     void _add_nodes_of_transitive_unification(term_t t);
 
+    /** Deletes logs, which are needed only in creation of proof-graph.
+    *  Please call this after creation of proof-graph. */
+    void _clean_logs();
+
+    /** Enumerates indices of hypernodes to be excluded
+     *  and set them to m_hypernodes_disregarded. */
+    void _enumerate_hypernodes_disregarded();
+    void _enumerate_hypernodes_disregarded_sub(hypernode_idx_t idx);
+
     inline bool _is_considered_unification(node_idx_t i, node_idx_t j) const;
     inline bool _is_considered_exclusion(node_idx_t i, node_idx_t j) const;
 
@@ -604,6 +608,8 @@ protected:
     /** Substitutions which is needed for the edge of key being true. */
     hash_map<edge_idx_t, std::list< std::pair<term_t, term_t> > >
         m_subs_of_conditions_for_chain;
+
+    hash_set<hypernode_idx_t> m_hypernodes_disregarded;
 
     struct
     {

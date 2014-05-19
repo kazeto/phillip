@@ -491,6 +491,21 @@ hash_set<node_idx_t>
 }
 
 
+hash_set<edge_idx_t> proof_graph_t::enumerate_edges_with_node(node_idx_t idx) const
+{
+    hash_set<edge_idx_t> out;
+    auto hns = search_hypernodes_with_node(idx);
+
+    for (auto it = hns->begin(); it != hns->end(); ++it)
+    {
+        auto _edges = search_edges_with_hypernode(*it);
+        out.insert(_edges->begin(), _edges->end());
+    }
+
+    return out;
+}
+
+
 edge_idx_t proof_graph_t::find_parental_edge( hypernode_idx_t idx ) const
 {
     const hash_set<edge_idx_t> *_edges = search_edges_with_hypernode(idx);
@@ -509,7 +524,7 @@ edge_idx_t proof_graph_t::find_parental_edge( hypernode_idx_t idx ) const
 
 
 void proof_graph_t::enumerate_parental_edges(
-    hypernode_idx_t idx, std::list<edge_idx_t> *out) const
+    hypernode_idx_t idx, hash_set<edge_idx_t> *out) const
 {
     const hash_set<edge_idx_t> *_edges = search_edges_with_hypernode(idx);
     if( _edges == NULL ) return;
@@ -517,13 +532,13 @@ void proof_graph_t::enumerate_parental_edges(
     for (auto it = _edges->begin(); it != _edges->end(); ++it)
     {
         if (edge(*it).head() == idx)
-            out->push_back(*it);
+            out->insert(*it);
     }
 }
 
 
 void proof_graph_t::enumerate_children_edges(
-    hypernode_idx_t idx, std::list<edge_idx_t> *out) const
+    hypernode_idx_t idx, hash_set<edge_idx_t> *out) const
 {
     const hash_set<edge_idx_t> *_edges = search_edges_with_hypernode(idx);
     if( _edges == NULL ) return;
@@ -531,13 +546,13 @@ void proof_graph_t::enumerate_children_edges(
     for (auto it = _edges->begin(); it != _edges->end(); ++it)
     {
         if (edge(*it).tail() == idx)
-            out->push_back(*it);
+            out->insert(*it);
     }
 }
 
 
-void proof_graph_t::enumerate_hypernodes_children(
-    hypernode_idx_t idx, std::list<hypernode_idx_t> *out) const
+void proof_graph_t::enumerate_children_hypernodes(
+    hypernode_idx_t idx, hash_set<hypernode_idx_t> *out) const
 {
     const hash_set<edge_idx_t> *_edges = search_edges_with_hypernode(idx);
     if (_edges == NULL) return;
@@ -546,13 +561,13 @@ void proof_graph_t::enumerate_hypernodes_children(
     {
         const edge_t &e = edge(*it);
         if (e.tail() == idx)
-            out->push_back(e.head());
+            out->insert(e.head());
     }
 }
 
 
-void proof_graph_t::enumerate_hypernodes_parents(
-    hypernode_idx_t idx, std::list<hypernode_idx_t> *out) const
+void proof_graph_t::enumerate_parental_hypernodes(
+    hypernode_idx_t idx, hash_set<hypernode_idx_t> *out) const
 {
     const hash_set<edge_idx_t> *_edges = search_edges_with_hypernode(idx);
     if (_edges == NULL) return;
@@ -561,8 +576,22 @@ void proof_graph_t::enumerate_hypernodes_parents(
     {
         const edge_t &e = edge(*it);
         if (e.head() == idx)
-            out->push_back(e.tail());
+            out->insert(e.tail());
     }
+}
+
+
+void proof_graph_t::enumerate_overlapping_hypernodes(
+    hypernode_idx_t idx, hash_set<hypernode_idx_t> *out) const
+{
+    auto ns = hypernode(idx);
+    for (auto n = ns.begin(); n != ns.end(); ++n)
+    {
+        auto hns = search_hypernodes_with_node(*n);
+        if (hns != NULL)
+            out->insert(hns->begin(), hns->end());
+    }
+    out->insert(idx);
 }
 
 
@@ -1427,6 +1456,80 @@ void proof_graph_t::_add_nodes_of_transitive_unification(term_t t)
 }
 
 
+void proof_graph_t::_enumerate_hypernodes_disregarded()
+{
+    IF_VERBOSE_3(format("Enumerating of hypernodes to ignore..."));
+
+    hash_set<hypernode_idx_t> ignored;
+    
+    for (auto it_e = m_edges.begin(); it_e != m_edges.end(); ++it_e)
+    if (it_e->is_chain_edge())
+        ignored.insert(it_e->head());
+
+    for (auto it_e = m_edges.begin(); it_e != m_edges.end(); ++it_e)
+    {
+        auto tail = hypernode(it_e->tail());
+        for (auto n = tail.begin(); n != tail.end(); ++n)
+            ignored.erase(node(*n).master_hypernode());
+    }
+    
+    m_hypernodes_disregarded.clear();
+    for (auto it_hn = ignored.begin(); it_hn != ignored.end(); ++it_hn)
+        _enumerate_hypernodes_disregarded_sub(*it_hn);
+}
+
+
+void proof_graph_t::_enumerate_hypernodes_disregarded_sub(hypernode_idx_t idx)
+{
+    m_hypernodes_disregarded.insert(idx);
+
+    IF_VERBOSE_FULL(format("  Added to disregarding list: hypernode[%d]", idx));
+
+    /* NEXT TARGETS ARE MASTER-HYPERNODES OF NODES IN PARENTAL HYPERNODE. */
+    hash_set<hypernode_idx_t> targets;
+    {
+        auto _nodes_in_parent = hypernode(find_parental_hypernode(idx));
+        hypernode_idx_t _master;
+
+        for (auto it = _nodes_in_parent.begin(); it != _nodes_in_parent.end(); ++it)
+        if ((_master = node(*it).master_hypernode()) >= 0)
+            targets.insert(_master);
+    }
+
+    for (auto hn = targets.begin(); hn != targets.end(); ++hn)
+    {
+        /* ENUMERATES EDGES WHOSE TAIL INCLUDES A NODE IN hn. */
+        hash_set<edge_idx_t> children_edges;
+        {
+            auto members = hypernode(*hn);
+            hash_set<hypernode_idx_t> hns;
+
+            for (auto n_it = members.begin(); n_it != members.end(); ++n_it)
+            {
+                auto _hns = search_hypernodes_with_node(*n_it);
+                hns.insert(_hns->begin(), _hns->end());
+            }
+
+            for (auto hn_it = hns.begin(); hn_it != hns.end(); ++hn_it)
+                enumerate_children_edges(*hn_it, &children_edges);
+        }
+
+        bool do_insert(true);
+        for (auto e_it = children_edges.begin(); e_it != children_edges.end() and do_insert; ++e_it)
+        {
+            const edge_t &e = edge(*e_it);
+            if (e.is_unify_edge())
+                do_insert = false;
+            if (e.is_chain_edge() and m_hypernodes_disregarded.count(e.head()) == 0)
+                do_insert = false;
+        }
+
+        if (do_insert)
+            _enumerate_hypernodes_disregarded_sub(*hn);
+    }
+}
+
+
 /** Return whether p1 and p2 can be unified or not.
  *  This method is from getMGU(-) in henry-n700.
  *  @param[out] out The unifier for unification of p1 and p2. */
@@ -1462,8 +1565,17 @@ size_t proof_graph_t::get_hash_of_nodes(std::list<node_idx_t> nodes)
 }
 
 
-void proof_graph_t::clean_logs()
+void proof_graph_t::post_process()
 {
+    _clean_logs();
+    _enumerate_hypernodes_disregarded();
+}
+
+
+void proof_graph_t::_clean_logs()
+{
+    IF_VERBOSE_4("Cleaned logs.");
+
     m_logs.considered_unifications.clear();
     m_logs.considered_exclusions.clear();
 }

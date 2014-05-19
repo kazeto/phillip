@@ -38,6 +38,7 @@ public:
 };
 
 
+/** A class of knowledge-base. */
 class knowledge_base_t
 {
 public:
@@ -103,12 +104,12 @@ public:
     inline float get_distance(const lf::axiom_t &axiom) const;
 
 private:
-    /** A class of reachable-matrix. */
-    class reachable_matrix_t
+    /** A class of reachable-matrix for all predicate pairs. */
+    class global_reachable_matrix_t
     {
     public:
-        reachable_matrix_t(const std::string &filename);
-        ~reachable_matrix_t();
+        global_reachable_matrix_t(const std::string &filename);
+        ~global_reachable_matrix_t();
         void prepare_compile();
         void prepare_query();
         void finalize();
@@ -154,6 +155,7 @@ private:
     void create_reachable_matrix();
     
     void _create_reachable_matrix_direct(
+        const hash_set<std::string> &arities,
         hash_map<size_t, hash_map<size_t, float> > *out);
     void _create_reachable_matrix_indirect(
         size_t key, hash_map<size_t, hash_map<size_t, float> > &base,
@@ -170,7 +172,8 @@ private:
         const std::string &query, const cdb_data_t *dat,
         const hash_map<std::string, hash_set<axiom_id_t> > *tmp) const;
 
-    /** Returns index of given arity in reachable-matrix. */
+    /** Returns index of given arity in reachable-matrix.
+     *  On calling this method, ~.rm.idx.cdb must be readable. */
     inline const size_t* search_arity_index(const std::string &arity) const;
 
     inline std::string _get_name_of_unnamed_axiom();
@@ -181,7 +184,7 @@ private:
     cdb_data_t m_cdb_id, m_cdb_name, m_cdb_rhs, m_cdb_lhs;
     cdb_data_t m_cdb_inc_pred, m_cdb_axiom_group;
     cdb_data_t m_cdb_rm_idx;
-    reachable_matrix_t m_rm;
+    global_reachable_matrix_t m_rm;
     
     size_t m_num_compiled_axioms;
     size_t m_num_temporary_axioms;

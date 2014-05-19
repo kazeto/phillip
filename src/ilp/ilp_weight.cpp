@@ -93,21 +93,6 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
 }
 
 
-void weighted_converter_t::add_variable_for_cost(
-    pg::node_idx_t idx, double cost, ilp::ilp_problem_t *prob,
-    hash_map<pg::node_idx_t, ilp::variable_idx_t> *node2costvar) const
-{
-    ilp::variable_idx_t v(prob->find_variable_with_node(idx));
-    if (v >= 0)
-    {
-        std::string name = format("cost(n:%d)", idx);
-        ilp::variable_idx_t costvar =
-            prob->add_variable(ilp::variable_t(name, cost));
-        (*node2costvar)[idx] = costvar;
-    }
-}
-
-
 void weighted_converter_t::add_variables_for_observation_cost(
     const pg::proof_graph_t *graph,
     const lf::input_t &input, ilp::ilp_problem_t *prob,
@@ -223,8 +208,8 @@ void weighted_converter_t::add_constraints_for_cost(
                 else if (edge.is_unify_edge())
                 {
                     auto from = graph->hypernode(edge.tail());
-                    double cost1 = get_cost(from[0], prob, node2costvar);
-                    double cost2 = get_cost(from[1], prob, node2costvar);
+                    double cost1 = get_cost_of_node(from[0], prob, node2costvar);
+                    double cost2 = get_cost_of_node(from[1], prob, node2costvar);
                     if ((n_idx == from[0]) == (cost1 > cost2))
                         edges.insert(*e);
                 }
@@ -244,16 +229,6 @@ void weighted_converter_t::add_constraints_for_cost(
 }
 
 
-double weighted_converter_t::get_cost(
-    pg::node_idx_t idx, const ilp::ilp_problem_t *prob,
-    const hash_map<pg::node_idx_t, ilp::variable_idx_t> &node2costvar) const
-{
-    auto find = node2costvar.find(idx);
-    return (find != node2costvar.end()) ?
-        prob->variable(find->second).objective_coefficient() : 0.0;
-}
-
-
 bool weighted_converter_t::is_available(std::list<std::string> *message) const
 {
     return true;
@@ -263,6 +238,13 @@ bool weighted_converter_t::is_available(std::list<std::string> *message) const
 std::string weighted_converter_t::repr() const
 {
     return "WeightedConverter";
+}
+
+
+ilp_converter_t::enumeration_stopper_t*
+weighted_converter_t::enumeration_stopper() const
+{
+    return new my_enumeration_stopper_t(this);
 }
 
 
@@ -327,6 +309,24 @@ hash_map<std::string, std::string> *out) const
     }
 }
 
+
+
+bool weighted_converter_t::
+my_enumeration_stopper_t::operator()(const pg::proof_graph_t *graph)
+{
+    pg::edge_idx_t idx(-1);
+    for (pg::edge_idx_t i = graph->edges().size() - 1; i >= 0; --i)
+    if (graph->edge(i).is_unify_edge())
+    {
+        idx = i;
+        break;
+    }
+
+    if (idx < 0) return false;
+    if (m_considered_edges.count(idx) > 0) return false;
+
+    m_considered_edges.insert(idx);
+}
 
 
 

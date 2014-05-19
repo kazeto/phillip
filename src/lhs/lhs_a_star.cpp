@@ -127,7 +127,7 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
         if ((*stopper)(graph)) break;
     }
 
-    graph->clean_logs();
+    graph->post_process();
     return graph;
 }
 

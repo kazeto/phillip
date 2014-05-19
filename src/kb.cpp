@@ -496,7 +496,7 @@ void knowledge_base_t::create_reachable_matrix()
 
     print_console("  computing distance of direct edges...");
     hash_map<size_t, hash_map<size_t, float> > base;
-    _create_reachable_matrix_direct(&base);
+    _create_reachable_matrix_direct(m_arity_set, &base);
 
     print_console("  writing reachable matrix...");
     for (auto it = base.begin(); it != base.end(); ++it)
@@ -532,9 +532,10 @@ void knowledge_base_t::create_reachable_matrix()
 
 
 void knowledge_base_t::_create_reachable_matrix_direct(
+    const hash_set<std::string> &arities,
     hash_map<size_t, hash_map<size_t, float> > *out)
 {
-    for (auto ar = m_arity_set.begin(); ar != m_arity_set.end(); ++ar)
+    for (auto ar = arities.begin(); ar != arities.end(); ++ar)
     {
         size_t idx1 = *search_arity_index(*ar);
         hash_map<size_t, float> *target = &(*out)[idx1];
@@ -713,19 +714,19 @@ std::list<axiom_id_t> knowledge_base_t::search_id_list(
 }
 
 
-knowledge_base_t::reachable_matrix_t::
-    reachable_matrix_t(const std::string &filename)
+knowledge_base_t::global_reachable_matrix_t::
+    global_reachable_matrix_t(const std::string &filename)
     : m_filename(filename), m_fout(NULL), m_fin(NULL)
 {}
 
 
-knowledge_base_t::reachable_matrix_t::~reachable_matrix_t()
+knowledge_base_t::global_reachable_matrix_t::~global_reachable_matrix_t()
 {
     finalize();
 }
 
 
-void knowledge_base_t::reachable_matrix_t::prepare_compile()
+void knowledge_base_t::global_reachable_matrix_t::prepare_compile()
 {
     if (is_readable())
         finalize();
@@ -741,7 +742,7 @@ void knowledge_base_t::reachable_matrix_t::prepare_compile()
 }
 
 
-void knowledge_base_t::reachable_matrix_t::prepare_query()
+void knowledge_base_t::global_reachable_matrix_t::prepare_query()
 {
     if (is_writable())
         finalize();
@@ -768,7 +769,7 @@ void knowledge_base_t::reachable_matrix_t::prepare_query()
 }
 
 
-void knowledge_base_t::reachable_matrix_t::finalize()
+void knowledge_base_t::global_reachable_matrix_t::finalize()
 {
     if (m_fout != NULL)
     {
@@ -800,7 +801,7 @@ void knowledge_base_t::reachable_matrix_t::finalize()
 }
 
 
-void knowledge_base_t::reachable_matrix_t::
+void knowledge_base_t::global_reachable_matrix_t::
     put(size_t idx1, const hash_map<size_t, float> &dist)
 {
     size_t num(0);
@@ -823,7 +824,7 @@ void knowledge_base_t::reachable_matrix_t::
 
 
 float knowledge_base_t::
-reachable_matrix_t::get(size_t idx1, size_t idx2) const
+global_reachable_matrix_t::get(size_t idx1, size_t idx2) const
 {
     if (idx1 > idx2) std::swap(idx1, idx2);
 
@@ -847,7 +848,7 @@ reachable_matrix_t::get(size_t idx1, size_t idx2) const
 }
 
 
-hash_set<float> knowledge_base_t::reachable_matrix_t::get(size_t idx) const
+hash_set<float> knowledge_base_t::global_reachable_matrix_t::get(size_t idx) const
 {
     size_t num;
     float dist;

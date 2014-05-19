@@ -147,7 +147,7 @@ add_constraint_of_dependence_of_node_on_hypernode(pg::node_idx_t idx)
         auto hns = m_graph->search_hypernodes_with_node(idx);
         if (hns != NULL)
         {
-            std::list<pg::edge_idx_t> parental_edges;
+            hash_set<pg::edge_idx_t> parental_edges;
             for (auto it = hns->begin(); it != hns->end(); ++it)
                 m_graph->enumerate_parental_edges(*it, &parental_edges);
 
