@@ -17,7 +17,7 @@ reachability_manager_t::erase(pg::node_idx_t from, pg::node_idx_t to)
 {
     for (auto it = m_list.begin(); it != m_list.end(); ++it)
     {
-        if (it->from == from and it->to == to)
+        if (it->node_from == from and it->node_to == to)
         {
             m_map[from].erase(to);
             m_list.erase(it);
@@ -40,9 +40,9 @@ erase(hash_set<pg::node_idx_t> from_set, pg::node_idx_t target)
     if (not to_set.empty())
     for (auto it = m_list.begin(); it != m_list.end();)
     {
-        if (from_set.count(it->from) > 0 and to_set.count(it->to) > 0)
+        if (from_set.count(it->node_from) > 0 and to_set.count(it->node_to) > 0)
         {
-            m_map[it->from].erase(it->to);
+            m_map[it->node_from].erase(it->node_to);
             it = m_list.erase(it);
         }
         else ++it;
@@ -76,8 +76,8 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
         hash_set<pg::node_idx_t> from_set;
         std::set<pg::chain_candidate_t> cands;
 
-        from_set.insert(r_target.from);
-        enumerate_chain_candidates(graph, r_target.from, &cands);
+        from_set.insert(r_target.node_from);
+        enumerate_chain_candidates(graph, r_target.node_from, &cands);
 
         for (auto cand = cands.begin(); cand != cands.end(); ++cand)
         {
@@ -108,7 +108,7 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
             for (int i = 0; i < hn_to.size(); ++i)
             {
                 for (auto it = rm_new[i].begin(); it != rm_new[i].end(); ++it)
-                    it->from = hn_to[i];
+                    it->node_from = hn_to[i];
 
                 erase_satisfied_reachability(
                     graph, hn_to[i], &rm_new[i], &satisfied);
@@ -121,7 +121,7 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
                 print_chain_for_debug(graph, axiom, (*cand), to);
         }
 
-        rm.erase(from_set, r_target.from);
+        rm.erase(from_set, r_target.node_from);
 
         if (graph->is_timeout()) break;
         if ((*stopper)(graph)) break;
@@ -271,10 +271,8 @@ const pg::proof_graph_t *graph, reachability_manager_t *out) const
 
         if (dist >= 0)
         {
-            reachability_t r1 = { *n1, *n2, dist, 0.0f };
-            reachability_t r2 = { *n2, *n1, dist, 0.0f };
-            out->add(r1);
-            out->add(r2);
+            out->add(reachability_t(*n1, *n2, 0.0f, dist));
+            out->add(reachability_t(*n2, *n1, 0.0f, dist));
         }
     }
 }
@@ -316,7 +314,7 @@ bool a_star_based_enumerator_t::compute_reachability_of_chaining(
 
             if (old == rcs_from.end())
                 rcs_from[it2->first] = _r;
-            else if (_r.distance < old->second.distance)
+            else if (_r.distance() < old->second.distance())
                 rcs_from[it2->first] = _r;
         }
     }
@@ -338,13 +336,13 @@ bool a_star_based_enumerator_t::compute_reachability_of_chaining(
         for (int i = 0; i < literals.size(); ++i)
         {
             std::string arity2 = literals.at(i)->get_predicate_arity();
-            float dist = base->get_distance(arity, arity2);
-            float rd = r_from.redundancy + d0 - (r_from.distance - dist);
+            float dist_to = base->get_distance(arity, arity2);
+            float dist_from = r_from.dist_from + d0;
 
-            if (dist >= 0.0f)
+            if (dist_to >= 0.0f)
             {
-                reachability_t _r = { -1, it->first, dist, rd };
-                (*out)[i].push_back(_r);
+                (*out)[i].push_back(
+                    reachability_t(-1, it->first, dist_from, dist_to));
                 can_reach_somewhere = true;
             }
         }
@@ -375,7 +373,7 @@ void a_star_based_enumerator_t::erase_satisfied_reachability(
 
     for (auto it = target->begin(); it != target->end();)
     {
-        if (ev.count(it->to) > 0)
+        if (ev.count(it->node_to) > 0)
         {
             erased->push_back(*it);
             it = target->erase(it);

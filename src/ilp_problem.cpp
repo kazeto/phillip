@@ -185,8 +185,8 @@ add_constraint_of_dependence_of_hypernode_on_parents(pg::hypernode_idx_t idx)
     variable_idx_t var = find_variable_with_hypernode(idx);
     if (var < 0) return -1;
 
-    std::list<pg::hypernode_idx_t> parents;
-    m_graph->enumerate_hypernodes_parents(idx, &parents);
+    hash_set<pg::hypernode_idx_t> parents;
+    m_graph->enumerate_parental_hypernodes(idx, &parents);
     if (parents.empty()) return -1;
 
     /* TO LET A HYPERNODE BE TRUE, ANY OF ITS PARENTS ARE MUST BE TRUE. */

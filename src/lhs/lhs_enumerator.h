@@ -28,8 +28,12 @@ public:
 private:
     struct reachability_t
     {
-        pg::node_idx_t from, to;
-        float distance, redundancy;
+        inline reachability_t();
+        inline reachability_t(pg::node_idx_t, pg::node_idx_t, float, float);
+        float distance() const { return dist_from + dist_to; }
+
+        pg::node_idx_t node_from, node_to;
+        float dist_from, dist_to;
     };
 
     class reachability_manager_t
@@ -184,10 +188,21 @@ private:
 /* -------- INLINE METHODS -------- */
 
 
+inline a_star_based_enumerator_t::reachability_t::reachability_t()
+: node_from(-1), node_to(-1), dist_from(0.0), dist_to(0.0)
+{}
+
+
+inline a_star_based_enumerator_t::reachability_t::
+reachability_t(pg::node_idx_t i_from, pg::node_idx_t i_to, float d_from, float d_to)
+: node_from(i_from), node_to(i_to), dist_from(d_from), dist_to(d_to)
+{}
+
+
 inline bool a_star_based_enumerator_t::reachability_manager_t::
 shorter_distance_t::operator()(const reachability_t &a, const reachability_t &b) const
 {
-    return a.distance < b.distance;
+    return a.distance() < b.distance();
 }
 
 
@@ -195,7 +210,7 @@ inline void a_star_based_enumerator_t::
 reachability_manager_t::add(const reachability_t &x)
 {
     m_list.push_back(x);
-    m_map[x.from][x.to] = &m_list.back();
+    m_map[x.node_from][x.node_to] = &m_list.back();
     m_list.sort(shorter_distance_t());
 }
 
@@ -203,7 +218,7 @@ reachability_manager_t::add(const reachability_t &x)
 inline void a_star_based_enumerator_t::
 reachability_manager_t::erase(const reachability_t &x)
 {
-    erase(x.from, x.to);
+    erase(x.node_from, x.node_to);
 }
 
 
@@ -212,7 +227,7 @@ template <class It> void a_star_based_enumerator_t::reachability_manager_t::inse
     for (auto it = begin; it != end; ++it)
     {
         m_list.push_back(*it);
-        m_map[it->from][it->to] = &m_list.back();
+        m_map[it->node_from][it->node_to] = &m_list.back();
     }
     m_list.sort(shorter_distance_t());
 }

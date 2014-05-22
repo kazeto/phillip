@@ -265,6 +265,29 @@ void cdb_data_t::finalize()
 }
 
 
+stop_watch_t* stop_watch_t::instance()
+{
+    static stop_watch_t instance;
+    return &instance;
+}
+
+
+double stop_watch_t::time(int key) const
+{
+    auto found = m_clocks_measured.find(key);
+    double out(0.0);
+
+    if (found != m_clocks_measured.end())
+    {
+        for (auto it = found->second.begin(); it != found->second.end(); ++it)
+            out += (double)(*it) / CLOCKS_PER_SEC;
+        out /= found->second.size();
+    }
+
+    return out;
+}
+
+
 const int BUFFER_SIZE_FOR_FMT = 256 * 256;
 char g_buffer_for_fmt[BUFFER_SIZE_FOR_FMT];
 

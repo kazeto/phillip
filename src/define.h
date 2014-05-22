@@ -183,6 +183,21 @@ private:
 };
 
 
+/** A class to experiment efficiency of a function. */
+class stop_watch_t
+{
+public:
+    static stop_watch_t* instance();
+    inline void start(int key);
+    inline void stop(int key);
+    double time(int key) const;
+
+private:
+    hash_map<int, clock_t> m_clocks_ongoing;
+    hash_map<int, std::list<clock_t> > m_clocks_measured;
+};
+
+
 /** A template class of list to be used as a key of std::map. */
 template <class T> class comparable_list : public std::list<T>
 {
