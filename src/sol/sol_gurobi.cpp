@@ -83,7 +83,7 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
             std::time(&now);
             if (sys()->is_timeout(now - begin))
             {
-                sol->timeout(true);
+                sol.timeout(true);
                 do_break = true;
             }
 

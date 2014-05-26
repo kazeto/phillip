@@ -53,10 +53,13 @@ public:
 class unification_postponement_t
 {
 public:
+    unification_postponement_t() {}
     unification_postponement_t(
         const std::string &arity, const std::vector<char> &args,
         int num_for_partial_indispensability);
+
     bool do_postpone(const pg::proof_graph_t*, index_t n1, index_t n2) const;
+    inline bool empty() const { return m_args.empty(); }
 
 private:
     std::string m_arity;
@@ -94,17 +97,18 @@ public:
     void insert_inconsistency(
         const lf::logical_function_t &lf, std::string name);
 
+    void insert_unification_postponement(
+        const lf::logical_function_t &lf, std::string name);
+
     inline float get_max_distance() const;
     inline size_t get_axiom_num() const;
 
     lf::axiom_t get_axiom(axiom_id_t id) const;
-    inline std::list<axiom_id_t>
-        search_axioms_with_rhs(const std::string &arity) const;
-    inline std::list<axiom_id_t>
-        search_axioms_with_lhs(const std::string &arity) const;
-    inline std::list<axiom_id_t>
-        search_inconsistencies(const std::string &arity) const;
+    inline std::list<axiom_id_t> search_axioms_with_rhs(const std::string &arity) const;
+    inline std::list<axiom_id_t> search_axioms_with_lhs(const std::string &arity) const;
+    inline std::list<axiom_id_t> search_inconsistencies(const std::string &arity) const;
     hash_set<axiom_id_t> search_axiom_group(axiom_id_t id) const;
+    unification_postponement_t get_unification_postponement(const std::string &arity) const;
 
     /** Returns ditance between arity1 and arity2
      *  in a reachable-matrix in the current knowledge-base.
@@ -206,7 +210,7 @@ private:
 
     hash_map<std::string, hash_set<axiom_id_t> >
         m_name_to_axioms, m_lhs_to_axioms, m_rhs_to_axioms,
-        m_inc_to_axioms, m_group_to_axioms;
+        m_inc_to_axioms, m_group_to_axioms, m_arity_to_postponement;
 
     /** Function object to provide distance between predicates. */
     distance_provider_t *m_rm_dist;

@@ -63,6 +63,18 @@ logical_function_t::logical_function_t( const sexp::stack_t &s )
 }
 
 
+bool logical_function_t::param2int(int *out) const
+{
+    auto splitted = split(param(), ":");
+    for (auto it = splitted.begin(); it != splitted.end(); ++it)
+    {
+        if (_sscanf(it->c_str(), "%d", out) == 1)
+            return true;
+    }
+    return false;
+}
+
+
 bool logical_function_t::param2double(double *out) const
 {
     auto splitted = split(param(), ":");

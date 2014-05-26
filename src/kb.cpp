@@ -110,6 +110,7 @@ void knowledge_base_t::prepare_compile()
         m_cdb_rhs.prepare_compile();
         m_cdb_lhs.prepare_compile();
         m_cdb_inc_pred.prepare_compile();
+        m_cdb_uni_pp.prepare_compile();
         m_cdb_axiom_group.prepare_compile();
         m_cdb_rm_idx.prepare_compile();
 
@@ -133,6 +134,7 @@ void knowledge_base_t::prepare_query()
         m_cdb_rhs.prepare_query();
         m_cdb_lhs.prepare_query();
         m_cdb_inc_pred.prepare_query();
+        m_cdb_uni_pp.prepare_query();
         m_cdb_axiom_group.prepare_query();
         m_cdb_rm_idx.prepare_query();
         m_rm.prepare_query();
@@ -155,6 +157,7 @@ void knowledge_base_t::finalize()
         _insert_cdb(m_rhs_to_axioms, &m_cdb_rhs);
         _insert_cdb(m_lhs_to_axioms, &m_cdb_lhs);
         _insert_cdb(m_inc_to_axioms, &m_cdb_inc_pred);
+        _insert_cdb(m_arity_to_postponement, &m_cdb_uni_pp);
         insert_axiom_group_to_cdb();
 
         m_name_to_axioms.clear();
@@ -162,6 +165,7 @@ void knowledge_base_t::finalize()
         m_lhs_to_axioms.clear();
         m_inc_to_axioms.clear();
         m_group_to_axioms.clear();
+        m_arity_to_postponement.clear();
 
         create_reachable_matrix();
         write_config((m_filename + ".conf").c_str());
@@ -174,6 +178,7 @@ void knowledge_base_t::finalize()
     m_cdb_rhs.finalize();
     m_cdb_lhs.finalize();
     m_cdb_inc_pred.finalize();
+    m_cdb_uni_pp.finalize();
     m_cdb_axiom_group.finalize();
     m_cdb_rm_idx.finalize();
     m_rm.finalize();
@@ -246,23 +251,74 @@ void knowledge_base_t::insert_implication(
 
 
 void knowledge_base_t::insert_inconsistency(
-    const lf::logical_function_t &lf, std::string name )
+    const lf::logical_function_t &lf, std::string name)
 {
+#define PRINT_WARNING print_warning_fmt( \
+    "Inconsistency \"%s\" is invalid and skipped.", \
+    lf.to_string().c_str())
+
     if (m_state == STATE_COMPILE)
     {
-        axiom_id_t id = m_num_compiled_axioms;
-        if (name.empty()) name = _get_name_of_unnamed_axiom();
-
-        _insert_cdb(name, lf);
-
-        /* REGISTER AXIOM-ID TO MAP FOR INC */
-        std::vector<const literal_t*> literals = lf.get_all_literals();
-        for (auto it = literals.begin(); it != literals.end(); ++it)
+        if (lf.branches.size() != 2)
+            PRINT_WARNING;
+        else if (
+            not lf.branch(0).is_operator(lf::OPR_LITERAL) or
+            not lf.branch(1).is_operator(lf::OPR_LITERAL))
+            PRINT_WARNING;
+        else
         {
-            std::string arity = (*it)->get_predicate_arity();
-            m_inc_to_axioms[arity].insert(id);
+            axiom_id_t id = m_num_compiled_axioms;
+            if (name.empty()) name = _get_name_of_unnamed_axiom();
+
+            _insert_cdb(name, lf);
+
+            /* REGISTER AXIOM-ID TO MAP FOR INC */
+            std::vector<const literal_t*> literals = lf.get_all_literals();
+            for (auto it = literals.begin(); it != literals.end(); ++it)
+            {
+                std::string arity = (*it)->get_predicate_arity();
+                m_inc_to_axioms[arity].insert(id);
+            }
         }
     }
+
+#undef PRINT_WARNING
+}
+
+
+void knowledge_base_t::insert_unification_postponement(
+    const lf::logical_function_t &lf, std::string name)
+{
+#define PRINT_WARNING print_warning_fmt( \
+    "Unification postponement \"%s\" is invalid and skipped.", \
+    lf.to_string().c_str())
+
+    if (m_state == STATE_COMPILE)
+    {
+        if (lf.branches.size() != 1)
+            PRINT_WARNING;
+        else if (not lf.branch(0).is_operator(lf::OPR_LITERAL))
+            PRINT_WARNING;
+        else
+        {
+            axiom_id_t id = m_num_compiled_axioms;
+            if (name.empty()) name = _get_name_of_unnamed_axiom();
+
+            _insert_cdb(name, lf);
+
+            /* REGISTER AXIOM-ID TO MAP FOR UNI-PP */
+            std::string arity = lf.branch(0).literal().get_predicate_arity();
+            if (m_arity_to_postponement.count(arity) > 0)
+                print_warning_fmt(
+                "The unification postponement "
+                "for the arity \"%s\" inserted redundantly!",
+                arity.c_str());
+            else
+                m_arity_to_postponement[arity].insert(id);
+        }
+    }
+
+#undef PRINT_WARNING
 }
 
 
@@ -326,6 +382,45 @@ hash_set<axiom_id_t> knowledge_base_t::search_axiom_group(axiom_id_t id) const
     }
 
     return out;
+}
+
+
+unification_postponement_t knowledge_base_t::get_unification_postponement(const std::string &arity) const
+{
+    std::list<axiom_id_t> ids = search_id_list(arity, &m_cdb_uni_pp);
+    if (not ids.empty())
+    {
+        const term_t INDISPENSABLE("*"), PARTIAL("+"), DISPENSABLE(".");
+        lf::axiom_t ax = get_axiom(ids.front());
+        const literal_t &lit = ax.func.literal();
+        std::string arity = lit.get_predicate_arity();
+        std::vector<char> args(lit.terms.size(), 0);
+
+        for (size_t i = 0; i < args.size(); ++i)
+        {
+            if (lit.terms.at(i) == INDISPENSABLE)
+                args[i] = UNI_PP_INDISPENSABLE;
+            else if (lit.terms.at(i) == PARTIAL)
+                args[i] = UNI_PP_INDISPENSABLE_PARTIALLY;
+            else if (lit.terms.at(i) == DISPENSABLE)
+                args[i] = UNI_PP_DISPENSABLE;
+            else
+            {
+                print_warning_fmt(
+                    "The unification postponement for the arity \"%s\" is invalid.",
+                    arity.c_str());
+                return unification_postponement_t();
+            }
+
+        }
+
+        int num(1);
+        ax.func.param2int(&num);
+
+        return unification_postponement_t(arity, args, num);
+    }
+    else
+        return unification_postponement_t();
 }
 
 
