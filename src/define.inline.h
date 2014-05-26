@@ -202,13 +202,25 @@ inline void print_console(const std::string &str)
 
 inline void print_error(const std::string &str)
 {
-    std::cerr << " * ERROR * " << str << std::endl;
+    std::cerr
+#ifdef _WIN32
+        << " * ERROR * "
+#else
+        << "\33[0;41m * ERROR * \33[0m"
+#endif
+        << str << std::endl;
 }
 
 
 inline void print_warning(const std::string &str)
 {
-    std::cerr << " * WARNING * " << str << std::endl;
+    std::cerr
+#ifdef _WIN32
+        << " * WARNING * "
+#else
+        << "\33[0;41m * WARNING * \33[0m"
+#endif
+        << str << std::endl;
 }
 
 
