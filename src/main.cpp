@@ -44,7 +44,7 @@ int main(int argc, char* argv[])
     }
 
     /* INFERENCE */
-    if ( config.mode == bin::EXE_MODE_INFERENCE )
+    if (config.mode == bin::EXE_MODE_INFERENCE)
     {
         std::vector<lf::input_t> parsed_inputs;
         proc::processor_t processor;

@@ -266,11 +266,17 @@ kb::distance_provider_type_e _get_distance_provider_type(const std::string &arg)
 lhs_enumerator_t* _new_lhs_enumerator(const std::string &key)
 {
     if (key == "a*:bidirection")
-        return new lhs::a_star_based_enumerator_t(true, true);
+        return new lhs::a_star_based_enumerator_t(
+        true, true,
+        sys()->param_float("max_distance"));
     if (key == "a*:abduction")
-        return new lhs::a_star_based_enumerator_t(false, true);
+        return new lhs::a_star_based_enumerator_t(
+        false, true,
+        sys()->param_float("max_distance"));
     if (key == "a*:deduction")
-        return new lhs::a_star_based_enumerator_t(true, false);
+        return new lhs::a_star_based_enumerator_t(
+        true, false,
+        sys()->param_float("max_distance"));
     if (key == "depth:bidirection" or key == "bidirection")
         return new lhs::depth_based_enumerator_t(
         true, true,

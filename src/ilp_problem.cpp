@@ -457,7 +457,8 @@ void ilp_problem_t::print(std::ostream *os) const
     (*os)
         << "<ilp name=\"" << name()
         << "\" maxmize=\"" << (do_maximize() ? "yes" : "no")
-        << "\" time=\"" << sys()->get_time_for_ilp();
+        << "\" time=\"" << sys()->get_time_for_ilp()
+        << "\" timeout=\"" << (is_timeout() ? "yes" : "no");
 
     for (auto attr = m_attributes.begin(); attr != m_attributes.end(); ++attr)
         (*os) << "\" " << attr->first << "=\"" << attr->second;
@@ -519,6 +520,17 @@ void ilp_problem_t::print_solution(
         << "\" sol=\"" << sys()->get_time_for_sol()
         << "\" all=\"" << sys()->get_time_for_infer()
         << "\"></time>" << std::endl;
+
+    const ilp::ilp_problem_t *prob(sol->problem());
+    const pg::proof_graph_t *graph(sol->problem()->proof_graph());
+    bool is_time_out_all =
+        graph->is_timeout() or prob->is_timeout() or sol->is_timeout();
+    (*os)
+        << "<timeout lhs=\"" << (graph->is_timeout() ? "yes" : "no")
+        << "\" ilp=\"" << (prob->is_timeout() ? "yes" : "no")
+        << "\" sol=\"" << (sol->is_timeout() ? "yes" : "no")
+        << "\" all=\"" << (is_time_out_all ? "yes" : "no")
+        << "\"></timeout>" << std::endl;
 
     _print_literals_in_solution(sol, os);
     _print_explanations_in_solution(sol, os);
@@ -684,8 +696,8 @@ ilp_solution_t::ilp_solution_t(
     : m_name(name), m_ilp(prob), m_solution_type(sol_type),
       m_optimized_values(values),
       m_constraints_sufficiency(prob->constraints().size(), false),
-      m_value_of_objective_function(
-      prob->get_value_of_objective_function(values))
+      m_value_of_objective_function(prob->get_value_of_objective_function(values)),
+      m_is_timeout(false)
 {
     for (int i = 0; i < prob->constraints().size(); ++i)
     {
@@ -724,7 +736,9 @@ void ilp_solution_t::print(std::ostream *os) const
 {
     (*os)
         << "<solution name=\"" << name()
-        << "\" time=\"" << sys()->get_time_for_sol() << "\">" << std::endl
+        << "\" time=\"" << sys()->get_time_for_sol()
+        << "\" timeout=\"" << (is_timeout() ? "yes" : "no")
+        << "\">" << std::endl
         << "<variables num=\"" << m_ilp->variables().size()
         << "\">" << std::endl;
 

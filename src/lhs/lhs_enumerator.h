@@ -20,7 +20,8 @@ namespace lhs
 class a_star_based_enumerator_t : public lhs_enumerator_t
 {
 public:
-    a_star_based_enumerator_t(bool do_deduction, bool do_abduction);
+    a_star_based_enumerator_t(
+        bool do_deduction, bool do_abduction, float max_dist);
     virtual pg::proof_graph_t* execute() const;
     virtual bool is_available(std::list<std::string>*) const;
     virtual std::string repr() const;
@@ -106,8 +107,12 @@ private:
     void print_chain_for_debug(
         const pg::proof_graph_t *graph, const lf::axiom_t &axiom,
         const pg::chain_candidate_t &cand, pg::hypernode_idx_t to) const;
-    
+
+    inline bool check_permissibility_of(float dist) const;
+    inline bool check_permissibility_of(const reachability_t &r) const;
+
     bool m_do_deduction, m_do_abduction;
+    float m_max_distance;
 };
 
 
@@ -186,6 +191,20 @@ private:
 
 
 /* -------- INLINE METHODS -------- */
+
+
+inline bool a_star_based_enumerator_t::check_permissibility_of(float dist) const
+{
+    return
+        (dist >= 0.0f) and
+        (m_max_distance < 0.0f or dist < m_max_distance);
+}
+
+
+inline bool a_star_based_enumerator_t::check_permissibility_of(const reachability_t &r) const
+{
+    return check_permissibility_of(r.distance());
+}
 
 
 inline a_star_based_enumerator_t::reachability_t::reachability_t()

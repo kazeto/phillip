@@ -118,13 +118,16 @@ class ilp_problem_t
 public:
     static const int INVALID_CUT_OFF = INT_MIN;
 
-    static void enable_economization() { ms_do_economize = true; };
+    static void enable_economization() { ms_do_economize = true; }
     static void disable_economization() { ms_do_economize = false; }
 
     inline ilp_problem_t(
         const pg::proof_graph_t* lhs, solution_interpreter_t *si,
         bool do_maximize, const std::string &name = "");
     virtual ~ilp_problem_t();
+
+    inline void timeout(bool flag) { m_is_timeout = flag; }
+    inline bool is_timeout() const { return m_is_timeout; }
 
     /** Add a new decorator for outputting xml-files.
      *  You can use this method to customize output. */
@@ -268,6 +271,7 @@ protected:
 
     std::string m_name;
     bool m_do_maximize;
+    bool m_is_timeout; /// Whether conversion into ILP was timeout.
 
     const pg::proof_graph_t* const m_graph;
     
@@ -310,6 +314,9 @@ public:
         const ilp_problem_t *prob, solution_type_e sol_type,
         const std::vector<double> &values, const std::string &name = "");
 
+    inline void timeout(bool flag) { m_is_timeout = flag; }
+    inline bool is_timeout() const { return m_is_timeout; }
+
     inline const std::string& name() const { return m_name; }
     inline const ilp::ilp_problem_t* problem() const { return m_ilp; }
     inline void set_solution_type(solution_type_e t) { m_solution_type = t; }
@@ -338,6 +345,8 @@ private:
     std::vector<double> m_optimized_values;
     std::vector<bool> m_constraints_sufficiency;
     double m_value_of_objective_function;
+
+    bool m_is_timeout;
 };
 
 

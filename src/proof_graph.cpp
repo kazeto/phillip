@@ -733,7 +733,7 @@ void proof_graph_t::print(std::ostream *os) const
     (*os)
         << "<latent-hypotheses-set name=\"" << name()
         << "\" time=\"" << sys()->get_time_for_lhs()
-        << "\" time-out=\"" << (is_timeout() ? "yes" : "no");
+        << "\" timeout=\"" << (is_timeout() ? "yes" : "no");
 
     for (auto it = m_attributes.begin(); it != m_attributes.end(); ++it)
         (*os) << "\" " << it->first << "=\"" << it->second;
@@ -1568,7 +1568,7 @@ size_t proof_graph_t::get_hash_of_nodes(std::list<node_idx_t> nodes)
 void proof_graph_t::post_process()
 {
     _clean_logs();
-    _enumerate_hypernodes_disregarded();
+    // _enumerate_hypernodes_disregarded();
 }
 
 

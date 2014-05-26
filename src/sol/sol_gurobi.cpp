@@ -25,7 +25,9 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
     hash_set<ilp::constraint_idx_t>
         lazy_cons(prob->get_lazy_constraints());
     bool do_cpi(not lazy_cons.empty() and not sys()->flag("disable_cpi"));
-    
+    std::time_t begin, now;
+
+    std::time(&begin);
     add_variables(&model, &vars);
     
     for (int i = 0; i < prob->constraints().size(); ++i)
@@ -77,6 +79,13 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
                 else do_break = true;
             }
             else do_break = true;
+
+            std::time(&now);
+            if (sys()->is_timeout(now - begin))
+            {
+                sol->timeout(true);
+                do_break = true;
+            }
 
             if (do_break)
             {
@@ -171,10 +180,6 @@ ilp::ilp_solution_t gurobi_t::convert(
     GRBVar *p_vars = model->getVars();
     double *p_values = model->get(GRB_DoubleAttr_X, p_vars, values.size());
 
-    print_console_fmt("size = %d", values.size());
-    print_console_fmt("%08x", p_vars);
-    print_console_fmt("%08x", p_values);
-    
     for (int i = 0; i < prob->variables().size(); ++i)
         values[i] = p_values[i];
 

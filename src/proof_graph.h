@@ -581,7 +581,7 @@ protected:
     // ---- VARIABLES
     
     std::string m_name;
-    bool m_is_timeout; /// For time-out.
+    bool m_is_timeout; /// For timeout.
 
     std::vector<node_t> m_nodes;
     std::vector< std::vector<node_idx_t> > m_hypernodes;

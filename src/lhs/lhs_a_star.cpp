@@ -51,8 +51,9 @@ erase(hash_set<pg::node_idx_t> from_set, pg::node_idx_t target)
 
 
 a_star_based_enumerator_t::a_star_based_enumerator_t(
-    bool do_deduction, bool do_abduction)
-    : m_do_deduction(do_deduction), m_do_abduction(do_abduction)
+    bool do_deduction, bool do_abduction, float max_dist)
+    : m_do_deduction(do_deduction), m_do_abduction(do_abduction),
+      m_max_distance(max_dist)
 {}
 
 
@@ -269,7 +270,7 @@ const pg::proof_graph_t *graph, reachability_manager_t *out) const
             node1.literal().get_predicate_arity(),
             node2.literal().get_predicate_arity());
 
-        if (dist >= 0)
+        if (check_permissibility_of(dist))
         {
             out->add(reachability_t(*n1, *n2, 0.0f, dist));
             out->add(reachability_t(*n2, *n1, 0.0f, dist));
@@ -338,11 +339,12 @@ bool a_star_based_enumerator_t::compute_reachability_of_chaining(
             std::string arity2 = literals.at(i)->get_predicate_arity();
             float dist_to = base->get_distance(arity, arity2);
             float dist_from = r_from.dist_from + d0;
+            if (dist_to < 0.0f) continue;
 
-            if (dist_to >= 0.0f)
+            reachability_t _r(-1, it->first, dist_from, dist_to);
+            if (check_permissibility_of(_r))
             {
-                (*out)[i].push_back(
-                    reachability_t(-1, it->first, dist_from, dist_to));
+                (*out)[i].push_back(_r);
                 can_reach_somewhere = true;
             }
         }

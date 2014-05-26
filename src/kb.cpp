@@ -18,6 +18,54 @@ namespace kb
 {
 
 
+unification_postponement_t::unification_postponement_t(
+    const std::string &arity, const std::vector<char> &args,
+    int num_for_partial_indispensability)
+    : m_arity(arity), m_args(args),
+      m_num_for_partial_indispensability(num_for_partial_indispensability)
+{
+    int n = std::count(
+        m_args.begin(), m_args.end(), UNI_PP_INDISPENSABLE_PARTIALLY);
+
+    if (m_num_for_partial_indispensability < 0)
+        m_num_for_partial_indispensability = 0;
+    if (m_num_for_partial_indispensability > n)
+        m_num_for_partial_indispensability = n;
+}
+
+
+bool unification_postponement_t::do_postpone(
+    const pg::proof_graph_t *graph, index_t n1, index_t n2) const
+{
+    const literal_t &l1 = graph->node(n1).literal();
+    const literal_t &l2 = graph->node(n2).literal();
+    int num(0);
+
+    assert(
+        l1.terms.size() == m_args.size() and
+        l2.terms.size() == m_args.size());
+
+    for (size_t i = 0; i < m_args.size(); ++i)
+    {
+        unification_postpone_argument_type_e arg =
+            static_cast<unification_postpone_argument_type_e>(m_args.at(i));
+
+        if (arg == UNI_PP_DISPENSABLE) continue;
+        
+        bool flag_unify(l1.terms.at(i) == l2.terms.at(i));
+        if (flag_unify)
+            flag_unify = (graph->find_sub_node(l1.terms.at(i), l2.terms.at(i)) >= 0);
+
+        if (arg == UNI_PP_INDISPENSABLE and not flag_unify)
+            return true;
+        if (arg == UNI_PP_INDISPENSABLE_PARTIALLY and flag_unify)
+            ++num;
+    }
+
+    return (num < m_num_for_partial_indispensability);
+}
+
+
 const int BUFFER_SIZE = 512 * 512;
 
 
@@ -32,10 +80,11 @@ knowledge_base_t::knowledge_base_t(
       m_cdb_lhs(filename + ".lhs.cdb"),
       m_cdb_inc_pred(filename + ".inc.pred.cdb"),
       m_cdb_axiom_group(filename + ".group.cdb"),
+      m_cdb_uni_pp(filename + ".unipp.cdb"), 
       m_cdb_rm_idx(filename + ".rm.cdb"),
       m_rm(filename + ".rm.dat"),
       m_rm_dist(new basic_distance_provider_t()),
-      m_num_compiled_axioms(0), m_num_temporary_axioms(0),
+      m_num_compiled_axioms(0),
       m_num_unnamed_axioms(0)
 {
     set_distance_provider(dist);
@@ -158,103 +207,61 @@ void knowledge_base_t::read_config(const char *filename)
 }
 
 
-void knowledge_base_t::insert_implication_for_compile(
+void knowledge_base_t::insert_implication(
     const lf::logical_function_t &lf, std::string name )
 {
-    if (not _can_insert_axiom_to_compile()) return;
-
-    axiom_id_t id = m_num_compiled_axioms;
-    if (name.empty()) name = _get_name_of_unnamed_axiom();
-
-    _insert_cdb(name, lf);
-    m_name_to_axioms[name].insert(id);
-
-    // REGISTER AXIOMS'S GROUPS
-    auto spl = split(name, "#");
-    if (spl.size() > 1)
+    if (m_state == STATE_COMPILE)
     {
-        for (int i = 0; i < spl.size() - 1; ++i)
-            m_group_to_axioms[spl[i]].insert(id);
-    }
-    
-    std::vector<const literal_t*> rhs(lf.get_rhs()), lhs(lf.get_lhs());
+        axiom_id_t id = m_num_compiled_axioms;
+        if (name.empty()) name = _get_name_of_unnamed_axiom();
 
-    for( auto it=rhs.begin(); it!=rhs.end(); ++it )
-    {
-        std::string arity((*it)->get_predicate_arity());
-        m_rhs_to_axioms[arity].insert(id);
-        insert_arity(arity);
-    }
+        _insert_cdb(name, lf);
+        m_name_to_axioms[name].insert(id);
 
-    for( auto it=lhs.begin(); it!=lhs.end(); ++it )
-    {
-        std::string arity = (*it)->get_predicate_arity();
-        m_lhs_to_axioms[arity].insert(id);
-        insert_arity(arity);
+        // REGISTER AXIOMS'S GROUPS
+        auto spl = split(name, "#");
+        if (spl.size() > 1)
+        {
+            for (int i = 0; i < spl.size() - 1; ++i)
+                m_group_to_axioms[spl[i]].insert(id);
+        }
+
+        std::vector<const literal_t*> rhs(lf.get_rhs()), lhs(lf.get_lhs());
+
+        for (auto it = rhs.begin(); it != rhs.end(); ++it)
+        {
+            std::string arity((*it)->get_predicate_arity());
+            m_rhs_to_axioms[arity].insert(id);
+            insert_arity(arity);
+        }
+
+        for (auto it = lhs.begin(); it != lhs.end(); ++it)
+        {
+            std::string arity = (*it)->get_predicate_arity();
+            m_lhs_to_axioms[arity].insert(id);
+            insert_arity(arity);
+        }
     }
 }
 
 
-void knowledge_base_t::insert_inconsistency_for_compile(
+void knowledge_base_t::insert_inconsistency(
     const lf::logical_function_t &lf, std::string name )
 {
-    if (not _can_insert_axiom_to_compile()) return;
-
-    axiom_id_t id = m_num_compiled_axioms;
-    if (name.empty()) name = _get_name_of_unnamed_axiom();
-
-    _insert_cdb(name, lf);
-    
-    /* REGISTER AXIOM-ID TO MAP FOR INC */
-    std::vector<const literal_t*> literals = lf.get_all_literals();
-    for( auto it=literals.begin(); it!=literals.end(); ++it )
+    if (m_state == STATE_COMPILE)
     {
-        std::string arity = (*it)->get_predicate_arity();
-        m_inc_to_axioms[arity].insert(id);
-    }
-}
+        axiom_id_t id = m_num_compiled_axioms;
+        if (name.empty()) name = _get_name_of_unnamed_axiom();
 
+        _insert_cdb(name, lf);
 
-void knowledge_base_t::insert_implication_temporary(
-    const lf::logical_function_t &lf, std::string name)
-{
-    axiom_id_t id = m_num_temporary_axioms;
-    if (name.empty()) name = _get_name_of_unnamed_axiom();
-
-    _insert_axiom_temporary(lf, name);
-
-    std::vector<const literal_t*>
-        rhs(lf.branch(1).get_all_literals()),
-        lhs(lf.branch(0).get_all_literals());
-
-    for (auto it = rhs.begin(); it != rhs.end(); ++it)
-    {
-        std::string arity((*it)->get_predicate_arity());
-        m_rhs_to_tmp_axioms[arity].insert(id);
-    }
-
-    for (auto it = lhs.begin(); it != lhs.end(); ++it)
-    {
-        std::string arity = (*it)->get_predicate_arity();
-        m_lhs_to_tmp_axioms[arity].insert(id);
-    }
-}
-
-
-void knowledge_base_t::insert_inconsistency_temporary(
-    const lf::logical_function_t &lf, std::string name)
-{
-    axiom_id_t id = m_num_temporary_axioms;
-    if (name.empty()) name = _get_name_of_unnamed_axiom();
-
-    _insert_axiom_temporary(lf, name);
-
-    /* REGISTER AXIOM-ID TO MAP FOR INC */
-    std::vector<const literal_t*> literals = lf.get_all_literals();
-    for (auto it = literals.begin(); it != literals.end(); ++it)
-    {
-        std::string arity = (*it)->get_predicate_arity();
-        m_inc_to_tmp_axioms[arity].insert(id);
+        /* REGISTER AXIOM-ID TO MAP FOR INC */
+        std::vector<const literal_t*> literals = lf.get_all_literals();
+        for (auto it = literals.begin(); it != literals.end(); ++it)
+        {
+            std::string arity = (*it)->get_predicate_arity();
+            m_inc_to_axioms[arity].insert(id);
+        }
     }
 }
 
@@ -269,27 +276,21 @@ lf::axiom_t knowledge_base_t::get_axiom(axiom_id_t id) const
         return out;
     }
 
-    if (id < m_num_compiled_axioms)
+    size_t value_size;
+    const char *value = (const char*)
+        m_cdb_id.get(&id, sizeof(axiom_id_t), &value_size);
+
+    if (value == NULL)
     {
-
-        size_t value_size;
-        const char *value = (const char*)
-            m_cdb_id.get(&id, sizeof(axiom_id_t), &value_size);
-
-        if (value == NULL)
-        {
-            std::string message = format(
-                "kb-search: Axiom-ID \"%ld\" is not found!", id);
-            print_warning(message);
-            return out;
-        }
-
-        size_t size = out.func.read_binary(value);
-        size += binary_to<axiom_id_t>(value + size, &out.id);
-        size += binary_to_string(value + size, &out.name);
+        std::string message = format(
+            "kb-search: Axiom-ID \"%ld\" is not found!", id);
+        print_warning(message);
+        return out;
     }
-    else
-        out = m_temporary_axioms.at(id);
+
+    size_t size = out.func.read_binary(value);
+    size += binary_to<axiom_id_t>(value + size, &out.id);
+    size += binary_to_string(value + size, &out.name);
     
     return out;
 }
@@ -320,7 +321,7 @@ hash_set<axiom_id_t> knowledge_base_t::search_axiom_group(axiom_id_t id) const
         std::string grp;
         size += binary_to_string(value + size, &grp);
 
-        auto ids = search_id_list(grp, &m_cdb_axiom_group, NULL);
+        auto ids = search_id_list(grp, &m_cdb_axiom_group);
         out.insert(ids.begin(), ids.end());
     }
 
@@ -392,30 +393,6 @@ void knowledge_base_t::_insert_cdb(
     std::cerr
         << time_stamp() << "completed writing "
         << dat->filename() << "." << std::endl;
-}
-
-
-void knowledge_base_t::_insert_axiom_temporary(
-    const lf::logical_function_t &lf, std::string name)
-{
-    axiom_id_t id = get_axiom_num();
-    lf::axiom_t *ax = &m_temporary_axioms[id];
-
-    ax->id = id;
-    ax->name = name;
-    ax->func = lf;
-    ++m_num_temporary_axioms;
-};
-
-
-bool knowledge_base_t::_can_insert_axiom_to_compile() const
-{
-    if (m_state != STATE_COMPILE or m_num_temporary_axioms > 0)
-    {
-        print_error("kb-insert: KB is currently not writable.");
-        return false;
-    }
-    return true;
 }
 
 
@@ -673,8 +650,7 @@ void knowledge_base_t::set_distance_provider(distance_provider_type_e t)
 
 
 std::list<axiom_id_t> knowledge_base_t::search_id_list(
-    const std::string &query, const cdb_data_t *dat,
-    const hash_map<std::string, hash_set<axiom_id_t> > *tmp) const
+    const std::string &query, const cdb_data_t *dat) const
 {
     std::list<axiom_id_t> out;
     
@@ -701,13 +677,6 @@ std::list<axiom_id_t> knowledge_base_t::search_id_list(
                 }
             }
         }
-    }
-
-    if (tmp != NULL)
-    {
-        auto find = tmp->find(query);
-        if (find != tmp->end())
-            out.insert(out.end(), find->second.begin(), find->second.end());
     }
     
     return out;

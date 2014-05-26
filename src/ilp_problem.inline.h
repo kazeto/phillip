@@ -171,7 +171,7 @@ inline std::string constraint_t::to_string(
 inline ilp_problem_t::ilp_problem_t(
     const pg::proof_graph_t* lhs, solution_interpreter_t *si,
     bool do_maximize, const std::string &name)
-    : m_name(name), m_do_maximize(do_maximize),
+    : m_name(name), m_do_maximize(do_maximize), m_is_timeout(false),
       m_graph(lhs), m_cutoff(INVALID_CUT_OFF), m_solution_interpreter(si)
 {}
 

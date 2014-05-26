@@ -22,7 +22,9 @@ void lp_solve_t::execute(
     ::lprec *rec(NULL);
     hash_set<ilp::constraint_idx_t> lazy_cons = do_cpi ?
         prob->get_lazy_constraints() : hash_set<ilp::constraint_idx_t>();
+    std::time_t begin, now;
 
+    std::time(&begin);
     initialize(prob, &rec, do_cpi);
     
     size_t num_loop(0);
@@ -33,7 +35,7 @@ void lp_solve_t::execute(
 
         int ret = ::solve(rec);
         ilp::ilp_solution_t *sol = NULL;
-        bool do_break(false);
+        bool do_break(false), is_timeout(false);
 
         if (ret == OPTIMAL or ret == SUBOPTIMAL)
         {
@@ -59,6 +61,10 @@ void lp_solve_t::execute(
         }
         else do_break = true;
 
+        std::time(&now);
+        if (sys()->is_timeout(now - begin))
+            do_break = is_timeout = true;
+
         if (do_break)
         {
             ::delete_lp(rec);
@@ -67,8 +73,10 @@ void lp_solve_t::execute(
                 sol = new ilp::ilp_solution_t(
                     prob, ilp::SOLUTION_NOT_AVAILABLE,
                     std::vector<double>(0.0, prob->variables().size()));
-            
+
+            sol->timeout(is_timeout);
             out->push_back(*sol);
+
             delete sol;
             break;
         }

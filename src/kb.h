@@ -13,6 +13,10 @@
 namespace phil
 {
 
+
+namespace pg { class proof_graph_t; }
+
+
 namespace kb
 {
 
@@ -22,6 +26,14 @@ enum distance_provider_type_e
     DISTANCE_PROVIDER_UNDERSPECIFIED,
     DISTANCE_PROVIDER_BASIC,
     DISTANCE_PROVIDER_COST_BASED
+};
+
+
+enum unification_postpone_argument_type_e
+{
+    UNI_PP_INDISPENSABLE,           /// Is expressed as '*'.
+    UNI_PP_INDISPENSABLE_PARTIALLY, /// Is expressed as '+'.
+    UNI_PP_DISPENSABLE,             /// Is expressed as '.'.
 };
 
 
@@ -35,6 +47,21 @@ public:
 
     virtual distance_provider_type_e type() const
     { return DISTANCE_PROVIDER_UNDERSPECIFIED; }
+};
+
+
+class unification_postponement_t
+{
+public:
+    unification_postponement_t(
+        const std::string &arity, const std::vector<char> &args,
+        int num_for_partial_indispensability);
+    bool do_postpone(const pg::proof_graph_t*, index_t n1, index_t n2) const;
+
+private:
+    std::string m_arity;
+    std::vector<char> m_args;
+    int m_num_for_partial_indispensability;
 };
 
 
@@ -59,30 +86,16 @@ public:
 
     /** Inserts new axiom into knowledge base as compiled axiom.
      *  This method can be called only in compile-mode. */
-    void insert_implication_for_compile(
+    void insert_implication(
         const lf::logical_function_t &lf, std::string name);
     
     /** Inserts new inconsistency into knowledge base as compiled axiom.
      *  This method can be called only in compile-mode. */
-    void insert_inconsistency_for_compile(
-        const lf::logical_function_t &lf, std::string name);
-
-    /** Inserts new axiom into knowledge base as temporal axiom.
-     *  This method can be called anytime but
-     *  you cannot add new axioms to compile after calling this method. */
-    void insert_implication_temporary(
-        const lf::logical_function_t &lf, std::string name);
-    
-    /** Inserts new inconsistency into knowledge base as temporal axiom.
-     *  This method can be called anytime but
-     *  you cannot add new axioms to compile after calling this method. */
-    void insert_inconsistency_temporary(
+    void insert_inconsistency(
         const lf::logical_function_t &lf, std::string name);
 
     inline float get_max_distance() const;
     inline size_t get_axiom_num() const;
-    inline size_t get_compiled_axiom_num() const;
-    inline size_t get_temporal_axiom_num() const;
 
     lf::axiom_t get_axiom(axiom_id_t id) const;
     inline std::list<axiom_id_t>
@@ -142,9 +155,6 @@ private:
     void _insert_cdb(
         const hash_map<std::string, hash_set<axiom_id_t> > &ids,
         cdb_data_t *dat);
-    void _insert_axiom_temporary(
-        const lf::logical_function_t &lf, std::string name);
-    bool _can_insert_axiom_to_compile() const;
     void insert_arity(const std::string &arity);
 
     /** Outputs m_group_to_axioms to m_cdb_axiom_group. */
@@ -169,8 +179,7 @@ private:
      *  @param dat A database of cdb to seach axiom.
      *  @param tmp A map of temporal axioms related with dat. */
     std::list<axiom_id_t> search_id_list(
-        const std::string &query, const cdb_data_t *dat,
-        const hash_map<std::string, hash_set<axiom_id_t> > *tmp) const;
+        const std::string &query, const cdb_data_t *dat) const;
 
     /** Returns index of given arity in reachable-matrix.
      *  On calling this method, ~.rm.idx.cdb must be readable. */
@@ -182,20 +191,14 @@ private:
     std::string m_filename;
 
     cdb_data_t m_cdb_id, m_cdb_name, m_cdb_rhs, m_cdb_lhs;
-    cdb_data_t m_cdb_inc_pred, m_cdb_axiom_group;
+    cdb_data_t m_cdb_inc_pred, m_cdb_axiom_group, m_cdb_uni_pp;
     cdb_data_t m_cdb_rm_idx;
     global_reachable_matrix_t m_rm;
     
     size_t m_num_compiled_axioms;
-    size_t m_num_temporary_axioms;
     size_t m_num_unnamed_axioms;
 
     hash_map<size_t, hash_map<size_t, float> > m_partial_reachable_matrix;
-
-    /** Axioms which were added temporally. */
-    hash_map<axiom_id_t, lf::axiom_t> m_temporary_axioms;
-    hash_map<std::string, hash_set<axiom_id_t> >
-        m_lhs_to_tmp_axioms, m_rhs_to_tmp_axioms, m_inc_to_tmp_axioms;
 
     /** All arities in this knowledge-base.
      *  This variable is used on constructing reachable-matrix. */

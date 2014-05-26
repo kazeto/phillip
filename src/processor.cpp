@@ -93,18 +93,12 @@ void compile_kb_t::process( const sexp::reader_t *reader )
         if (idx_lf >= 0)
         {
             IF_VERBOSE_FULL("add implication: " + stack->to_string());
-
-            m_is_temporary ?
-                m_kb->insert_implication_temporary(lf, name) :
-                m_kb->insert_implication_for_compile(lf, name);
+            m_kb->insert_implication(lf, name);
         }
         else if (idx_inc >= 0)
         {
             IF_VERBOSE_FULL("add inconsistency: " + stack->to_string());
-
-            m_is_temporary ?
-                m_kb->insert_inconsistency_temporary(lf, name) :
-                m_kb->insert_inconsistency_for_compile(lf, name);
+            m_kb->insert_inconsistency(lf, name);
         }
     }
 }
