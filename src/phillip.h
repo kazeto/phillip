@@ -101,6 +101,8 @@ private:
     inline bool can_infer() const;
     inline void reset_for_inference();
 
+    void write_configure(std::ofstream *fo) const;
+
     static phillip_main_t *ms_instance;
     
     // ---- FUNCTION CLASS OF EACH PROCEDURE

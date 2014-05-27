@@ -97,7 +97,11 @@ void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
 
     if ((fo = _open_file(param("path_lhs_out"), mode)) != NULL)
     {
-        if (is_begin) (*fo) << "<phillip>" << std::endl;
+        if (is_begin)
+        {
+            (*fo) << "<phillip>" << std::endl;
+            write_configure(fo);
+        }
         m_lhs->print(fo);
         if (is_end) (*fo) << "</phillip>" << std::endl;
         delete fo;
@@ -112,7 +116,11 @@ void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
 
     if ((fo = _open_file(param("path_ilp_out"), mode)) != NULL)
     {
-        if (is_begin) (*fo) << "<phillip>" << std::endl;
+        if (is_begin)
+        {
+            (*fo) << "<phillip>" << std::endl;
+            write_configure(fo);
+        }
         m_ilp->print(fo);
         if (is_end) (*fo) << "</phillip>" << std::endl;
         delete fo;
@@ -132,7 +140,11 @@ void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
 
     if ((fo = _open_file(param("path_sol_out"), mode)) != NULL)
     {
-        if (is_begin) (*fo) << "<phillip>" << std::endl;
+        if (is_begin)
+        {
+            (*fo) << "<phillip>" << std::endl;
+            write_configure(fo);
+        }
         for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
             sol->print(fo);
         if (is_end) (*fo) << "</phillip>" << std::endl;
@@ -141,22 +153,40 @@ void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
 
     if ((fo = _open_file(param("path_out"), mode)) != NULL)
     {
-        if (is_begin) (*fo) << "<phillip>" << std::endl;
+        if (is_begin)
+        {
+            (*fo) << "<phillip>" << std::endl;
+            write_configure(fo);
+        }
         for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
             sol->print_graph(fo);
         if (is_end) (*fo) << "</phillip>" << std::endl;
         delete fo;
     }
+}
 
 
-    if (flag("print_time"))
-    {
-        print_console("execution time:");
-        print_console_fmt("    lhs: %.2f", get_time_for_lhs());
-        print_console_fmt("    ilp: %.2f", get_time_for_ilp());
-        print_console_fmt("    sol: %.2f", get_time_for_sol());
-        print_console_fmt("    all: %.2f", get_time_for_infer());
-    }
+void phillip_main_t::write_configure(std::ofstream *fo) const
+{
+    (*fo) << "<configure>" << std::endl;
+
+    (*fo) << "<components lhs=\"" << m_lhs_enumerator->repr()
+          << "\" ilp=\"" << m_ilp_convertor->repr()
+          << "\" sol=\"" << m_ilp_solver->repr()
+          << "\"></components>" << std::endl;
+    
+    (*fo) << "<params timeout=\"" << timeout()
+          << "\" verbose=\"" << verbose();
+    
+    for (auto it = m_params.begin(); it != m_params.end(); ++it)
+        (*fo) << "\" " << it->first << "=\"" << it->second;
+    
+    for (auto it = m_flags.begin(); it != m_flags.end(); ++it)
+        (*fo) << "\" " << (*it) << "=\"yes";
+            
+    (*fo) << "\"></params>" << std::endl;
+    
+    (*fo) << "</configure>" << std::endl;
 }
 
 
