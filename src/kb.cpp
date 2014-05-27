@@ -259,7 +259,7 @@ void knowledge_base_t::insert_inconsistency(
 
     if (m_state == STATE_COMPILE)
     {
-        if (lf.branches.size() != 2)
+        if (lf.branches().size() != 2)
             PRINT_WARNING;
         else if (
             not lf.branch(0).is_operator(lf::OPR_LITERAL) or
@@ -295,7 +295,7 @@ void knowledge_base_t::insert_unification_postponement(
 
     if (m_state == STATE_COMPILE)
     {
-        if (lf.branches.size() != 1)
+        if (lf.branches().size() != 1)
             PRINT_WARNING;
         else if (not lf.branch(0).is_operator(lf::OPR_LITERAL))
             PRINT_WARNING;

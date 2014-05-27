@@ -17,7 +17,8 @@ namespace sol
 gurobi_t::gurobi_t(int thread_num, bool do_output_log)
     : m_thread_num(thread_num), m_do_output_log(do_output_log)
 {
-    m_thread_num = max(1, m_thread_num);
+    if (m_thread_num <= 0)
+        m_thread_num = 1;
 }
 
 
