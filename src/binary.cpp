@@ -329,7 +329,9 @@ ilp_solver_t* _new_ilp_solver( const std::string &key )
     if (key == "lpsolve")
         return new sol::lp_solve_t();
     if (key == "gurobi")
-        return new sol::gurobi_t(sys()->flag("activate_gurobi_log"));
+        return new sol::gurobi_t(
+        sys()->param_int("gurobi_thread_num"),
+        sys()->flag("activate_gurobi_log"));
     return NULL;
 }
 

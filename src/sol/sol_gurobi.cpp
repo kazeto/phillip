@@ -14,6 +14,12 @@ namespace sol
                         e.getErrorCode(), e.getMessage().c_str()); }
     
 
+gurobi_t::gurobi_t(int thread_num, bool do_output_log)
+    : m_thread_num(thread_num), m_do_output_log(do_output_log)
+{
+    m_thread_num = max(1, m_thread_num);
+}
+
 
 void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
 {
@@ -40,6 +46,8 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
             GRB_IntAttr_ModelSense,
             (prob->do_maximize() ? GRB_MAXIMIZE : GRB_MINIMIZE));
         model.getEnv().set(GRB_IntParam_OutputFlag, m_do_output_log ? 1 : 0);
+        if (m_thread_num > 1)
+            model.getEnv().set(GRB_IntParam_Threads, m_thread_num);
         if (sys()->timeout() > 0)
             model.getEnv().set(GRB_DoubleParam_TimeLimit, sys()->timeout()););
     

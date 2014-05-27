@@ -61,7 +61,8 @@ private:
 class gurobi_t : public ilp_solver_t
 {
 public:
-    gurobi_t(bool do_output_log) : m_do_output_log(do_output_log) {}
+    gurobi_t(int thread_num, bool do_output_log);
+
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const;
     virtual bool is_available(std::list<std::string> *error_messages) const;
     virtual std::string repr() const;
@@ -76,7 +77,7 @@ private:
     ilp::ilp_solution_t convert(
         GRBModel *model, const hash_map<ilp::variable_idx_t, GRBVar> &vars) const;
 #endif
-
+    int m_thread_num;
     bool m_do_output_log;
 };
 
