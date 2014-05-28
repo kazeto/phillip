@@ -282,19 +282,22 @@ lhs_enumerator_t* _new_lhs_enumerator(const std::string &key)
         true, true,
         sys()->param_int("max_depth"),
         sys()->param_float("max_distance"),
-        sys()->param_float("max_redundancy"));
+        sys()->param_float("max_redundancy"),
+        sys()->flag("disable_reachable_matrix"));
     if (key == "depth:abduction"  or key == "abduction")
         return new lhs::depth_based_enumerator_t(
         false, true,
         sys()->param_int("max_depth"),
         sys()->param_float("max_distance"),
-        sys()->param_float("max_redundancy"));
+        sys()->param_float("max_redundancy"),
+        sys()->flag("disable_reachable_matrix"));
     if (key == "depth:deduction" or key == "deduction")
         return new lhs::depth_based_enumerator_t(
         true, false,
         sys()->param_int("max_depth"),
         sys()->param_float("max_distance"),
-        sys()->param_float("max_redundancy"));
+        sys()->param_float("max_redundancy"),
+        sys()->flag("disable_reachable_matrix"));
     return NULL;
 }
 
