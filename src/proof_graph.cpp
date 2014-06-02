@@ -968,6 +968,8 @@ hypernode_idx_t proof_graph_t::chain(
     /* ADD NEW NODES AND NEW HYPERNODE TO THIS */
     std::vector<node_idx_t> hypernode_to(literals_to.size(), -1);
     hash_set<node_idx_t> evidences = _enumerate_evidences_for_chain(from);
+    evidences.insert(from.begin(), from.end());
+
     for (size_t i = 0; i < literals_to.size(); ++i)
     {
         hypernode_to[i] =
@@ -1391,8 +1393,8 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
     if (not check_unifiability(node(i).literal(), node(j).literal(), false, &uni))
         return;
 
-    hash_set<node_idx_t> evidences =
-        _enumerate_evidences_for_chain(unified_nodes);
+    hash_set<node_idx_t> evidences = _enumerate_evidences_for_chain(unified_nodes);
+    evidences.insert(unified_nodes.begin(), unified_nodes.end());
 
     /* CREATE UNIFICATION-NODES & UPDATE VARIABLES. */
     const std::set<literal_t> &subs = uni.substitutions();

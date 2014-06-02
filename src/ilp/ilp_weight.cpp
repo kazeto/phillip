@@ -326,6 +326,7 @@ my_enumeration_stopper_t::operator()(const pg::proof_graph_t *graph)
     if (m_considered_edges.count(idx) > 0) return false;
 
     m_considered_edges.insert(idx);
+    return true;
 }
 
 

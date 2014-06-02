@@ -259,7 +259,7 @@ const pg::proof_graph_t *graph) const
             node1.literal().get_predicate_arity(),
             node2.literal().get_predicate_arity());
 
-        if (dist >= 0 and dist <= m_distance_max)
+        if (dist >= 0 and (m_distance_max < 0.0 or dist <= m_distance_max))
         {
             reachability_t r = { dist, 0.0f };
             out[*n1][*n2] = r;
@@ -335,7 +335,7 @@ bool depth_based_enumerator_t::compute_reachability_of_chaining(
                 base_distance - (it->second.distance - distance);
 
             if (distance >= 0.0f
-                and distance <= m_distance_max
+                and (m_distance_max < 0.0 or distance <= m_distance_max)
                 and (m_redundancy_max < 0.0 or redundancy <= m_redundancy_max))
             {
                 reachability_t rc = { distance, redundancy };
