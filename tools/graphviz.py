@@ -12,6 +12,13 @@ FONT = '\"Consolas\"'
 COLOR = {
     'black' : '\"#000000\"',
     'gray' : '\"#a0a0a0\"'}
+DO_INCLUDE_NON_ACTIVES = False
+
+
+def splitHypernode2Node(s):
+    idx1 = s.find('{') + 1
+    idx2 = s.find('}')
+    return [int(x) for x in s[idx1:idx2].split(',')]
 
 
 class Node:
@@ -28,25 +35,10 @@ class Chain:
     def __init__(self, elem):
         self.__attr = dict(elem.items())
         self.id = int(self.__attr['id'])
-        self.tail = [int(x) for x in self.__attr['tail'].split(',')]
-        self.head = [int(x) for x in self.__attr['head'].split(',')]
-        self.cost = float(self.__attr['cost'])
+        self.tail = splitHypernode2Node(self.__attr['tail'])
+        self.head = splitHypernode2Node(self.__attr['head'])
         self.active = (self.__attr['active'] == 'yes')
         self.backward = (self.__attr['backward'] == 'yes')
-        self.text = elem.text
-
-    def axiom(self):
-        return self.__attr['axiom']
-
-
-class NewAxiom:
-    def __init__(self, elem):
-        self.__attr = dict(elem.items())
-        self.id = int(self.__attr['id'])
-        self.tail = [int(x) for x in self.__attr['tail'].split(',')]
-        self.head = [int(x) for x in self.__attr['head'].split(',')]
-        self.cost = float(self.__attr['cost'])
-        self.active = (self.__attr['active'] == 'yes')
         self.text = elem.text
 
     def axiom(self):
@@ -66,12 +58,13 @@ class ProofGraph:
         root = tree.getroot()
         nodes = [Node(n) for n in root.getiterator('literal')]
         chains = [Chain(e) for e in root.getiterator('explanation')]
-        cands = [NewAxiom(e) for e in root.getiterator('new_axiom')]
+        unifs = [Unify(u) for u in root.getiterator('unification')]
         
-        self.nodes  = dict([(n.id, n) for n in nodes])
-        self.chains = dict([(c.id, c) for c in chains])
-        self.candidates = dict([(c.id, c) for c in cands])
-        self.unifs  = [Unify(u) for u in root.getiterator('unification')]
+        is_active = lambda x: x.active or DO_INCLUDE_NON_ACTIVES
+        
+        self.nodes  = dict([(n.id, n) for n in nodes if is_active(n)])
+        self.chains = dict([(c.id, c) for c in chains if is_active(c)])
+        self.unifs  = filter(is_active, unifs)
 
 
 class Graphviz(ProofGraph):
@@ -82,19 +75,12 @@ class Graphviz(ProofGraph):
         nodes = ['  %s\n' % self._str_node(n) for n in self.nodes.itervalues()]
         nodes += ['  %s\n' % self._str_relay(c)
                   for c in self.chains.itervalues() if self._do_relay(c)]
-        nodes += ['  %s\n' % self._str_relay(c)
-                  for c in self.candidates.itervalues() if self._do_relay(c)]
 
         edges = []
         for c in self.chains.itervalues():
             n = (len(c.tail) + len(c.head)) if self._do_relay(c) else 1
             edges += ['  %s\n' % self._str_chain(c, i) for i in xrange(n)]
             
-        cands = []
-        for c in self.candidates.itervalues():
-            n = (len(c.tail) + len(c.head)) if self._do_relay(c) else 1
-            cands += ['  %s\n' % self._str_new_axiom(c, i) for i in xrange(n)]
-
         unifs = ['  %s\n' % self._str_unify(u) for u in self.unifs]
 
         ranks = defaultdict(list)
@@ -106,11 +92,10 @@ class Graphviz(ProofGraph):
                    '  graph [rankdir = LR];\n')
         fout.write(''.join(nodes))
         fout.write(''.join(edges))
-        fout.write(''.join(cands))
         fout.write(''.join(unifs))
 
-        for d, ns in ranks.iteritems():
-            fout.write('  {rank = same; %s}\n' % '; '.join(ns))
+        # for d, ns in ranks.iteritems():
+        #     fout.write('  {rank = same; %s}\n' % '; '.join(ns))
 
         fout.write('}\n')
 
@@ -136,7 +121,7 @@ class Graphviz(ProofGraph):
             'fontname' : FONT,
             'fontsize' : '10',
             'fontcolor' : COLOR['black' if c.active else 'gray'],
-            'label' : '\"%s\\n$%.2f\"' % (c.axiom(), c.cost),
+            'label' : '\"%s\"' % c.axiom(),
             'color' : COLOR['black' if c.active else 'gray']}
         if self._do_relay(c):
             if i != 0: del props['label'];
@@ -149,26 +134,6 @@ class Graphviz(ProofGraph):
                        (c.id, c.head[i - len(c.tail)], self._join_props(props))
         else:
             props['dir'] = 'back' if c.backward else 'forward'
-            return 'node_%d -> node_%d [%s];' % \
-                   (c.tail[0], c.head[0], self._join_props(props))
-
-    def _str_new_axiom(self, c, i):
-        props = {
-            'dir' : 'none',
-            'style' : 'dashed',
-            'label' : '\"$%.2f\"' % c.cost,
-            'color' : COLOR['black' if c.active else 'gray'],
-            'fontname' : FONT,
-            'fontsize' : '10',
-            'fontcolor' : COLOR['black' if c.active else 'gray']}
-        if self._do_relay(c):
-            if i != 0: del props['label'];
-            if i < len(c.tail):
-                return 'node_%d -> edge_%d [%s];' % (c.tail[i], c.id, self._join_props(props))
-            else:
-                return 'edge_%d -> node_%d [%s];' % \
-                       (c.id, c.head[i - len(c.tail)], self._join_props(props))
-        else:
             return 'node_%d -> node_%d [%s];' % \
                    (c.tail[0], c.head[0], self._join_props(props))
 
