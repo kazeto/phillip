@@ -201,6 +201,8 @@ void weighted_converter_t::add_constraints_for_cost(
             for (auto e = es->begin(); e != es->end(); ++e)
             {
                 const pg::edge_t edge = graph->edge(*e);
+
+                // TARGETS ONLY EDGES WHOSE HEAD INCLUDES n_idx
                 if (edge.tail() != *hn) continue;
 
                 if (edge.is_chain_edge())
@@ -225,6 +227,50 @@ void weighted_converter_t::add_constraints_for_cost(
         }
 
         prob->add_constraint(cons);
+    }
+
+    for (pg::edge_idx_t i = 0; i < graph->edges().size(); ++i)
+    {
+        const pg::edge_t &e_uni = graph->edge(i);
+        if (not e_uni.is_unify_edge()) continue;
+
+        // IF A LITERAL IS UNIFIED AND EXCUSED FROM PAYING COST,
+        // CHAINING FROM THE LITERAL IS FORBIDDEN.
+
+        ilp::variable_idx_t
+            v_uni_tail = prob->find_variable_with_hypernode(e_uni.tail()),
+            v_uni_head = prob->find_variable_with_hypernode(e_uni.head());
+        if (v_uni_tail < 0 or v_uni_head < 0) continue;
+
+        auto from = graph->hypernode(e_uni.tail());
+        double cost1 = get_cost_of_node(from[0], prob, node2costvar);
+        double cost2 = get_cost_of_node(from[1], prob, node2costvar);
+        pg::node_idx_t idx = (cost1 > cost2) ? from[0] : from[1];
+
+        auto hns = graph->search_hypernodes_with_node(idx);
+        for (auto hn = hns->begin(); hn != hns->end(); ++hn)
+        {
+            auto es = graph->search_edges_with_hypernode(*hn);
+            for (auto j = es->begin(); j != es->end(); ++j)
+            {
+                const pg::edge_t &e_ch = graph->edge(*j);
+                if (not e_ch.is_chain_edge()) continue;
+                if (e_ch.tail() != (*hn)) continue;
+
+                ilp::constraint_t con(
+                    format("unify_or_chain:e(%d):e(%d)", i, *j),
+                    ilp::OPR_LESS_EQ, 2.0);
+                ilp::variable_idx_t v_ch_head =
+                    prob->find_variable_with_hypernode(e_ch.head());
+                if (v_ch_head >= 0)
+                {
+                    con.add_term(v_ch_head, 1.0);
+                    con.add_term(v_uni_tail, 1.0);
+                    con.add_term(v_uni_head, 1.0);
+                    prob->add_constraint(con);
+                }
+            }
+        }
     }
 }
 
