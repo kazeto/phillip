@@ -322,6 +322,10 @@ public:
     void enumerate_parental_hypernodes(hypernode_idx_t idx, hash_set<hypernode_idx_t> *out) const;
     void enumerate_children_hypernodes(hypernode_idx_t idx, hash_set<hypernode_idx_t> *out) const;
 
+    /** Returns indices of nodes whose evidences include given node. */
+    void enumerate_descendant_nodes(
+        node_idx_t idx, hash_set<node_idx_t> *out) const;
+
     void enumerate_overlapping_hypernodes(hypernode_idx_t idx, hash_set<hypernode_idx_t> *out) const;
     
     /** Return pointer of set of indices of hypernode
@@ -470,11 +474,11 @@ protected:
         hash_map<term_t, term_t> *subs,
         hash_map<term_t, hash_set<term_t> > *conds) const;
 
-    /* This is a sub-routine of _get_substitutions_for_chain. */
+    /** Is a sub-routine of _get_substitutions_for_chain. */
     term_t _substitute_term_for_chain(
         const term_t &target, hash_map<term_t, term_t> *subs) const;
 
-    /** This is a sub-routine of chain.
+    /** Is a sub-routine of chain.
      *  Returns whether the chaining is possible.
      *  When returns false, the contents of muexs is invalid.
      *  @param[out] muexs Mutual exclusions around new nodes. */
@@ -484,17 +488,17 @@ protected:
         std::vector<std::list<
         std::tuple<node_idx_t, unifier_t, axiom_id_t> > > *muexs) const;
 
-    /** This is a sub-routine of chain.
+    /** Is a sub-routine of chain.
      *  Returns evidences of new nodes by the chaining. */
     hash_set<node_idx_t> _enumerate_evidences_for_chain(
         const std::vector<node_idx_t> &from) const;
 
-    /** This is a sub-routine of add_node.
+    /** Is a sub-routine of add_node.
      *  Generates unification assumptions between target node
      *  and other nodes which have same predicate as target node has. */
     void _generate_unification_assumptions(node_idx_t target);
 
-    /** This is a sub-routine of add_node.
+    /** Is a sub-routine of add_node.
      *  Generates mutual exclusiveness between target node and other nodes.
      *  @param muexs A pointer to the list of mutual exclusions to create.
      *               If NULL, enumerate them in this method. */
@@ -502,37 +506,41 @@ protected:
         node_idx_t target,
         std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *muexs = NULL);
 
-    /** This is a sub-routine of generate_mutual_exclusion.
+    /** Is a sub-routine of generate_mutual_exclusion.
      *  Adds mutual-exclusions for target and nodes being inconsistent with it. */
     void _enumerate_mutual_exclusion_for_inconsistent_nodes(
         const literal_t &target,
         std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *out) const;
 
-    /** This is a sub-routine of generate_mutual_exclusion.
+    /** Is a sub-routine of generate_mutual_exclusion.
      *  Adds mutual-exclusions between target and its counter nodes. */
     void _enumerate_mutual_exclusion_for_counter_nodes(
         const literal_t &target,
         std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *out) const;
 
-    /** This is a sub-routine of chain.
+    /** Is a sub-routine of chain.
      *  @param is_node_base Gives the mode of enumerating candidate edges.
      *                      If true, enumeration is performed on node-base.
      *                      Otherwise, it is on hypernode-base. */
     void _generate_mutual_exclusion_for_edges(
         edge_idx_t target, bool is_node_base);
 
-    /** This is a sub-routine of _generate_mutual_exclusion_for_edges. */
+    /** Is a sub-routine of _generate_mutual_exclusion_for_edges. */
     void _enumerate_exclusive_chains_from_node(
         node_idx_t from, std::list< std::list<edge_idx_t> > *out) const;
 
-    /** This is a sub-routine of _generate_mutual_exclusion_for_edges. */
+    /** Is a sub-routine of _generate_mutual_exclusion_for_edges. */
     void _enumerate_exclusive_chains_from_hypernode(
         hypernode_idx_t from, std::list< std::list<edge_idx_t> > *out) const;
 
-    /** This is a sub-routine of generate_unification_assumptions.
-     *  Return indices of node which is unifiable with target.
+    /** Is a sub-routine of generate_unification_assumptions.
+     *  Returns indices of node which is unifiable with target.
      *  Node pairs which has been considered once are ignored. */
     std::list<node_idx_t> _enumerate_unifiable_nodes(node_idx_t target);
+
+    /** Is a sub-routine of enumerate_descendant_nodes. */
+    void _enumerate_descendant_nodes_sub(
+        node_idx_t idx, hash_set<node_idx_t> *out, hash_set<hypernode_idx_t> *checked) const;
 
     /** This is a sub-routine of
      *  _omit_invalid_chaining_candidates_with_coexistence

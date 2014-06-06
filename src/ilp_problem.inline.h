@@ -279,9 +279,9 @@ inline const pg::proof_graph_t* const ilp_problem_t::proof_graph() const
 }
 
 
-inline variable_idx_t
-    ilp_problem_t::find_variable_with_node( pg::node_idx_t idx ) const
+inline variable_idx_t ilp_problem_t::find_variable_with_node( pg::node_idx_t idx ) const
 {
+    if (idx < 0) return -1;
     auto it = m_map_node_to_variable.find(idx);
     return ( it != m_map_node_to_variable.end() ) ? it->second : -1;
 }
@@ -290,6 +290,7 @@ inline variable_idx_t
 inline variable_idx_t ilp_problem_t::find_variable_with_hypernode(
     pg::hypernode_idx_t idx ) const
 {
+    if (idx < 0) return -1;
     auto it = m_map_hypernode_to_variable.find(idx);
     return ( it != m_map_hypernode_to_variable.end() ) ? it->second : -1;
 }

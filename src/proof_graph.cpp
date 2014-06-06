@@ -560,10 +560,44 @@ void proof_graph_t::enumerate_children_hypernodes(
     for (auto it = _edges->begin(); it != _edges->end(); ++it)
     {
         const edge_t &e = edge(*it);
-        if (e.tail() == idx)
+        if (e.tail() == idx and e.head() >= 0)
             out->insert(e.head());
     }
 }
+
+
+void proof_graph_t::enumerate_descendant_nodes(
+    node_idx_t idx, hash_set<node_idx_t> *out) const
+{
+    hash_set<hypernode_idx_t> checked;
+    _enumerate_descendant_nodes_sub(idx, out, &checked);
+}
+
+
+void proof_graph_t::_enumerate_descendant_nodes_sub(
+    node_idx_t idx, hash_set<node_idx_t> *out, hash_set<hypernode_idx_t> *checked) const
+{
+    const hash_set<hypernode_idx_t> *hns = search_hypernodes_with_node(idx);
+
+    if (hns != NULL)
+    for (auto hn = hns->begin(); hn != hns->end(); ++hn)
+    {
+        hash_set<hypernode_idx_t> children;
+        enumerate_children_hypernodes(*hn, &children);
+
+        for (auto c = children.begin(); c != children.end(); ++c)
+        {
+            if (checked->count(*c) > 0) continue;
+            else checked->insert(*c);
+
+            auto _hn = hypernode(*c);
+            out->insert(_hn.begin(), _hn.end());
+            for (auto n = _hn.begin(); n != _hn.end(); ++n)
+                _enumerate_descendant_nodes_sub(*n, out, checked);
+        }
+    }
+}
+
 
 
 void proof_graph_t::enumerate_parental_hypernodes(

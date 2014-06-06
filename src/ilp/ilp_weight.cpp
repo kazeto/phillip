@@ -221,7 +221,9 @@ void weighted_converter_t::add_constraints_for_cost(
         for (auto e = edges.begin(); e != edges.end(); ++e)
         {
             pg::hypernode_idx_t head = graph->edge(*e).head();
-            ilp::variable_idx_t var = prob->find_variable_with_hypernode(head);
+            ilp::variable_idx_t var = prob->find_variable_with_hypernode(
+                head >= 0 ? head : graph->edge(*e).tail());
+
             if (var >= 0)
                 cons.add_term(var, 1.0);
         }
@@ -237,17 +239,19 @@ void weighted_converter_t::add_constraints_for_cost(
         // IF A LITERAL IS UNIFIED AND EXCUSED FROM PAYING COST,
         // CHAINING FROM THE LITERAL IS FORBIDDEN.
 
-        ilp::variable_idx_t
-            v_uni_tail = prob->find_variable_with_hypernode(e_uni.tail()),
-            v_uni_head = prob->find_variable_with_hypernode(e_uni.head());
-        if (v_uni_tail < 0 or v_uni_head < 0) continue;
+        ilp::variable_idx_t v_uni_tail = prob->find_variable_with_hypernode(e_uni.tail());
+        ilp::variable_idx_t v_uni_head = prob->find_variable_with_hypernode(e_uni.head());
+        ilp::variable_idx_t v_uni = (e_uni.head() >= 0 ? v_uni_head : v_uni_tail);
+        if (v_uni_tail < 0 or(e_uni.head() >= 0 and v_uni_head < 0)) continue;
 
         auto from = graph->hypernode(e_uni.tail());
         double cost1 = get_cost_of_node(from[0], prob, node2costvar);
         double cost2 = get_cost_of_node(from[1], prob, node2costvar);
-        pg::node_idx_t idx = (cost1 > cost2) ? from[0] : from[1];
+        pg::node_idx_t
+            explained((cost1 > cost2) ? from[0] : from[1]),
+            explains((cost1 > cost2) ? from[1] : from[0]);
 
-        auto hns = graph->search_hypernodes_with_node(idx);
+        auto hns = graph->search_hypernodes_with_node(explained);
         for (auto hn = hns->begin(); hn != hns->end(); ++hn)
         {
             auto es = graph->search_edges_with_hypernode(*hn);
@@ -259,14 +263,66 @@ void weighted_converter_t::add_constraints_for_cost(
 
                 ilp::constraint_t con(
                     format("unify_or_chain:e(%d):e(%d)", i, *j),
-                    ilp::OPR_LESS_EQ, 2.0);
+                    ilp::OPR_GREATER_EQ, -1.0);
                 ilp::variable_idx_t v_ch_head =
                     prob->find_variable_with_hypernode(e_ch.head());
                 if (v_ch_head >= 0)
                 {
-                    con.add_term(v_ch_head, 1.0);
-                    con.add_term(v_uni_tail, 1.0);
-                    con.add_term(v_uni_head, 1.0);
+                    con.add_term(v_ch_head, -1.0);
+                    con.add_term(v_uni, -1.0);
+                    prob->add_constraint(con);
+                }
+            }
+        }
+
+        // IF LITERAL p & q IS UNIFIED AND COST(p) < COST(q), 
+        // A LITERAL HYPOTHESIZED FROM p CANNOT UNIFY WITH
+        // A LITERAL IN EVIDENCES OF q.
+
+        hash_set<pg::node_idx_t> descendants;
+        const hash_set<pg::node_idx_t> &ancestors(graph->node(explained).evidences());
+        graph->enumerate_descendant_nodes(explains, &descendants);
+        hash_map<std::string, hash_set<pg::node_idx_t> > a2n_1, a2n_2;
+
+        for (auto it = descendants.begin(); it != descendants.end(); ++it)
+            a2n_1[graph->node(*it).literal().get_predicate_arity()].insert(*it);
+        for (auto it = ancestors.begin(); it != ancestors.end(); ++it)
+            a2n_2[graph->node(*it).literal().get_predicate_arity()].insert(*it);
+
+        for (auto it1 = a2n_1.begin(); it1 != a2n_1.end(); ++it1)
+        {
+            auto it2 = a2n_2.find(it1->first);
+            if (it2 == a2n_2.end()) continue;
+
+            for (auto n1 = it1->second.begin(); n1 != it1->second.end(); ++n1)
+            for (auto n2 = it2->second.begin(); n2 != it2->second.end(); ++n2)
+            {
+                pg::edge_idx_t _uni = graph->find_unifying_edge(*n1, *n2);
+                if (_uni < 0) continue;
+
+                const pg::edge_t &_e_uni = graph->edge(_uni);
+                ilp::variable_idx_t _v_uni_tail = prob->find_variable_with_hypernode(_e_uni.tail());
+                ilp::variable_idx_t _v_uni_head = prob->find_variable_with_hypernode(_e_uni.head());
+
+                if (_v_uni_tail >= 0 and (_e_uni.head() < 0 or _v_uni_head >= 0))
+                {
+                    ilp::constraint_t con(
+                        format("muex_unify:e(%d,%d)", i, _uni),
+                        ilp::OPR_GREATER_EQ, -1.0);
+
+                    con.add_term(v_uni_tail, -1.0);
+                    con.add_term(_v_uni_tail, -1.0);
+                    if (e_uni.head() >= 0)
+                    {
+                        con.add_term(v_uni_head, -1.0);
+                        con.set_bound(con.bound() - 1.0);
+                    }
+                    if (_e_uni.head() >= 0 and _e_uni.head() != e_uni.head())
+                    {
+                        con.add_term(_v_uni_head, -1.0);
+                        con.set_bound(con.bound() - 1.0);
+                    }
+
                     prob->add_constraint(con);
                 }
             }
