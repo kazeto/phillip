@@ -470,7 +470,8 @@ void ilp_problem_t::print(std::ostream *os) const
     for (int i = 0; i < m_variables.size(); i++)
     {
         const variable_t &var = m_variables.at(i);
-        (*os) << "<variable name=\"" << var.name()
+        (*os) << "<variable index=\"" << i
+              << "\" name=\"" << var.name()
               << "\" coefficient=\"" << var.objective_coefficient() << "\"";
         if (is_constant_variable(i))
             (*os) << " fixed=\"" << const_variable_values().at(i) << "\"";
@@ -487,7 +488,8 @@ void ilp_problem_t::print(std::ostream *os) const
         const constraint_t &cons = m_constraints.at(i);
         std::string cons_exp;
         cons.print(&cons_exp, m_variables);
-        (*os) << "<constraint name=\"" << cons.name()
+        (*os) << "<constraint index=\"" << i
+              << "\" name=\"" << cons.name()
               << "\">" << cons_exp << "</constraint>" << std::endl;
     }
     
@@ -745,7 +747,8 @@ void ilp_solution_t::print(std::ostream *os) const
     for( int i=0; i<m_ilp->variables().size(); ++i )
     {
         const variable_t& var = m_ilp->variable(i);
-        (*os) << "<variable name=\"" << var.name()
+        (*os) << "<variable index=\"" << i
+              << "\" name=\"" << var.name()
               << "\" coefficient=\""<< var.objective_coefficient()
               << "\">"<< m_optimized_values[i] <<"</variable>" << std::endl;
     }
@@ -757,7 +760,8 @@ void ilp_solution_t::print(std::ostream *os) const
     for( int i=0; i<m_ilp->constraints().size(); i++ )
     {
         const constraint_t &cons = m_ilp->constraint(i);
-        (*os) << "<constraint name=\"" << cons.name() << "\">"
+        (*os) << "<constraint index=\"" << i
+              << "\" name=\"" << cons.name() << "\">"
               << (m_constraints_sufficiency.at(i) ? "1" : "0")
               << "</constraint>" << std::endl;
     }

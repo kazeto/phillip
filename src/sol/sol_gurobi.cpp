@@ -58,13 +58,29 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
         if (do_cpi)
             print_console_fmt("begin: Cutting-Plane-Inference #%d", (num_loop++));
 
+        int ret;
         GRBEXECUTE(model.optimize());
 
         if (model.get(GRB_IntAttr_SolCount) == 0)
         {
+            if (model.get(GRB_IntAttr_Status) == GRB_INFEASIBLE)
+            {
+                model.computeIIS();
+                GRBConstr *cons = model.getConstrs();
+
+                for (int i = 0; i < model.get(GRB_IntAttr_NumConstrs); ++i)
+                if (cons[i].get(GRB_IntAttr_IISConstr) == 1)
+                {
+                    std::string name(cons[i].get(GRB_StringAttr_ConstrName));
+                    print_warning("Infeasible: " + name);
+                }
+
+                delete[] cons;
+            }
+            
             ilp::ilp_solution_t sol(
                 prob, ilp::SOLUTION_NOT_AVAILABLE,
-                std::vector<double>(0.0, prob->variables().size()));
+                std::vector<double>(prob->variables().size(), 0.0));
             out->push_back(sol);
             break;
         }

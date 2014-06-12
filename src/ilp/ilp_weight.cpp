@@ -269,7 +269,12 @@ void weighted_converter_t::add_constraints_for_cost(
                 if (v_ch_head >= 0)
                 {
                     con.add_term(v_ch_head, -1.0);
-                    con.add_term(v_uni, -1.0);
+                    con.add_term(v_uni_tail, -1.0);
+                    if (e_uni.head() >= 0)
+                    {
+                        con.add_term(v_uni_head, -1.0);
+                        con.set_bound(con.bound() - 1.0);
+                    }
                     prob->add_constraint(con);
                 }
             }
@@ -280,10 +285,13 @@ void weighted_converter_t::add_constraints_for_cost(
         // A LITERAL IN EVIDENCES OF q.
 
         hash_set<pg::node_idx_t> descendants;
-        const hash_set<pg::node_idx_t> &ancestors(graph->node(explained).evidences());
+        hash_set<pg::node_idx_t> ancestors(graph->node(explained).evidences());
+        
         graph->enumerate_descendant_nodes(explains, &descendants);
+        descendants.insert(explains);
+        ancestors.insert(explained);
+        
         hash_map<std::string, hash_set<pg::node_idx_t> > a2n_1, a2n_2;
-
         for (auto it = descendants.begin(); it != descendants.end(); ++it)
             a2n_1[graph->node(*it).literal().get_predicate_arity()].insert(*it);
         for (auto it = ancestors.begin(); it != ancestors.end(); ++it)
@@ -298,7 +306,7 @@ void weighted_converter_t::add_constraints_for_cost(
             for (auto n2 = it2->second.begin(); n2 != it2->second.end(); ++n2)
             {
                 pg::edge_idx_t _uni = graph->find_unifying_edge(*n1, *n2);
-                if (_uni < 0) continue;
+                if (_uni < 0 or _uni == i) continue;
 
                 const pg::edge_t &_e_uni = graph->edge(_uni);
                 ilp::variable_idx_t _v_uni_tail = prob->find_variable_with_hypernode(_e_uni.tail());
