@@ -58,7 +58,6 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
         if (do_cpi)
             print_console_fmt("begin: Cutting-Plane-Inference #%d", (num_loop++));
 
-        int ret;
         GRBEXECUTE(model.optimize());
 
         if (model.get(GRB_IntAttr_SolCount) == 0)

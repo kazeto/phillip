@@ -173,6 +173,18 @@ public:
     constraint_idx_t add_constraint_of_dependence_of_hypernode_on_parents(
         pg::hypernode_idx_t);
 
+    /** Add constraint of mutual exclusiveness
+     *  between unification-edge and chaining-edge. */
+    void add_constraints_to_forbid_chaining_from_explained_node(
+        pg::edge_idx_t idx_unify, pg::node_idx_t idx_explained,
+        std::list<constraint_idx_t> *out = NULL);
+
+    /** Add constraints of mutual exclusiveness between unifications which cause loop.
+     *  Should be used together add_constraints_to_forbid_chaining_from_explained_node. */
+    void add_constraints_to_forbid_looping_unification(
+        pg::edge_idx_t idx_unify, pg::node_idx_t idx_explained,
+        std::list<constraint_idx_t> *out = NULL);
+
     /** Add constraint for mutual-exclusion between terms.
      *  On calling this method, it is required that
      *  variables of related unification-nodes have been created.
