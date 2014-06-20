@@ -78,6 +78,9 @@
     <ClCompile Include="..\src\sol\sol_null.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\test\test.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\binary.h">
@@ -156,6 +159,9 @@
       <Filter>header</Filter>
     </ClInclude>
     <ClInclude Include="..\src\s_expression.inline.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\test\test.h">
       <Filter>header</Filter>
     </ClInclude>
   </ItemGroup>

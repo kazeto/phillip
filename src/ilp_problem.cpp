@@ -136,12 +136,7 @@ add_constraint_of_dependence_of_node_on_hypernode(pg::node_idx_t idx)
     if (var_node < 0) return -1;
 
     hash_set<pg::hypernode_idx_t> masters;
-    if (not node.is_equality_node() and not node.is_non_equality_node())
-    {
-        if (node.master_hypernode() >= 0)
-            masters.insert(node.master_hypernode());
-    }
-    else if (node.is_equality_node())
+    if (node.is_equality_node() or node.is_non_equality_node())
     {
         auto hns = m_graph->search_hypernodes_with_node(idx);
         if (hns != NULL)
@@ -154,20 +149,22 @@ add_constraint_of_dependence_of_node_on_hypernode(pg::node_idx_t idx)
                 masters.insert(m_graph->edge(*it).head());
         }
     }
+    else if (node.master_hypernode() >= 0)
+        masters.insert(node.master_hypernode());
 
-    /* TO LET A LITERAL-NODE BE TRUE, ITS MASTER-HYPERNODE MUST BE TRUE */
+    /* TO LET A NODE BE TRUE, ONE OF ITS MASTER-HYPERNODES MUST BE TRUE */
     constraint_t con(format("n_dependency:n(%d)", idx), OPR_GREATER_EQ, 0.0);
 
     for (auto it = masters.begin(); it != masters.end(); ++it)
     {
         variable_idx_t var_master = find_variable_with_hypernode(*it);
+
         if (var_node == var_master)
         {
             assert(masters.size() == 1);
             return -1;
         }
-
-        if (var_master >= 0)
+        else if (var_master >= 0)
             con.add_term(var_master, 1.0);
     }
     if (con.terms().empty()) return -1;

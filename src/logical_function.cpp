@@ -1,6 +1,6 @@
 /* -*- coding: utf-8 -*- */
 
-
+#include <algorithm>
 #include <cstring>
 #include "logical_function.h"
 
@@ -87,15 +87,79 @@ bool logical_function_t::param2double(double *out) const
 }
 
 
-bool logical_function_t::do_include( const literal_t& lit ) const
+bool logical_function_t::do_include(const literal_t& lit) const
 {
-    auto my_literals( get_all_literals() );
-    for( unsigned i=0; i<my_literals.size(); i++ )
+    auto my_literals(get_all_literals());
+    for (unsigned i = 0; i < my_literals.size(); i++)
     {
-        if( *my_literals[i] == lit )
+        if (*my_literals[i] == lit)
             return true;
     }
     return false;
+}
+
+
+bool logical_function_t::is_valid_as_implication() const
+{
+    if (not is_operator(OPR_IMPLICATION)) return false;
+    if (branches().size() != 2) return false;
+
+    // CHECKING LHS & RHS
+    for (int i = 0; i < 2; ++i)
+    {
+        const logical_function_t &br = branch(i);
+
+        if (br.is_operator(OPR_LITERAL))
+            continue;
+        else if (br.is_operator(OPR_AND))
+        {
+            for (auto it = br.branches().begin(); it != br.branches().end(); ++it)
+            if (not it->is_operator(OPR_LITERAL))
+                return false;
+        }
+        else
+            return false;
+    }
+
+    return true;
+}
+
+
+bool logical_function_t::is_valid_as_inconsistency() const
+{
+    if (branches().size() != 2) return false;
+
+    for (auto it = branches().begin(); it != branches().end(); ++it)
+    {
+        if (not it->is_operator(OPR_LITERAL))
+            return false;
+        else if (it->literal().is_equality())
+            return false;
+    }
+
+    return true;
+}
+
+
+bool logical_function_t::is_valid_as_unification_postponement() const
+{
+    if (branches().size() != 1)
+        return false;
+    else
+    {
+        const logical_function_t &br = branch(0);
+        if (not br.is_operator(OPR_LITERAL))
+            return false;
+        else
+        {
+            const literal_t &l = br.literal();
+            for (auto it = l.terms.begin(); it != l.terms.end(); ++it)
+            if (*it != "." and *it != "+" and *it != "*")
+                return false;
+        }
+    }
+
+    return true;
 }
 
 

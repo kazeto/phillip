@@ -213,10 +213,18 @@ void knowledge_base_t::read_config(const char *filename)
 
 
 void knowledge_base_t::insert_implication(
-    const lf::logical_function_t &lf, std::string name )
+    const lf::logical_function_t &lf, std::string name)
 {
     if (m_state == STATE_COMPILE)
     {
+        if (not lf.is_valid_as_implication())
+        {
+            print_warning_fmt(
+                "Implication \"%s\" is invalid and skipped.",
+                lf.to_string().c_str());
+            return;
+        }
+
         axiom_id_t id = m_num_compiled_axioms;
         if (name.empty()) name = _get_name_of_unnamed_axiom();
 
@@ -253,18 +261,14 @@ void knowledge_base_t::insert_implication(
 void knowledge_base_t::insert_inconsistency(
     const lf::logical_function_t &lf, std::string name)
 {
-#define PRINT_WARNING print_warning_fmt( \
-    "Inconsistency \"%s\" is invalid and skipped.", \
-    lf.to_string().c_str())
-
     if (m_state == STATE_COMPILE)
     {
-        if (lf.branches().size() != 2)
-            PRINT_WARNING;
-        else if (
-            not lf.branch(0).is_operator(lf::OPR_LITERAL) or
-            not lf.branch(1).is_operator(lf::OPR_LITERAL))
-            PRINT_WARNING;
+        if (not lf.is_valid_as_inconsistency())
+        {
+            print_warning_fmt(
+                "Inconsistency \"%s\" is invalid and skipped.",
+                lf.to_string().c_str());
+        }
         else
         {
             axiom_id_t id = m_num_compiled_axioms;
@@ -281,24 +285,20 @@ void knowledge_base_t::insert_inconsistency(
             }
         }
     }
-
-#undef PRINT_WARNING
 }
 
 
 void knowledge_base_t::insert_unification_postponement(
     const lf::logical_function_t &lf, std::string name)
 {
-#define PRINT_WARNING print_warning_fmt( \
-    "Unification postponement \"%s\" is invalid and skipped.", \
-    lf.to_string().c_str())
-
     if (m_state == STATE_COMPILE)
     {
-        if (lf.branches().size() != 1)
-            PRINT_WARNING;
-        else if (not lf.branch(0).is_operator(lf::OPR_LITERAL))
-            PRINT_WARNING;
+        if (not lf.is_valid_as_unification_postponement())
+        {
+            print_warning_fmt(
+                "Unification postponement \"%s\" is invalid and skipped.",
+                lf.to_string().c_str());
+        }
         else
         {
             axiom_id_t id = m_num_compiled_axioms;
@@ -309,16 +309,16 @@ void knowledge_base_t::insert_unification_postponement(
             /* REGISTER AXIOM-ID TO MAP FOR UNI-PP */
             std::string arity = lf.branch(0).literal().get_predicate_arity();
             if (m_arity_to_postponement.count(arity) > 0)
+            {
                 print_warning_fmt(
-                "The unification postponement "
-                "for the arity \"%s\" inserted redundantly!",
-                arity.c_str());
+                    "The unification postponement "
+                    "for the arity \"%s\" inserted redundantly!",
+                    arity.c_str());
+            }
             else
                 m_arity_to_postponement[arity].insert(id);
         }
     }
-
-#undef PRINT_WARNING
 }
 
 

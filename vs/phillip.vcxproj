@@ -108,6 +108,7 @@
     <ClCompile Include="..\src\sol\sol_lpsolve.cpp" />
     <ClCompile Include="..\src\sol\sol_null.cpp" />
     <ClCompile Include="..\src\s_expression.cpp" />
+    <ClCompile Include="..\src\test\test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\binary.h" />
@@ -136,6 +137,7 @@
     <ClInclude Include="..\src\sol\ilp_solver.h" />
     <ClInclude Include="..\src\s_expression.h" />
     <ClInclude Include="..\src\s_expression.inline.h" />
+    <ClInclude Include="..\src\test\test.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

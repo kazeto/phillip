@@ -359,6 +359,10 @@ void a_star_based_enumerator_t::erase_satisfied_reachability(
     std::list<reachability_t> *target,
     std::list<reachability_t> *erased) const
 {
+    if (graph->node(idx).is_equality_node() or
+        graph->node(idx).is_non_equality_node())
+        return;
+
     const hash_set<pg::node_idx_t> *nodes =
         graph->search_nodes_with_arity(graph->node(idx).arity());
     hash_set<pg::node_idx_t> ev;

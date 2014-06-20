@@ -987,6 +987,9 @@ hypernode_idx_t proof_graph_t::chain(
 
     std::vector<literal_t> literals_to;
     hash_map<term_t, term_t> subs;
+
+    // EQUALITIES WHICH MUST BE SATISFIED TO EXECUTE THIS CHAINING.
+    // KEY: TERM IN AXIOM, VALUE: TERMS IN PROOF-GRAPH
     hash_map<term_t, hash_set<term_t> > conds;
 
     _get_substitutions_for_chain(
@@ -999,15 +1002,15 @@ hypernode_idx_t proof_graph_t::chain(
 
     hypernode_idx_t idx_hn_from = add_hypernode(from);
 
-    /* ADD NEW NODES AND NEW HYPERNODE TO THIS */
+    /* ADD NEW NODES AND NEW HYPERNODE. */
     std::vector<node_idx_t> hypernode_to(literals_to.size(), -1);
     hash_set<node_idx_t> evidences = _enumerate_evidences_for_chain(from);
     evidences.insert(from.begin(), from.end());
 
     for (size_t i = 0; i < literals_to.size(); ++i)
     {
-        hypernode_to[i] =
-            add_node(literals_to[i], NODE_HYPOTHESIS, depth + 1, evidences);
+        int d = literals_to[i].is_equality() ? -1 : depth + 1;
+        hypernode_to[i] = add_node(literals_to[i], NODE_HYPOTHESIS, d, evidences);
     }
     hypernode_idx_t idx_hn_to = add_hypernode(hypernode_to);
 
@@ -1163,8 +1166,7 @@ term_t proof_graph_t::_substitute_term_for_chain(
 bool proof_graph_t::_check_mutual_exclusiveness_for_chain(
     const std::vector<node_idx_t> &from,
     const std::vector<literal_t> &to,
-    std::vector<std::list<
-    std::tuple<node_idx_t, unifier_t, axiom_id_t> > > *muexs) const
+    std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > *muexs) const
 {
     hash_set<node_idx_t> dep = _enumerate_evidences_for_chain(from);
 

@@ -485,8 +485,7 @@ protected:
     bool _check_mutual_exclusiveness_for_chain(
         const std::vector<node_idx_t> &from,
         const std::vector<literal_t> &to,
-        std::vector<std::list<
-        std::tuple<node_idx_t, unifier_t, axiom_id_t> > > *muexs) const;
+        std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > *muexs) const;
 
     /** Is a sub-routine of chain.
      *  Returns evidences of new nodes by the chaining. */
@@ -614,8 +613,7 @@ protected:
     hash_set<hypernode_idx_t> m_indices_of_unification_hypernodes;
 
     /** Substitutions which is needed for the edge of key being true. */
-    hash_map<edge_idx_t, std::list< std::pair<term_t, term_t> > >
-        m_subs_of_conditions_for_chain;
+    hash_map<edge_idx_t, std::list< std::pair<term_t, term_t> > > m_subs_of_conditions_for_chain;
 
     hash_set<hypernode_idx_t> m_hypernodes_disregarded;
 

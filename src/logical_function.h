@@ -47,6 +47,10 @@ public:
 
     /** Return true if lit is included in this. */
     bool do_include(const literal_t& lit) const;
+
+    bool is_valid_as_implication() const;
+    bool is_valid_as_inconsistency() const;
+    bool is_valid_as_unification_postponement() const;
     
     /** Return literals included in this. */
     inline std::vector<const literal_t*> get_all_literals() const;

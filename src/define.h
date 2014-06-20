@@ -127,6 +127,8 @@ struct literal_t
     inline std::string to_string(bool f_colored = false) const;
     inline std::string get_predicate_arity(
         bool do_distinguish_negation = true) const;
+
+    inline bool is_equality() const { return predicate == "="; }
     
     size_t write_binary( char *bin ) const;
     size_t read_binary( const char *bin );
