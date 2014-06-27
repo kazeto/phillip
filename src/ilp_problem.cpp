@@ -477,27 +477,51 @@ add_constrains_of_conditions_for_chain(pg::edge_idx_t idx)
         edge.type() != pg::EDGE_HYPOTHESIZE)
         return;
 
-    hash_set<pg::node_idx_t> conds;
-    bool is_available = m_graph->check_availability_of_chain(idx, &conds);
+    hash_set<pg::node_idx_t> conds1, conds2;
+    bool is_available = m_graph->check_availability_of_chain(idx, &conds1, &conds2);
 
     // IF THE CHAIN IS NOT AVAILABLE, HEAD-HYPERNODE MUST BE FALSE.
     if (not is_available)
         add_constancy_of_variable(head, 0.0);
-    else if (not conds.empty())
+    else
     {
-        // TO PERFORM THE CHAINING, NODES IN conds MUST BE TRUE.
-        constraint_t con(
-            format("condition_for_chain:e(%d)", idx), OPR_GREATER_EQ, 0.0);
-
-        for (auto n = conds.begin(); n != conds.end(); ++n)
+        if (not conds1.empty())
         {
-            variable_idx_t _v = find_variable_with_node(*n);
-            assert(_v >= 0);
-            con.add_term(_v, 1.0);
+            // TO PERFORM THE CHAINING, NODES IN conds1 MUST BE TRUE.
+            constraint_t con(
+                format("node_must_be_true_for_chain:e(%d)", idx),
+                OPR_GREATER_EQ, 0.0);
+
+            for (auto n = conds1.begin(); n != conds1.end(); ++n)
+            {
+                variable_idx_t _v = find_variable_with_node(*n);
+                assert(_v >= 0);
+                con.add_term(_v, 1.0);
+            }
+
+            con.add_term(head, -1.0 * con.terms().size());
+            add_constraint(con);
         }
 
-        con.add_term(head, -1.0 * con.terms().size());
-        add_constraint(con);
+        if (not conds2.empty())
+        {
+            // TO PERFORM THE CHAINING, NODES IN conds2 MUST NOT BE TRUE.
+            constraint_t con(
+                format("node_must_be_false_for_chain:e(%d)", idx),
+                OPR_GREATER_EQ, 0.0);
+
+            for (auto n = conds2.begin(); n != conds2.end(); ++n)
+            {
+                variable_idx_t _v = find_variable_with_node(*n);
+                assert(_v >= 0);
+                con.add_term(_v, -1.0);
+            }
+
+            double b = -1.0 * con.terms().size();
+            con.add_term(head, b);
+            con.set_bound(b);
+            add_constraint(con);
+        }
     }
 }
 

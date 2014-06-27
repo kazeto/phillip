@@ -373,9 +373,12 @@ public:
 
     /** Enumerates unification nodes
      *  which are needed to satisfy conditions for given chaining.
+     *  @param subs1 Unifying nodes which must be true.
+     *  @param subs2 Unifying nodes which must not be true.
      *  @return Whether the chaining is possible. */
     bool check_availability_of_chain(
-        pg::edge_idx_t idx, hash_set<node_idx_t> *out) const;
+        pg::edge_idx_t idx,
+        hash_set<node_idx_t> *subs1, hash_set<node_idx_t> *subs2) const;
 
     /** Excludes nodes which includes any exclusive node pair.
      *  @param ptr_cands Pointer of container of chain_candidate_t. */
@@ -616,6 +619,7 @@ protected:
 
     /** Substitutions which is needed for the edge of key being true. */
     hash_map<edge_idx_t, std::list< std::pair<term_t, term_t> > > m_subs_of_conditions_for_chain;
+    hash_map<edge_idx_t, std::list< std::pair<term_t, term_t> > > m_neqs_of_conditions_for_chain;
 
     hash_set<hypernode_idx_t> m_hypernodes_disregarded;
 

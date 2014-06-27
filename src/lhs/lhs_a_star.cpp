@@ -182,20 +182,24 @@ void a_star_based_enumerator_t::enumerate_chain_candidates_sub(
     std::vector<std::string> arities;
 
     for (auto it = lits.begin(); it != lits.end(); ++it)
+    if (not (*it)->is_equality())
         arities.push_back((*it)->get_predicate_arity());
 
-    std::list<std::vector<pg::node_idx_t> > targets =
-        enumerate_nodes_array_with_arities(graph, arities, target);
-    std::set<pg::chain_candidate_t> _out;
+    if (not arities.empty())
+    {
+        std::list<std::vector<pg::node_idx_t> > targets =
+            enumerate_nodes_array_with_arities(graph, arities, target);
+        std::set<pg::chain_candidate_t> _out;
 
-    for (auto it = targets.begin(); it != targets.end(); ++it)
-        _out.insert(pg::chain_candidate_t(*it, ax.id, !is_backward));
+        for (auto it = targets.begin(); it != targets.end(); ++it)
+            _out.insert(pg::chain_candidate_t(*it, ax.id, !is_backward));
 
 #ifndef DISABLE_CUTTING_LHS
-    graph->erase_invalid_chain_candidates_with_coexistence(&_out);
+        graph->erase_invalid_chain_candidates_with_coexistence(&_out);
 #endif
 
-    out->insert(_out.begin(), _out.end());
+        out->insert(_out.begin(), _out.end());
+    }
 }
 
 

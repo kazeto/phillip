@@ -72,33 +72,45 @@ void compile_kb_t::process( const sexp::reader_t *reader )
     /* IDENTIFY THE LOGICAL FORM PART. */
     int idx_lf = stack->find_functor("=>");
     int idx_inc = stack->find_functor("xor");
+    int idx_pp = stack->find_functor("unipp");
     int idx_name = stack->find_functor("name");
         
     _assert_syntax(
-        (idx_lf != -1 or idx_inc != -1), (*reader),
+        (idx_lf >= 0 or idx_inc >= 0 or idx_pp >= 0), (*reader),
         "no logical connectors found." );
 
     std::string name;
     if (idx_name >= 0)
         name = stack->children.at(idx_name)->children.at(1)->get_string();
         
-    if (idx_lf >= 0 or idx_inc >= 0)
+    if (idx_lf >= 0 or idx_inc >= 0 or idx_pp >= 0)
     {
-        int idx = (idx_lf >= 0) ? idx_lf : idx_inc;
-        _assert_syntax(
-            (stack->children.at(idx)->children.size() >= 3), (*reader),
-            "function '=>' and '_|_' takes two arguments.");
-
-        lf::logical_function_t lf(*stack->children[idx]);
         if (idx_lf >= 0)
         {
-            IF_VERBOSE_FULL("add implication: " + stack->to_string());
-            m_kb->insert_implication(lf, name);
+            lf::logical_function_t func(*stack->children[idx_lf]);
+            _assert_syntax(
+                (stack->children.at(idx_lf)->children.size() >= 3), (*reader),
+                "function '=>' takes two arguments.");
+            IF_VERBOSE_FULL("Added implication: " + stack->to_string());
+            m_kb->insert_implication(func, name);
         }
         else if (idx_inc >= 0)
         {
-            IF_VERBOSE_FULL("add inconsistency: " + stack->to_string());
-            m_kb->insert_inconsistency(lf, name);
+            lf::logical_function_t func(*stack->children[idx_inc]);
+            _assert_syntax(
+                (stack->children.at(idx_inc)->children.size() >= 3), (*reader),
+                "function 'xor' takes two arguments.");
+            IF_VERBOSE_FULL("Added inconsistency: " + stack->to_string());
+            m_kb->insert_inconsistency(func, name);
+        }
+        else if (idx_pp >= 0)
+        {
+            lf::logical_function_t func(*stack->children[idx_pp]);
+            _assert_syntax(
+                (stack->children.at(idx_inc)->children.size() >= 2), (*reader),
+                "function 'unipp' takes one argument.");
+            IF_VERBOSE_FULL("Added unification-postponement: " + stack->to_string());
+            m_kb->insert_unification_postponement(func, name);
         }
     }
 }

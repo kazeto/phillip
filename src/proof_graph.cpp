@@ -334,18 +334,28 @@ void proof_graph_t::_enumerate_exclusive_chains_from_hypernode(
 
 
 bool proof_graph_t::check_availability_of_chain(
-    pg::edge_idx_t idx, hash_set<node_idx_t> *out) const
+    pg::edge_idx_t idx, hash_set<node_idx_t> *subs1, hash_set<node_idx_t> *subs2) const
 {
-    auto find = m_subs_of_conditions_for_chain.find(idx);
-
-    if (find != m_subs_of_conditions_for_chain.end())
+    auto found_subs = m_subs_of_conditions_for_chain.find(idx);
+    if (found_subs != m_subs_of_conditions_for_chain.end())
     {
-        const std::list<std::pair<term_t, term_t> > &subs = find->second;
+        const std::list<std::pair<term_t, term_t> > &subs = found_subs->second;
         for (auto it = subs.begin(); it != subs.end(); ++it)
         {
             node_idx_t n = find_sub_node(it->first, it->second);
-            if (n >= 0) out->insert(n);
+            if (n >= 0) subs1->insert(n);
             else return false;
+        }
+    }
+
+    auto found_neqs = m_neqs_of_conditions_for_chain.find(idx);
+    if (found_neqs != m_neqs_of_conditions_for_chain.end())
+    {
+        const std::list<std::pair<term_t, term_t> > &neqs = found_neqs->second;
+        for (auto it = neqs.begin(); it != neqs.end(); ++it)
+        {
+            node_idx_t n = find_sub_node(it->first, it->second);
+            if (n >= 0) subs2->insert(n);
         }
     }
 
@@ -1022,15 +1032,35 @@ hypernode_idx_t proof_graph_t::chain(
     edge_idx_t edge_idx =
         add_edge(edge_t(type, idx_hn_from, idx_hn_to, axiom.id));
 
-    /* ADD CONDITIONAL UNIFICATION FOR CHAIN */
-    if (not conds.empty())
+    /* ADD CONDITIONS FOR CHAIN */
     {
-        std::list< std::pair<term_t, term_t> > *cd =
-            &m_subs_of_conditions_for_chain[edge_idx];
 
-        for (auto it = conds.begin(); it != conds.end(); ++it)
-        for (auto t = it->second.begin(); t != it->second.end(); ++t)
-            cd->push_back(std::make_pair(it->first, *t));
+        if (not conds.empty())
+        {
+            std::list< std::pair<term_t, term_t> > *cond_sub =
+                &m_subs_of_conditions_for_chain[edge_idx];
+            for (auto it = conds.begin(); it != conds.end(); ++it)
+            for (auto t = it->second.begin(); t != it->second.end(); ++t)
+                cond_sub->push_back(std::make_pair(it->first, *t));
+        }
+
+        // EQUALITY IN EVIDENCES IN THE AXIOM ARE CONSIDERED AS CONDITIONS.
+        auto ax_from = (is_backward ? axiom.func.get_rhs() : axiom.func.get_lhs());
+        std::list< std::pair<term_t, term_t> > *cond_neq =
+            &m_neqs_of_conditions_for_chain[edge_idx];
+        for (auto it = ax_from.begin(); it != ax_from.end(); ++it)
+        if ((*it)->is_equality())
+        {
+            auto found1 = subs.find((*it)->terms.at(0));
+            auto found2 = subs.find((*it)->terms.at(1));
+            if (found1 != subs.end() and found2 != subs.end())
+            {
+                term_t t1(found1->second), t2(found2->second);
+                if (t1 > t2) std::swap(t1, t2);
+
+                cond_neq->push_back(std::make_pair(t1, t2));
+            }
+        }
     }
 
     /* ADD AXIOM HISTORY */
@@ -1062,15 +1092,21 @@ void proof_graph_t::_get_substitutions_for_chain(
     const lf::logical_function_t &lhs = axiom.func.branch(0);
     const lf::logical_function_t &rhs = axiom.func.branch(1);
     std::vector<const literal_t*>
-        ax_to((is_backward ? lhs : rhs).get_all_literals()),
-        ax_from((is_backward ? rhs : lhs).get_all_literals());
-    assert(from.size() == ax_from.size());
+        ax_to(is_backward ? axiom.func.get_lhs() : axiom.func.get_rhs()),
+        ax_from(is_backward ? axiom.func.get_rhs() : axiom.func.get_lhs());
+    int n_eq(0);
 
     /* CREATE MAP OF TERMS */
-    for (size_t i=0; i<from.size(); ++i)
+    for (size_t i = 0; i < ax_from.size(); ++i)
     {
+        if (ax_from.at(i)->is_equality())
+        {
+            ++n_eq;
+            continue;
+        }
+
         const literal_t &li_ax = *(ax_from.at(i));
-        const literal_t &li_hy = node(from.at(i)).literal();
+        const literal_t &li_hy = node(from.at(i - n_eq)).literal();
 
         for (size_t j=0; j<li_ax.terms.size(); ++j)
         {
