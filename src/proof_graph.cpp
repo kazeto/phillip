@@ -979,8 +979,7 @@ node_idx_t proof_graph_t::add_node(
 
 
 hypernode_idx_t proof_graph_t::chain(
-    const std::vector<node_idx_t> &from,
-    const lf::axiom_t &axiom, bool is_backward)
+    const std::vector<node_idx_t> &from, const lf::axiom_t &axiom, bool is_backward)
 {
     int depth = get_depth_of_deepest_node(from);
     assert(depth >= 0);
@@ -1366,10 +1365,28 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
         return;
 
     std::list<node_idx_t> unifiables = _enumerate_unifiable_nodes(target);
+    if (unifiables.empty()) return;
+
+    kb::unification_postponement_t pp =
+        sys()->knowledge_base()->get_unification_postponement(node(target).arity());
 
     /* UNIFY EACH UNIFIABLE NODE PAIR. */
     for (auto it = unifiables.begin(); it != unifiables.end(); ++it)
+    {
+        if (not pp.empty())
+        if (pp.do_postpone(this, target, *it))
+        {
+            node_idx_t n1(target), n2(*it);
+            if (n1 > n2) std::swap(n1, n2);
+            m_logs.postponed_unifications[n1].insert(n2);
+
+            IF_VERBOSE_FULL(
+                format("Postponed unification: node[%d] - node[%d]", n1, n2));
+            continue;
+        }
+
         _chain_for_unification(target, *it);
+    }
 }
 
 
@@ -1494,6 +1511,44 @@ void proof_graph_t::_add_nodes_of_transitive_unification(term_t t)
 }
 
 
+void proof_graph_t::_generate_unification_assumptions_postponed()
+{
+    IF_VERBOSE_3("Generating postponed unification assumptions...");
+
+    bool do_break(false);
+
+    while (not do_break)
+    {
+        do_break = true;
+
+        for (auto it1 = m_logs.postponed_unifications.begin(); it1 != m_logs.postponed_unifications.end();)
+        {
+            for (auto it2 = it1->second.begin(); it2 != it1->second.end();)
+            {
+                const node_idx_t n1(it1->first), n2(*it2);
+                kb::unification_postponement_t pp =
+                    sys()->knowledge_base()->get_unification_postponement(node(n1).arity());
+                assert(not pp.empty());
+
+                if (not pp.do_postpone(this, n1, n2))
+                {
+                    _chain_for_unification(n1, n2);
+                    do_break = false;
+                    it2 = it1->second.erase(it2);
+                }
+                else
+                    ++it2;
+            }
+
+            if (it1->second.empty())
+                it1 = m_logs.postponed_unifications.erase(it1);
+            else
+                ++it1;
+        }
+    }
+}
+
+
 void proof_graph_t::_enumerate_hypernodes_disregarded()
 {
     IF_VERBOSE_3(format("Enumerating of hypernodes to ignore..."));
@@ -1605,6 +1660,7 @@ size_t proof_graph_t::get_hash_of_nodes(std::list<node_idx_t> nodes)
 
 void proof_graph_t::post_process()
 {
+    _generate_unification_assumptions_postponed();
     _clean_logs();
     // _enumerate_hypernodes_disregarded();
 }

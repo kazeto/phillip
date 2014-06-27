@@ -558,6 +558,8 @@ protected:
      *  Add nodes for transitive unification around the given term. */
     void _add_nodes_of_transitive_unification(term_t t);
 
+    void _generate_unification_assumptions_postponed();
+
     /** Deletes logs, which are needed only in creation of proof-graph.
     *  Please call this after creation of proof-graph. */
     void _clean_logs();
@@ -619,14 +621,19 @@ protected:
 
     struct
     {
+        /** Set of pair of nodes whose unification was postponed. */
+        hash_map<node_idx_t, hash_set<node_idx_t> > postponed_unifications;
+
         /** Set of pair of nodes
-        *  which its unifiability has been already considered.
+        *  whose unifiability has been already considered.
         *  KEY and VALUE express node pair, and KEY is less than VALUE. */
         hash_map<node_idx_t, hash_set<node_idx_t> > considered_unifications;
+
         /** Set of pair of nodes
         *  which its mutual-exclusiveness has been already considered.
         *  KEY and VALUE express node pair, and KEY is less than VALUE. */
         hash_map<node_idx_t, hash_set<node_idx_t> > considered_exclusions;
+
     } m_logs;
 
     struct
