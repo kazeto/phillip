@@ -54,7 +54,7 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
         {
             // CHECK TIME-OUT
             time(&now);
-            if (sys()->is_timeout(now - begin))
+            if (sys()->is_timeout_lhs(now - begin))
             {
                 graph->timeout(true);
                 break;

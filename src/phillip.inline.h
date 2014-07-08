@@ -93,8 +93,16 @@ inline void phillip_main_t::set_knowledge_base(kb::knowledge_base_t *kb)
 }
 
 
-inline void phillip_main_t::set_timeout(int t)
-{ m_timeout = t; }
+inline void phillip_main_t::set_timeout_lhs(int t)
+{ m_timeout_lhs = t; }
+
+
+inline void phillip_main_t::set_timeout_ilp(int t)
+{ m_timeout_ilp = t; }
+
+
+inline void phillip_main_t::set_timeout_sol(int t)
+{ m_timeout_sol = t; }
 
 
 inline void phillip_main_t::set_verbose(int v)
@@ -134,12 +142,28 @@ inline const std::vector<ilp::ilp_solution_t>& phillip_main_t::get_solutions() c
 { return m_sol; }
 
 
-inline int phillip_main_t::timeout() const
-{ return m_timeout; }
+inline int phillip_main_t::timeout_lhs() const
+{ return m_timeout_lhs; }
 
 
-inline bool phillip_main_t::is_timeout(int sec) const
-{ return (m_timeout > 0 and sec >= m_timeout); }
+inline int phillip_main_t::timeout_ilp() const
+{ return m_timeout_ilp; }
+
+
+inline int phillip_main_t::timeout_sol() const
+{ return m_timeout_sol; }
+
+
+inline bool phillip_main_t::is_timeout_lhs(int sec) const
+{ return (m_timeout_lhs > 0 and sec >= m_timeout_lhs); }
+
+
+inline bool phillip_main_t::is_timeout_ilp(int sec) const
+{ return (m_timeout_ilp > 0 and sec >= m_timeout_ilp); }
+
+
+inline bool phillip_main_t::is_timeout_sol(int sec) const
+{ return (m_timeout_sol > 0 and sec >= m_timeout_sol); }
 
 
 inline const int& phillip_main_t::verbose() const

@@ -55,7 +55,9 @@ public:
     inline void set_ilp_solver(ilp_solver_t*);
     inline void set_knowledge_base(kb::knowledge_base_t *kb);
 
-    inline void set_timeout(int t);
+    inline void set_timeout_lhs(int t);
+    inline void set_timeout_ilp(int t);
+    inline void set_timeout_sol(int t);
     inline void set_verbose(int v);
     inline void set_debug_flag(bool flag);
     inline void set_param(const std::string &key, const std::string &param);
@@ -67,9 +69,13 @@ public:
     inline const ilp::ilp_problem_t* get_ilp_problem() const;
     inline const std::vector<ilp::ilp_solution_t>& get_solutions() const;
     
-    inline int timeout() const;
-    inline bool is_timeout(int sec) const;
-    
+    inline int timeout_lhs() const;
+    inline int timeout_ilp() const;
+    inline int timeout_sol() const;
+    inline bool is_timeout_lhs(int sec) const;
+    inline bool is_timeout_ilp(int sec) const;
+    inline bool is_timeout_sol(int sec) const;
+
     inline const int& verbose() const;
     inline bool is_debugging()  const;
 
@@ -115,7 +121,7 @@ private:
     // ---- DATA, SETTING, ETC...
     hash_map<std::string, std::string> m_params;
     hash_set<std::string> m_flags;
-    int  m_timeout;
+    int  m_timeout_lhs, m_timeout_ilp, m_timeout_sol;
     int  m_verboseness;
     bool m_is_debugging;
 

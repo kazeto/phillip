@@ -21,10 +21,11 @@ phillip_main_t *phillip_main_t::get_instance()
 
 phillip_main_t::phillip_main_t()
 : m_lhs_enumerator(NULL), m_ilp_convertor(NULL), m_ilp_solver(NULL),
-m_kb(NULL), m_input(NULL), m_lhs(NULL), m_ilp(NULL),
-m_timeout(-1), m_verboseness(0), m_is_debugging(false),
-m_clock_for_enumerate(0), m_clock_for_convert(0),
-m_clock_for_solve(0), m_clock_for_infer(0)
+  m_kb(NULL), m_input(NULL), m_lhs(NULL), m_ilp(NULL),
+  m_timeout_lhs(-1), m_timeout_ilp(-1), m_timeout_sol(-1),
+  m_verboseness(0), m_is_debugging(false),
+  m_clock_for_enumerate(0), m_clock_for_convert(0),
+  m_clock_for_solve(0), m_clock_for_infer(0)
 {}
 
 
@@ -175,7 +176,9 @@ void phillip_main_t::write_configure(std::ofstream *fo) const
           << "\" sol=\"" << m_ilp_solver->repr()
           << "\"></components>" << std::endl;
     
-    (*fo) << "<params timeout=\"" << timeout()
+    (*fo) << "<params timeout_lhs=\"" << timeout_lhs()
+          << "\" timeout_ilp\"" << timeout_ilp()
+          << "\" timeout_sol\"" << timeout_sol()
           << "\" verbose=\"" << verbose();
     
     for (auto it = m_params.begin(); it != m_params.end(); ++it)

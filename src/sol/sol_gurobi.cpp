@@ -49,8 +49,8 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
         model.getEnv().set(GRB_IntParam_OutputFlag, m_do_output_log ? 1 : 0);
         if (m_thread_num > 1)
             model.getEnv().set(GRB_IntParam_Threads, m_thread_num);
-        if (sys()->timeout() > 0)
-            model.getEnv().set(GRB_DoubleParam_TimeLimit, sys()->timeout()););
+        if (sys()->timeout_sol() > 0)
+            model.getEnv().set(GRB_DoubleParam_TimeLimit, sys()->timeout_sol()););
     
     size_t num_loop(0);
     while (true)

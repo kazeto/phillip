@@ -62,7 +62,7 @@ void lp_solve_t::execute(
         else do_break = true;
 
         std::time(&now);
-        if (sys()->is_timeout(now - begin))
+        if (sys()->is_timeout_sol(now - begin))
             do_break = is_timeout = true;
 
         if (do_break)
@@ -143,8 +143,8 @@ void lp_solve_t::initialize(
     ::set_obj_fn(*rec, &vars[0]);
     prob->do_maximize() ?
         ::set_maxim(*rec) : ::set_minim(*rec);
-    if (sys()->timeout() > 0)
-        ::set_timeout(*rec, sys()->timeout());
+    if (sys()->timeout_sol() > 0)
+        ::set_timeout(*rec, sys()->timeout_sol());
     
     ::set_outputfile(*rec, "");
     ::put_logfunc(*rec, lp_handler, NULL);

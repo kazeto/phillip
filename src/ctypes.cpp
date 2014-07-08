@@ -4,8 +4,16 @@
 #include "./phillip.h"
 
 
-void set_timeout( int t )
-{ phil::phillip_main_t::get_instance()->set_timeout(t); }
+void set_timeout_lhs(int t)
+{ phil::phillip_main_t::get_instance()->set_timeout_lhs(t); }
+
+
+void set_timeout_ilp(int t)
+{ phil::phillip_main_t::get_instance()->set_timeout_ilp(t); }
+
+
+void set_timeout_sol(int t)
+{ phil::phillip_main_t::get_instance()->set_timeout_sol(t); }
 
 
 void set_verbosity( int v )

@@ -236,11 +236,32 @@ bool _interpret_option(
     }
         
     case 'T': // ---- SET TIMEOUT [SECOND]
-    {
+    {                  
         int t;
-        _sscanf(arg.c_str(), "%d", &t);
-        phil::sys()->set_timeout(t);
-        return true;
+        auto spl = split(arg, "=");
+        if (spl.size() == 1)
+        {
+            _sscanf(arg.c_str(), "%d", &t);
+            phil::sys()->set_timeout_lhs(t);
+            phil::sys()->set_timeout_ilp(t);
+            phil::sys()->set_timeout_sol(t);
+            return true;
+        }
+        else if (spl.size() == 2)
+        {
+            if (spl[0] == "lhs" or spl[0] == "ilp" or spl[0] == "sol")
+            {
+                _sscanf(spl[1].c_str(), "%d", &t);
+                if (spl[0] == "lhs") phil::sys()->set_timeout_lhs(t);
+                if (spl[0] == "ilp") phil::sys()->set_timeout_ilp(t);
+                if (spl[0] == "sol") phil::sys()->set_timeout_sol(t);
+                return true;
+            }
+            else
+                return false;
+        }
+        else
+            return false;
     }
     
     case ':':
