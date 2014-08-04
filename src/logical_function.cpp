@@ -46,6 +46,16 @@ logical_function_t::logical_function_t( const sexp::stack_t &s )
                 m_branches.push_back(logical_function_t(child));
         }
     }
+    else if (s.is_functor("require"))
+    {
+        m_operator = OPR_REQUIREMENT;
+        for (int i = 1; i < s.children.size(); i++)
+        {
+            const sexp::stack_t &child = *(s.children[i]);
+            if (not child.is_parameter())
+                m_branches.push_back(logical_function_t(child));
+        }
+    }
     else
     {
         // ASSUMING s IS LITERAL
@@ -186,6 +196,7 @@ void logical_function_t::get_all_literals_sub(
         break;
     case OPR_OR:
     case OPR_AND:
+    case OPR_REQUIREMENT:
         for( int i=0; i<m_branches.size(); i++ )
             m_branches[i].get_all_literals_sub( p_out_list );
         break;

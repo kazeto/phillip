@@ -102,6 +102,9 @@ ilp::ilp_problem_t* costed_converter_t::execute() const
         }
     }
 
+    const lf::logical_function_t *req = sys()->get_requirement();
+    if (req != NULL) prob->add_variable_for_requirement(*req, false);
+
     prob->add_constrains_of_exclusive_chains();
     prob->add_constraints_of_transitive_unifications();
 

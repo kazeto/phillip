@@ -47,7 +47,7 @@ enum node_type_e
     NODE_UNDERSPECIFIED, /**< Unknown type. */
     NODE_OBSERVABLE,     /**< The node coressponds an observation. */
     NODE_HYPOTHESIS,     /**< The node corresponds a hypothesis. */
-    NODE_LABEL           /**< The node corresponds a literal added
+    NODE_REQUIRED           /**< The node corresponds a literal added
                           *   to infer pseudo-positive example. */
 };
 
@@ -599,9 +599,6 @@ protected:
     std::vector< std::vector<node_idx_t> > m_hypernodes;
     std::vector<edge_t> m_edges;
     
-    /** List of index of node which is label. */
-    std::vector<node_idx_t> m_label_nodes;
-
     /** These are written in xml-file of output as attributes. */
     hash_map<std::string, std::string> m_attributes;
     

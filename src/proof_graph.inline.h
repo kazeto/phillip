@@ -182,8 +182,7 @@ inline node_idx_t proof_graph_t::
 
 inline node_idx_t proof_graph_t::add_label(const literal_t &lit, int depth)
 {
-    node_idx_t idx = add_node(lit, NODE_LABEL, depth, hash_set<node_idx_t>());
-    m_label_nodes.push_back(idx);
+    node_idx_t idx = add_node(lit, NODE_REQUIRED, depth, hash_set<node_idx_t>());
     return idx;
 }
 

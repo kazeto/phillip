@@ -466,6 +466,110 @@ void ilp_problem_t::add_constraints_of_transitive_unifications()
 }
 
 
+void ilp_problem_t::add_variable_for_requirement(
+    const lf::logical_function_t &req, bool do_maximize)
+{
+    if (not req.is_operator(lf::OPR_REQUIREMENT)) return;
+
+    const double PENALTY = do_maximize ? -10000.0 : 10000.0;
+    typedef std::pair<const lf::logical_function_t*, hash_set<variable_idx_t> > _requirement_t;
+    std::list<_requirement_t> requirements;
+
+    /// Returns variables to be true in order to satisfy the requirement.
+    auto enumerate_required_node = [&](const literal_t &lit) -> hash_set<variable_idx_t>
+    {
+        hash_set<pg::node_idx_t> ns = m_graph->enumerate_nodes_with_literal(lit);
+        hash_set<variable_idx_t> out;
+        pg::node_idx_t n_req(-1);
+
+        for (auto it = ns.begin(); it != ns.end(); ++it)
+        {
+            const pg::node_t &n = m_graph->node(*it);
+            if (n.type() == pg::NODE_REQUIRED or lit.is_equality())
+            {
+                n_req = *it;
+                break;
+            }
+        }
+
+        if (lit.is_equality())
+        {
+            variable_idx_t v = find_variable_with_node(n_req);
+            if (v >= 0) out.insert(v);
+        }
+        else
+        {
+            const hash_set<pg::node_idx_t> *_nodes =
+                m_graph->search_nodes_with_arity(lit.get_predicate_arity());
+            hash_set<pg::hypernode_idx_t> _hns;
+
+            for (auto it = _nodes->begin(); it != _nodes->end(); ++it)
+            {
+                pg::edge_idx_t e = m_graph->find_unifying_edge(n_req, *it);
+                if (e >= 0) _hns.insert(m_graph->edge(e).head());
+            }
+
+            for (auto it = _hns.begin(); it != _hns.end(); ++it)
+            {
+                variable_idx_t v = find_variable_with_hypernode(*it);
+                if (v >= 0) out.insert(v);
+            }
+        }
+
+        return out;
+    };
+
+    auto add_requirement_lit = [&](
+        const lf::logical_function_t &_lf, _requirement_t *out)
+    {
+        hash_set<variable_idx_t> _vars = enumerate_required_node(_lf.literal());
+        if (not _vars.empty())
+            out->second.insert(_vars.begin(), _vars.end());
+    };
+
+    auto add_requirement_or = [&](const lf::logical_function_t &_lf)
+    {
+        _requirement_t _or = std::make_pair(&_lf, hash_set<variable_idx_t>());
+        for (auto it_br = _lf.branches().begin(); it_br != _lf.branches().end(); ++it_br)
+        {
+            if (it_br->is_operator(lf::OPR_LITERAL))
+                add_requirement_lit(it_br->literal(), &_or);
+        }
+        if (not _or.second.empty())
+            requirements.push_back(_or);
+    };
+
+    for (auto it = req.branches().begin(); it != req.branches().end(); ++it)
+    {
+        if (it->is_operator(lf::OPR_LITERAL))
+        {
+            _requirement_t _req = std::make_pair(&(*it), hash_set<variable_idx_t>());
+            add_requirement_lit(*it, &_req);
+            if (not _req.second.empty()) requirements.push_back(_req);
+        }
+        else if (it->is_operator(lf::OPR_OR))
+            add_requirement_or(*it);
+    }
+
+    // ADDING VARIABLES & CONSTRAINTS.
+    for (auto it = requirements.begin(); it != requirements.end(); ++it)
+    {
+        std::string str = it->first->to_string();
+        variable_idx_t var = add_variable(
+            variable_t(format("violation:%s", str.c_str()), PENALTY));
+        constraint_t con(
+            format("for_requirement:%s", str.c_str()), OPR_GREATER_EQ, 1.0);
+
+        for (auto v = it->second.begin(); v != it->second.end(); ++v)
+            con.add_term(*v, 1.0);
+        con.add_term(var, 1.0);
+
+        add_constraint(con);
+        m_variables_for_requirements.push_back(std::make_pair(it->first, var));
+    }
+}
+
+
 void ilp_problem_t::
 add_constrains_of_conditions_for_chain(pg::edge_idx_t idx)
 {
@@ -482,6 +586,7 @@ add_constrains_of_conditions_for_chain(pg::edge_idx_t idx)
 
     // IF THE CHAIN IS NOT AVAILABLE, HEAD-HYPERNODE MUST BE FALSE.
     if (not is_available)
+        // TODO: DEAL WITH THE CASE WHERE THE HEAD HAS PLURAL TAILS.
         add_constancy_of_variable(head, 0.0);
     else
     {
@@ -681,11 +786,33 @@ void ilp_problem_t::print_solution(
         << "\" all=\"" << (is_time_out_all ? "yes" : "no")
         << "\"></timeout>" << std::endl;
 
+    _print_requirements_in_solution(sol, os);
     _print_literals_in_solution(sol, os);
     _print_explanations_in_solution(sol, os);
     _print_unifications_in_solution(sol, os);
     
     (*os) << "</proofgraph>" << std::endl;
+}
+
+
+void ilp_problem_t::_print_requirements_in_solution(
+    const ilp_solution_t *sol, std::ostream *os) const
+{
+    const std::list< std::pair<const lf::logical_function_t*, variable_idx_t> >
+        &vars = m_variables_for_requirements;
+
+    (*os) << "<requirements num=\"" << vars.size() << "\">" << std::endl;
+
+    for (auto it = vars.begin(); it != vars.end(); ++it)
+    {
+        std::string lf_str = it->first->to_string();
+        bool is_satisfied = not sol->variable_is_active(it->second);
+        (*os)
+            << "<requirement satisfied=\"" << (is_satisfied ? "yes" : "no")
+            << "\">" << lf_str << "</requirement>" << std::endl;
+    }
+
+    (*os) << "</requirements>" << std::endl;
 }
 
 
@@ -714,7 +841,7 @@ void ilp_problem_t::_print_literals_in_solution(
         case pg::NODE_UNDERSPECIFIED: type = "underspecified"; break;
         case pg::NODE_OBSERVABLE:     type = "observable";     break;
         case pg::NODE_HYPOTHESIS:     type = "hypothesis";     break;
-        case pg::NODE_LABEL:          type = "label";          break;
+        case pg::NODE_REQUIRED:       type = "requirement";    break;
         }
 
         (*os)

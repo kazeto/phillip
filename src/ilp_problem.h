@@ -201,6 +201,8 @@ public:
         term_t t1, term_t t2, term_t t3);
     void add_constraints_of_transitive_unifications();
 
+    void add_variable_for_requirement(const lf::logical_function_t &req, bool do_maximize);
+
     void add_constrains_of_conditions_for_chain(pg::edge_idx_t idx);
     void add_constrains_of_exclusive_chains();
 
@@ -265,12 +267,10 @@ public:
         const ilp_solution_t *sol, std::ostream *os) const;
 
 protected:
-    void _print_literals_in_solution(
-        const ilp_solution_t *sol, std::ostream *os) const;
-    void _print_explanations_in_solution(
-        const ilp_solution_t *sol, std::ostream *os) const;
-    void _print_unifications_in_solution(
-        const ilp_solution_t *sol, std::ostream *os) const;
+    void _print_requirements_in_solution(const ilp_solution_t *sol, std::ostream *os) const;
+    void _print_literals_in_solution(const ilp_solution_t *sol, std::ostream *os) const;
+    void _print_explanations_in_solution(const ilp_solution_t *sol, std::ostream *os) const;
+    void _print_unifications_in_solution(const ilp_solution_t *sol, std::ostream *os) const;
 
     /** A sub-routine of add_constraints_of_exclusiveness_of_chains_from_*.
      *  @return Number of added constraints. */
@@ -299,6 +299,9 @@ protected:
     
     hash_map<pg::node_idx_t, variable_idx_t> m_map_node_to_variable;
     hash_map<pg::hypernode_idx_t, variable_idx_t> m_map_hypernode_to_variable;
+
+    std::list< std::pair<
+        const lf::logical_function_t*, variable_idx_t> > m_variables_for_requirements;
 
     hash_set<std::string> m_log_of_term_triplet_for_transitive_unification;
     hash_set<std::string> m_log_of_node_tuple_for_mutual_exclusion;

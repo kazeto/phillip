@@ -130,6 +130,10 @@ inline const lf::logical_function_t* phillip_main_t::get_observation() const
 { return (m_input != NULL) ? &m_input->obs : NULL; }
 
 
+inline const lf::logical_function_t* phillip_main_t::get_requirement() const
+{ return (m_input != NULL) ? &m_input->req : NULL; }
+
+
 inline const pg::proof_graph_t* phillip_main_t::get_latent_hypotheses_set() const
 { return m_lhs; }
 

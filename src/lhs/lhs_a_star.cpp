@@ -192,6 +192,7 @@ void a_star_based_enumerator_t::enumerate_chain_candidates_sub(
         std::set<pg::chain_candidate_t> _out;
 
         for (auto it = targets.begin(); it != targets.end(); ++it)
+        if (not do_include_requirement(graph, *it))
             _out.insert(pg::chain_candidate_t(*it, ax.id, !is_backward));
 
 #ifndef DISABLE_CUTTING_LHS

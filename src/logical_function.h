@@ -15,12 +15,13 @@ namespace lf
 
 enum logical_operator_t
 {
-    OPR_UNDERSPECIFIED, /**< Not defined. */
-    OPR_LITERAL,        /**< Literal. */
-    OPR_AND,            /**< And (as "^"). */
-    OPR_OR,             /**< Or (as "v"). */
-    OPR_IMPLICATION,    /**< Implication (as "=>"). */
-    OPR_INCONSISTENT    /**< Inconsistent (as "xor"). */
+    OPR_UNDERSPECIFIED, /// Not defined
+    OPR_LITERAL,        /// Literal
+    OPR_AND,            /// And (as "^")
+    OPR_OR,             /// Or (as "v")
+    OPR_IMPLICATION,    /// Implication (as "=>")
+    OPR_INCONSISTENT,   /// Inconsistent (as "xor")
+    OPR_REQUIREMENT     /// Requirement (as "require")
 };
 
 
@@ -85,7 +86,7 @@ struct input_t
 {
     std::string name;
     lf::logical_function_t obs;
-    lf::logical_function_t label;
+    lf::logical_function_t req;
 };
 
 

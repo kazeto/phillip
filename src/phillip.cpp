@@ -177,8 +177,8 @@ void phillip_main_t::write_configure(std::ofstream *fo) const
           << "\"></components>" << std::endl;
     
     (*fo) << "<params timeout_lhs=\"" << timeout_lhs()
-          << "\" timeout_ilp\"" << timeout_ilp()
-          << "\" timeout_sol\"" << timeout_sol()
+          << "\" timeout_ilp=\"" << timeout_ilp()
+          << "\" timeout_sol=\"" << timeout_sol()
           << "\" verbose=\"" << verbose();
     
     for (auto it = m_params.begin(); it != m_params.end(); ++it)

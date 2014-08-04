@@ -32,14 +32,14 @@ void parse_obs_t::process( const sexp::reader_t *reader )
 
     std::string name = "?";
     int i_x = stack.find_functor("^");
-    int i_y = stack.find_functor("label");
+    int i_y = stack.find_functor("require");
     int i_name = stack.find_functor("name");
     
     if( i_name >= 0 )
         name = stack.children.at(i_name)->children.at(1)->get_string();
     if( i_x < 0 )
     {
-        print_warning("Input not found:" + name);
+        print_warning("Any input was not found:" + name);
         return;
     }
 
@@ -48,7 +48,7 @@ void parse_obs_t::process( const sexp::reader_t *reader )
     data.obs  = lf::logical_function_t( *stack.children.at(i_x) );
         
     if( i_y >= 0 )
-        data.label = lf::logical_function_t( *stack.children.at(i_y) );
+        data.req = lf::logical_function_t( *stack.children.at(i_y) );
         
     m_inputs->push_back( data );
 }
