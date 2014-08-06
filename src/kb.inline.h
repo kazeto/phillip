@@ -8,9 +8,10 @@ namespace kb
 {
 
 
-inline float knowledge_base_t::get_max_distance() const
+
+inline float knowledge_base_t::get_max_distance()
 {
-    return m_max_distance;
+    return ms_max_distance;
 }
 
 

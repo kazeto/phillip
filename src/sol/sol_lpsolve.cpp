@@ -17,7 +17,7 @@ void lp_solve_t::execute(
     /* CURRENTLY, CUTTING-PLANE-INFERENCE ON LP-SOLVE IS PROHIBITED. */
     bool do_cpi = false;
     
-    const ilp::ilp_problem_t *prob = sys()->get_ilp_problem();
+    const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
     std::vector<double> vars(prob->variables().size(), 0);
     ::lprec *rec(NULL);
     hash_set<ilp::constraint_idx_t> lazy_cons = do_cpi ?
@@ -62,7 +62,7 @@ void lp_solve_t::execute(
         else do_break = true;
 
         std::time(&now);
-        if (sys()->is_timeout_sol(now - begin))
+        if (phillip()->is_timeout_sol(now - begin))
             do_break = is_timeout = true;
 
         if (do_break)
@@ -143,8 +143,8 @@ void lp_solve_t::initialize(
     ::set_obj_fn(*rec, &vars[0]);
     prob->do_maximize() ?
         ::set_maxim(*rec) : ::set_minim(*rec);
-    if (sys()->timeout_sol() > 0)
-        ::set_timeout(*rec, sys()->timeout_sol());
+    if (phillip()->timeout_sol() > 0)
+        ::set_timeout(*rec, phillip()->timeout_sol());
     
     ::set_outputfile(*rec, "");
     ::put_logfunc(*rec, lp_handler, NULL);

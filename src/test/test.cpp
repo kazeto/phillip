@@ -26,19 +26,17 @@ bool virtual_test_t::operator()(phillip_main_t *main) const
 
 void compiling_axioms_t::test(phillip_main_t *main) const
 {
-    kb::knowledge_base_t *kb =
-        new kb::knowledge_base_t("test.kb.", kb::DISTANCE_PROVIDER_BASIC, 6);
+    kb::knowledge_base_t::setup("test.kb.", kb::DISTANCE_PROVIDER_BASIC, 6);
 
-    main->set_knowledge_base(kb);
     proc::processor_t processor;
     print_console("Compiling knowledge-base ...");
 
-    kb->prepare_compile();
+    kb::knowledge_base_t::instance()->prepare_compile();
 
-    processor.add_component(new proc::compile_kb_t(kb));
+    processor.add_component(new proc::compile_kb_t());
     processor.process(std::vector<std::string>(1, "data/test.kb.lisp"));
 
-    kb->finalize();
+    kb::knowledge_base_t::instance()->finalize();
 
     print_console("Completed to compile knowledge-base.");
 }

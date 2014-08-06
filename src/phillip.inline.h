@@ -6,6 +6,18 @@ namespace phil
 {
 
 
+inline void phillip_main_t::set_verbose(int v)
+{
+    ms_verboseness = v;
+}
+
+
+inline const int phillip_main_t::verbose()
+{
+    return ms_verboseness;
+}
+
+
 inline void phillip_main_t::infer(const lf::input_t &input)
 {
     std::vector<lf::input_t> inputs(1, input);
@@ -49,18 +61,6 @@ inline ilp_solver_t* phillip_main_t::ilp_solver()
 }
 
 
-inline const kb::knowledge_base_t* phillip_main_t::knowledge_base() const
-{
-    return m_kb;
-}
-
-
-inline kb::knowledge_base_t* phillip_main_t::knowledge_base()
-{
-    return m_kb;
-}
-
-
 inline void phillip_main_t::set_lhs_enumerator(lhs_enumerator_t *ptr)
 {
     if (m_lhs_enumerator != NULL)
@@ -85,14 +85,6 @@ inline void phillip_main_t::set_ilp_solver(ilp_solver_t *ptr)
 }
 
 
-inline void phillip_main_t::set_knowledge_base(kb::knowledge_base_t *kb)
-{
-    if (m_kb != NULL)
-        delete m_kb;
-    m_kb = kb;
-}
-
-
 inline void phillip_main_t::set_timeout_lhs(int t)
 { m_timeout_lhs = t; }
 
@@ -103,14 +95,6 @@ inline void phillip_main_t::set_timeout_ilp(int t)
 
 inline void phillip_main_t::set_timeout_sol(int t)
 { m_timeout_sol = t; }
-
-
-inline void phillip_main_t::set_verbose(int v)
-{ m_verboseness = v; }
-
-
-inline void phillip_main_t::set_debug_flag( bool flag )
-{ m_is_debugging = flag; }
 
 
 inline void phillip_main_t::set_param(
@@ -168,14 +152,6 @@ inline bool phillip_main_t::is_timeout_ilp(int sec) const
 
 inline bool phillip_main_t::is_timeout_sol(int sec) const
 { return (m_timeout_sol > 0 and sec >= m_timeout_sol); }
-
-
-inline const int& phillip_main_t::verbose() const
-{ return m_verboseness; }
-
-
-inline bool phillip_main_t::is_debugging() const
-{ return m_is_debugging; }
 
 
 inline const hash_map<std::string, std::string>& phillip_main_t::params() const

@@ -36,18 +36,18 @@ char ACCEPTABLE_OPTIONS[] = "c:f:k:l:m:o:p:t:v:P:T:";
 
 
 bool _load_config_file(
-    const char *filename,
+    const char *filename, phillip_main_t *phillip,
     execution_configure_t *option, std::vector<std::string> *inputs);
 
 /** @return Validity of input. */
 bool _interpret_option(
-    int opt, const std::string &arg,
+    int opt, const std::string &arg, phillip_main_t *phillip,
     execution_configure_t *option, std::vector<std::string> *inputs);
 
 kb::distance_provider_type_e _get_distance_provider_type(const std::string &arg);
-lhs_enumerator_t* _new_lhs_enumerator(const std::string &key);
-ilp_converter_t* _new_ilp_converter(const std::string &key);
-ilp_solver_t* _new_ilp_solver(const std::string &key);
+lhs_enumerator_t* _new_lhs_enumerator(phillip_main_t *phillip, const std::string &key);
+ilp_converter_t* _new_ilp_converter(phillip_main_t *phillip, const std::string &key);
+ilp_solver_t* _new_ilp_solver(phillip_main_t *phillip, const std::string &key);
 
 
 
@@ -59,16 +59,15 @@ execution_configure_t::execution_configure_t()
 /** Parse command line options.
  * @return False if any error occured. */
 bool parse_options(
-    int argc, char* argv[],
-    execution_configure_t *config,
-    std::vector<std::string> *inputs )
+    int argc, char* argv[], phillip_main_t *phillip,
+    execution_configure_t *config, std::vector<std::string> *inputs)
 {
     int opt;
     
     while ((opt = getopt(argc, argv, ACCEPTABLE_OPTIONS)) != -1)
     {
         std::string arg((optarg == NULL) ? "" : optarg);
-        int ret = _interpret_option( opt, arg, config, inputs );
+        int ret = _interpret_option( opt, arg, phillip, config, inputs );
         
         if (not ret)
         {
@@ -87,7 +86,7 @@ bool parse_options(
 
 /** Load the setting file. */
 bool _load_config_file(
-    const char* filename,
+    const char* filename, phillip_main_t *phillip,
     execution_configure_t *config, std::vector<std::string> *inputs )
 {
     char line[2048];
@@ -115,7 +114,7 @@ bool _load_config_file(
         {
             int opt = static_cast<int>( spl.at(0).at(1) );
             std::string arg = (spl.size() <= 1) ? "" : strip(spl.at(1), "\n");
-            int ret = _interpret_option( opt, arg, config, inputs );
+            int ret = _interpret_option( opt, arg, phillip, config, inputs );
             
             if (not ret)
             {
@@ -134,7 +133,7 @@ bool _load_config_file(
 
 
 bool _interpret_option(
-    int opt, const std::string &arg,
+    int opt, const std::string &arg, phillip_main_t *phillip,
     execution_configure_t *config, std::vector<std::string> *inputs)
 {
     switch(opt)
@@ -172,7 +171,7 @@ bool _interpret_option(
     }
 
     case 'f':
-        phil::sys()->set_flag(arg);
+        phillip->set_flag(arg);
         return true;
     
     case 'k': // ---- SET FILENAME OF KNOWLEDGE-BASE
@@ -184,7 +183,7 @@ bool _interpret_option(
     case 'l': // ---- SET THE PATH OF PHILLIP CONFIGURE FILE
     {
         std::string path = normalize_path(arg);
-        _load_config_file(path.c_str(), config, inputs);
+        _load_config_file(path.c_str(), phillip, config, inputs);
         return true;
     }
     
@@ -213,10 +212,10 @@ bool _interpret_option(
             std::string val = arg.substr(idx + 1);
             if (startswith(key, "path"))
                 val = normalize_path(val);
-            phil::sys()->set_param(key, val);
+            phillip->set_param(key, val);
         }
         else
-            phil::sys()->set_param(arg, "");
+            phillip->set_param(arg, "");
         
         return true;
     }
@@ -228,7 +227,7 @@ bool _interpret_option(
 
         if( v >= 0 and v <= FULL_VERBOSE )
         {
-            phil::sys()->set_verbose(v);
+            phillip->set_verbose(v);
             return true;
         }
         else
@@ -242,9 +241,9 @@ bool _interpret_option(
         if (spl.size() == 1)
         {
             _sscanf(arg.c_str(), "%d", &t);
-            phil::sys()->set_timeout_lhs(t);
-            phil::sys()->set_timeout_ilp(t);
-            phil::sys()->set_timeout_sol(t);
+            phillip->set_timeout_lhs(t);
+            phillip->set_timeout_ilp(t);
+            phillip->set_timeout_sol(t);
             return true;
         }
         else if (spl.size() == 2)
@@ -252,9 +251,9 @@ bool _interpret_option(
             if (spl[0] == "lhs" or spl[0] == "ilp" or spl[0] == "sol")
             {
                 _sscanf(spl[1].c_str(), "%d", &t);
-                if (spl[0] == "lhs") phil::sys()->set_timeout_lhs(t);
-                if (spl[0] == "ilp") phil::sys()->set_timeout_ilp(t);
-                if (spl[0] == "sol") phil::sys()->set_timeout_sol(t);
+                if (spl[0] == "lhs") phillip->set_timeout_lhs(t);
+                if (spl[0] == "ilp") phillip->set_timeout_ilp(t);
+                if (spl[0] == "sol") phillip->set_timeout_sol(t);
                 return true;
             }
             else
@@ -284,83 +283,82 @@ kb::distance_provider_type_e _get_distance_provider_type(const std::string &arg)
 }
 
 
-lhs_enumerator_t* _new_lhs_enumerator(const std::string &key)
+lhs_enumerator_t* _new_lhs_enumerator(phillip_main_t *phillip, const std::string &key)
 {
     if (key == "a*:bidirection")
         return new lhs::a_star_based_enumerator_t(
-        true, true,
-        sys()->param_float("max_distance"));
+        phillip, true, true, phillip->param_float("max_distance"));
     if (key == "a*:abduction")
         return new lhs::a_star_based_enumerator_t(
-        false, true,
-        sys()->param_float("max_distance"));
+        phillip, false, true, phillip->param_float("max_distance"));
     if (key == "a*:deduction")
         return new lhs::a_star_based_enumerator_t(
-        true, false,
-        sys()->param_float("max_distance"));
+        phillip, true, false, phillip->param_float("max_distance"));
     if (key == "depth:bidirection" or key == "bidirection")
         return new lhs::depth_based_enumerator_t(
-        true, true,
-        sys()->param_int("max_depth"),
-        sys()->param_float("max_distance"),
-        sys()->param_float("max_redundancy"),
-        sys()->flag("disable_reachable_matrix"));
+        phillip, true, true,
+        phillip->param_int("max_depth"),
+        phillip->param_float("max_distance"),
+        phillip->param_float("max_redundancy"),
+        phillip->flag("disable_reachable_matrix"));
     if (key == "depth:abduction"  or key == "abduction")
         return new lhs::depth_based_enumerator_t(
-        false, true,
-        sys()->param_int("max_depth"),
-        sys()->param_float("max_distance"),
-        sys()->param_float("max_redundancy"),
-        sys()->flag("disable_reachable_matrix"));
+        phillip, false, true,
+        phillip->param_int("max_depth"),
+        phillip->param_float("max_distance"),
+        phillip->param_float("max_redundancy"),
+        phillip->flag("disable_reachable_matrix"));
     if (key == "depth:deduction" or key == "deduction")
         return new lhs::depth_based_enumerator_t(
-        true, false,
-        sys()->param_int("max_depth"),
-        sys()->param_float("max_distance"),
-        sys()->param_float("max_redundancy"),
-        sys()->flag("disable_reachable_matrix"));
+        phillip, true, false,
+        phillip->param_int("max_depth"),
+        phillip->param_float("max_distance"),
+        phillip->param_float("max_redundancy"),
+        phillip->flag("disable_reachable_matrix"));
     return NULL;
 }
 
 
-ilp_converter_t* _new_ilp_converter( const std::string &key )
+ilp_converter_t* _new_ilp_converter(phillip_main_t *phillip, const std::string &key)
 {
-    if (key == "null") return new ilp::null_converter_t();
+    if (key == "null")
+        return new ilp::null_converter_t(phillip);
     if (key == "weighted")
     {
-        double obs = sys()->param_float("default_obs_cost", 10.0);
-        const std::string &param = sys()->param("weight_provider");
+        double obs = phillip->param_float("default_obs_cost", 10.0);
+        const std::string &param = phillip->param("weight_provider");
         ilp::weighted_converter_t::weight_provider_t *ptr =
             ilp::weighted_converter_t::parse_string_to_weight_provider(param);
 
-        return new ilp::weighted_converter_t(obs, ptr);
+        return new ilp::weighted_converter_t(phillip, obs, ptr);
     }
     if (key == "costed")
     {
-        const std::string &param = sys()->param("cost_provider");
+        const std::string &param = phillip->param("cost_provider");
         ilp::costed_converter_t::cost_provider_t *ptr =
             ilp::costed_converter_t::parse_string_to_cost_provider(param);
-        return new ilp::costed_converter_t(ptr);
+        return new ilp::costed_converter_t(phillip, ptr);
     }
     return NULL;
 }
 
 
-ilp_solver_t* _new_ilp_solver( const std::string &key )
+ilp_solver_t* _new_ilp_solver(phillip_main_t *phillip, const std::string &key)
 {
     if (key == "null")
-        return new sol::null_solver_t();
+        return new sol::null_solver_t(phillip);
     if (key == "lpsolve")
-        return new sol::lp_solve_t();
+        return new sol::lp_solve_t(phillip);
     if (key == "gurobi")
         return new sol::gurobi_t(
-        sys()->param_int("gurobi_thread_num"),
-        sys()->flag("activate_gurobi_log"));
+        phillip,
+        phillip->param_int("gurobi_thread_num"),
+        phillip->flag("activate_gurobi_log"));
     return NULL;
 }
 
 
-bool preprocess(const execution_configure_t &config)
+bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
 {
     if (config.mode == EXE_MODE_UNDERSPECIFIED)
     {
@@ -383,25 +381,22 @@ bool preprocess(const execution_configure_t &config)
         }
     }
 
-    float max_dist = sys()->param_float("kb_max_distance", -1.0);
+    float max_dist = phillip->param_float("kb_max_distance", -1.0);
 
-    lhs_enumerator_t *lhs = _new_lhs_enumerator(config.lhs_key);
-    ilp_converter_t *ilp = _new_ilp_converter(config.ilp_key);
-    ilp_solver_t *sol = _new_ilp_solver(config.sol_key);
+    lhs_enumerator_t *lhs = _new_lhs_enumerator(phillip, config.lhs_key);
+    ilp_converter_t *ilp = _new_ilp_converter(phillip, config.ilp_key);
+    ilp_solver_t *sol = _new_ilp_solver(phillip, config.sol_key);
 
-    kb::knowledge_base_t *kb = new kb::knowledge_base_t(
-        config.kb_name, dist_type, max_dist);
+    kb::knowledge_base_t::setup(config.kb_name, dist_type, max_dist);
 
     switch (config.mode)
     {
     case EXE_MODE_INFERENCE:
-        if (lhs != NULL) phil::sys()->set_lhs_enumerator(lhs);
-        if (ilp != NULL) phil::sys()->set_ilp_convertor(ilp);
-        if (sol != NULL) phil::sys()->set_ilp_solver(sol);
-        if (kb != NULL)  phil::sys()->set_knowledge_base(kb);
+        if (lhs != NULL) phillip->set_lhs_enumerator(lhs);
+        if (ilp != NULL) phillip->set_ilp_convertor(ilp);
+        if (sol != NULL) phillip->set_ilp_solver(sol);
         return true;
     case EXE_MODE_COMPILE_KB:
-        if (kb != NULL)  phil::sys()->set_knowledge_base(kb);
         return true;
     default:
         return false;

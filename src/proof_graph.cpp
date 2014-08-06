@@ -242,7 +242,7 @@ void proof_graph_t::enumerate_dependent_nodes(
 void proof_graph_t::_enumerate_exclusive_chains_from_node(
     node_idx_t from, std::list< std::list<edge_idx_t> > *out) const
 {
-    const kb::knowledge_base_t *kb = sys()->knowledge_base();
+    const kb::knowledge_base_t *kb = kb::knowledge_base_t::instance();
     const hash_set<hypernode_idx_t> *hns = search_hypernodes_with_node(from);
     if (hns == NULL) return;
 
@@ -296,7 +296,7 @@ void proof_graph_t::_enumerate_exclusive_chains_from_node(
 void proof_graph_t::_enumerate_exclusive_chains_from_hypernode(
     hypernode_idx_t from, std::list< std::list<edge_idx_t> > *out) const
 {
-    const kb::knowledge_base_t *kb = sys()->knowledge_base();
+    const kb::knowledge_base_t *kb = kb::knowledge_base_t::instance();
     const hash_set<edge_idx_t> *edges = search_edges_with_hypernode(from);
     if (edges == NULL) return;
 
@@ -776,7 +776,7 @@ void proof_graph_t::print(std::ostream *os) const
 {
     (*os)
         << "<latent-hypotheses-set name=\"" << name()
-        << "\" time=\"" << sys()->get_time_for_lhs()
+        << "\" time=\"" << phillip()->get_time_for_lhs()
         << "\" timeout=\"" << (is_timeout() ? "yes" : "no");
 
     for (auto it = m_attributes.begin(); it != m_attributes.end(); ++it)
@@ -830,7 +830,7 @@ void proof_graph_t::print_axioms(std::ostream *os) const
     (*os) << "<axioms num=\"" << list_axioms.size() << "\">" << std::endl;
     for (auto ax = list_axioms.begin(); ax != list_axioms.end(); ++ax)
     {
-        lf::axiom_t axiom = sys()->knowledge_base()->get_axiom(*ax);
+        lf::axiom_t axiom = kb::knowledge_base_t::instance()->get_axiom(*ax);
         (*os)
             << "<axiom "
             << "id=\"" << axiom.id
@@ -1069,7 +1069,7 @@ hypernode_idx_t proof_graph_t::chain(
     ax2hn[axiom.id].insert(idx_hn_from);
 
     /* GENERATE MUTUAL EXCLUSIONS BETWEEN CHAINS */
-    bool flag(sys()->flag("enable_node_based_mutual_exclusive_chain"));
+    bool flag(phillip()->flag("enable_node_based_mutual_exclusive_chain"));
     _generate_mutual_exclusion_for_edges(edge_idx, flag);
 
     /* GENERATE MUTUAL EXCLUSIONS & UNIFICATION ASSUMPTIONS */
@@ -1352,7 +1352,7 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_inconsistent_nodes(
     const literal_t &target,
     std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *out) const
 {
-    const kb::knowledge_base_t *kb = sys()->knowledge_base();
+    const kb::knowledge_base_t *kb = kb::knowledge_base_t::instance();
     std::string arity = target.get_predicate_arity();
     std::list<axiom_id_t> axioms = kb->search_inconsistencies(arity);
 
@@ -1404,7 +1404,7 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
     if (unifiables.empty()) return;
 
     kb::unification_postponement_t pp =
-        sys()->knowledge_base()->get_unification_postponement(node(target).arity());
+        kb::knowledge_base_t::instance()->get_unification_postponement(node(target).arity());
 
     /* UNIFY EACH UNIFIABLE NODE PAIR. */
     for (auto it = unifiables.begin(); it != unifiables.end(); ++it)
@@ -1563,7 +1563,7 @@ void proof_graph_t::_generate_unification_assumptions_postponed()
             {
                 const node_idx_t n1(it1->first), n2(*it2);
                 kb::unification_postponement_t pp =
-                    sys()->knowledge_base()->get_unification_postponement(node(n1).arity());
+                    kb::knowledge_base_t::instance()->get_unification_postponement(node(n1).arity());
                 assert(not pp.empty());
 
                 if (not pp.do_postpone(this, n1, n2))

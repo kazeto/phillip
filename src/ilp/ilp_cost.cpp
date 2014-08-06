@@ -34,8 +34,8 @@ parse_string_to_cost_provider(const std::string &str)
 }
 
 
-costed_converter_t::costed_converter_t(cost_provider_t *ptr)
-: m_cost_provider(ptr)
+costed_converter_t::costed_converter_t(phillip_main_t *main, cost_provider_t *ptr)
+: ilp_converter_t(main), m_cost_provider(ptr)
 {
     if (m_cost_provider == NULL)
         m_cost_provider = new basic_cost_provider_t(10.0, -40.0, 2.0);
@@ -50,7 +50,7 @@ costed_converter_t::~costed_converter_t()
 
 ilp::ilp_problem_t* costed_converter_t::execute() const
 {
-    const pg::proof_graph_t *graph = sys()->get_latent_hypotheses_set();
+    const pg::proof_graph_t *graph = phillip()->get_latent_hypotheses_set();
     ilp::ilp_problem_t *prob = new ilp::ilp_problem_t(
         graph, new ilp::basic_solution_interpreter_t(), false);
 
@@ -102,7 +102,7 @@ ilp::ilp_problem_t* costed_converter_t::execute() const
         }
     }
 
-    const lf::logical_function_t *req = sys()->get_requirement();
+    const lf::logical_function_t *req = phillip()->get_requirement();
     if (req != NULL) prob->add_variable_for_requirement(*req, false);
 
     prob->add_constrains_of_exclusive_chains();
@@ -135,7 +135,7 @@ costed_converter_t::basic_cost_provider_t::basic_cost_provider_t(
 double costed_converter_t::basic_cost_provider_t::edge_cost(
     const pg::proof_graph_t *graph, pg::edge_idx_t idx) const
 {
-    const kb::knowledge_base_t *base = sys()->knowledge_base();
+    const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
     const pg::edge_t &edge = graph->edge(idx);
     double cost(0.0);
 

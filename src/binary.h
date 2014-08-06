@@ -44,12 +44,13 @@ struct execution_configure_t
  *  @param[out] inputs List of input filenames. */
 bool parse_options(
     int argc, char* argv[],
+    phillip_main_t *phillip,
     execution_configure_t *config,
     std::vector<std::string> *inputs);
 
 /** Preprocess about execution configure.
  *  Create instance of each component of phil according to config. */
-bool preprocess(const execution_configure_t &config);
+bool preprocess(const execution_configure_t &config, phillip_main_t *phillip);
 
 
 extern const std::string USAGE;

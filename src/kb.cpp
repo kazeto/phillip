@@ -67,13 +67,40 @@ bool unification_postponement_t::do_postpone(
 
 
 const int BUFFER_SIZE = 512 * 512;
+std::unique_ptr<knowledge_base_t, knowledge_base_t::deleter> knowledge_base_t::ms_instance;
+std::string knowledge_base_t::ms_filename = "kb";
+distance_provider_type_e knowledge_base_t::ms_distance_provider_type = DISTANCE_PROVIDER_BASIC;
+float knowledge_base_t::ms_max_distance = -1.0f;
+
+
+knowledge_base_t* knowledge_base_t::instance()
+{
+    if (not ms_instance)
+        ms_instance.reset(new knowledge_base_t(ms_filename, ms_distance_provider_type));
+    return ms_instance.get();
+}
+
+
+void knowledge_base_t::setup(
+    std::string filename, distance_provider_type_e dist_type, float max_distance)
+{
+    if (not ms_instance)
+    {
+        ms_filename = filename;
+        ms_distance_provider_type = dist_type;
+        ms_max_distance = max_distance;
+    }
+    else
+    {
+        print_error("Failed to setup. The instance of KB has been created.");
+    }
+}
 
 
 knowledge_base_t::knowledge_base_t(
-    const std::string &filename, distance_provider_type_e dist,
-    float max_distance)
+    const std::string &filename, distance_provider_type_e dist)
     : m_state(STATE_NULL),
-      m_filename(filename), m_max_distance(max_distance),
+      m_filename(filename),
       m_cdb_id(filename + ".id.cdb"),
       m_cdb_name(filename +".name.cdb"),
       m_cdb_rhs(filename + ".rhs.cdb"),
@@ -193,7 +220,7 @@ void knowledge_base_t::write_config(const char *filename) const
         filename, std::ios::out | std::ios::trunc | std::ios::binary);
     char dist_type(m_rm_dist->type());
 
-    fo.write((char*)&m_max_distance, sizeof(float));
+    fo.write((char*)&ms_max_distance, sizeof(float));
     fo.write(&dist_type, sizeof(char));
     fo.close();
 }
@@ -204,11 +231,12 @@ void knowledge_base_t::read_config(const char *filename)
     std::ifstream fi(filename, std::ios::in | std::ios::binary);
     char dist_type;
 
-    fi.read((char*)&m_max_distance, sizeof(float));
+    fi.read((char*)&ms_max_distance, sizeof(float));
     fi.read(&dist_type, sizeof(char));
     fi.close();
 
-    set_distance_provider(static_cast<distance_provider_type_e>(dist_type));
+    ms_distance_provider_type = static_cast<distance_provider_type_e>(dist_type);
+    set_distance_provider(ms_distance_provider_type);
 }
 
 

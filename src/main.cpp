@@ -12,30 +12,31 @@ int main(int argc, char* argv[])
     using namespace phil;
     initialize();
 
-    std::vector<std::string> inputs;
+    phillip_main_t phillip;
     bin::execution_configure_t config;
+    std::vector<std::string> inputs;
 
     print_console("Phillip starts...");
     
-    bin::parse_options(argc, argv, &config, &inputs);
+    bin::parse_options(argc, argv, &phillip, &config, &inputs);
     print_console("Phillip has completed parsing comand options.");
 
-    bin::preprocess(config);
+    bin::preprocess(config, &phillip);
 
     bool do_compile =
         (config.mode == bin::EXE_MODE_COMPILE_KB) or
-        sys()->flag("do_compile_kb");
+        phillip.flag("do_compile_kb");
 
     /* COMPILING KNOWLEDGE-BASE */
     if (do_compile)
     {
-        kb::knowledge_base_t *kb = sys()->knowledge_base();
+        kb::knowledge_base_t *kb = kb::knowledge_base_t::instance();
         proc::processor_t processor;
         print_console("Compiling knowledge-base ...");
 
         kb->prepare_compile();
 
-        processor.add_component(new proc::compile_kb_t(kb));
+        processor.add_component(new proc::compile_kb_t());
         processor.process(inputs);
 
         kb->finalize();
@@ -57,15 +58,15 @@ int main(int argc, char* argv[])
         print_console("Completed to load observations.");
         print_console_fmt("    # of observations: %d", parsed_inputs.size());
 
-        sys()->knowledge_base()->prepare_query();
+        kb::knowledge_base_t::instance()->prepare_query();
 
         for (int i = 0; i < parsed_inputs.size(); ++i)
         {
             const lf::input_t &ipt = parsed_inputs.at(i);
             print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
-            sys()->infer(parsed_inputs, i);
+            phillip.infer(parsed_inputs, i);
         }
 
-        sys()->knowledge_base()->finalize();
+        kb::knowledge_base_t::instance()->finalize();
     }
 }

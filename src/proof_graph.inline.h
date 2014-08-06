@@ -161,8 +161,8 @@ proof_graph_t::unifiable_variable_clusters_set_t::is_in_same_cluster(
 }
 
 
-inline proof_graph_t::proof_graph_t(const std::string &name)
-: m_name(name), m_is_timeout(false)
+inline proof_graph_t::proof_graph_t(phillip_main_t *main, const std::string &name)
+: m_phillip(main), m_name(name), m_is_timeout(false)
 {
 #ifdef DISABLE_CUTTING_LHS
     add_attribute("disable-cutting-lhs", "yes");

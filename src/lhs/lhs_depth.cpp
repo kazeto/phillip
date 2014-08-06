@@ -13,10 +13,12 @@ namespace lhs
 
 
 depth_based_enumerator_t::depth_based_enumerator_t(
+    phillip_main_t *ptr,
     bool do_deduction, bool do_abduction,
     int max_depth, float max_distance, float max_redundancy,
     bool do_disable_reachable_matrix)
-    : m_do_deduction(do_deduction), m_do_abduction(do_abduction),
+    : lhs_enumerator_t(ptr),
+      m_do_deduction(do_deduction), m_do_abduction(do_abduction),
       m_depth_max(max_depth), m_distance_max(max_distance),
       m_redundancy_max(max_redundancy),
       m_do_disable_reachable_matrix(do_disable_reachable_matrix)
@@ -25,8 +27,9 @@ depth_based_enumerator_t::depth_based_enumerator_t(
 
 pg::proof_graph_t* depth_based_enumerator_t::execute() const
 {
-    const kb::knowledge_base_t *base(sys()->knowledge_base());
-    pg::proof_graph_t *graph(new pg::proof_graph_t(sys()->get_input()->name));
+    const kb::knowledge_base_t *base(kb::knowledge_base_t::instance());
+    pg::proof_graph_t *graph =
+        new pg::proof_graph_t(phillip(), phillip()->get_input()->name);
     hash_map<pg::node_idx_t, reachable_map_t> reachability;
     time_t begin, now;
 
@@ -54,7 +57,7 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
         {
             // CHECK TIME-OUT
             time(&now);
-            if (sys()->is_timeout_lhs(now - begin))
+            if (phillip()->is_timeout_lhs(now - begin))
             {
                 graph->timeout(true);
                 break;
@@ -96,7 +99,7 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
             }
 
             // FOR DEBUG
-            if (to >= 0 and sys()->verbose() == FULL_VERBOSE)
+            if (to >= 0 and phillip()->verbose() == FULL_VERBOSE)
                 print_chain_for_debug(graph, axiom, (*it), to);
         }
 
@@ -111,7 +114,7 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
 std::set<pg::chain_candidate_t> depth_based_enumerator_t::
 enumerate_chain_candidates(const pg::proof_graph_t *graph, int depth) const
 {
-    const kb::knowledge_base_t *base = sys()->knowledge_base();
+    const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
     std::set<pg::chain_candidate_t> out;
 
     std::set<std::tuple<axiom_id_t, bool> > axioms;
@@ -252,7 +255,7 @@ depth_based_enumerator_t::compute_reachability_of_observations(
 const pg::proof_graph_t *graph) const
 {
     hash_map<pg::node_idx_t, reachable_map_t> out;
-    const kb::knowledge_base_t *kb = sys()->knowledge_base();
+    const kb::knowledge_base_t *kb = kb::knowledge_base_t::instance();
     hash_set<pg::node_idx_t> obs = graph->enumerate_observations();
 
     for (auto n1 = obs.begin(); n1 != obs.end(); ++n1)
@@ -283,7 +286,7 @@ bool depth_based_enumerator_t::compute_reachability_of_chaining(
     const lf::axiom_t &axiom, bool is_forward,
     std::vector<reachable_map_t> *out) const
 {
-    const kb::knowledge_base_t *base = sys()->knowledge_base();
+    const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
     hash_set<pg::node_idx_t> evidences;
 
     /* CREATE evidences */

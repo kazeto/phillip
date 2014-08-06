@@ -13,7 +13,7 @@ namespace ilp
 class null_converter_t : public ilp_converter_t
 {
 public:
-    null_converter_t() {}
+    null_converter_t(phillip_main_t *ptr) : ilp_converter_t(ptr) {}
     virtual ilp::ilp_problem_t* execute() const;
     virtual bool is_available(std::list<std::string>*) const;
     virtual std::string repr() const;
@@ -63,8 +63,8 @@ public:
     static weight_provider_t* parse_string_to_weight_provider(const std::string &str);
 
     weighted_converter_t(
-        double default_obs_cost = 10.0,
-        weight_provider_t *ptr = NULL);
+        phillip_main_t *main,
+        double default_obs_cost = 10.0, weight_provider_t *ptr = NULL);
     ~weighted_converter_t();
 
     virtual ilp::ilp_problem_t* execute() const;
@@ -128,7 +128,7 @@ public:
 
     static cost_provider_t* parse_string_to_cost_provider(const std::string&);
 
-    costed_converter_t(cost_provider_t *ptr = NULL);
+    costed_converter_t(phillip_main_t *main, cost_provider_t *ptr = NULL);
     ~costed_converter_t();
 
     virtual ilp::ilp_problem_t* execute() const;

@@ -61,8 +61,9 @@ void compile_kb_t::prepare()
 void compile_kb_t::process( const sexp::reader_t *reader )
 {    
     const sexp::stack_t *stack(reader->get_stack());
+    kb::knowledge_base_t *_kb = kb::knowledge_base_t::instance();
 
-    if (not stack->is_functor("B") or m_kb == NULL)
+    if (not stack->is_functor("B"))
         return;
 
     /* SHOULD BE ROOT. */
@@ -92,7 +93,7 @@ void compile_kb_t::process( const sexp::reader_t *reader )
                 (stack->children.at(idx_lf)->children.size() >= 3), (*reader),
                 "function '=>' takes two arguments.");
             IF_VERBOSE_FULL("Added implication: " + stack->to_string());
-            m_kb->insert_implication(func, name);
+            _kb->insert_implication(func, name);
         }
         else if (idx_inc >= 0)
         {
@@ -101,7 +102,7 @@ void compile_kb_t::process( const sexp::reader_t *reader )
                 (stack->children.at(idx_inc)->children.size() >= 3), (*reader),
                 "function 'xor' takes two arguments.");
             IF_VERBOSE_FULL("Added inconsistency: " + stack->to_string());
-            m_kb->insert_inconsistency(func, name);
+            _kb->insert_inconsistency(func, name);
         }
         else if (idx_pp >= 0)
         {
@@ -110,7 +111,7 @@ void compile_kb_t::process( const sexp::reader_t *reader )
                 (stack->children.at(idx_inc)->children.size() >= 2), (*reader),
                 "function 'unipp' takes one argument.");
             IF_VERBOSE_FULL("Added unification-postponement: " + stack->to_string());
-            m_kb->insert_unification_postponement(func, name);
+            _kb->insert_unification_postponement(func, name);
         }
     }
 }

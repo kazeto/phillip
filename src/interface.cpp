@@ -6,16 +6,15 @@ namespace phil
 {
 
 
-void lhs_enumerator_t::add_observations(
-    pg::proof_graph_t *target )
+void lhs_enumerator_t::add_observations(pg::proof_graph_t *target) const
 {
     std::vector<const literal_t*> obs =
-        sys()->get_observation()->get_all_literals();
+        phillip()->get_observation()->get_all_literals();
 
     for (auto it = obs.begin(); it != obs.end(); ++it)
         target->add_observation(**it);
 
-    const lf::logical_function_t *lf_req = sys()->get_requirement();
+    const lf::logical_function_t *lf_req = phillip()->get_requirement();
     if (lf_req != NULL)
     {
         std::vector<const literal_t*> req = lf_req->get_all_literals();

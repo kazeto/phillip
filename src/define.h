@@ -144,14 +144,20 @@ struct literal_t
 
 
 /** A base class of components of phillip_main_t. */
-class henry_component_interface_t
+class phillip_component_interface_t
 {    
 public:
-    virtual ~henry_component_interface_t() {}
+    phillip_component_interface_t(phillip_main_t *master) : m_phillip(master) {};
+    virtual ~phillip_component_interface_t() {}
     /** Return ability to execute this component on current setting.
      *  @param[out] disp Error messages to be printed when return false. */
     virtual bool is_available(std::list<std::string> *disp) const = 0;
     virtual std::string repr() const = 0;
+
+    phillip_main_t *phillip() const { return m_phillip; }
+
+protected:
+    phillip_main_t *m_phillip;
 };
 
 

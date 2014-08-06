@@ -23,28 +23,32 @@ class ilp_solution_t;
 
 
 /** An interface of function class to make latent-hypotheses-set(LHS). */
-class lhs_enumerator_t : public henry_component_interface_t
+class lhs_enumerator_t : public phillip_component_interface_t
 {
 public:
+    lhs_enumerator_t(phillip_main_t *ptr) : phillip_component_interface_t(ptr) {}
+
     virtual ~lhs_enumerator_t() {}
     virtual pg::proof_graph_t* execute() const = 0;
     
 protected:
     /** Add nodes of observations in phillip_main_t to LHS. */
-    static void add_observations(pg::proof_graph_t *target);
+    void add_observations(pg::proof_graph_t *target) const;
 
     static bool do_include_requirement(const pg::proof_graph_t *graph, const std::vector<index_t> &nodes);
 };
 
 
 /** An interface of function class to convert LHS into ILP-problem. */
-class ilp_converter_t : public henry_component_interface_t
+class ilp_converter_t : public phillip_component_interface_t
 {
 public:
     struct enumeration_stopper_t
     {
         virtual bool operator()(const pg::proof_graph_t*) const { return false; }
     };
+
+    ilp_converter_t(phillip_main_t *ptr) : phillip_component_interface_t(ptr) {}
 
     virtual ~ilp_converter_t() {}
     virtual ilp::ilp_problem_t* execute() const = 0;
@@ -58,9 +62,11 @@ public:
 
 
 /** An interface of function class to output a solution hypothesis. */
-class ilp_solver_t : public henry_component_interface_t
+class ilp_solver_t : public phillip_component_interface_t
 {
 public:
+    ilp_solver_t(phillip_main_t *ptr) : phillip_component_interface_t(ptr) {}
+
     virtual ~ilp_solver_t() {}
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const = 0;
 };

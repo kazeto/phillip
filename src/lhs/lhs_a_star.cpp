@@ -51,18 +51,20 @@ erase(hash_set<pg::node_idx_t> from_set, pg::node_idx_t target)
 
 
 a_star_based_enumerator_t::a_star_based_enumerator_t(
-    bool do_deduction, bool do_abduction, float max_dist)
-    : m_do_deduction(do_deduction), m_do_abduction(do_abduction),
+    phillip_main_t *ptr, bool do_deduction, bool do_abduction, float max_dist)
+    : lhs_enumerator_t(ptr),
+      m_do_deduction(do_deduction), m_do_abduction(do_abduction),
       m_max_distance(max_dist)
 {}
 
 
 pg::proof_graph_t* a_star_based_enumerator_t::execute() const
 {
-    const kb::knowledge_base_t *base(sys()->knowledge_base());
-    pg::proof_graph_t *graph(new pg::proof_graph_t(sys()->get_input()->name));
+    const kb::knowledge_base_t *base(kb::knowledge_base_t::instance());
+    pg::proof_graph_t *graph =
+        new pg::proof_graph_t(phillip(), phillip()->get_input()->name);
     ilp_converter_t::enumeration_stopper_t *stopper =
-        sys()->ilp_convertor()->enumeration_stopper();
+        phillip()->ilp_convertor()->enumeration_stopper();
     time_t begin, now;
 
     time(&begin);
@@ -84,7 +86,7 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
         {
             // CHECK TIME-OUT
             time(&now);
-            if (sys()->is_timeout_lhs(now - begin))
+            if (phillip()->is_timeout_lhs(now - begin))
             {
                 graph->timeout(true);
                 break;
@@ -118,7 +120,7 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
             from_set.insert(cand->nodes.begin(), cand->nodes.end());
 
             // FOR DEBUG
-            if (sys()->verbose() == FULL_VERBOSE)
+            if (phillip()->verbose() == FULL_VERBOSE)
                 print_chain_for_debug(graph, axiom, (*cand), to);
         }
 
@@ -137,7 +139,7 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
     const pg::proof_graph_t *graph, pg::node_idx_t i,
     std::set<pg::chain_candidate_t> *out) const
 {
-    const kb::knowledge_base_t *base = sys()->knowledge_base();
+    const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
 
     std::set<std::tuple<axiom_id_t, bool> > axioms;
     {
@@ -263,7 +265,7 @@ const std::vector<std::string> &arities, pg::node_idx_t target) const
 void a_star_based_enumerator_t::initialize_reachability(
 const pg::proof_graph_t *graph, reachability_manager_t *out) const
 {
-    const kb::knowledge_base_t *kb = sys()->knowledge_base();
+    const kb::knowledge_base_t *kb = kb::knowledge_base_t::instance();
     hash_set<pg::node_idx_t> obs = graph->enumerate_observations();
 
     for (auto n1 = obs.begin(); n1 != obs.end(); ++n1)
@@ -289,7 +291,7 @@ bool a_star_based_enumerator_t::compute_reachability_of_chaining(
     const std::vector<pg::node_idx_t> &from, const lf::axiom_t &axiom,
     bool is_forward, std::vector<std::list<reachability_t> > *out) const
 {
-    const kb::knowledge_base_t *base = sys()->knowledge_base();
+    const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
     hash_set<pg::node_idx_t> evidences;
 
     /* CREATE evidences */

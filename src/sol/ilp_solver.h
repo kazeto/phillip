@@ -30,7 +30,7 @@ namespace sol
 class null_solver_t : public ilp_solver_t
 {
 public:
-    null_solver_t() {}
+    null_solver_t(phillip_main_t *ptr) : ilp_solver_t(ptr) {}
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const;
     virtual bool is_available( std::list<std::string> *error_messages ) const;
     virtual std::string repr() const;
@@ -41,7 +41,7 @@ public:
 class lp_solve_t : public ilp_solver_t
 {
 public:
-    lp_solve_t() {}
+    lp_solve_t(phillip_main_t *ptr) : ilp_solver_t(ptr) {}
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const;
     virtual bool is_available(std::list<std::string> *error_messages) const;
     virtual std::string repr() const;
@@ -61,7 +61,7 @@ private:
 class gurobi_t : public ilp_solver_t
 {
 public:
-    gurobi_t(int thread_num, bool do_output_log);
+    gurobi_t(phillip_main_t *ptr, int thread_num, bool do_output_log);
 
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const;
     virtual bool is_available(std::list<std::string> *error_messages) const;

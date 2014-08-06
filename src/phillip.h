@@ -31,7 +31,10 @@ class ilp_solver_t;
 class phillip_main_t
 {
 public:
-    static phillip_main_t* get_instance();
+    static inline void set_verbose(int v);
+    static inline const int verbose();
+
+    phillip_main_t();
     ~phillip_main_t();
     
     /** Infer a explanation to given observation.
@@ -47,19 +50,14 @@ public:
     inline ilp_converter_t*  ilp_convertor();
     inline const ilp_solver_t*     ilp_solver() const;
     inline ilp_solver_t*     ilp_solver();
-    inline const kb::knowledge_base_t *knowledge_base() const;
-    inline kb::knowledge_base_t *knowledge_base();
 
     inline void set_lhs_enumerator(lhs_enumerator_t*);
     inline void set_ilp_convertor(ilp_converter_t*);
     inline void set_ilp_solver(ilp_solver_t*);
-    inline void set_knowledge_base(kb::knowledge_base_t *kb);
 
     inline void set_timeout_lhs(int t);
     inline void set_timeout_ilp(int t);
     inline void set_timeout_sol(int t);
-    inline void set_verbose(int v);
-    inline void set_debug_flag(bool flag);
     inline void set_param(const std::string &key, const std::string &param);
     inline void set_flag(const std::string &key);
     
@@ -77,8 +75,6 @@ public:
     inline bool is_timeout_ilp(int sec) const;
     inline bool is_timeout_sol(int sec) const;
 
-    inline const int& verbose() const;
-    inline bool is_debugging()  const;
 
     inline const hash_map<std::string, std::string>& params() const;
     inline const std::string& param(const std::string &key) const;
@@ -101,8 +97,6 @@ public:
 private:
     enum process_mode_e { MODE_COMPILE_KB, MODE_INPUT_OBS };
     
-    phillip_main_t();
-
     bool interpret_option( int opt, const char *optarg );
     
     inline bool can_infer() const;
@@ -110,21 +104,17 @@ private:
 
     void write_configure(std::ofstream *fo) const;
 
-    static phillip_main_t *ms_instance;
-    
+    static int ms_verboseness;
+
     // ---- FUNCTION CLASS OF EACH PROCEDURE
     lhs_enumerator_t *m_lhs_enumerator;
     ilp_converter_t  *m_ilp_convertor;
     ilp_solver_t     *m_ilp_solver;
 
-    kb::knowledge_base_t *m_kb;
-    
     // ---- DATA, SETTING, ETC...
     hash_map<std::string, std::string> m_params;
     hash_set<std::string> m_flags;
     int  m_timeout_lhs, m_timeout_ilp, m_timeout_sol;
-    int  m_verboseness;
-    bool m_is_debugging;
 
     // ---- PRODUCTS OF INFERENCE
     lf::input_t *m_input;
@@ -140,12 +130,10 @@ private:
 };
 
 
-inline phillip_main_t *sys() { return phillip_main_t::get_instance(); }
-
 }
 
 
-#define IF_VERBOSE(V, E) if(phil::sys()->verbose() >= V) print_console(E);
+#define IF_VERBOSE(V, E) if(phillip_main_t::verbose() >= V) print_console(E);
 
 #define IF_VERBOSE_1(E) IF_VERBOSE(phil::VERBOSE_1, E)
 #define IF_VERBOSE_2(E) IF_VERBOSE(phil::VERBOSE_2, E)

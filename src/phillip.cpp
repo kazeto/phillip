@@ -9,21 +9,13 @@ namespace phil
 {
 
 
-phillip_main_t *phillip_main_t::ms_instance = NULL;
-
-
-phillip_main_t *phillip_main_t::get_instance()
-{
-    static phillip_main_t singleton;
-    return &singleton;
-}
+int phillip_main_t::ms_verboseness = 0;
 
 
 phillip_main_t::phillip_main_t()
 : m_lhs_enumerator(NULL), m_ilp_convertor(NULL), m_ilp_solver(NULL),
-  m_kb(NULL), m_input(NULL), m_lhs(NULL), m_ilp(NULL),
+  m_input(NULL), m_lhs(NULL), m_ilp(NULL),
   m_timeout_lhs(-1), m_timeout_ilp(-1), m_timeout_sol(-1),
-  m_verboseness(0), m_is_debugging(false),
   m_clock_for_enumerate(0), m_clock_for_convert(0),
   m_clock_for_solve(0), m_clock_for_infer(0)
 {}
@@ -34,7 +26,6 @@ phillip_main_t::~phillip_main_t()
     if (m_lhs_enumerator != NULL) delete m_lhs_enumerator;
     if (m_ilp_convertor != NULL)  delete m_ilp_convertor;
     if (m_ilp_solver != NULL)     delete m_ilp_solver;
-    if (m_kb != NULL) delete m_kb;
 
     if (m_input != NULL) delete m_input;
     if (m_lhs != NULL)   delete m_lhs;
@@ -70,8 +61,6 @@ void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
             print_error("    - No ilp_convertor!");
         if (m_ilp_solver == NULL)
             print_error("    - No ilp_solver!");
-        if (m_kb == NULL)
-            print_error("    - No knowledge_base!");
 
         return;
     }

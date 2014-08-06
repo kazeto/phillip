@@ -32,8 +32,8 @@ parse_string_to_weight_provider(const std::string &str)
 
 
 weighted_converter_t::weighted_converter_t(
-    double default_obs_cost, weight_provider_t *ptr)
-: m_default_observation_cost(default_obs_cost), m_weight_provider(ptr)
+    phillip_main_t *main, double default_obs_cost, weight_provider_t *ptr)
+    : ilp_converter_t(main), m_default_observation_cost(default_obs_cost), m_weight_provider(ptr)
 {
     if (ptr == NULL)
         m_weight_provider = new basic_weight_provider_t(1.2);
@@ -48,7 +48,7 @@ weighted_converter_t::~weighted_converter_t()
 
 ilp::ilp_problem_t* weighted_converter_t::execute() const
 {
-    const pg::proof_graph_t *graph = sys()->get_latent_hypotheses_set();
+    const pg::proof_graph_t *graph = phillip()->get_latent_hypotheses_set();
     ilp::ilp_problem_t *prob = new ilp::ilp_problem_t(
         graph, new ilp::basic_solution_interpreter_t(), false);
 
@@ -76,7 +76,7 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
     for (pg::edge_idx_t i = 0; i < graph->edges().size(); ++i)
         prob->add_constrains_of_conditions_for_chain(i);
 
-    const lf::logical_function_t *req = sys()->get_requirement();
+    const lf::logical_function_t *req = phillip()->get_requirement();
     if (req != NULL) prob->add_variable_for_requirement(*req, false);
 
     prob->add_constrains_of_exclusive_chains();
@@ -84,7 +84,7 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
 
     // ASSIGN COSTS OF EDGES TO HYPERNODES
     hash_map<pg::node_idx_t, ilp::variable_idx_t> node2costvar;
-    add_variables_for_observation_cost(graph, *sys()->get_input(), prob, &node2costvar);
+    add_variables_for_observation_cost(graph, *phillip()->get_input(), prob, &node2costvar);
     add_variables_for_hypothesis_cost(graph, prob, &node2costvar);
     add_constraints_for_cost(graph, prob, node2costvar);
 
@@ -282,7 +282,7 @@ weighted_converter_t::enumeration_stopper() const
 std::vector<double> weighted_converter_t::basic_weight_provider_t::operator()(
     const pg::proof_graph_t *graph, pg::edge_idx_t idx) const
 {
-    const kb::knowledge_base_t *base = sys()->knowledge_base();
+    const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
     const pg::edge_t &edge = graph->edge(idx);
     size_t size = graph->hypernode(edge.head()).size();
     std::vector<double> weights(size, 0.0);

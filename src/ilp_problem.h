@@ -126,6 +126,7 @@ public:
         bool do_maximize, const std::string &name = "");
     virtual ~ilp_problem_t();
 
+    inline phillip_main_t* phillip() const { return m_graph->phillip(); }
     inline void timeout(bool flag) { m_is_timeout = flag; }
     inline bool is_timeout() const { return m_is_timeout; }
 
@@ -329,6 +330,7 @@ public:
         const ilp_problem_t *prob, solution_type_e sol_type,
         const std::vector<double> &values, const std::string &name = "");
 
+    inline phillip_main_t* phillip() const { return problem()->phillip(); }
     inline void timeout(bool flag) { m_is_timeout = flag; }
     inline bool is_timeout() const { return m_is_timeout; }
 

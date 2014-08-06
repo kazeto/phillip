@@ -14,8 +14,8 @@ namespace sol
                         e.getErrorCode(), e.getMessage().c_str()); }
     
 
-gurobi_t::gurobi_t(int thread_num, bool do_output_log)
-    : m_thread_num(thread_num), m_do_output_log(do_output_log)
+gurobi_t::gurobi_t(phillip_main_t *ptr, int thread_num, bool do_output_log)
+    : ilp_solver_t(ptr), m_thread_num(thread_num), m_do_output_log(do_output_log)
 {
     if (m_thread_num <= 0)
         m_thread_num = 1;
@@ -25,13 +25,13 @@ gurobi_t::gurobi_t(int thread_num, bool do_output_log)
 void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
 {
 #ifdef USE_GUROBI
-    const ilp::ilp_problem_t *prob = sys()->get_ilp_problem();
+    const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
     GRBEnv env;
     GRBModel model(env);
     hash_map<ilp::variable_idx_t, GRBVar> vars;
     hash_set<ilp::constraint_idx_t>
         lazy_cons(prob->get_lazy_constraints());
-    bool do_cpi(not lazy_cons.empty() and not sys()->flag("disable_cpi"));
+    bool do_cpi(not lazy_cons.empty() and not phillip()->flag("disable_cpi"));
     std::time_t begin, now;
 
     std::time(&begin);
@@ -49,8 +49,8 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
         model.getEnv().set(GRB_IntParam_OutputFlag, m_do_output_log ? 1 : 0);
         if (m_thread_num > 1)
             model.getEnv().set(GRB_IntParam_Threads, m_thread_num);
-        if (sys()->timeout_sol() > 0)
-            model.getEnv().set(GRB_DoubleParam_TimeLimit, sys()->timeout_sol()););
+        if (phillip()->timeout_sol() > 0)
+            model.getEnv().set(GRB_DoubleParam_TimeLimit, phillip()->timeout_sol()););
     
     size_t num_loop(0);
     while (true)
@@ -105,7 +105,7 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
             else do_break = true;
 
             std::time(&now);
-            if (sys()->is_timeout(now - begin))
+            if (phillip()->is_timeout(now - begin))
             {
                 sol.timeout(true);
                 do_break = true;
@@ -143,7 +143,7 @@ std::string gurobi_t::repr() const
 void gurobi_t::add_variables(
     GRBModel *model, hash_map<ilp::variable_idx_t, GRBVar> *vars) const
 {
-    const ilp::ilp_problem_t *prob = sys()->get_ilp_problem();
+    const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
 
     for (int i = 0; i < prob->variables().size(); ++i)
     {
@@ -167,7 +167,7 @@ void gurobi_t::add_constraint(
     GRBModel *model, ilp::constraint_idx_t idx,
     const hash_map<ilp::variable_idx_t, GRBVar> &vars) const
 {
-    const ilp::ilp_problem_t *prob = sys()->get_ilp_problem();
+    const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
 
     const ilp::constraint_t &c = prob->constraint(idx);
     std::string name = c.name().substr(0, 32);
@@ -198,7 +198,7 @@ void gurobi_t::add_constraint(
 ilp::ilp_solution_t gurobi_t::convert(
     GRBModel *model, const hash_map<ilp::variable_idx_t, GRBVar> &vars) const
 {
-    const ilp::ilp_problem_t *prob = sys()->get_ilp_problem();
+    const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
     std::vector<double> values(prob->variables().size(), 0);
 
     GRBVar *p_vars = model->getVars();

@@ -42,13 +42,9 @@ private:
 class compile_kb_t : public component_t
 {
 public:
-    compile_kb_t(kb::knowledge_base_t *out_ptr) : m_kb(out_ptr) {}
     virtual void prepare();
-    virtual void process( const sexp::reader_t* );
+    virtual void process(const sexp::reader_t*);
     virtual void quit();
-    
-private:
-    kb::knowledge_base_t *m_kb;
 };
 
 

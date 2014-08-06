@@ -5,6 +5,7 @@
 #include <map>
 #include <list>
 #include <string>
+#include <memory>
 
 #include "./define.h"
 #include "./logical_function.h"
@@ -72,9 +73,15 @@ private:
 class knowledge_base_t
 {
 public:
-    knowledge_base_t(
-        const std::string &filename, distance_provider_type_e dist,
-        float max_distance = -1.0f);
+    struct deleter
+    {
+        void operator()(knowledge_base_t const* const p) const { delete p; }
+    };
+
+    static knowledge_base_t* instance();
+    static void setup(std::string filename, distance_provider_type_e dist_type, float max_distance);
+    static inline float get_max_distance();
+
     ~knowledge_base_t();
 
     /** Initializes knowledge base and
@@ -94,13 +101,10 @@ public:
     
     /** Inserts new inconsistency into knowledge base as compiled axiom.
      *  This method can be called only in compile-mode. */
-    void insert_inconsistency(
-        const lf::logical_function_t &lf, std::string name);
+    void insert_inconsistency(const lf::logical_function_t &lf, std::string name);
 
-    void insert_unification_postponement(
-        const lf::logical_function_t &lf, std::string name);
+    void insert_unification_postponement(const lf::logical_function_t &lf, std::string name);
 
-    inline float get_max_distance() const;
     inline size_t get_axiom_num() const;
 
     lf::axiom_t get_axiom(axiom_id_t id) const;
@@ -116,11 +120,12 @@ public:
     float get_distance(
         const std::string &arity1, const std::string &arity2) const;
 
-    /** Returns distance between arity1 and arity2
-     *  by using the current distance-provider. */
+    /** Returns distance between arity1 and arity2 with distance-provider. */
     inline float get_distance(const lf::axiom_t &axiom) const;
 
+
 private:
+
     /** A class of reachable-matrix for all predicate pairs. */
     class global_reachable_matrix_t
     {
@@ -147,12 +152,12 @@ private:
 
     enum kb_state_e { STATE_NULL, STATE_COMPILE, STATE_QUERY };
 
+    knowledge_base_t(
+        const std::string &filename, distance_provider_type_e dist);
+
     void write_config(const char *filename) const;
     void read_config(const char *filename);
 
-    /** Sets new distance-provider.
-     *  This object is used in making reachable-matrix. */
-    void set_distance_provider(distance_provider_type_e);
 
     void _insert_cdb(
         const std::string &name, const lf::logical_function_t &lf);
@@ -189,7 +194,16 @@ private:
      *  On calling this method, ~.rm.idx.cdb must be readable. */
     inline const size_t* search_arity_index(const std::string &arity) const;
 
+    /** Sets new distance-provider.
+     *  This object is used in making reachable-matrix. */
+    void set_distance_provider(distance_provider_type_e);
+
     inline std::string _get_name_of_unnamed_axiom();
+
+    static std::unique_ptr<knowledge_base_t, deleter> ms_instance;
+    static std::string ms_filename;
+    static distance_provider_type_e ms_distance_provider_type;
+    static float ms_max_distance;
 
     kb_state_e m_state;
     std::string m_filename;
@@ -214,9 +228,6 @@ private:
 
     /** Function object to provide distance between predicates. */
     distance_provider_t *m_rm_dist;
-
-    /** The max distance in reachabilility matrix. */
-    float m_max_distance;
 
     bool m_do_create_local_reachability_matrix;
 };

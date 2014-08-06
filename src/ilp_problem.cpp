@@ -709,7 +709,7 @@ void ilp_problem_t::print(std::ostream *os) const
     (*os)
         << "<ilp name=\"" << name()
         << "\" maxmize=\"" << (do_maximize() ? "yes" : "no")
-        << "\" time=\"" << sys()->get_time_for_ilp()
+        << "\" time=\"" << phillip()->get_time_for_ilp()
         << "\" timeout=\"" << (is_timeout() ? "yes" : "no");
 
     for (auto attr = m_attributes.begin(); attr != m_attributes.end(); ++attr)
@@ -769,10 +769,10 @@ void ilp_problem_t::print_solution(
         << "\">" << std::endl;
 
     (*os)
-        << "<time lhs=\"" << sys()->get_time_for_lhs()
-        << "\" ilp=\"" << sys()->get_time_for_ilp()
-        << "\" sol=\"" << sys()->get_time_for_sol()
-        << "\" all=\"" << sys()->get_time_for_infer()
+        << "<time lhs=\"" << phillip()->get_time_for_lhs()
+        << "\" ilp=\"" << phillip()->get_time_for_ilp()
+        << "\" sol=\"" << phillip()->get_time_for_sol()
+        << "\" all=\"" << phillip()->get_time_for_infer()
         << "\"></time>" << std::endl;
 
     const ilp::ilp_problem_t *prob(sol->problem());
@@ -867,7 +867,7 @@ void ilp_problem_t::_print_literals_in_solution(
 void ilp_problem_t::_print_explanations_in_solution(
     const ilp_solution_t *sol, std::ostream *os) const
 {
-    const kb::knowledge_base_t *base = sys()->knowledge_base();
+    const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
     std::list<pg::edge_idx_t> indices;
 
     for (int i = 0; i < m_graph->edges().size(); ++i)
@@ -1012,7 +1012,7 @@ void ilp_solution_t::print(std::ostream *os) const
 {
     (*os)
         << "<solution name=\"" << name()
-        << "\" time=\"" << sys()->get_time_for_sol()
+        << "\" time=\"" << phillip()->get_time_for_sol()
         << "\" timeout=\"" << (is_timeout() ? "yes" : "no")
         << "\">" << std::endl
         << "<variables num=\"" << m_ilp->variables().size()

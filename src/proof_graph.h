@@ -222,8 +222,9 @@ struct chain_candidate_t
 class proof_graph_t
 {        
 public:
-    inline proof_graph_t(const std::string &name = "");
+    inline proof_graph_t(phillip_main_t *main, const std::string &name = "");
 
+    inline phillip_main_t* phillip() const { return m_phillip; }
     inline void timeout(bool flag) { m_is_timeout = flag; }
     inline bool is_timeout() const { return m_is_timeout; }
 
@@ -591,6 +592,8 @@ protected:
     virtual void print_mutual_exclusive_edges(std::ostream *os) const;
 
     // ---- VARIABLES
+
+    phillip_main_t *m_phillip;
     
     std::string m_name;
     bool m_is_timeout; /// For timeout.
