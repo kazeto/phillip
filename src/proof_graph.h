@@ -228,6 +228,9 @@ public:
     inline void timeout(bool flag) { m_is_timeout = flag; }
     inline bool is_timeout() const { return m_is_timeout; }
 
+    /** Merges with another proof graph. */
+    void merge(const proof_graph_t &graph);
+
     /** Deletes logs and enumerate hypernodes to be disregarded.
      *  Call this method after creation of proof-graph. */
     void post_process();
@@ -407,7 +410,9 @@ protected:
     {
     public:
         /** Add unifiability of terms t1 & t2. */
-        void add( term_t t1, term_t t2 );
+        void add(term_t t1, term_t t2);
+
+        void merge(const unifiable_variable_clusters_set_t &vc);
 
         inline const hash_map<index_t, hash_set<term_t> >& clusters() const;
         inline const hash_set<term_t>* find_cluster(term_t t) const;
@@ -640,7 +645,7 @@ protected:
 
     } m_logs;
 
-    struct
+    struct maps_t
     {
         /** Map from terms to the node index.
          *   - KEY1, KEY2 : Terms. KEY1 is less than KEY2.
@@ -678,7 +683,7 @@ protected:
         hash_map<size_t, hash_set<hypernode_idx_t> > unordered_nodes_to_hypernode;
 
         /** Map to get edges connecting given node. */
-        hash_map< hypernode_idx_t, hash_set<edge_idx_t> > hypernode_to_edge;
+        hash_map<hypernode_idx_t, hash_set<edge_idx_t> > hypernode_to_edge;
 
         /** Map to get nodes which have given term. */
         hash_map<term_t, hash_set<node_idx_t> > term_to_nodes;

@@ -14,6 +14,7 @@ class null_converter_t : public ilp_converter_t
 {
 public:
     null_converter_t(phillip_main_t *ptr) : ilp_converter_t(ptr) {}
+    virtual ilp_converter_t* duplicate(phillip_main_t *ptr) const;
     virtual ilp::ilp_problem_t* execute() const;
     virtual bool is_available(std::list<std::string>*) const;
     virtual std::string repr() const;
@@ -29,6 +30,7 @@ public:
         virtual ~weight_provider_t() {}
         virtual std::vector<double> operator()(
             const pg::proof_graph_t*, pg::edge_idx_t) const = 0;
+        virtual weight_provider_t* duplicate() const = 0;
     };
 
     class basic_weight_provider_t : public weight_provider_t {
@@ -36,6 +38,7 @@ public:
         basic_weight_provider_t(double default_weight) : m_default_weight(default_weight) {}
         virtual std::vector<double> operator()(
             const pg::proof_graph_t*, pg::edge_idx_t) const;
+        virtual weight_provider_t* duplicate() const;
     private:
         double m_default_weight;
     };
@@ -67,6 +70,7 @@ public:
         double default_obs_cost = 10.0, weight_provider_t *ptr = NULL);
     ~weighted_converter_t();
 
+    virtual ilp_converter_t* duplicate(phillip_main_t *ptr) const;
     virtual ilp::ilp_problem_t* execute() const;
     virtual bool is_available(std::list<std::string>*) const;
     virtual std::string repr() const;
@@ -106,6 +110,7 @@ public:
     class cost_provider_t {
     public:
         virtual ~cost_provider_t() {}
+        virtual cost_provider_t* duplicate() const = 0;
         virtual double edge_cost(
             const pg::proof_graph_t*, pg::edge_idx_t) const = 0;
         virtual double node_cost(
@@ -116,6 +121,7 @@ public:
     public:
         basic_cost_provider_t(
             double default_cost, double literal_unify_cost, double term_unify_cost);
+        virtual cost_provider_t* duplicate() const;
         virtual double edge_cost(const pg::proof_graph_t*, pg::edge_idx_t) const;
         virtual double node_cost(const pg::proof_graph_t*, pg::node_idx_t) const;
     private:
@@ -131,6 +137,7 @@ public:
     costed_converter_t(phillip_main_t *main, cost_provider_t *ptr = NULL);
     ~costed_converter_t();
 
+    virtual ilp_converter_t* duplicate(phillip_main_t *ptr) const;
     virtual ilp::ilp_problem_t* execute() const;
     virtual bool is_available(std::list<std::string>*) const;
     virtual std::string repr() const;

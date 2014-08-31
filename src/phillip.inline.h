@@ -241,14 +241,22 @@ inline void phillip_main_t::reset_for_inference()
     if (m_input != NULL) delete m_input;
     if (m_lhs != NULL)   delete m_lhs;
     if (m_ilp != NULL)   delete m_ilp;
+
     m_input = NULL;
     m_lhs = NULL;
     m_ilp = NULL;
+
     m_clock_for_enumerate = 0;
     m_clock_for_convert = 0;
     m_clock_for_solve = 0;
     m_clock_for_infer = 0;
+
     m_sol.clear();
+
+    for (auto it = m_phillips_parallel.begin();
+        it != m_phillips_parallel.end(); ++it)
+        delete (*it);
+    m_phillips_parallel.clear();
 }
 
 

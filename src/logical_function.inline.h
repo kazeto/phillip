@@ -8,12 +8,17 @@ namespace lf
 
 
 inline logical_function_t::logical_function_t()
-    : m_operator( OPR_UNDERSPECIFIED )
+: m_operator(OPR_UNDERSPECIFIED)
 {}
 
 
-inline logical_function_t::logical_function_t( const literal_t &lit )
-    : m_operator( OPR_LITERAL ), m_literal(lit)
+inline logical_function_t::logical_function_t(logical_operator_t opr)
+: m_operator(opr)
+{}
+
+
+inline logical_function_t::logical_function_t(const literal_t &lit)
+: m_operator(OPR_LITERAL), m_literal(lit)
 {}
 
 

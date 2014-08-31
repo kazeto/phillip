@@ -14,15 +14,15 @@ namespace lf
 
 logical_function_t::logical_function_t(
     logical_operator_t opr, const std::vector<literal_t> &literals )
-    : m_operator( opr )
+    : m_operator(opr)
 {
-    for( int i=0; i<literals.size(); i++ )
-        m_branches.push_back( logical_function_t( literals.at(i) ) );
+    for (int i = 0; i < literals.size(); i++)
+        m_branches.push_back(logical_function_t(literals.at(i)));
 }
 
 
-logical_function_t::logical_function_t( const sexp::stack_t &s )
-    : m_operator( OPR_UNDERSPECIFIED )
+logical_function_t::logical_function_t(const sexp::stack_t &s)
+    : m_operator(OPR_UNDERSPECIFIED)
 {
     if (s.is_functor("=>"))
     {
@@ -303,6 +303,12 @@ void logical_function_t::print(
         }
         break;
     }
+}
+
+
+void logical_function_t::add_branch(const logical_function_t &lf)
+{
+    m_branches.push_back(lf);
 }
 
 

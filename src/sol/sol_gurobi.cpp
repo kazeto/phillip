@@ -22,6 +22,12 @@ gurobi_t::gurobi_t(phillip_main_t *ptr, int thread_num, bool do_output_log)
 }
 
 
+ilp_solver_t* gurobi_t::duplicate(phillip_main_t *ptr) const
+{
+    return new gurobi_t(ptr, m_thread_num, m_do_output_log);
+}
+
+
 void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
 {
 #ifdef USE_GUROBI

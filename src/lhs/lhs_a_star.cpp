@@ -58,6 +58,13 @@ a_star_based_enumerator_t::a_star_based_enumerator_t(
 {}
 
 
+lhs_enumerator_t* a_star_based_enumerator_t::duplicate(phillip_main_t *ptr) const
+{
+    return new a_star_based_enumerator_t(
+        ptr, m_do_deduction, m_do_abduction, m_max_distance);
+}
+
+
 pg::proof_graph_t* a_star_based_enumerator_t::execute() const
 {
     const kb::knowledge_base_t *base(kb::knowledge_base_t::instance());

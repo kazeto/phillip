@@ -61,6 +61,54 @@ ilp_problem_t::~ilp_problem_t()
 }
 
 
+void ilp_problem_t::merge(const ilp_problem_t &prob)
+{
+#define foreach(it, con) for(auto it = con.begin(); it != con.end(); ++it)
+    int num_v(m_variables.size());
+    int num_c(m_constraints.size());
+    int num_n(m_graph->nodes().size());
+    int num_hn(m_graph->hypernodes().size());
+    int num_e(m_graph->edges().size());
+
+    foreach (it, prob.m_variables)
+        m_variables.push_back(*it);
+
+    foreach(it, prob.m_constraints)
+    {
+        constraint_t con(*it);
+        for (int i = 0; i < con.terms().size(); ++i)
+            con.term(i).var_idx += num_v;
+        m_constraints.push_back(con);
+    }
+
+    foreach(it, prob.m_const_variable_values)
+        m_const_variable_values[it->first + num_v] = it->second;
+
+    foreach(it, prob.m_laziness_of_constraints)
+        m_laziness_of_constraints.insert((*it) + num_c);
+
+    foreach(it, prob.m_map_node_to_variable)
+        m_map_node_to_variable[it->first + num_n] = it->second + num_v;
+
+    foreach(it, prob.m_map_hypernode_to_variable)
+        m_map_hypernode_to_variable[it->first + num_hn] = it->second + num_v;
+
+    m_log_of_term_triplet_for_transitive_unification.insert(
+        prob.m_log_of_term_triplet_for_transitive_unification.begin(),
+        prob.m_log_of_term_triplet_for_transitive_unification.end());
+    m_log_of_node_tuple_for_mutual_exclusion.insert(
+        prob.m_log_of_node_tuple_for_mutual_exclusion.begin(),
+        prob.m_log_of_node_tuple_for_mutual_exclusion.end());
+
+    foreach(it, prob.m_variables_for_requirements)
+        m_variables_for_requirements.push_back(
+        std::make_pair(it->first, it->second + num_v));
+
+    // SKIP TO MERGE m_log_of_*
+#undef foreach
+}
+
+
 variable_idx_t
     ilp_problem_t::add_variable_of_node( pg::node_idx_t idx, double coef )
 {
@@ -586,7 +634,6 @@ add_constrains_of_conditions_for_chain(pg::edge_idx_t idx)
 
     // IF THE CHAIN IS NOT AVAILABLE, HEAD-HYPERNODE MUST BE FALSE.
     if (not is_available)
-        // TODO: DEAL WITH THE CASE WHERE THE HEAD HAS PLURAL TAILS.
         add_constancy_of_variable(head, 0.0);
     else
     {
@@ -753,6 +800,9 @@ void ilp_problem_t::print(std::ostream *os) const
 void ilp_problem_t::print_solution(
     const ilp_solution_t *sol, std::ostream *os) const
 {
+    if (os == &std::cout)
+        g_mutex_for_print.lock();
+
     std::string state;
     switch (sol->type())
     {
@@ -792,6 +842,9 @@ void ilp_problem_t::print_solution(
     _print_unifications_in_solution(sol, os);
     
     (*os) << "</proofgraph>" << std::endl;
+
+    if (os == &std::cout)
+        g_mutex_for_print.unlock();
 }
 
 
@@ -980,6 +1033,20 @@ ilp_solution_t::ilp_solution_t(
         const constraint_t &cons = prob->constraint(i);
         m_constraints_sufficiency[i] = cons.is_satisfied(values);
     }
+}
+
+
+void ilp_solution_t::merge(const ilp_solution_t &sol)
+{
+    m_optimized_values.insert(
+        m_optimized_values.end(),
+        sol.m_optimized_values.begin(),
+        sol.m_optimized_values.end());
+    m_constraints_sufficiency.insert(
+        m_constraints_sufficiency.end(),
+        sol.m_constraints_sufficiency.begin(),
+        sol.m_constraints_sufficiency.end());
+    m_value_of_objective_function += sol.m_value_of_objective_function;
 }
 
 

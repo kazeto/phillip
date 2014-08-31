@@ -29,13 +29,15 @@ public:
     lhs_enumerator_t(phillip_main_t *ptr) : phillip_component_interface_t(ptr) {}
 
     virtual ~lhs_enumerator_t() {}
+    virtual lhs_enumerator_t* duplicate(phillip_main_t *ptr) const = 0;
     virtual pg::proof_graph_t* execute() const = 0;
     
 protected:
     /** Add nodes of observations in phillip_main_t to LHS. */
     void add_observations(pg::proof_graph_t *target) const;
 
-    static bool do_include_requirement(const pg::proof_graph_t *graph, const std::vector<index_t> &nodes);
+    static bool do_include_requirement(
+        const pg::proof_graph_t *graph, const std::vector<index_t> &nodes);
 };
 
 
@@ -51,6 +53,7 @@ public:
     ilp_converter_t(phillip_main_t *ptr) : phillip_component_interface_t(ptr) {}
 
     virtual ~ilp_converter_t() {}
+    virtual ilp_converter_t* duplicate(phillip_main_t *ptr) const = 0;
     virtual ilp::ilp_problem_t* execute() const = 0;
 
     /** Returns an instance of function class
@@ -68,6 +71,7 @@ public:
     ilp_solver_t(phillip_main_t *ptr) : phillip_component_interface_t(ptr) {}
 
     virtual ~ilp_solver_t() {}
+    virtual ilp_solver_t* duplicate(phillip_main_t *ptr) const = 0;
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const = 0;
 };
 

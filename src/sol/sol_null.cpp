@@ -9,7 +9,12 @@ namespace sol
 {
 
 void null_solver_t::execute(std::vector<ilp::ilp_solution_t> *out) const
+{}
+
+
+ilp_solver_t* null_solver_t::duplicate(phillip_main_t *ptr) const
 {
+    return new null_solver_t(ptr);
 }
 
 

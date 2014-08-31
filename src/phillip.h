@@ -36,6 +36,8 @@ public:
 
     phillip_main_t();
     ~phillip_main_t();
+
+    phillip_main_t* duplicate() const;
     
     /** Infer a explanation to given observation.
      *  You can get the results via accesser functions.
@@ -43,13 +45,17 @@ public:
      *  @param idx    Index of an observation to infer. */
     void infer(const std::vector<lf::input_t> &inputs, size_t idx);
     inline void infer(const lf::input_t &input);
+
+    void infer_parallel(
+        const std::vector<lf::input_t> &inputs, size_t idx,
+        bool do_print_on_each_thread = false);
     
     inline const lhs_enumerator_t* lhs_enumerator() const;
     inline lhs_enumerator_t* lhs_enumerator();
-    inline const ilp_converter_t*  ilp_convertor() const;
-    inline ilp_converter_t*  ilp_convertor();
-    inline const ilp_solver_t*     ilp_solver() const;
-    inline ilp_solver_t*     ilp_solver();
+    inline const ilp_converter_t* ilp_convertor() const;
+    inline ilp_converter_t* ilp_convertor();
+    inline const ilp_solver_t* ilp_solver() const;
+    inline ilp_solver_t* ilp_solver();
 
     inline void set_lhs_enumerator(lhs_enumerator_t*);
     inline void set_ilp_convertor(ilp_converter_t*);
@@ -75,7 +81,6 @@ public:
     inline bool is_timeout_ilp(int sec) const;
     inline bool is_timeout_sol(int sec) const;
 
-
     inline const hash_map<std::string, std::string>& params() const;
     inline const std::string& param(const std::string &key) const;
     inline int param_int(const std::string &key, int def = -1) const;
@@ -97,12 +102,14 @@ public:
 private:
     enum process_mode_e { MODE_COMPILE_KB, MODE_INPUT_OBS };
     
-    bool interpret_option( int opt, const char *optarg );
+    bool interpret_option(int opt, const char *optarg);
     
     inline bool can_infer() const;
     inline void reset_for_inference();
 
     void write_configure(std::ofstream *fo) const;
+
+    std::vector<lf::input_t> split_input(const lf::input_t&) const;
 
     static int ms_verboseness;
 
@@ -127,6 +134,8 @@ private:
     long m_clock_for_convert;
     long m_clock_for_solve;
     long m_clock_for_infer;
+
+    std::vector<phillip_main_t*> m_phillips_parallel;
 };
 
 

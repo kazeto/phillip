@@ -10,6 +10,12 @@ namespace ilp
 {
 
 
+ilp_converter_t* null_converter_t::duplicate(phillip_main_t *ptr) const
+{
+    return new null_converter_t(ptr);
+}
+
+
 ilp::ilp_problem_t* null_converter_t::execute() const
 {
     const pg::proof_graph_t* graph = phillip()->get_latent_hypotheses_set();

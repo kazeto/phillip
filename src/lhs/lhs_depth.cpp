@@ -25,6 +25,15 @@ depth_based_enumerator_t::depth_based_enumerator_t(
 {}
 
 
+lhs_enumerator_t* depth_based_enumerator_t::duplicate(phillip_main_t *ptr) const
+{
+    return new depth_based_enumerator_t(
+        ptr, m_do_deduction, m_do_abduction,
+        m_depth_max, m_distance_max, m_redundancy_max,
+        m_do_disable_reachable_matrix);
+}
+
+
 pg::proof_graph_t* depth_based_enumerator_t::execute() const
 {
     const kb::knowledge_base_t *base(kb::knowledge_base_t::instance());

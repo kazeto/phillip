@@ -64,7 +64,11 @@ int main(int argc, char* argv[])
         {
             const lf::input_t &ipt = parsed_inputs.at(i);
             print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
-            phillip.infer(parsed_inputs, i);
+            phillip.infer_parallel(parsed_inputs, i);
+
+            auto sols = phillip.get_solutions();
+            for (auto sol = sols.begin(); sol != sols.end(); ++sol)
+                sol->print_graph();
         }
 
         kb::knowledge_base_t::instance()->finalize();

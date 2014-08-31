@@ -128,6 +128,18 @@ inline const std::vector<constraint_t::term_t>& constraint_t::terms() const
 }
 
 
+inline const constraint_t::term_t& constraint_t::term(index_t i) const
+{
+    return m_terms.at(i);
+}
+
+
+inline constraint_t::term_t& constraint_t::term(index_t i)
+{
+    return m_terms[i];
+}
+
+
 inline double constraint_t::bound() const
 {
     return m_target[0];

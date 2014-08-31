@@ -87,6 +87,9 @@ public:
     inline const std::string& name() const;
     inline constraint_operator_e operator_type() const;
     inline const std::vector<term_t>& terms() const;
+    inline const term_t& term(index_t i) const;
+    inline term_t& term(index_t i);
+
     inline double bound() const;
     inline double lower_bound() const;
     inline double upper_bound() const;
@@ -125,6 +128,9 @@ public:
         const pg::proof_graph_t* lhs, solution_interpreter_t *si,
         bool do_maximize, const std::string &name = "");
     virtual ~ilp_problem_t();
+
+    /** Merges with another ilp-problem. */
+    void merge(const ilp_problem_t &prob);
 
     inline phillip_main_t* phillip() const { return m_graph->phillip(); }
     inline void timeout(bool flag) { m_is_timeout = flag; }
@@ -329,6 +335,8 @@ public:
     ilp_solution_t(
         const ilp_problem_t *prob, solution_type_e sol_type,
         const std::vector<double> &values, const std::string &name = "");
+
+    void merge(const ilp_solution_t &sol);
 
     inline phillip_main_t* phillip() const { return problem()->phillip(); }
     inline void timeout(bool flag) { m_is_timeout = flag; }

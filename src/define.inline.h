@@ -17,14 +17,18 @@ inline string_hash_t::string_hash_t( const std::string &s )
 
 inline string_hash_t string_hash_t::get_unknown_hash()
 {
+    std::lock_guard<std::mutex> lock(ms_mutex_unknown);
+
     char buffer[128];
-    _sprintf(buffer, "_u%d", ms_issued_variable_count++ );
-    return string_hash_t( std::string(buffer) );
+    _sprintf(buffer, "_u%d", ms_issued_variable_count++);
+    return string_hash_t(std::string(buffer));
 }
 
 
 inline unsigned string_hash_t::get_hash(std::string str)
 {
+    std::lock_guard<std::mutex> lock(ms_mutex_hash);
+
     hash_map<std::string, unsigned>::iterator it = ms_hashier.find(str);
     if (it != ms_hashier.end())
         return it->second;
@@ -35,6 +39,20 @@ inline unsigned string_hash_t::get_hash(std::string str)
         ms_hashier[str] = idx;
         return idx;
     }
+}
+
+
+inline const std::string& string_hash_t::string() const
+{
+    std::lock_guard<std::mutex> lock(ms_mutex_hash);
+    return ms_strs.at(m_hash);
+}
+
+
+inline string_hash_t::operator const std::string& () const
+{
+    std::lock_guard<std::mutex> lock(ms_mutex_hash);
+    return ms_strs.at(m_hash);
 }
 
 
@@ -193,15 +211,16 @@ inline void stop_watch_t::stop(int key)
 }
 
 
-
 inline void print_console(const std::string &str)
 {
+    std::lock_guard<std::mutex> lock(g_mutex_for_print);
     std::cerr << time_stamp() << str << std::endl;
 }
 
 
 inline void print_error(const std::string &str)
 {
+    std::lock_guard<std::mutex> lock(g_mutex_for_print);
     std::cerr
 #ifdef _WIN32
         << " * ERROR * "
@@ -214,6 +233,7 @@ inline void print_error(const std::string &str)
 
 inline void print_warning(const std::string &str)
 {
+    std::lock_guard<std::mutex> lock(g_mutex_for_print);
     std::cerr
 #ifdef _WIN32
         << " * WARNING * "
@@ -281,63 +301,63 @@ inline size_t get_file_size(const std::string &filename)
 }
 
   
-inline size_t get_file_size( std::istream &ifs )
+inline size_t get_file_size(std::istream &ifs)
 {
     size_t file_size =
-        static_cast<size_t>( ifs.seekg(0, std::ios::end).tellg() );
+        static_cast<size_t>(ifs.seekg(0, std::ios::end).tellg());
     ifs.seekg(0, std::ios::beg);
     return file_size;
 }
 
 
-inline size_t string_to_binary( const std::string &str, char *out )
+inline size_t string_to_binary(const std::string &str, char *out)
 {
     size_t n(0);
-    unsigned char size = static_cast<unsigned char>( str.size() );
-    
-    std::memcpy( out+n, &size, sizeof(unsigned char) );
+    unsigned char size = static_cast<unsigned char>(str.size());
+
+    std::memcpy(out + n, &size, sizeof(unsigned char));
     n += sizeof(unsigned char);
 
-    std::memcpy( out+n, str.c_str(), sizeof(char) * str.size() );
-    n += sizeof(char) * str.size();
+    std::memcpy(out + n, str.c_str(), sizeof(char)* str.size());
+    n += sizeof(char)* str.size();
 
     return n;
 }
 
 
-inline size_t num_to_binary( const int num, char *out )
+inline size_t num_to_binary(const int num, char *out)
 {
     unsigned char n = static_cast<unsigned char>(num);
-    std::memcpy( out, &n, sizeof(unsigned char) );
+    std::memcpy(out, &n, sizeof(unsigned char));
     return sizeof(unsigned char);
 }
 
 
-inline size_t bool_to_binary( const bool _bool, char *out )
+inline size_t bool_to_binary(const bool _bool, char *out)
 {
     char c = _bool ? 1 : 0;
-    std::memcpy( out, &c, sizeof(char) );
+    std::memcpy(out, &c, sizeof(char));
     return sizeof(char);
 }
 
 
-template <class T> inline size_t to_binary( const T &value, char *out )
+template <class T> inline size_t to_binary(const T &value, char *out)
 {
-    std::memcpy( out, &value, sizeof(T) );
+    std::memcpy(out, &value, sizeof(T));
     return sizeof(T);
 }
 
 
-inline size_t binary_to_string( const char *bin, std::string *out )
+inline size_t binary_to_string(const char *bin, std::string *out)
 {
     size_t n(0);
     unsigned char size;
     char str[512];
-    
-    std::memcpy( &size, bin, sizeof(unsigned char) );
+
+    std::memcpy(&size, bin, sizeof(unsigned char));
     n += sizeof(unsigned char);
 
-    std::memcpy( str, bin+n, sizeof(char)*size );
+    std::memcpy(str, bin + n, sizeof(char)*size);
     str[size] = '\0';
     *out = std::string(str);
     n += sizeof(char)*size;
@@ -346,28 +366,28 @@ inline size_t binary_to_string( const char *bin, std::string *out )
 }
 
 
-inline size_t binary_to_num( const char *bin, int *out )
+inline size_t binary_to_num(const char *bin, int *out)
 {
     unsigned char num;
-    std::memcpy( &num, bin, sizeof(unsigned char) );
+    std::memcpy(&num, bin, sizeof(unsigned char));
     *out = static_cast<int>(num);
     return sizeof(unsigned char);
 }
 
 
-inline size_t binary_to_bool( const char *bin, bool *out )
+inline size_t binary_to_bool(const char *bin, bool *out)
 {
     char c;
-    std::memcpy( &c, bin, sizeof(char) );
-    *out = ( c != 0 );
+    std::memcpy(&c, bin, sizeof(char));
+    *out = (c != 0);
     return sizeof(char);
 }
 
 
-template <class T> inline size_t binary_to( const char *bin, T *out )
+template <class T> inline size_t binary_to(const char *bin, T *out)
 {
     size_t size = sizeof(T);
-    std::memcpy( out, bin, size );
+    std::memcpy(out, bin, size);
     return size;
 }
 
@@ -407,15 +427,18 @@ template <class It> std::string join(
 
 
 
-template <class T, class K> inline bool has_key( const T& map, const K& key )
-{ return map.find(key) != map.end(); }
-
-
-template <class T> bool has_intersection(
-    T s1_begin, T s1_end, T s2_begin, T s2_end)
+template <class Map, class Key>
+inline bool has_key(const Map& map, const Key& key)
 {
-    for (T i1 = s1_begin; i1 != s1_end; ++i1)
-    for (T i2 = s2_begin; i2 != s2_end; ++i2)
+    return map.find(key) != map.end();
+}
+
+
+template <class It> bool has_intersection(
+    It s1_begin, It s1_end, It s2_begin, It s2_end)
+{
+    for (It i1 = s1_begin; i1 != s1_end; ++i1)
+    for (It i2 = s2_begin; i2 != s2_end; ++i2)
     if (*i1 == *i2)
         return true;
 
@@ -439,6 +462,15 @@ template <class T> hash_set<T> intersection(
 
     return out;
 }
+
+
+template <class Container> void erase(Container &c, size_t i)
+{
+    auto it = c.begin();
+    for (size_t j = 0; j < i; ++j) ++it;
+    c.erase(it);
+}
+
 
 } // end phil
 

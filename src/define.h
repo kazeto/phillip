@@ -15,6 +15,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <mutex>
 
 #include "./lib/cdbpp.h"
 #include "./s_expression.h"
@@ -64,8 +65,8 @@ public:
 
     static inline string_hash_t get_unknown_hash();
 
-    const std::string& string() const { return ms_strs.at(m_hash); }
-    operator const std::string& () const { return ms_strs.at(m_hash); }
+    inline const std::string& string() const;
+    inline operator const std::string& () const;
     
     inline string_hash_t& operator=(const std::string &s);
     inline string_hash_t& operator=(const string_hash_t &h);
@@ -86,6 +87,7 @@ private:
     /** Assign a hash to str if needed, and return the hash of str. */
     static inline unsigned get_hash(std::string str);
     
+    static std::mutex ms_mutex_hash, ms_mutex_unknown;
     static hash_map<std::string, unsigned> ms_hashier;
     static std::vector<std::string> ms_strs;
     static unsigned ms_issued_variable_count;
@@ -275,6 +277,7 @@ inline size_t get_file_size(const std::string &filename);
 inline size_t get_file_size(std::istream &ifs);
 
 std::string normalize_path(const std::string &target);
+std::string indexize_path(std::string str, int idx);
 
 bool parse_string_as_function_call(
     const std::string &str,
@@ -301,15 +304,20 @@ template <class It> std::string join(
     const std::string &fmt, const std::string &delim);
 
 /** Returns whether given map's keys includes given key. */
-template <class T, class K> inline bool has_key(const T& map, const K& key);
+template <class Map, class Key>
+inline bool has_key(const Map& map, const Key& key);
 
 /** Returns whether set1 and set2 have any intersection. */
-template <class T> bool has_intersection(
-    T s1_begin, T s1_end, T s2_begin, T s2_end);
+template <class It> bool has_intersection(
+    It s1_begin, It s1_end, It s2_begin, It s2_end);
 
 /** Returns intersection of set1 and set2. */
 template <class T> hash_set<T> intersection(
     const hash_set<T> &set1, const hash_set<T> &set2);
+
+template <class Container> void erase(Container &c, size_t i);
+
+extern std::mutex g_mutex_for_print;
 
 } // end phil
 

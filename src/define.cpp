@@ -7,9 +7,11 @@
 namespace phil
 {
 
+std::mutex string_hash_t::ms_mutex_hash;
+std::mutex string_hash_t::ms_mutex_unknown;
 hash_map<std::string, unsigned> string_hash_t::ms_hashier;
-std::vector<std::string>        string_hash_t::ms_strs;
-unsigned                        string_hash_t::ms_issued_variable_count;
+std::vector<std::string> string_hash_t::ms_strs;
+unsigned string_hash_t::ms_issued_variable_count;
 
 
 literal_t::literal_t(const sexp::stack_t &s)
@@ -288,8 +290,7 @@ double stop_watch_t::time(int key) const
 }
 
 
-const int BUFFER_SIZE_FOR_FMT = 256 * 256;
-char g_buffer_for_fmt[BUFFER_SIZE_FOR_FMT];
+const int BUFFER_SIZE_FOR_FMT = 1024;
 
 struct { int year, month, day, hour, minuite, second; } TIME_BEGIN;
 
@@ -303,46 +304,49 @@ void initialize()
 
 void print_console_fmt(const char *format, ...)
 {
+    char buffer[BUFFER_SIZE_FOR_FMT];
     va_list arg;
     va_start(arg, format);
 #ifdef _WIN32
-    vsprintf_s(g_buffer_for_fmt, BUFFER_SIZE_FOR_FMT, format, arg);
+    vsprintf_s(buffer, BUFFER_SIZE_FOR_FMT, format, arg);
 #else
     vsprintf(g_buffer_for_fmt, format, arg);
 #endif
     va_end(arg);
 
-    print_console(g_buffer_for_fmt);
+    print_console(buffer);
 }
 
 
 void print_error_fmt(const char *format, ...)
 {
+    char buffer[BUFFER_SIZE_FOR_FMT];
     va_list arg;
     va_start(arg, format);
 #ifdef _WIN32
-    vsprintf_s(g_buffer_for_fmt, BUFFER_SIZE_FOR_FMT, format, arg);
+    vsprintf_s(buffer, BUFFER_SIZE_FOR_FMT, format, arg);
 #else
     vsprintf(g_buffer_for_fmt, format, arg);
 #endif
     va_end(arg);
 
-    print_error(g_buffer_for_fmt);
+    print_error(buffer);
 }
 
 
 void print_warning_fmt(const char *format, ...)
 {
+    char buffer[BUFFER_SIZE_FOR_FMT];
     va_list arg;
     va_start(arg, format);
 #ifdef _WIN32
-    vsprintf_s(g_buffer_for_fmt, BUFFER_SIZE_FOR_FMT, format, arg);
+    vsprintf_s(buffer, BUFFER_SIZE_FOR_FMT, format, arg);
 #else
     vsprintf(g_buffer_for_fmt, format, arg);
 #endif
     va_end(arg);
 
-    print_warning(g_buffer_for_fmt);
+    print_warning(buffer);
 }
 
 
@@ -533,6 +537,23 @@ std::string normalize_path(const std::string &target)
 }
 
 
+std::string indexize_path(std::string str, int idx)
+{
+    if (str.empty()) return "";
+
+    std::string rep = format("_%d", idx);
+    for (int i = str.size() - 1; i >= 0; --i)
+    {
+        if (str.at(i) == '.')
+            return str.substr(0, i) + rep + str.substr(i);            
+        if (str.at(i) == '/' or str.at(i) == '\\')
+            return str + rep;
+    }
+
+    return str + rep;
+}
+
+
 bool parse_string_as_function_call(
     const std::string &str, std::string *pred, std::vector<std::string> *terms)
 {
@@ -558,6 +579,9 @@ bool parse_string_as_function_call(
 
     return false;
 }
+
+
+std::mutex g_mutex_for_print;
 
 
 } // end phil

@@ -46,6 +46,13 @@ weighted_converter_t::~weighted_converter_t()
 }
 
 
+ilp_converter_t* weighted_converter_t::duplicate(phillip_main_t *ptr) const
+{
+    return new weighted_converter_t(
+        ptr, m_default_observation_cost, m_weight_provider->duplicate());
+}
+
+
 ilp::ilp_problem_t* weighted_converter_t::execute() const
 {
     const pg::proof_graph_t *graph = phillip()->get_latent_hypotheses_set();
@@ -315,6 +322,13 @@ std::vector<double> weighted_converter_t::basic_weight_provider_t::operator()(
         weights.assign(size, m_default_weight / (double)size);
 
     return weights;
+}
+
+
+weighted_converter_t::weight_provider_t*
+weighted_converter_t::basic_weight_provider_t::duplicate() const
+{
+    return new basic_weight_provider_t(m_default_weight);
 }
 
 

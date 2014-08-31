@@ -30,6 +30,7 @@ class logical_function_t
 {    
 public:
     inline logical_function_t();
+    inline logical_function_t(logical_operator_t _opr);
     inline logical_function_t(const literal_t &lit);
     logical_function_t(
         logical_operator_t _opr, const std::vector<literal_t> &literals);
@@ -65,6 +66,8 @@ public:
     
     void print(std::string *p_out_str, bool f_colored = false) const;
 
+    void add_branch(const logical_function_t &lf);
+
 private:    
     void get_all_literals_sub(
         std::vector<const literal_t*> *p_out_list) const;
@@ -74,7 +77,7 @@ private:
     /** This is used when opr==OPR_LITERAL. */
     literal_t m_literal;
 
-    /**< Instances which are children of this. */
+    /** Instances which are children of this. */
     std::vector<logical_function_t> m_branches;
     
     /** Optional parameters for each implements. */
