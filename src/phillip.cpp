@@ -236,15 +236,17 @@ void phillip_main_t::infer_parallel(
     for (int i = 0; i < num_thread; ++i)
     {
         worker.emplace_back([&](int id){
-            int r0 = splitted.size() * id / num_thread +
-                std::min<int>(splitted.size() % num_thread, id);
-            int r1 = splitted.size() * (id + 1) / num_thread +
-                std::min<int>(splitted.size() % num_thread, id + 1);
-            for (int j = r0; j < r1; ++j)
+            for (int j = 0; true; ++j)
             {
-                phillip_main_t *ph = m_phillips_parallel.at(j);
-                lf::input_t ipt = splitted.at(j);
-                ph->infer(ipt);
+                int _idx = id + j * num_thread;
+                if (_idx < splitted.size())
+                {
+                    phillip_main_t *ph = m_phillips_parallel.at(_idx);
+                    lf::input_t ipt = splitted.at(_idx);
+                    ph->infer(ipt);
+                }
+                else
+                    break;
             }
         }, i);
     }
@@ -415,8 +417,16 @@ phillip_main_t::split_input(const lf::input_t &input) const
         }
     };
 
+    auto cmp = [](const lf::input_t &x, const lf::input_t &y)
+    {
+        int nx = x.obs.branches().size() + x.req.branches().size();
+        int ny = y.obs.branches().size() + y.req.branches().size();
+        return nx > ny;
+    };
+
     journalize(input.obs.branches(), true);
     journalize(input.req.branches(), false);
+    std::sort(splitted.begin(), splitted.end(), cmp);
 
     for (int i = 0; i < splitted.size(); ++i)
         splitted[i].name += format("-%d", i);
