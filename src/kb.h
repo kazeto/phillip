@@ -6,6 +6,7 @@
 #include <list>
 #include <string>
 #include <memory>
+#include <mutex>
 
 #include "./define.h"
 #include "./logical_function.h"
@@ -144,6 +145,7 @@ private:
 
     private:
         typedef unsigned long long pos_t;
+        static std::mutex ms_mutex;
         std::string   m_filename;
         std::ofstream *m_fout;
         std::ifstream *m_fin;

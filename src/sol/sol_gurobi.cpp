@@ -1,4 +1,6 @@
+#include <mutex>
 #include "./ilp_solver.h"
+
 
 namespace phil
 {
@@ -12,7 +14,10 @@ namespace sol
     catch (GRBException e) { \
         print_error_fmt("Gurobi: code(%d): %s", \
                         e.getErrorCode(), e.getMessage().c_str()); }
-    
+
+
+std::mutex g_mutex_gurobi;
+
 
 gurobi_t::gurobi_t(phillip_main_t *ptr, int thread_num, bool do_output_log)
     : ilp_solver_t(ptr), m_thread_num(thread_num), m_do_output_log(do_output_log)
@@ -31,6 +36,7 @@ ilp_solver_t* gurobi_t::duplicate(phillip_main_t *ptr) const
 void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
 {
 #ifdef USE_GUROBI
+    g_mutex_gurobi.lock();
     const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
     GRBEnv env;
     GRBModel model(env);
@@ -39,6 +45,7 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
         lazy_cons(prob->get_lazy_constraints());
     bool do_cpi(not lazy_cons.empty() and not phillip()->flag("disable_cpi"));
     std::time_t begin, now;
+    g_mutex_gurobi.unlock();
 
     std::time(&begin);
     add_variables(&model, &vars);

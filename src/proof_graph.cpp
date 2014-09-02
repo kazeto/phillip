@@ -150,12 +150,11 @@ void proof_graph_t::unifiable_variable_clusters_set_t::add(
     
     if (not has_found_t1  and not has_found_t2)
     {
-        static int new_cluster = 0;
-        new_cluster++;
-        m_clusters[new_cluster].insert(t1);
-        m_clusters[new_cluster].insert(t2);
-        m_map_v2c[t1] = new_cluster;
-        m_map_v2c[t2] = new_cluster;
+        m_idx_new_cluster++;
+        m_clusters[m_idx_new_cluster].insert(t1);
+        m_clusters[m_idx_new_cluster].insert(t2);
+        m_map_v2c[t1] = m_idx_new_cluster;
+        m_map_v2c[t2] = m_idx_new_cluster;
     }
     else if (has_found_t1 and has_found_t2)
     {
@@ -1103,10 +1102,11 @@ node_idx_t proof_graph_t::add_node(
     const hash_set<node_idx_t> &evidences)
 {
     node_t add(lit, type, m_nodes.size(), depth, evidences);
+    int n = static_cast<int>(lit.terms.size());
     node_idx_t out = m_nodes.size();
     
     m_nodes.push_back(add);
-    m_maps.predicate_to_nodes[lit.predicate][lit.terms.size()].insert(out);
+    m_maps.predicate_to_nodes[lit.predicate][n].insert(out);
     m_maps.depth_to_nodes[depth].insert(out);
     
     if(lit.predicate == "=")
@@ -1828,9 +1828,13 @@ bool proof_graph_t::check_unifiability(
 }
 
 
+std::mutex g_mutex_hasher;
+
+
 size_t proof_graph_t::get_hash_of_nodes(std::list<node_idx_t> nodes)
 {
     static std::hash<std::string> hasher;
+    std::lock_guard<std::mutex> lock(g_mutex_hasher);
     nodes.sort();
     return hasher(join(nodes.begin(), nodes.end(), "%d", ","));    
 }

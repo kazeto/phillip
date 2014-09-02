@@ -409,6 +409,8 @@ protected:
     class unifiable_variable_clusters_set_t
     {
     public:
+        unifiable_variable_clusters_set_t() : m_idx_new_cluster(0) {}
+        
         /** Add unifiability of terms t1 & t2. */
         void add(term_t t1, term_t t2);
 
@@ -421,6 +423,7 @@ protected:
         inline bool is_in_same_cluster(term_t t1, term_t t2) const;
         
     private:
+        int m_idx_new_cluster;
         /** List of clusters.
          *  We use hash-map for erasure with keeping indices. */
         hash_map<index_t, hash_set<term_t> > m_clusters;
@@ -627,6 +630,7 @@ protected:
     hash_map<edge_idx_t, std::list< std::pair<term_t, term_t> > > m_neqs_of_conditions_for_chain;
 
     hash_set<hypernode_idx_t> m_hypernodes_disregarded;
+    std::hash<std::string> m_hasher_for_nodes;
 
     struct
     {

@@ -806,6 +806,9 @@ std::list<axiom_id_t> knowledge_base_t::search_id_list(
 }
 
 
+std::mutex knowledge_base_t::global_reachable_matrix_t::ms_mutex;
+
+
 knowledge_base_t::global_reachable_matrix_t::
     global_reachable_matrix_t(const std::string &filename)
     : m_filename(filename), m_fout(NULL), m_fin(NULL)
@@ -825,10 +828,11 @@ void knowledge_base_t::global_reachable_matrix_t::prepare_compile()
 
     if (not is_writable())
     {
+        std::lock_guard<std::mutex> lock(ms_mutex);
+        pos_t pos;
+        
         m_fout = new std::ofstream(
             m_filename.c_str(), std::ios::binary | std::ios::out);
-
-        pos_t pos;
         m_fout->write((const char*)&pos, sizeof(pos_t));
     }
 }
@@ -841,6 +845,7 @@ void knowledge_base_t::global_reachable_matrix_t::prepare_query()
 
     if (not is_readable())
     {
+        std::lock_guard<std::mutex> lock(ms_mutex);
         pos_t pos;
         size_t num, idx;
 
@@ -865,6 +870,7 @@ void knowledge_base_t::global_reachable_matrix_t::finalize()
 {
     if (m_fout != NULL)
     {
+        std::lock_guard<std::mutex> lock(ms_mutex);
         pos_t pos = m_fout->tellp();
         size_t num = m_map_idx_to_pos.size();
 
@@ -896,6 +902,7 @@ void knowledge_base_t::global_reachable_matrix_t::finalize()
 void knowledge_base_t::global_reachable_matrix_t::
     put(size_t idx1, const hash_map<size_t, float> &dist)
 {
+    std::lock_guard<std::mutex> lock(ms_mutex);
     size_t num(0);
     m_map_idx_to_pos[idx1] = m_fout->tellp();
 
@@ -920,6 +927,7 @@ global_reachable_matrix_t::get(size_t idx1, size_t idx2) const
 {
     if (idx1 > idx2) std::swap(idx1, idx2);
 
+    std::lock_guard<std::mutex> lock(ms_mutex);
     size_t num, idx;
     float dist;
     auto find = m_map_idx_to_pos.find(idx1);
@@ -942,6 +950,7 @@ global_reachable_matrix_t::get(size_t idx1, size_t idx2) const
 
 hash_set<float> knowledge_base_t::global_reachable_matrix_t::get(size_t idx) const
 {
+    std::lock_guard<std::mutex> lock(ms_mutex);
     size_t num;
     float dist;
     hash_set<float> out;

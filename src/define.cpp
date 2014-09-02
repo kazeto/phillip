@@ -290,7 +290,7 @@ double stop_watch_t::time(int key) const
 }
 
 
-const int BUFFER_SIZE_FOR_FMT = 1024;
+const int BUFFER_SIZE_FOR_FMT = 256 * 256;
 
 struct { int year, month, day, hour, minuite, second; } TIME_BEGIN;
 

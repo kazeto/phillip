@@ -226,13 +226,16 @@ void phillip_main_t::infer_parallel(
             do_print_on_each_thread ? indexize_path(path_out, j) : "");
         m_phillips_parallel.push_back(ph);
     }
-    IF_VERBOSE_1(
+    IF_VERBOSE_3(
         format("# of parallel processes = %d", m_phillips_parallel.size()));
 
     std::vector<std::thread> worker;
-    int num_thread = std::min<int>(
-        splitted.size(),
-        std::max<int>(std::thread::hardware_concurrency(), 1));
+    int num_thread =
+        std::min<int>(splitted.size(),
+        std::min<int>(param_int("parallel_thread_num", 9999),
+                      std::thread::hardware_concurrency()));
+    if (num_thread <= 0) num_thread = 1;
+    
     for (int i = 0; i < num_thread; ++i)
     {
         worker.emplace_back([&](int id){
@@ -243,6 +246,7 @@ void phillip_main_t::infer_parallel(
                 {
                     phillip_main_t *ph = m_phillips_parallel.at(_idx);
                     lf::input_t ipt = splitted.at(_idx);
+                    IF_VERBOSE_3(format("#parallel %d = %s", _idx, ipt.obs.to_string()));
                     ph->infer(ipt);
                 }
                 else
