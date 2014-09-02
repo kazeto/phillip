@@ -111,7 +111,7 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
             else do_break = true;
 
             std::time(&now);
-            if (phillip()->is_timeout(now - begin))
+            if (phillip()->is_timeout_sol(now - begin))
             {
                 sol.timeout(true);
                 do_break = true;

@@ -64,6 +64,7 @@ int main(int argc, char* argv[])
         {
             const lf::input_t &ipt = parsed_inputs.at(i);
             print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
+            // phillip.infer(parsed_inputs, i);
             phillip.infer_parallel(parsed_inputs, i);
 
             auto sols = phillip.get_solutions();

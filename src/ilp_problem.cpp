@@ -70,6 +70,9 @@ void ilp_problem_t::merge(const ilp_problem_t &prob)
     int num_hn(m_graph->hypernodes().size());
     int num_e(m_graph->edges().size());
 
+    m_do_maximize = prob.m_do_maximize;
+    m_is_timeout = (m_is_timeout or prob.m_is_timeout);
+
     foreach (it, prob.m_variables)
         m_variables.push_back(*it);
 
@@ -825,6 +828,17 @@ void ilp_problem_t::print_solution(
         << "\" all=\"" << phillip()->get_time_for_infer()
         << "\"></time>" << std::endl;
 
+    auto phs = phillip()->get_parallel_phillips();
+    (*os) << "<parallel ";
+    if (phs.empty())
+        (*os) << "active=\"no\" num=\"-1\">";
+    else
+    {
+        (*os) << "active=\"yes\" num=\""
+              << phs.size() << "\">";
+    }
+    (*os) << "</parallel>" << std::endl;
+
     const ilp::ilp_problem_t *prob(sol->problem());
     const pg::proof_graph_t *graph(sol->problem()->proof_graph());
     bool is_time_out_all =
@@ -1038,6 +1052,10 @@ ilp_solution_t::ilp_solution_t(
 
 void ilp_solution_t::merge(const ilp_solution_t &sol)
 {
+    m_solution_type =
+        ((int)m_solution_type > (int)sol.m_solution_type) ?
+        m_solution_type : sol.m_solution_type;
+    
     m_optimized_values.insert(
         m_optimized_values.end(),
         sol.m_optimized_values.begin(),
@@ -1047,6 +1065,8 @@ void ilp_solution_t::merge(const ilp_solution_t &sol)
         sol.m_constraints_sufficiency.begin(),
         sol.m_constraints_sufficiency.end());
     m_value_of_objective_function += sol.m_value_of_objective_function;
+
+    m_is_timeout = (m_is_timeout or sol.m_is_timeout);
 }
 
 

@@ -310,7 +310,7 @@ void print_console_fmt(const char *format, ...)
 #ifdef _WIN32
     vsprintf_s(buffer, BUFFER_SIZE_FOR_FMT, format, arg);
 #else
-    vsprintf(g_buffer_for_fmt, format, arg);
+    vsprintf(buffer, format, arg);
 #endif
     va_end(arg);
 
@@ -326,7 +326,7 @@ void print_error_fmt(const char *format, ...)
 #ifdef _WIN32
     vsprintf_s(buffer, BUFFER_SIZE_FOR_FMT, format, arg);
 #else
-    vsprintf(g_buffer_for_fmt, format, arg);
+    vsprintf(buffer, format, arg);
 #endif
     va_end(arg);
 
@@ -342,7 +342,7 @@ void print_warning_fmt(const char *format, ...)
 #ifdef _WIN32
     vsprintf_s(buffer, BUFFER_SIZE_FOR_FMT, format, arg);
 #else
-    vsprintf(g_buffer_for_fmt, format, arg);
+    vsprintf(buffer, format, arg);
 #endif
     va_end(arg);
 

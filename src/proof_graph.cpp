@@ -211,6 +211,8 @@ void proof_graph_t::merge(const proof_graph_t &graph)
     int num_hn(m_hypernodes.size());
     int num_e(m_edges.size());
 
+    m_is_timeout = (m_is_timeout or graph.m_is_timeout);
+
     for (auto it = graph.m_nodes.begin(); it != graph.m_nodes.end(); ++it)
     {
         hash_set<node_idx_t> ev;

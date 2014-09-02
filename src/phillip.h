@@ -73,6 +73,7 @@ public:
     inline const pg::proof_graph_t* get_latent_hypotheses_set() const;
     inline const ilp::ilp_problem_t* get_ilp_problem() const;
     inline const std::vector<ilp::ilp_solution_t>& get_solutions() const;
+    inline const std::vector<phillip_main_t*>& get_parallel_phillips() const;
     
     inline int timeout_lhs() const;
     inline int timeout_ilp() const;

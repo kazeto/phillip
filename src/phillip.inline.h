@@ -130,6 +130,10 @@ inline const std::vector<ilp::ilp_solution_t>& phillip_main_t::get_solutions() c
 { return m_sol; }
 
 
+inline const std::vector<phillip_main_t*>& phillip_main_t::get_parallel_phillips() const
+{ return m_phillips_parallel; }
+
+
 inline int phillip_main_t::timeout_lhs() const
 { return m_timeout_lhs; }
 

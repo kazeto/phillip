@@ -226,6 +226,8 @@ void phillip_main_t::infer_parallel(
             do_print_on_each_thread ? indexize_path(path_out, j) : "");
         m_phillips_parallel.push_back(ph);
     }
+    IF_VERBOSE_1(
+        format("# of parallel processes = %d", m_phillips_parallel.size()));
 
     std::vector<std::thread> worker;
     int num_thread = std::min<int>(
@@ -343,10 +345,7 @@ phillip_main_t::split_input(const lf::input_t &input) const
                 (*it)->get_predicate_arity(), lit.get_predicate_arity());
             if (dist >= 0) return true;
 
-            if (has_intersection(
-                lit.terms.begin(), lit.terms.end(),
-                (*it)->terms.begin(), (*it)->terms.end()))
-                return true;
+            // TODO: SPLITTING ON TERM
         }
 
         return false;
