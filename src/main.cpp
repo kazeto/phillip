@@ -49,6 +49,8 @@ int main(int argc, char* argv[])
     {
         std::vector<lf::input_t> parsed_inputs;
         proc::processor_t processor;
+        bool do_parallel_inference(phillip.flag("do_parallel_inference"));
+        bool do_write_parallel_out(phillip.flag("do_write_parallel_out"));
 
         print_console("Loading observations ...");
 
@@ -63,9 +65,10 @@ int main(int argc, char* argv[])
         for (int i = 0; i < parsed_inputs.size(); ++i)
         {
             const lf::input_t &ipt = parsed_inputs.at(i);
+
             print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
-            phillip.flag("do_parallel_inference") ?
-                phillip.infer_parallel(parsed_inputs, i) :
+            do_parallel_inference ?
+                phillip.infer_parallel(parsed_inputs, i, do_write_parallel_out) :
                 phillip.infer(parsed_inputs, i);
 
             auto sols = phillip.get_solutions();

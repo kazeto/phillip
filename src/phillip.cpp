@@ -267,9 +267,9 @@ void phillip_main_t::infer_parallel(
     for (auto it = m_phillips_parallel.begin();
         it != m_phillips_parallel.end(); ++it)
     {
-        m_lhs->merge(*(*it)->get_latent_hypotheses_set());
-        m_ilp->merge(*(*it)->get_ilp_problem());
         m_sol[0].merge((*it)->get_solutions().at(0));
+        m_ilp->merge(*(*it)->get_ilp_problem());
+        m_lhs->merge(*(*it)->get_latent_hypotheses_set());
         m_clock_for_enumerate =
             std::max<int>(m_clock_for_enumerate, (*it)->get_clock_for_lhs());
         m_clock_for_convert =
@@ -330,12 +330,18 @@ void phillip_main_t::infer_parallel(
 }
 
 
+struct _input_t : public lf::input_t
+{
+    hash_set<term_t> terms;
+};
+
+
 std::vector<lf::input_t>
 phillip_main_t::split_input(const lf::input_t &input) const
 {
-    std::vector<lf::input_t> splitted;
+    std::vector<_input_t> splitted;
 
-    auto is_clustered = [](const literal_t &lit, const lf::input_t &ipt) -> bool
+    auto is_clustered = [](const literal_t &lit, const _input_t &ipt) -> bool
     {
         auto base = kb::knowledge_base_t::instance();
         auto obs = ipt.obs.get_all_literals();
@@ -350,14 +356,13 @@ phillip_main_t::split_input(const lf::input_t &input) const
             float dist = base->get_distance(
                 (*it)->get_predicate_arity(), lit.get_predicate_arity());
             if (dist >= 0) return true;
-
-            // TODO: SPLITTING ON TERM
         }
 
-        return false;
+        hash_set<term_t> terms_lit(lit.terms.begin(), lit.terms.end());
+        return intersection(ipt.terms, terms_lit).size() > 1;
     };
 
-    auto merge = [](const lf::input_t &src, lf::input_t *dest)
+    auto merge = [](const _input_t &src, _input_t *dest)
     {
         auto obs = src.obs.branches();
         for (auto it = obs.begin(); it != obs.end(); ++it)
@@ -366,9 +371,11 @@ phillip_main_t::split_input(const lf::input_t &input) const
         auto req = src.req.branches();
         for (auto it = req.begin(); it != req.end(); ++it)
             dest->req.add_branch(*it);
+
+        dest->terms.insert(src.terms.begin(), src.terms.end());
     };
 
-    auto journalize = [&](
+    auto split = [&](
         const std::vector<lf::logical_function_t> &branches,
         bool is_observation)
     {
@@ -385,7 +392,7 @@ phillip_main_t::split_input(const lf::input_t &input) const
 
             if (idx.empty())
             {
-                lf::input_t _new;
+                _input_t _new;
                 _new.name = input.name;
                 if (is_observation)
                 {
@@ -397,6 +404,10 @@ phillip_main_t::split_input(const lf::input_t &input) const
                     _new.req = lf::logical_function_t(lf::OPR_REQUIREMENT);
                     _new.req.add_branch(*it);
                 }
+
+                for (auto _it = lits.begin(); _it != lits.end(); ++_it)
+                    _new.terms.insert((*_it)->terms.begin(), (*_it)->terms.end());
+
                 splitted.push_back(_new);
             }
             else
@@ -405,18 +416,21 @@ phillip_main_t::split_input(const lf::input_t &input) const
                 _idx.sort();
 
                 int i_dest = _idx.front();
+                _input_t &ipt(splitted[i_dest]);
                 _idx.pop_front();
 
                 if (not idx.empty())
                 for (auto i = _idx.rbegin(); i != _idx.rend(); ++i)
                 if (*i != i_dest)
                 {
-                    merge(splitted[*i], &splitted[i_dest]);
+                    merge(splitted[*i], &ipt);
                     erase(splitted, *i);
                 }
 
-                lf::input_t &ipt(splitted[i_dest]);
                 (is_observation ? ipt.obs : ipt.req).add_branch(*it);
+                for (auto _it = lits.begin(); _it != lits.end(); ++_it)
+                    ipt.terms.insert((*_it)->terms.begin(), (*_it)->terms.end());
+
             }
         }
     };
@@ -428,14 +442,25 @@ phillip_main_t::split_input(const lf::input_t &input) const
         return nx > ny;
     };
 
-    journalize(input.obs.branches(), true);
-    journalize(input.req.branches(), false);
+    split(input.obs.branches(), true);
+    split(input.req.branches(), false);
+
+    for (int i = 0; i < splitted.size(); ++i)
+    for (int j = splitted.size() - 1; j > i; --j)
+    {
+        if (intersection(splitted[i].terms, splitted[j].terms).size() > 1)
+        {
+            merge(splitted[j], &splitted[i]);
+            erase(splitted, j);
+        }
+    }
+
     std::sort(splitted.begin(), splitted.end(), cmp);
 
     for (int i = 0; i < splitted.size(); ++i)
         splitted[i].name += format("-%d", i);
 
-    return splitted;
+    return std::vector<lf::input_t>(splitted.begin(), splitted.end());
 }
 
 
