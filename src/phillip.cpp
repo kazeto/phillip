@@ -126,7 +126,10 @@ void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
     m_ilp = m_ilp_convertor->execute();
     clock_t end_flpp(clock());
     m_clock_for_convert += end_flpp - begin_flpp;
-    IF_VERBOSE_2("Completed convertion into linear-programming-problems...");
+    IF_VERBOSE_2(
+        m_ilp->is_timeout() ?
+        "Interrupted convertion into linear-programming-problems." :
+        "Completed convertion into linear-programming-problems.");
 
     if ((fo = _open_file(param("path_ilp_out"), mode)) != NULL)
     {
@@ -175,6 +178,9 @@ void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
         delete fo;
     }
 }
+
+
+std::mutex g_mutex_infer;
 
 
 void phillip_main_t::infer_parallel(
@@ -226,7 +232,7 @@ void phillip_main_t::infer_parallel(
             do_print_on_each_thread ? indexize_path(path_out, j) : "");
         m_phillips_parallel.push_back(ph);
     }
-    IF_VERBOSE_3(
+    IF_VERBOSE_1(
         format("# of parallel processes = %d", m_phillips_parallel.size()));
 
     std::vector<std::thread> worker;
@@ -234,19 +240,23 @@ void phillip_main_t::infer_parallel(
         std::min<int>(splitted.size(),
         std::min<int>(param_int("parallel_thread_num", 9999),
                       std::thread::hardware_concurrency()));
+    int processed = 0;
     if (num_thread <= 0) num_thread = 1;
     
     for (int i = 0; i < num_thread; ++i)
     {
         worker.emplace_back([&](int id){
-            for (int j = 0; true; ++j)
+            while(true)
             {
-                int _idx = id + j * num_thread;
+                g_mutex_infer.lock();
+                int _idx = (processed++);
+                g_mutex_infer.unlock();
+                
                 if (_idx < splitted.size())
                 {
                     phillip_main_t *ph = m_phillips_parallel.at(_idx);
                     lf::input_t ipt = splitted.at(_idx);
-                    IF_VERBOSE_3(format("#parallel %d = %s", _idx, ipt.obs.to_string()));
+                    IF_VERBOSE_2(format("#parallel %d = %s", _idx, ipt.obs.to_string().c_str()));
                     ph->infer(ipt);
                 }
                 else
@@ -347,15 +357,18 @@ phillip_main_t::split_input(const lf::input_t &input) const
         auto obs = ipt.obs.get_all_literals();
         auto req = ipt.req.get_all_literals();
         std::list<const literal_t*> lits;
+        std::string arity = lit.get_predicate_arity();
 
         lits.insert(lits.end(), obs.begin(), obs.end());
         lits.insert(lits.end(), req.begin(), req.end());
 
         for (auto it = lits.begin(); it != lits.end(); ++it)
         {
-            float dist = base->get_distance(
-                (*it)->get_predicate_arity(), lit.get_predicate_arity());
-            if (dist >= 0) return true;
+            std::string ar = (*it)->get_predicate_arity();
+            if (arity == ar) return true;
+            
+            float dist = base->get_distance(arity, ar);
+            if (dist >= 0.0f) return true;
         }
 
         hash_set<term_t> terms_lit(lit.terms.begin(), lit.terms.end());

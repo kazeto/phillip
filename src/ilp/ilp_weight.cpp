@@ -55,9 +55,23 @@ ilp_converter_t* weighted_converter_t::duplicate(phillip_main_t *ptr) const
 
 ilp::ilp_problem_t* weighted_converter_t::execute() const
 {
+    std::time_t begin, now;
+    std::time(&begin);
+    
     const pg::proof_graph_t *graph = phillip()->get_latent_hypotheses_set();
     ilp::ilp_problem_t *prob = new ilp::ilp_problem_t(
-        graph, new ilp::basic_solution_interpreter_t(), false);
+        graph, new ilp::basic_solution_interpreter_t(), false,
+        graph->name());
+    
+    auto is_timeout = [&]() -> bool {
+        std::time(&now);
+        if (phillip()->is_timeout_ilp(now - begin))
+        {
+            prob->timeout(true);
+            return true;
+        }
+        return false;
+    };
 
     // ADD VARIABLES FOR NODES
     for (pg::node_idx_t i = 0; i < graph->nodes().size(); ++i)
@@ -66,34 +80,50 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
         if (graph->node(i).type() == pg::NODE_OBSERVABLE)
             prob->add_constancy_of_variable(var, 1.0);
     }
+    if (is_timeout()) return prob;
 
     // ADD VARIABLES FOR HYPERNODES
     for (pg::hypernode_idx_t i = 0; i < graph->hypernodes().size(); ++i)
         ilp::variable_idx_t var = prob->add_variable_of_hypernode(i);
-
+    if (is_timeout()) return prob;
+    
     // ADD CONSTRAINTS FOR NODES
     for (pg::node_idx_t i = 0; i < graph->nodes().size(); ++i)
         prob->add_constraint_of_dependence_of_node_on_hypernode(i);
-
+    if (is_timeout()) return prob;
+    
     // ADD CONSTRAINTS FOR HYPERNODES
     for (pg::hypernode_idx_t i = 0; i < graph->hypernodes().size(); ++i)
         prob->add_constraint_of_dependence_of_hypernode_on_parents(i);
+    if (is_timeout()) return prob;
 
     // ADD CONSTRAINTS FOR CHAINING EDGES
     for (pg::edge_idx_t i = 0; i < graph->edges().size(); ++i)
         prob->add_constrains_of_conditions_for_chain(i);
+    if (is_timeout()) return prob;
 
     const lf::logical_function_t *req = phillip()->get_requirement();
-    if (req != NULL) prob->add_variable_for_requirement(*req, false);
-
+    if (req != NULL)
+        prob->add_variable_for_requirement(*req, false);
+    if (is_timeout()) return prob;
+    
     prob->add_constrains_of_exclusive_chains();
+    if (is_timeout()) return prob;
+    
     prob->add_constraints_of_transitive_unifications();
+    if (is_timeout()) return prob;
 
     // ASSIGN COSTS OF EDGES TO HYPERNODES
     hash_map<pg::node_idx_t, ilp::variable_idx_t> node2costvar;
+    
     add_variables_for_observation_cost(graph, *phillip()->get_input(), prob, &node2costvar);
+    if (is_timeout()) return prob;
+    
     add_variables_for_hypothesis_cost(graph, prob, &node2costvar);
+    if (is_timeout()) return prob;
+    
     add_constraints_for_cost(graph, prob, node2costvar);
+    if (is_timeout()) return prob;
 
     prob->add_xml_decorator(
         new my_xml_decorator_t(node2costvar));

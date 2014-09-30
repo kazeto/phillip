@@ -71,6 +71,7 @@ std::unique_ptr<knowledge_base_t, knowledge_base_t::deleter> knowledge_base_t::m
 std::string knowledge_base_t::ms_filename = "kb";
 distance_provider_type_e knowledge_base_t::ms_distance_provider_type = DISTANCE_PROVIDER_BASIC;
 float knowledge_base_t::ms_max_distance = -1.0f;
+std::mutex knowledge_base_t::ms_mutex_for_cache;
 
 
 knowledge_base_t* knowledge_base_t::instance()
@@ -452,6 +453,7 @@ unification_postponement_t knowledge_base_t::get_unification_postponement(const 
 }
 
 
+
 float knowledge_base_t::get_distance(
     const std::string &arity1, const std::string &arity2 ) const
 {
@@ -466,7 +468,18 @@ float knowledge_base_t::get_distance(
     const size_t *get2 = search_arity_index(arity2);
     if (get1 == NULL or get2 == NULL) return -1.0f;
 
-    return m_rm.get(*get1, *get2);
+    std::lock_guard<std::mutex> lock(ms_mutex_for_cache);
+    auto found1 = m_cache_distance.find(*get1);
+    if (found1 != m_cache_distance.end())
+    {
+        auto found2 = found1->second.find(*get2);
+        if (found2 != found1->second.end())
+            return found2->second;
+    }
+
+    float dist(m_rm.get(*get1, *get2));
+    m_cache_distance[*get1][*get2] = dist;
+    return dist;
 }
 
 

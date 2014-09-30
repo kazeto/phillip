@@ -67,6 +67,7 @@ int main(int argc, char* argv[])
             const lf::input_t &ipt = parsed_inputs.at(i);
 
             print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
+            kb::knowledge_base_t::instance()->clear_distance_cache();
             do_parallel_inference ?
                 phillip.infer_parallel(parsed_inputs, i, do_write_parallel_out) :
                 phillip.infer(parsed_inputs, i);

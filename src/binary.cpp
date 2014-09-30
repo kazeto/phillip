@@ -287,13 +287,20 @@ lhs_enumerator_t* _new_lhs_enumerator(phillip_main_t *phillip, const std::string
 {
     if (key == "a*:bidirection")
         return new lhs::a_star_based_enumerator_t(
-        phillip, true, true, phillip->param_float("max_distance"));
+            phillip, true, true,
+            phillip->param_float("max_distance"),
+            phillip->param_int("max_depth"));
     if (key == "a*:abduction")
         return new lhs::a_star_based_enumerator_t(
-        phillip, false, true, phillip->param_float("max_distance"));
+            phillip, false, true,
+            phillip->param_float("max_distance"),
+            phillip->param_int("max_depth"));
     if (key == "a*:deduction")
         return new lhs::a_star_based_enumerator_t(
-        phillip, true, false, phillip->param_float("max_distance"));
+            phillip, true, false,
+            phillip->param_float("max_distance"),
+            phillip->param_int("max_depth"));
+    
     if (key == "depth:bidirection" or key == "bidirection")
         return new lhs::depth_based_enumerator_t(
         phillip, true, true,

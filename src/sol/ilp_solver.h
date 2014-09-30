@@ -77,7 +77,8 @@ private:
         GRBModel *model, ilp::constraint_idx_t idx,
         const hash_map<ilp::variable_idx_t, GRBVar> &vars) const;
     ilp::ilp_solution_t convert(
-        GRBModel *model, const hash_map<ilp::variable_idx_t, GRBVar> &vars) const;
+        GRBModel *model, const hash_map<ilp::variable_idx_t, GRBVar> &vars,
+        const std::string &name = "") const;
 #endif
     int m_thread_num;
     bool m_do_output_log;

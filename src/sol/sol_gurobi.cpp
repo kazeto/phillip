@@ -92,13 +92,14 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
             
             ilp::ilp_solution_t sol(
                 prob, ilp::SOLUTION_NOT_AVAILABLE,
-                std::vector<double>(prob->variables().size(), 0.0));
+                std::vector<double>(prob->variables().size(), 0.0),
+                prob->name());
             out->push_back(sol);
             break;
         }
         else
         {
-            ilp::ilp_solution_t sol = convert(&model, vars);
+            ilp::ilp_solution_t sol = convert(&model, vars, prob->name());
             bool do_break(false);
 
             if (not lazy_cons.empty() and do_cpi)
@@ -117,11 +118,14 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
             }
             else do_break = true;
 
-            std::time(&now);
-            if (phillip()->is_timeout_sol(now - begin))
+            if (not do_break)
             {
-                sol.timeout(true);
-                do_break = true;
+                std::time(&now);
+                if (phillip()->is_timeout_sol(now - begin))
+                {
+                    sol.timeout(true);
+                    do_break = true;
+                }
             }
 
             if (do_break)
@@ -209,7 +213,8 @@ void gurobi_t::add_constraint(
 
 
 ilp::ilp_solution_t gurobi_t::convert(
-    GRBModel *model, const hash_map<ilp::variable_idx_t, GRBVar> &vars) const
+    GRBModel *model, const hash_map<ilp::variable_idx_t, GRBVar> &vars,
+    const std::string &name) const
 {
     const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
     std::vector<double> values(prob->variables().size(), 0);
@@ -223,7 +228,7 @@ ilp::ilp_solution_t gurobi_t::convert(
     delete p_vars;
     delete p_values;
 
-    return ilp::ilp_solution_t(prob, ilp::SOLUTION_OPTIMAL, values);
+    return ilp::ilp_solution_t(prob, ilp::SOLUTION_OPTIMAL, values, name);
 }
 
 

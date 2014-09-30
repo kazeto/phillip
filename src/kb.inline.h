@@ -48,6 +48,13 @@ inline float knowledge_base_t::get_distance(const lf::axiom_t &axiom) const
 }
 
 
+inline void knowledge_base_t::clear_distance_cache()
+{
+    std::lock_guard<std::mutex> lock(ms_mutex_for_cache);
+    m_cache_distance.clear();
+}
+
+
 inline const size_t* knowledge_base_t::
     search_arity_index(const std::string &arity) const
 {

@@ -51,17 +51,18 @@ erase(hash_set<pg::node_idx_t> from_set, pg::node_idx_t target)
 
 
 a_star_based_enumerator_t::a_star_based_enumerator_t(
-    phillip_main_t *ptr, bool do_deduction, bool do_abduction, float max_dist)
+    phillip_main_t *ptr, bool do_deduction, bool do_abduction,
+    float max_dist, int max_depth)
     : lhs_enumerator_t(ptr),
       m_do_deduction(do_deduction), m_do_abduction(do_abduction),
-      m_max_distance(max_dist)
+      m_max_distance(max_dist), m_max_depth(max_depth)
 {}
 
 
 lhs_enumerator_t* a_star_based_enumerator_t::duplicate(phillip_main_t *ptr) const
 {
     return new a_star_based_enumerator_t(
-        ptr, m_do_deduction, m_do_abduction, m_max_distance);
+        ptr, m_do_deduction, m_do_abduction, m_max_distance, m_max_depth);
 }
 
 
@@ -147,10 +148,12 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
     std::set<pg::chain_candidate_t> *out) const
 {
     const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
+    const pg::node_t &n = graph->node(i);
+
+    if (m_max_depth >= 0 and n.depth() >= m_max_depth) return;
 
     std::set<std::tuple<axiom_id_t, bool> > axioms;
     {
-        const pg::node_t &n = graph->node(i);
         std::string arity = n.literal().get_predicate_arity();
 
         if (m_do_deduction)

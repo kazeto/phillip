@@ -180,8 +180,9 @@ variable_idx_t ilp_problem_t::add_variable_of_hypernode(
 
 constraint_idx_t ilp_problem_t::
 add_constraint_of_dependence_of_node_on_hypernode(pg::node_idx_t idx)
-{
+{   
     const pg::node_t &node = m_graph->node(idx);
+    if (node.is_equality_node() or node.is_non_equality_node()) return -1;
 
     variable_idx_t var_node = find_variable_with_node(idx);
     if (var_node < 0) return -1;
@@ -203,19 +204,14 @@ add_constraint_of_dependence_of_node_on_hypernode(pg::node_idx_t idx)
     else if (node.master_hypernode() >= 0)
         masters.insert(node.master_hypernode());
 
-    /* TO LET A NODE BE TRUE, ONE OF ITS MASTER-HYPERNODES MUST BE TRUE */
+    /* TO LET A NODE BE TRUE, ITS MASTER-HYPERNODES IS TRUE */
     constraint_t con(format("n_dependency:n(%d)", idx), OPR_GREATER_EQ, 0.0);
 
     for (auto it = masters.begin(); it != masters.end(); ++it)
     {
         variable_idx_t var_master = find_variable_with_hypernode(*it);
 
-        if (var_node == var_master)
-        {
-            assert(masters.size() == 1);
-            return -1;
-        }
-        else if (var_master >= 0)
+        if (var_node != var_master and var_master >= 0)
             con.add_term(var_master, 1.0);
     }
     if (con.terms().empty()) return -1;
@@ -456,7 +452,7 @@ bool ilp_problem_t::add_constraints_of_transitive_unification(
     variable_idx_t v_t3t1 = find_variable_with_node(n_t3t1);
 
     if (v_t1t2 < 0 or v_t2t3 < 0 or v_t3t1 < 0) return false;
-  
+
     std::string name1 =
         format("transitivity:(%s,%s,%s)",
         t1.string().c_str(), t2.string().c_str(), t3.string().c_str());
@@ -484,7 +480,7 @@ bool ilp_problem_t::add_constraints_of_transitive_unification(
     constraint_idx_t idx_trans1 = add_constraint(con_trans1);
     constraint_idx_t idx_trans2 = add_constraint(con_trans2);
     constraint_idx_t idx_trans3 = add_constraint(con_trans3);
-
+    
     // FOR CUTTING-PLANE
     add_laziness_of_constraint(idx_trans1);
     add_laziness_of_constraint(idx_trans2);
@@ -1003,7 +999,7 @@ void ilp_problem_t::_print_unifications_in_solution(
             for (auto it = hn_to.begin(); it != hn_to.end(); ++it)
             {
                 const literal_t &lit = m_graph->node(*it).literal();
-                assert(lit.predicate == "=");
+                // assert(lit.predicate == "=");
                 subs.push_back(
                     lit.terms[0].string() + "=" + lit.terms[1].string());
             }

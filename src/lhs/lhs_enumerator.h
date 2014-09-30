@@ -22,7 +22,8 @@ class a_star_based_enumerator_t : public lhs_enumerator_t
 public:
     a_star_based_enumerator_t(
         phillip_main_t *ptr,
-        bool do_deduction, bool do_abduction, float max_dist);
+        bool do_deduction, bool do_abduction,
+        float max_dist, int max_depth = -1);
     virtual lhs_enumerator_t* duplicate(phillip_main_t *ptr) const;
     virtual pg::proof_graph_t* execute() const;
     virtual bool is_available(std::list<std::string>*) const;
@@ -115,6 +116,7 @@ private:
 
     bool m_do_deduction, m_do_abduction;
     float m_max_distance;
+    int m_max_depth;
 };
 
 
@@ -201,7 +203,7 @@ inline bool a_star_based_enumerator_t::check_permissibility_of(float dist) const
 {
     return
         (dist >= 0.0f) and
-        (m_max_distance < 0.0f or dist < m_max_distance);
+        (m_max_distance < 0.0f or dist <= m_max_distance);
 }
 
 

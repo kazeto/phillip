@@ -7,6 +7,7 @@
 #include <string>
 #include <memory>
 #include <mutex>
+#include <ctime>
 
 #include "./define.h"
 #include "./logical_function.h"
@@ -124,6 +125,8 @@ public:
     /** Returns distance between arity1 and arity2 with distance-provider. */
     inline float get_distance(const lf::axiom_t &axiom) const;
 
+    inline void clear_distance_cache();
+
 
 private:
 
@@ -206,6 +209,7 @@ private:
     static std::string ms_filename;
     static distance_provider_type_e ms_distance_provider_type;
     static float ms_max_distance;
+    static std::mutex ms_mutex_for_cache;
 
     kb_state_e m_state;
     std::string m_filename;
@@ -232,6 +236,8 @@ private:
     distance_provider_t *m_rm_dist;
 
     bool m_do_create_local_reachability_matrix;
+    
+    mutable hash_map<size_t, hash_map<size_t, float> > m_cache_distance;
 };
 
 
