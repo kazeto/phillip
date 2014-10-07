@@ -40,6 +40,14 @@ enum unification_postpone_argument_type_e
 };
 
 
+enum version_e
+{
+    KB_VERSION_UNDERSPECIFIED,
+    KB_VERSION_1,
+    NUM_OF_KB_VERSION_TYPES
+};
+
+
 /** This class define distance between predicates
  *  on creation of reachable-matrix. */
 class distance_provider_t
@@ -81,7 +89,9 @@ public:
     };
 
     static knowledge_base_t* instance();
-    static void setup(std::string filename, distance_provider_type_e dist_type, float max_distance);
+    static void setup(
+        std::string filename, distance_provider_type_e dist_type, float max_distance,
+        bool do_compute_for_abduction = true, bool do_compute_for_deduction = true);
     static inline float get_max_distance();
 
     ~knowledge_base_t();
@@ -125,8 +135,10 @@ public:
     /** Returns distance between arity1 and arity2 with distance-provider. */
     inline float get_distance(const lf::axiom_t &axiom) const;
 
-    inline void clear_distance_cache();
+    inline version_e version() const;
+    inline bool is_valid_version() const;
 
+    inline void clear_distance_cache();
 
 private:
 
@@ -163,12 +175,9 @@ private:
     void write_config(const char *filename) const;
     void read_config(const char *filename);
 
-
+    void _insert_cdb(const std::string &name, const lf::logical_function_t &lf);
     void _insert_cdb(
-        const std::string &name, const lf::logical_function_t &lf);
-    void _insert_cdb(
-        const hash_map<std::string, hash_set<axiom_id_t> > &ids,
-        cdb_data_t *dat);
+        const hash_map<std::string, hash_set<axiom_id_t> > &ids, cdb_data_t *dat);
     void insert_arity(const std::string &arity);
 
     /** Outputs m_group_to_axioms to m_cdb_axiom_group. */
@@ -180,9 +189,12 @@ private:
     
     void _create_reachable_matrix_direct(
         const hash_set<std::string> &arities,
-        hash_map<size_t, hash_map<size_t, float> > *out);
+        hash_map<size_t, hash_map<size_t, float> > *out_lhs,
+        hash_map<size_t, hash_map<size_t, float> > *out_rhs);
     void _create_reachable_matrix_indirect(
-        size_t key, hash_map<size_t, hash_map<size_t, float> > &base,
+        size_t key,
+        hash_map<size_t, hash_map<size_t, float> > &base_lhs,
+        hash_map<size_t, hash_map<size_t, float> > &base_rhs,
         hash_map<size_t, float> *out);
 
     void extend_inconsistency();
@@ -209,10 +221,13 @@ private:
     static std::string ms_filename;
     static distance_provider_type_e ms_distance_provider_type;
     static float ms_max_distance;
+    static bool ms_do_compute_distance_for_abduction;
+    static bool ms_do_compute_distance_for_deduction;
     static std::mutex ms_mutex_for_cache;
 
     kb_state_e m_state;
     std::string m_filename;
+    version_e m_version;
 
     cdb_data_t m_cdb_id, m_cdb_name, m_cdb_rhs, m_cdb_lhs;
     cdb_data_t m_cdb_inc_pred, m_cdb_axiom_group, m_cdb_uni_pp;

@@ -374,6 +374,10 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
     }
 
     kb::distance_provider_type_e dist_type(kb::DISTANCE_PROVIDER_BASIC);
+    float max_dist = phillip->param_float("kb_max_distance", -1.0);
+    bool do_compute_dist_for_abduction(true);
+    bool do_compute_dist_for_deduction(true);
+
     if (not config.dist_key.empty())
     {
         kb::distance_provider_type_e _type =
@@ -388,13 +392,21 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
         }
     }
 
-    float max_dist = phillip->param_float("kb_max_distance", -1.0);
+    auto found = phillip->params().find("rm_direction");
+    if (found != phillip->params().end())
+    {
+        std::string dir(found->second);
+        if (dir == "abduction") do_compute_dist_for_deduction = false;
+        if (dir == "deduction") do_compute_dist_for_abduction = false;
+    }
 
     lhs_enumerator_t *lhs = _new_lhs_enumerator(phillip, config.lhs_key);
     ilp_converter_t *ilp = _new_ilp_converter(phillip, config.ilp_key);
     ilp_solver_t *sol = _new_ilp_solver(phillip, config.sol_key);
 
-    kb::knowledge_base_t::setup(config.kb_name, dist_type, max_dist);
+    kb::knowledge_base_t::setup(
+        config.kb_name, dist_type, max_dist,
+        do_compute_dist_for_abduction, do_compute_dist_for_deduction);
 
     switch (config.mode)
     {

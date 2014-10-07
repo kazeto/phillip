@@ -62,6 +62,7 @@ int main(int argc, char* argv[])
 
         kb::knowledge_base_t::instance()->prepare_query();
 
+        if (kb::knowledge_base_t::instance()->is_valid_version())
         for (int i = 0; i < parsed_inputs.size(); ++i)
         {
             const lf::input_t &ipt = parsed_inputs.at(i);

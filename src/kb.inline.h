@@ -48,6 +48,18 @@ inline float knowledge_base_t::get_distance(const lf::axiom_t &axiom) const
 }
 
 
+inline version_e knowledge_base_t::version() const
+{
+    return m_version;
+}
+
+
+inline bool knowledge_base_t::is_valid_version() const
+{
+    return m_version == KB_VERSION_1;
+}
+
+
 inline void knowledge_base_t::clear_distance_cache()
 {
     std::lock_guard<std::mutex> lock(ms_mutex_for_cache);

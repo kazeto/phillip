@@ -71,6 +71,8 @@ std::unique_ptr<knowledge_base_t, knowledge_base_t::deleter> knowledge_base_t::m
 std::string knowledge_base_t::ms_filename = "kb";
 distance_provider_type_e knowledge_base_t::ms_distance_provider_type = DISTANCE_PROVIDER_BASIC;
 float knowledge_base_t::ms_max_distance = -1.0f;
+bool knowledge_base_t::ms_do_compute_distance_for_abduction = true;
+bool knowledge_base_t::ms_do_compute_distance_for_deduction = true;
 std::mutex knowledge_base_t::ms_mutex_for_cache;
 
 
@@ -83,25 +85,26 @@ knowledge_base_t* knowledge_base_t::instance()
 
 
 void knowledge_base_t::setup(
-    std::string filename, distance_provider_type_e dist_type, float max_distance)
+    std::string filename, distance_provider_type_e dist_type, float max_distance,
+    bool do_compute_for_abduction, bool do_compute_for_deduction)
 {
     if (not ms_instance)
     {
         ms_filename = filename;
         ms_distance_provider_type = dist_type;
         ms_max_distance = max_distance;
+        ms_do_compute_distance_for_abduction = do_compute_for_abduction;
+        ms_do_compute_distance_for_deduction = do_compute_for_deduction;
     }
     else
-    {
         print_error("Failed to setup. The instance of KB has been created.");
-    }
 }
 
 
 knowledge_base_t::knowledge_base_t(
     const std::string &filename, distance_provider_type_e dist)
     : m_state(STATE_NULL),
-      m_filename(filename),
+      m_filename(filename), m_version(KB_VERSION_1), 
       m_cdb_id(filename + ".id.cdb"),
       m_cdb_name(filename +".name.cdb"),
       m_cdb_rhs(filename + ".rhs.cdb"),
@@ -220,9 +223,17 @@ void knowledge_base_t::write_config(const char *filename) const
     std::ofstream fo(
         filename, std::ios::out | std::ios::trunc | std::ios::binary);
     char dist_type(m_rm_dist->type());
+    char version(KB_VERSION_1);
 
+    fo.write(&version, sizeof(char));
     fo.write((char*)&ms_max_distance, sizeof(float));
     fo.write(&dist_type, sizeof(char));
+
+    char flag_abduction(ms_do_compute_distance_for_abduction ? 0xff : 0x00);
+    char flag_deduction(ms_do_compute_distance_for_deduction ? 0xff : 0x00);
+    fo.write(&flag_abduction, sizeof(char));
+    fo.write(&flag_deduction, sizeof(char));
+
     fo.close();
 }
 
@@ -230,12 +241,27 @@ void knowledge_base_t::write_config(const char *filename) const
 void knowledge_base_t::read_config(const char *filename)
 {
     std::ifstream fi(filename, std::ios::in | std::ios::binary);
-    char dist_type;
+    char dist_type, version, flag_abduction, flag_deduction;
+
+    fi.read(&version, sizeof(char));
+
+    if (version > 0 and version < NUM_OF_KB_VERSION_TYPES)
+        m_version = static_cast<version_e>(version);
+    else
+    {
+        m_version = KB_VERSION_UNDERSPECIFIED;
+        print_error("This compiled knowledge base is invalid. Please re-compile it.");
+        return;
+    }
 
     fi.read((char*)&ms_max_distance, sizeof(float));
     fi.read(&dist_type, sizeof(char));
+    fi.read(&flag_abduction, sizeof(char));
+    fi.read(&flag_deduction, sizeof(char));
     fi.close();
 
+    ms_do_compute_distance_for_abduction = (flag_abduction != 0x00);
+    ms_do_compute_distance_for_deduction = (flag_deduction != 0x00);
     ms_distance_provider_type = static_cast<distance_provider_type_e>(dist_type);
     set_distance_provider(ms_distance_provider_type);
 }
@@ -608,16 +634,15 @@ void knowledge_base_t::create_reachable_matrix()
     m_rm.prepare_compile();
 
     print_console("  computing distance of direct edges...");
-    hash_map<size_t, hash_map<size_t, float> > base;
-    _create_reachable_matrix_direct(m_arity_set, &base);
+    hash_map<size_t, hash_map<size_t, float> > base_lhs, base_rhs;
+    _create_reachable_matrix_direct(m_arity_set, &base_lhs, &base_rhs);
 
     print_console("  writing reachable matrix...");
-    for (auto it = base.begin(); it != base.end(); ++it)
+    for (size_t idx = 0; idx < m_arity_set.size(); ++idx)
     {
-        size_t idx = it->first;
         hash_map<size_t, float> dist;
 
-        _create_reachable_matrix_indirect(idx, base, &dist);
+        _create_reachable_matrix_indirect(idx, base_lhs, base_rhs, &dist);
         m_rm.put(idx, dist);
 
         num_inserted += dist.size();
@@ -646,87 +671,116 @@ void knowledge_base_t::create_reachable_matrix()
 
 void knowledge_base_t::_create_reachable_matrix_direct(
     const hash_set<std::string> &arities,
-    hash_map<size_t, hash_map<size_t, float> > *out)
+    hash_map<size_t, hash_map<size_t, float> > *out_lhs,
+    hash_map<size_t, hash_map<size_t, float> > *out_rhs)
 {
-    for (auto ar = arities.begin(); ar != arities.end(); ++ar)
+    auto _process = [&](bool is_forward)
     {
-        size_t idx1 = *search_arity_index(*ar);
-        hash_map<size_t, float> *target = &(*out)[idx1];
-        std::list<axiom_id_t>
-            ids_lhs(search_axioms_with_lhs(*ar)),
-            ids_rhs(search_axioms_with_rhs(*ar));
-
-        (*target)[idx1] = 0.0f;
-    
-        for (int i = 0; i < 2; ++i)
+        hash_map<size_t, hash_map<size_t, float> > *out(is_forward ? out_lhs : out_rhs);
+        for (auto ar = arities.begin(); ar != arities.end(); ++ar)
         {
-            bool is_forward(i == 0);
-            std::list<axiom_id_t> *ids = is_forward ? &ids_lhs : &ids_rhs;
+            size_t idx1 = *search_arity_index(*ar);
+            hash_map<size_t, float> *target = &(*out)[idx1];
+            std::list<axiom_id_t> ids =
+                is_forward ? search_axioms_with_lhs(*ar) : search_axioms_with_rhs(*ar);
 
-            for (auto id = ids->begin(); id != ids->end(); ++id)
+            (*target)[idx1] = 0.0f;
+
+            for (auto id = ids.begin(); id != ids.end(); ++id)
             {
                 lf::axiom_t axiom = get_axiom(*id);
-                std::vector<const literal_t*> lits =
-                    axiom.func.branch(is_forward ? 1 : 0).get_all_literals();
+                std::vector<const literal_t*>
+                    lits = axiom.func.branch(is_forward ? 1 : 0).get_all_literals();
+                float dist = (*m_rm_dist)(axiom);
 
+                if (dist >= 0.0f)
                 for (auto li = lits.begin(); li != lits.end(); ++li)
                 {
                     std::string arity2 = (*li)->get_predicate_arity();
                     size_t idx2 = *search_arity_index(arity2);
-                    float dist = (*m_rm_dist)(axiom);
-                    
-                    if (dist >= 0.0f)
-                    {
-                        bool do_add(false);
-                        auto find = target->find(idx2);
+                    auto found = target->find(idx2);
 
-                        if (find == target->end())    do_add = true;
-                        else if (dist < find->second) do_add = true;
-
-                        if (do_add)
-                            (*target)[idx2] = dist;
-                    }
+                    if (found == target->end())    (*target)[idx2] = dist;
+                    else if (dist < found->second) (*target)[idx2] = dist;
                 }
             }
         }
-    }
+    };
+
+    _process(true);
+    _process(false);
 }
 
 
 void knowledge_base_t::_create_reachable_matrix_indirect(
-    size_t idx1, hash_map<size_t, hash_map<size_t, float> > &base,
+    size_t idx1,
+    hash_map<size_t, hash_map<size_t, float> > &base_lhs,
+    hash_map<size_t, hash_map<size_t, float> > &base_rhs,
     hash_map<size_t, float> *out)
 {
-    hash_map<size_t, float> current;
+    std::map<std::tuple<size_t, bool, bool>, float> current;
+    std::map<std::tuple<size_t, bool, bool>, float> processed;
 
-    current[idx1] = 0.0f;
+    current[std::make_tuple(idx1, true, true)] = 0.0f;
+    processed[std::make_tuple(idx1, true, true)] = 0.0f;
     (*out)[idx1] = 0.0f;
 
     while (not current.empty())
     {
-        hash_map<size_t, float> next;
+        std::map<std::tuple<size_t, bool, bool>, float> next;
+        auto _process = [&](
+            size_t idx, bool can_abduction, bool can_deduction,
+            float dist, bool is_forward)
+        {
+            const hash_map<size_t, hash_map<size_t, float> >
+                &base = (is_forward ? base_lhs : base_rhs);
+            auto found = base.find(idx);
+
+            if (found != base.end())
+            for (auto it2 = found->second.begin(); it2 != found->second.end(); ++it2)
+            {
+                size_t idx2(it2->first);
+                float dist_new(dist + it2->second); // DISTANCE idx1 ~ idx2
+
+                if (idx == idx2) continue;
+
+                if (get_max_distance() < 0.0f or dist_new <= get_max_distance())
+                {
+                    std::tuple<size_t, bool, bool> key =
+                        std::make_tuple(idx2, can_abduction, can_deduction);
+                    if (is_forward and not ms_do_compute_distance_for_deduction)
+                        std::get<1>(key) = false;
+                    if (not is_forward and not ms_do_compute_distance_for_abduction)
+                        std::get<2>(key) = false;
+
+                    bool do_add(false);
+                    auto found = processed.find(key);
+                    if (found == processed.end())  do_add = true;
+                    else if (dist_new < found->second) do_add = true;
+
+                    if (do_add)
+                    {
+                        next[key] = dist_new;
+                        processed[key] = dist_new;
+
+                        auto found_out = out->find(idx2);
+                        if (found_out == out->end())           (*out)[idx2] = dist_new;
+                        else if (dist_new < found_out->second) (*out)[idx2] = dist_new;
+                    }
+                }
+            }
+        };
 
         for (auto it1 = current.begin(); it1 != current.end(); ++it1)
         {
-            const hash_map<size_t, float> &dists = base.at(it1->first);
+            size_t idx = std::get<0>(it1->first);
+            bool can_abduction = std::get<1>(it1->first);
+            bool can_deduction = std::get<2>(it1->first);
 
-            for (auto it2 = dists.begin(); it2 != dists.end(); ++it2)
-            {
-                size_t idx2(it2->first);
-                float dist(it1->second + it2->second); // DISTANCE idx1 ~ idx2
-                
-                if (get_max_distance() > 0.0f and dist > get_max_distance())
-                    continue;
-                
-                auto find = out->find(idx2);
-                if (find != out->end())
-                if (dist >= find->second)
-                    continue;
-
-                if (dist < get_max_distance())
-                    next[idx2] = dist;
-                (*out)[idx2] = dist;
-            }
+            if (can_abduction)
+                _process(idx, can_abduction, can_deduction, it1->second, false);
+            if (can_deduction)
+                _process(idx, can_abduction, can_deduction, it1->second, true);
         }
 
         current = next;
