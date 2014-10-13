@@ -43,7 +43,7 @@ enum unification_postpone_argument_type_e
 enum version_e
 {
     KB_VERSION_UNDERSPECIFIED,
-    KB_VERSION_1,
+    KB_VERSION_1, KB_VERSION_2,
     NUM_OF_KB_VERSION_TYPES
 };
 
@@ -117,9 +117,7 @@ public:
 
     void insert_unification_postponement(const lf::logical_function_t &lf, std::string name);
 
-    inline size_t get_axiom_num() const;
-
-    lf::axiom_t get_axiom(axiom_id_t id) const;
+    inline lf::axiom_t get_axiom(axiom_id_t id) const;
     inline std::list<axiom_id_t> search_axioms_with_rhs(const std::string &arity) const;
     inline std::list<axiom_id_t> search_axioms_with_lhs(const std::string &arity) const;
     inline std::list<axiom_id_t> search_inconsistencies(const std::string &arity) const;
@@ -141,13 +139,40 @@ public:
     inline void clear_distance_cache();
 
 private:
-
-    /** A class of reachable-matrix for all predicate pairs. */
-    class global_reachable_matrix_t
+    class axioms_database_t
     {
     public:
-        global_reachable_matrix_t(const std::string &filename);
-        ~global_reachable_matrix_t();
+        axioms_database_t(const std::string &filename);
+        ~axioms_database_t();
+        void prepare_compile();
+        void prepare_query();
+        void finalize();
+        void put(const std::string &name, const lf::logical_function_t &func);
+        lf::axiom_t get(axiom_id_t id) const;
+        inline bool is_writable() const;
+        inline bool is_readable() const;
+        inline int num_axioms() const { return m_num_compiled_axioms; }
+
+    private:
+        typedef unsigned long long axiom_pos_t;
+        typedef unsigned long axiom_size_t;
+
+        inline std::string get_name_of_unnamed_axiom();
+
+        static std::mutex ms_mutex;
+        std::string m_filename;
+        std::ofstream *m_fo_idx, *m_fo_dat;
+        std::ifstream *m_fi_idx, *m_fi_dat;
+        int m_num_compiled_axioms, m_num_unnamed_axioms;
+        axiom_pos_t m_writing_pos;
+    };
+
+    /** A class of reachable-matrix for all predicate pairs. */
+    class reachable_matrix_t
+    {
+    public:
+        reachable_matrix_t(const std::string &filename);
+        ~reachable_matrix_t();
         void prepare_compile();
         void prepare_query();
         void finalize();
@@ -175,7 +200,6 @@ private:
     void write_config(const char *filename) const;
     void read_config(const char *filename);
 
-    void _insert_cdb(const std::string &name, const lf::logical_function_t &lf);
     void _insert_cdb(
         const hash_map<std::string, hash_set<axiom_id_t> > &ids, cdb_data_t *dat);
     void insert_arity(const std::string &arity);
@@ -215,8 +239,6 @@ private:
      *  This object is used in making reachable-matrix. */
     void set_distance_provider(distance_provider_type_e);
 
-    inline std::string _get_name_of_unnamed_axiom();
-
     static std::unique_ptr<knowledge_base_t, deleter> ms_instance;
     static std::string ms_filename;
     static distance_provider_type_e ms_distance_provider_type;
@@ -229,13 +251,11 @@ private:
     std::string m_filename;
     version_e m_version;
 
-    cdb_data_t m_cdb_id, m_cdb_name, m_cdb_rhs, m_cdb_lhs;
+    cdb_data_t m_cdb_name, m_cdb_rhs, m_cdb_lhs;
     cdb_data_t m_cdb_inc_pred, m_cdb_axiom_group, m_cdb_uni_pp;
     cdb_data_t m_cdb_rm_idx;
-    global_reachable_matrix_t m_rm;
-    
-    size_t m_num_compiled_axioms;
-    size_t m_num_unnamed_axioms;
+    axioms_database_t m_axioms;
+    reachable_matrix_t m_rm;
 
     hash_map<size_t, hash_map<size_t, float> > m_partial_reachable_matrix;
 

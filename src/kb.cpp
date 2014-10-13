@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <climits>
 #include <algorithm>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -105,7 +106,6 @@ knowledge_base_t::knowledge_base_t(
     const std::string &filename, distance_provider_type_e dist)
     : m_state(STATE_NULL),
       m_filename(filename), m_version(KB_VERSION_1), 
-      m_cdb_id(filename + ".id.cdb"),
       m_cdb_name(filename +".name.cdb"),
       m_cdb_rhs(filename + ".rhs.cdb"),
       m_cdb_lhs(filename + ".lhs.cdb"),
@@ -113,10 +113,8 @@ knowledge_base_t::knowledge_base_t(
       m_cdb_axiom_group(filename + ".group.cdb"),
       m_cdb_uni_pp(filename + ".unipp.cdb"), 
       m_cdb_rm_idx(filename + ".rm.cdb"),
-      m_rm(filename + ".rm.dat"),
-      m_rm_dist(new basic_distance_provider_t()),
-      m_num_compiled_axioms(0),
-      m_num_unnamed_axioms(0)
+      m_axioms(filename + "axioms"), m_rm(filename + ".rm.bin"),
+      m_rm_dist(new basic_distance_provider_t())
 {
     set_distance_provider(dist);
 }
@@ -136,7 +134,7 @@ void knowledge_base_t::prepare_compile()
 
     if (m_state == STATE_NULL)
     {
-        m_cdb_id.prepare_compile();
+        m_axioms.prepare_compile();
         m_cdb_name.prepare_compile();
         m_cdb_rhs.prepare_compile();
         m_cdb_lhs.prepare_compile();
@@ -145,7 +143,6 @@ void knowledge_base_t::prepare_compile()
         m_cdb_axiom_group.prepare_compile();
         m_cdb_rm_idx.prepare_compile();
 
-        m_num_compiled_axioms = 0;
         m_state = STATE_COMPILE;
     }
 }
@@ -160,7 +157,7 @@ void knowledge_base_t::prepare_query()
     {
         read_config((m_filename + ".conf").c_str());
 
-        m_cdb_id.prepare_query();
+        m_axioms.prepare_query();
         m_cdb_name.prepare_query();
         m_cdb_rhs.prepare_query();
         m_cdb_lhs.prepare_query();
@@ -170,7 +167,6 @@ void knowledge_base_t::prepare_query()
         m_cdb_rm_idx.prepare_query();
         m_rm.prepare_query();
 
-        m_num_compiled_axioms = m_cdb_id.size();
         m_state = STATE_QUERY;
     }
 }
@@ -204,7 +200,7 @@ void knowledge_base_t::finalize()
         m_arity_set.clear();
     }
 
-    m_cdb_id.finalize();
+    m_axioms.finalize();
     m_cdb_name.finalize();
     m_cdb_rhs.finalize();
     m_cdb_lhs.finalize();
@@ -223,7 +219,7 @@ void knowledge_base_t::write_config(const char *filename) const
     std::ofstream fo(
         filename, std::ios::out | std::ios::trunc | std::ios::binary);
     char dist_type(m_rm_dist->type());
-    char version(KB_VERSION_1);
+    char version(KB_VERSION_2);
 
     fo.write(&version, sizeof(char));
     fo.write((char*)&ms_max_distance, sizeof(float));
@@ -250,7 +246,15 @@ void knowledge_base_t::read_config(const char *filename)
     else
     {
         m_version = KB_VERSION_UNDERSPECIFIED;
-        print_error("This compiled knowledge base is invalid. Please re-compile it.");
+        print_error(
+            "This compiled knowledge base is invalid. Please re-compile it.");
+        return;
+    }
+
+    if (m_version != KB_VERSION_2)
+    {
+        print_error(
+            "This compiled knowledge base is too old. Please re-compile it.");
         return;
     }
 
@@ -280,10 +284,8 @@ void knowledge_base_t::insert_implication(
             return;
         }
 
-        axiom_id_t id = m_num_compiled_axioms;
-        if (name.empty()) name = _get_name_of_unnamed_axiom();
-
-        _insert_cdb(name, lf);
+        axiom_id_t id = m_axioms.num_axioms();
+        m_axioms.put(name, lf);
         m_name_to_axioms[name].insert(id);
 
         // REGISTER AXIOMS'S GROUPS
@@ -314,25 +316,23 @@ void knowledge_base_t::insert_implication(
 
 
 void knowledge_base_t::insert_inconsistency(
-    const lf::logical_function_t &lf, std::string name)
+    const lf::logical_function_t &func, std::string name)
 {
     if (m_state == STATE_COMPILE)
     {
-        if (not lf.is_valid_as_inconsistency())
+        if (not func.is_valid_as_inconsistency())
         {
             print_warning_fmt(
                 "Inconsistency \"%s\" is invalid and skipped.",
-                lf.to_string().c_str());
+                func.to_string().c_str());
         }
         else
         {
-            axiom_id_t id = m_num_compiled_axioms;
-            if (name.empty()) name = _get_name_of_unnamed_axiom();
-
-            _insert_cdb(name, lf);
+            axiom_id_t id = m_axioms.num_axioms();
+            m_axioms.put(name, func);
 
             /* REGISTER AXIOM-ID TO MAP FOR INC */
-            std::vector<const literal_t*> literals = lf.get_all_literals();
+            std::vector<const literal_t*> literals = func.get_all_literals();
             for (auto it = literals.begin(); it != literals.end(); ++it)
             {
                 std::string arity = (*it)->get_predicate_arity();
@@ -344,25 +344,23 @@ void knowledge_base_t::insert_inconsistency(
 
 
 void knowledge_base_t::insert_unification_postponement(
-    const lf::logical_function_t &lf, std::string name)
+    const lf::logical_function_t &func, std::string name)
 {
     if (m_state == STATE_COMPILE)
     {
-        if (not lf.is_valid_as_unification_postponement())
+        if (not func.is_valid_as_unification_postponement())
         {
             print_warning_fmt(
                 "Unification postponement \"%s\" is invalid and skipped.",
-                lf.to_string().c_str());
+                func.to_string().c_str());
         }
         else
         {
-            axiom_id_t id = m_num_compiled_axioms;
-            if (name.empty()) name = _get_name_of_unnamed_axiom();
-
-            _insert_cdb(name, lf);
+            axiom_id_t id = m_axioms.num_axioms();
+            m_axioms.put(name, func);
 
             /* REGISTER AXIOM-ID TO MAP FOR UNI-PP */
-            std::string arity = lf.branch(0).literal().get_predicate_arity();
+            std::string arity = func.branch(0).literal().get_predicate_arity();
             if (m_arity_to_postponement.count(arity) > 0)
             {
                 print_warning_fmt(
@@ -374,36 +372,6 @@ void knowledge_base_t::insert_unification_postponement(
                 m_arity_to_postponement[arity].insert(id);
         }
     }
-}
-
-
-lf::axiom_t knowledge_base_t::get_axiom(axiom_id_t id) const
-{
-    lf::axiom_t out;
-
-    if (not m_cdb_id.is_readable())
-    {
-        print_warning("kb-search: KB is currently not readable.");
-        return out;
-    }
-
-    size_t value_size;
-    const char *value = (const char*)
-        m_cdb_id.get(&id, sizeof(axiom_id_t), &value_size);
-
-    if (value == NULL)
-    {
-        std::string message = format(
-            "kb-search: Axiom-ID \"%ld\" is not found!", id);
-        print_warning(message);
-        return out;
-    }
-
-    size_t size = out.func.read_binary(value);
-    size += binary_to<axiom_id_t>(value + size, &out.id);
-    size += binary_to_string(value + size, &out.name);
-    
-    return out;
 }
 
 
@@ -510,26 +478,6 @@ float knowledge_base_t::get_distance(
 
 
 void knowledge_base_t::_insert_cdb(
-    const std::string &name, const lf::logical_function_t &lf)
-{
-    const int SIZE(512 * 512);
-    char buffer[SIZE];
-
-    /* AXIOM => BINARY-DATA */
-    size_t size = lf.write_binary(buffer);
-    size += to_binary<axiom_id_t>(m_num_compiled_axioms, buffer + size);
-    size += string_to_binary(
-        (name.empty() ? _get_name_of_unnamed_axiom() : name),
-        buffer + size);
-    assert(size < BUFFER_SIZE);
-
-    /* INSERT AXIOM TO CDB.ID */
-    m_cdb_id.put(&m_num_compiled_axioms, sizeof(axiom_id_t), buffer, size);
-    ++m_num_compiled_axioms;
-}
-
-
-void knowledge_base_t::_insert_cdb(
     const hash_map<std::string, hash_set<axiom_id_t> > &ids,
     cdb_data_t *dat)
 {
@@ -621,11 +569,7 @@ void knowledge_base_t::create_reachable_matrix()
     time_t time_start, time_end;
     time(&time_start);
 
-    print_console_fmt("  num of axioms = %d", m_num_compiled_axioms);
-    print_console_fmt("  num of arities = %d", N);
-    print_console_fmt("  max distance = %.2f", get_max_distance());
-
-    m_cdb_id.prepare_query();
+    m_axioms.prepare_query();
     m_cdb_rhs.prepare_query();
     m_cdb_lhs.prepare_query();
     m_cdb_inc_pred.prepare_query();
@@ -633,7 +577,11 @@ void knowledge_base_t::create_reachable_matrix()
 
     m_rm.prepare_compile();
 
+    print_console_fmt("  num of axioms = %d", m_axioms.num_axioms());
+    print_console_fmt("  num of arities = %d", N);
+    print_console_fmt("  max distance = %.2f", get_max_distance());
     print_console("  computing distance of direct edges...");
+
     hash_map<size_t, hash_map<size_t, float> > base_lhs, base_rhs;
     _create_reachable_matrix_direct(m_arity_set, &base_lhs, &base_rhs);
 
@@ -873,22 +821,165 @@ std::list<axiom_id_t> knowledge_base_t::search_id_list(
 }
 
 
-std::mutex knowledge_base_t::global_reachable_matrix_t::ms_mutex;
 
+std::mutex knowledge_base_t::axioms_database_t::ms_mutex;
 
-knowledge_base_t::global_reachable_matrix_t::
-    global_reachable_matrix_t(const std::string &filename)
-    : m_filename(filename), m_fout(NULL), m_fin(NULL)
+knowledge_base_t::axioms_database_t::axioms_database_t(const std::string &filename)
+: m_filename(filename),
+m_fo_idx(NULL), m_fo_dat(NULL), m_fi_idx(NULL), m_fi_dat(NULL),
+m_num_compiled_axioms(0), m_num_unnamed_axioms(0)
 {}
 
 
-knowledge_base_t::global_reachable_matrix_t::~global_reachable_matrix_t()
+knowledge_base_t::axioms_database_t::~axioms_database_t()
 {
     finalize();
 }
 
 
-void knowledge_base_t::global_reachable_matrix_t::prepare_compile()
+void knowledge_base_t::axioms_database_t::prepare_compile()
+{
+    if (is_readable())
+        finalize();
+
+    if (not is_writable())
+    {
+        std::lock_guard<std::mutex> lock(ms_mutex);
+
+        m_fo_idx = new std::ofstream(
+            (m_filename + "idx.bin").c_str(), std::ios::binary | std::ios::out);
+        m_fo_dat = new std::ofstream(
+            (m_filename + "dat.bin").c_str(), std::ios::binary | std::ios::out);
+        m_num_compiled_axioms = 0;
+        m_num_unnamed_axioms = 0;
+        m_writing_pos = 0;
+    }
+}
+
+
+void knowledge_base_t::axioms_database_t::prepare_query()
+{
+    if (is_writable())
+        finalize();
+
+    if (not is_readable())
+    {
+        std::lock_guard<std::mutex> lock(ms_mutex);
+
+        m_fi_idx = new std::ifstream(
+            (m_filename + "idx.bin").c_str(), std::ios::binary | std::ios::in);
+        m_fi_dat = new std::ifstream(
+            (m_filename + "dat.bin").c_str(), std::ios::binary | std::ios::in);
+
+        m_fi_idx->seekg(-static_cast<int>(sizeof(int)), std::ios_base::end);
+        m_fi_idx->read((char*)&m_num_compiled_axioms, sizeof(int));
+    }
+}
+
+
+void knowledge_base_t::axioms_database_t::finalize()
+{
+    if (is_writable())
+        m_fo_idx->write((char*)&m_num_compiled_axioms, sizeof(int));
+
+    if (m_fo_idx != NULL)
+    {
+        delete m_fo_idx;
+        m_fo_idx = NULL;
+    }
+
+    if (m_fo_dat != NULL)
+    {
+        delete m_fo_dat;
+        m_fo_dat = NULL;
+    }
+
+    if (m_fi_idx != NULL)
+    {
+        delete m_fi_idx;
+        m_fi_idx = NULL;
+    }
+
+    if (m_fi_dat != NULL)
+    {
+        delete m_fi_dat;
+        m_fi_dat = NULL;
+    }
+}
+
+
+void knowledge_base_t::axioms_database_t::put(
+    const std::string &name, const lf::logical_function_t &func)
+{
+    const int SIZE(512 * 512);
+    char buffer[SIZE];
+
+    /* AXIOM => BINARY-DATA */
+    size_t size = func.write_binary(buffer);
+    size += string_to_binary(
+        (name.empty() ? get_name_of_unnamed_axiom() : name),
+        buffer + size);
+    assert(size < BUFFER_SIZE and size < ULONG_MAX);
+
+    /* INSERT AXIOM TO CDB.ID */
+    axiom_size_t _size(static_cast<axiom_size_t>(size));
+    m_fo_idx->write((char*)(&m_writing_pos), sizeof(axiom_pos_t));
+    m_fo_idx->write((char*)(&_size), sizeof(axiom_size_t));
+
+    m_fo_dat->write(buffer, size);
+
+    ++m_num_compiled_axioms;
+    m_writing_pos += size;
+}
+
+
+lf::axiom_t knowledge_base_t::axioms_database_t::get(axiom_id_t id) const
+{
+    std::lock_guard<std::mutex> lock(ms_mutex);
+    lf::axiom_t out;
+
+    if (not is_readable())
+    {
+        print_warning("kb-search: KB is currently not readable.");
+        return out;
+    }
+
+    axiom_pos_t pos;
+    axiom_size_t size;
+    const int SIZE(512 * 512);
+    char buffer[SIZE];
+
+    m_fi_idx->seekg(id * (sizeof(axiom_pos_t)+sizeof(axiom_size_t)));
+    m_fi_idx->read((char*)&pos, sizeof(axiom_pos_t));
+    m_fi_idx->read((char*)&size, sizeof(axiom_size_t));
+
+    m_fi_dat->seekg(pos);
+    m_fi_dat->read(buffer, size);
+
+    out.id = id;
+    size_t _size = out.func.read_binary(buffer);
+    _size += binary_to_string(buffer + _size, &out.name);
+
+    return out;
+}
+
+
+
+std::mutex knowledge_base_t::reachable_matrix_t::ms_mutex;
+
+
+knowledge_base_t::reachable_matrix_t::reachable_matrix_t(const std::string &filename)
+    : m_filename(filename), m_fout(NULL), m_fin(NULL)
+{}
+
+
+knowledge_base_t::reachable_matrix_t::~reachable_matrix_t()
+{
+    finalize();
+}
+
+
+void knowledge_base_t::reachable_matrix_t::prepare_compile()
 {
     if (is_readable())
         finalize();
@@ -905,7 +996,7 @@ void knowledge_base_t::global_reachable_matrix_t::prepare_compile()
 }
 
 
-void knowledge_base_t::global_reachable_matrix_t::prepare_query()
+void knowledge_base_t::reachable_matrix_t::prepare_query()
 {
     if (is_writable())
         finalize();
@@ -933,7 +1024,7 @@ void knowledge_base_t::global_reachable_matrix_t::prepare_query()
 }
 
 
-void knowledge_base_t::global_reachable_matrix_t::finalize()
+void knowledge_base_t::reachable_matrix_t::finalize()
 {
     if (m_fout != NULL)
     {
@@ -966,8 +1057,8 @@ void knowledge_base_t::global_reachable_matrix_t::finalize()
 }
 
 
-void knowledge_base_t::global_reachable_matrix_t::
-    put(size_t idx1, const hash_map<size_t, float> &dist)
+void knowledge_base_t::reachable_matrix_t::
+put(size_t idx1, const hash_map<size_t, float> &dist)
 {
     std::lock_guard<std::mutex> lock(ms_mutex);
     size_t num(0);
@@ -989,8 +1080,7 @@ void knowledge_base_t::global_reachable_matrix_t::
 }
 
 
-float knowledge_base_t::
-global_reachable_matrix_t::get(size_t idx1, size_t idx2) const
+float knowledge_base_t::reachable_matrix_t::get(size_t idx1, size_t idx2) const
 {
     if (idx1 > idx2) std::swap(idx1, idx2);
 
@@ -1015,7 +1105,7 @@ global_reachable_matrix_t::get(size_t idx1, size_t idx2) const
 }
 
 
-hash_set<float> knowledge_base_t::global_reachable_matrix_t::get(size_t idx) const
+hash_set<float> knowledge_base_t::reachable_matrix_t::get(size_t idx) const
 {
     std::lock_guard<std::mutex> lock(ms_mutex);
     size_t num;

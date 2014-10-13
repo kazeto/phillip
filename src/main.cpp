@@ -77,7 +77,5 @@ int main(int argc, char* argv[])
             for (auto sol = sols.begin(); sol != sols.end(); ++sol)
                 sol->print_graph();
         }
-
-        kb::knowledge_base_t::instance()->finalize();
     }
 }

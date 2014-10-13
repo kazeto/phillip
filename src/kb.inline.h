@@ -15,9 +15,9 @@ inline float knowledge_base_t::get_max_distance()
 }
 
 
-inline size_t knowledge_base_t::get_axiom_num() const
+inline lf::axiom_t knowledge_base_t::get_axiom(axiom_id_t id) const
 {
-    return m_num_compiled_axioms;
+    return m_axioms.get(id);
 }
 
 
@@ -56,7 +56,7 @@ inline version_e knowledge_base_t::version() const
 
 inline bool knowledge_base_t::is_valid_version() const
 {
-    return m_version == KB_VERSION_1;
+    return m_version == KB_VERSION_2;
 }
 
 
@@ -79,7 +79,19 @@ inline const size_t* knowledge_base_t::
 }
 
 
-inline std::string knowledge_base_t::_get_name_of_unnamed_axiom()
+inline bool knowledge_base_t::axioms_database_t::is_writable() const
+{
+    return (m_fo_idx != NULL) and (m_fo_dat != NULL);
+}
+
+
+inline bool knowledge_base_t::axioms_database_t::is_readable() const
+{
+    return (m_fi_idx != NULL) and (m_fi_dat != NULL);
+}
+
+
+inline std::string knowledge_base_t::axioms_database_t::get_name_of_unnamed_axiom()
 {
     char buf[128];
     _sprintf(buf, "_%#.8lx", m_num_unnamed_axioms++);
@@ -87,13 +99,13 @@ inline std::string knowledge_base_t::_get_name_of_unnamed_axiom()
 }
 
     
-inline bool knowledge_base_t::global_reachable_matrix_t::is_writable() const
+inline bool knowledge_base_t::reachable_matrix_t::is_writable() const
 {
     return (m_fout != NULL);
 }
 
 
-inline bool knowledge_base_t::global_reachable_matrix_t::is_readable() const
+inline bool knowledge_base_t::reachable_matrix_t::is_readable() const
 {
     return (m_fin != NULL);
 }
