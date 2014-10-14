@@ -113,7 +113,7 @@ knowledge_base_t::knowledge_base_t(
       m_cdb_axiom_group(filename + ".group.cdb"),
       m_cdb_uni_pp(filename + ".unipp.cdb"), 
       m_cdb_rm_idx(filename + ".rm.cdb"),
-      m_axioms(filename + "axioms"), m_rm(filename + ".rm.bin"),
+      m_axioms(filename), m_rm(filename + ".rm.dat"),
       m_rm_dist(new basic_distance_provider_t())
 {
     set_distance_provider(dist);
@@ -847,9 +847,9 @@ void knowledge_base_t::axioms_database_t::prepare_compile()
         std::lock_guard<std::mutex> lock(ms_mutex);
 
         m_fo_idx = new std::ofstream(
-            (m_filename + "idx.bin").c_str(), std::ios::binary | std::ios::out);
+            (m_filename + "index.dat").c_str(), std::ios::binary | std::ios::out);
         m_fo_dat = new std::ofstream(
-            (m_filename + "dat.bin").c_str(), std::ios::binary | std::ios::out);
+            (m_filename + "axioms.dat").c_str(), std::ios::binary | std::ios::out);
         m_num_compiled_axioms = 0;
         m_num_unnamed_axioms = 0;
         m_writing_pos = 0;
@@ -867,9 +867,9 @@ void knowledge_base_t::axioms_database_t::prepare_query()
         std::lock_guard<std::mutex> lock(ms_mutex);
 
         m_fi_idx = new std::ifstream(
-            (m_filename + "idx.bin").c_str(), std::ios::binary | std::ios::in);
+            (m_filename + "index.dat").c_str(), std::ios::binary | std::ios::in);
         m_fi_dat = new std::ifstream(
-            (m_filename + "dat.bin").c_str(), std::ios::binary | std::ios::in);
+            (m_filename + "axioms.dat").c_str(), std::ios::binary | std::ios::in);
 
         m_fi_idx->seekg(-static_cast<int>(sizeof(int)), std::ios_base::end);
         m_fi_idx->read((char*)&m_num_compiled_axioms, sizeof(int));
