@@ -90,8 +90,10 @@ public:
 
     static knowledge_base_t* instance();
     static void setup(
-        std::string filename, distance_provider_type_e dist_type, float max_distance,
-        bool do_compute_for_abduction = true, bool do_compute_for_deduction = true);
+        std::string filename, distance_provider_type_e dist_type,
+        float max_distance, int thread_num_for_rm,
+        bool do_compute_for_abduction = true,
+        bool do_compute_for_deduction = true);
     static inline float get_max_distance();
 
     ~knowledge_base_t();
@@ -217,9 +219,9 @@ private:
         hash_map<size_t, hash_map<size_t, float> > *out_rhs);
     void _create_reachable_matrix_indirect(
         size_t key,
-        hash_map<size_t, hash_map<size_t, float> > &base_lhs,
-        hash_map<size_t, hash_map<size_t, float> > &base_rhs,
-        hash_map<size_t, float> *out);
+        const hash_map<size_t, hash_map<size_t, float> > &base_lhs,
+        const hash_map<size_t, hash_map<size_t, float> > &base_rhs,
+        hash_map<size_t, float> *out) const;
 
     void extend_inconsistency();
     void _enumerate_deducible_literals(
@@ -245,7 +247,9 @@ private:
     static float ms_max_distance;
     static bool ms_do_compute_distance_for_abduction;
     static bool ms_do_compute_distance_for_deduction;
+    static int ms_thread_num_for_rm;
     static std::mutex ms_mutex_for_cache;
+    static std::mutex ms_mutex_for_rm;
 
     kb_state_e m_state;
     std::string m_filename;

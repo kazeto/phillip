@@ -72,8 +72,7 @@ inline const size_t* knowledge_base_t::
 {
     size_t size;
     const size_t *get1;
-    get1 = (const size_t*)
-        m_cdb_rm_idx.get(arity.c_str(), arity.size(), &size);
+    get1 = (const size_t*)m_cdb_rm_idx.get(arity.c_str(), arity.size(), &size);
 
     return get1;
 }

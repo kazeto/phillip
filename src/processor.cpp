@@ -16,7 +16,7 @@ namespace proc
         print_error( \
             format("Syntax error at line %d:", s.get_line_num()) \
             + e + "\n" + s.get_stack()->to_string()); \
-        throw; }
+        return; }
 
 
 void parse_obs_t::process( const sexp::reader_t *reader )
@@ -27,8 +27,7 @@ void parse_obs_t::process( const sexp::reader_t *reader )
         return;
 
     /* SHOULD BE ROOT. */
-    _assert_syntax(
-        reader->is_root(), (*reader), "Function O should be root." );
+    _assert_syntax(reader->is_root(), (*reader), "Function O should be root." );
 
     std::string name = "?";
     int i_x = stack.find_functor("^");
@@ -67,8 +66,7 @@ void compile_kb_t::process( const sexp::reader_t *reader )
         return;
 
     /* SHOULD BE ROOT. */
-    _assert_syntax(
-        reader->is_root(), (*reader), "Function B should be root." );
+    _assert_syntax(reader->is_root(), (*reader), "Function B should be root." );
         
     /* IDENTIFY THE LOGICAL FORM PART. */
     int idx_lf = stack->find_functor("=>");

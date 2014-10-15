@@ -4,6 +4,7 @@
 #include <cstring>
 #include <climits>
 #include <algorithm>
+#include <thread>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -74,7 +75,9 @@ distance_provider_type_e knowledge_base_t::ms_distance_provider_type = DISTANCE_
 float knowledge_base_t::ms_max_distance = -1.0f;
 bool knowledge_base_t::ms_do_compute_distance_for_abduction = true;
 bool knowledge_base_t::ms_do_compute_distance_for_deduction = true;
+int knowledge_base_t::ms_thread_num_for_rm = 1;
 std::mutex knowledge_base_t::ms_mutex_for_cache;
+std::mutex knowledge_base_t::ms_mutex_for_rm;
 
 
 knowledge_base_t* knowledge_base_t::instance()
@@ -86,7 +89,8 @@ knowledge_base_t* knowledge_base_t::instance()
 
 
 void knowledge_base_t::setup(
-    std::string filename, distance_provider_type_e dist_type, float max_distance,
+    std::string filename, distance_provider_type_e dist_type,
+    float max_distance, int thread_num_for_rm,
     bool do_compute_for_abduction, bool do_compute_for_deduction)
 {
     if (not ms_instance)
@@ -94,8 +98,11 @@ void knowledge_base_t::setup(
         ms_filename = filename;
         ms_distance_provider_type = dist_type;
         ms_max_distance = max_distance;
+        ms_thread_num_for_rm = thread_num_for_rm;
         ms_do_compute_distance_for_abduction = do_compute_for_abduction;
         ms_do_compute_distance_for_deduction = do_compute_for_deduction;
+
+        if (ms_thread_num_for_rm < 0) ms_thread_num_for_rm = 1;
     }
     else
         print_error("Failed to setup. The instance of KB has been created.");
@@ -174,7 +181,7 @@ void knowledge_base_t::prepare_query()
 
 void knowledge_base_t::finalize()
 {
-    if (m_state == NULL) return;
+    if (m_state == STATE_NULL) return;
 
     if (m_state == STATE_COMPILE)
     {
@@ -481,9 +488,6 @@ void knowledge_base_t::_insert_cdb(
     const hash_map<std::string, hash_set<axiom_id_t> > &ids,
     cdb_data_t *dat)
 {
-    const int SIZE( 512 * 512 );
-    char buffer[SIZE];
-
    std::cerr
         << time_stamp() << "starts writing " << dat->filename() << "..."
         << std::endl;
@@ -491,13 +495,15 @@ void knowledge_base_t::_insert_cdb(
     for( auto it=ids.begin(); it!=ids.end(); ++it )
     {
         size_t read_size = sizeof(size_t) + sizeof(axiom_id_t) * it->second.size();
-        assert(read_size < SIZE);
+        char *buffer = new char[read_size];
 
         int size = to_binary<size_t>(it->second.size(), buffer);
         for (auto id = it->second.begin(); id != it->second.end(); ++id)
             size += to_binary<axiom_id_t>(*id, buffer + size);
 
+        assert(read_size == size);
         dat->put(it->first.c_str(), it->first.length(), buffer, size);
+        delete [] buffer;
     }
 
     std::cerr
@@ -580,31 +586,56 @@ void knowledge_base_t::create_reachable_matrix()
     print_console_fmt("  num of axioms = %d", m_axioms.num_axioms());
     print_console_fmt("  num of arities = %d", N);
     print_console_fmt("  max distance = %.2f", get_max_distance());
-    print_console("  computing distance of direct edges...");
+    print_console_fmt("  num of parallel threads = %d", ms_thread_num_for_rm);
 
     hash_map<size_t, hash_map<size_t, float> > base_lhs, base_rhs;
+    print_console("  computing distance of direct edges...");
     _create_reachable_matrix_direct(m_arity_set, &base_lhs, &base_rhs);
 
     print_console("  writing reachable matrix...");
+    std::vector<std::thread> worker;
+    int num_thread =
+        std::min<int>(m_arity_set.size(),
+        std::min<int>(ms_thread_num_for_rm, std::thread::hardware_concurrency()));
+    auto _process = [this](
+        size_t idx,
+        const hash_map<size_t, hash_map<size_t, float> > &base_lhs,
+        const hash_map<size_t, hash_map<size_t, float> > &base_rhs)
+    {
+    };
+    
+    for (int th_id = 0; th_id < num_thread; ++th_id)
+    {
+        worker.emplace_back(
+            [&](int th_id)
+            {
+                for(int idx = th_id; idx < m_arity_set.size(); idx += num_thread)
+                {
+                    hash_map<size_t, float> dist;
+                    _create_reachable_matrix_indirect(idx, base_lhs, base_rhs, &dist);
+                    m_rm.put(idx, dist);
+
+                    ms_mutex_for_rm.lock();
+                    num_inserted += dist.size();
+                    ++processed;
+
+                    clock_t c = clock();
+                    if (c - clock_past > CLOCKS_PER_SEC)
+                    {
+                        float progress = (float)(processed)* 100.0f / (float)N;
+                        std::cerr << format(
+                            "processed %d tokens [%.4f%%]\r", processed, progress);
+                        std::cerr.flush();
+                        clock_past = c;
+                    }
+                    ms_mutex_for_rm.unlock();
+                }
+            }, th_id);
+    }
+    for (auto &t : worker) t.join();
+    
     for (size_t idx = 0; idx < m_arity_set.size(); ++idx)
     {
-        hash_map<size_t, float> dist;
-
-        _create_reachable_matrix_indirect(idx, base_lhs, base_rhs, &dist);
-        m_rm.put(idx, dist);
-
-        num_inserted += dist.size();
-        ++processed;
-
-        clock_t c = clock();
-        if (c - clock_past > CLOCKS_PER_SEC)
-        {
-            float progress = (float)(processed)* 100.0f / (float)N;
-            std::cerr << format(
-                "processed %d tokens [%.4f%%]\r", processed, progress);
-            std::cerr.flush();
-            clock_past = c;
-        }
     }
 
     time(&time_end);
@@ -625,14 +656,18 @@ void knowledge_base_t::_create_reachable_matrix_direct(
     auto _process = [&](bool is_forward)
     {
         hash_map<size_t, hash_map<size_t, float> > *out(is_forward ? out_lhs : out_rhs);
+        size_t num_processed(0);
+        
         for (auto ar = arities.begin(); ar != arities.end(); ++ar)
         {
-            size_t idx1 = *search_arity_index(*ar);
-            hash_map<size_t, float> *target = &(*out)[idx1];
+            const size_t *idx1 = search_arity_index(*ar);
+            assert(idx1 != NULL);
+            
+            hash_map<size_t, float> *target = &(*out)[*idx1];
             std::list<axiom_id_t> ids =
                 is_forward ? search_axioms_with_lhs(*ar) : search_axioms_with_rhs(*ar);
 
-            (*target)[idx1] = 0.0f;
+            (*target)[*idx1] = 0.0f;
 
             for (auto id = ids.begin(); id != ids.end(); ++id)
             {
@@ -645,13 +680,21 @@ void knowledge_base_t::_create_reachable_matrix_direct(
                 for (auto li = lits.begin(); li != lits.end(); ++li)
                 {
                     std::string arity2 = (*li)->get_predicate_arity();
-                    size_t idx2 = *search_arity_index(arity2);
-                    auto found = target->find(idx2);
-
-                    if (found == target->end())    (*target)[idx2] = dist;
-                    else if (dist < found->second) (*target)[idx2] = dist;
+                    const size_t *idx2 = search_arity_index(arity2);
+                    assert(idx2 != NULL);
+                    
+                    auto found = target->find(*idx2);
+                    if (found == target->end())    (*target)[*idx2] = dist;
+                    else if (dist < found->second) (*target)[*idx2] = dist;
                 }
             }
+
+            if (++num_processed % 10 == 0)
+            {
+                float progress = (float)(num_processed) * 100.0f / (float)arities.size();
+                std::cerr << format("processed %d predicates [%.4f%%]\r", num_processed, progress);
+            }
+                    
         }
     };
 
@@ -662,9 +705,9 @@ void knowledge_base_t::_create_reachable_matrix_direct(
 
 void knowledge_base_t::_create_reachable_matrix_indirect(
     size_t idx1,
-    hash_map<size_t, hash_map<size_t, float> > &base_lhs,
-    hash_map<size_t, hash_map<size_t, float> > &base_rhs,
-    hash_map<size_t, float> *out)
+    const hash_map<size_t, hash_map<size_t, float> > &base_lhs,
+    const hash_map<size_t, hash_map<size_t, float> > &base_rhs,
+    hash_map<size_t, float> *out) const
 {
     std::map<std::tuple<size_t, bool, bool>, float> current;
     std::map<std::tuple<size_t, bool, bool>, float> processed;
@@ -847,9 +890,9 @@ void knowledge_base_t::axioms_database_t::prepare_compile()
         std::lock_guard<std::mutex> lock(ms_mutex);
 
         m_fo_idx = new std::ofstream(
-            (m_filename + "index.dat").c_str(), std::ios::binary | std::ios::out);
+            (m_filename + ".index.dat").c_str(), std::ios::binary | std::ios::out);
         m_fo_dat = new std::ofstream(
-            (m_filename + "axioms.dat").c_str(), std::ios::binary | std::ios::out);
+            (m_filename + ".axioms.dat").c_str(), std::ios::binary | std::ios::out);
         m_num_compiled_axioms = 0;
         m_num_unnamed_axioms = 0;
         m_writing_pos = 0;
@@ -867,9 +910,9 @@ void knowledge_base_t::axioms_database_t::prepare_query()
         std::lock_guard<std::mutex> lock(ms_mutex);
 
         m_fi_idx = new std::ifstream(
-            (m_filename + "index.dat").c_str(), std::ios::binary | std::ios::in);
+            (m_filename + ".index.dat").c_str(), std::ios::binary | std::ios::in);
         m_fi_dat = new std::ifstream(
-            (m_filename + "axioms.dat").c_str(), std::ios::binary | std::ios::in);
+            (m_filename + ".axioms.dat").c_str(), std::ios::binary | std::ios::in);
 
         m_fi_idx->seekg(-static_cast<int>(sizeof(int)), std::ios_base::end);
         m_fi_idx->read((char*)&m_num_compiled_axioms, sizeof(int));

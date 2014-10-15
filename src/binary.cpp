@@ -375,6 +375,7 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
 
     kb::distance_provider_type_e dist_type(kb::DISTANCE_PROVIDER_BASIC);
     float max_dist = phillip->param_float("kb_max_distance", -1.0);
+    int thread_num = phillip->param_int("kb_thread_num", 1);
     bool do_compute_dist_for_abduction(true);
     bool do_compute_dist_for_deduction(true);
 
@@ -405,7 +406,7 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
     ilp_solver_t *sol = _new_ilp_solver(phillip, config.sol_key);
 
     kb::knowledge_base_t::setup(
-        config.kb_name, dist_type, max_dist,
+        config.kb_name, dist_type, max_dist, thread_num,
         do_compute_dist_for_abduction, do_compute_dist_for_deduction);
 
     switch (config.mode)
