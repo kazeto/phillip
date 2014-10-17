@@ -56,6 +56,16 @@ logical_function_t::logical_function_t(const sexp::stack_t &s)
                 m_branches.push_back(logical_function_t(child));
         }
     }
+    else if (s.is_functor("unipp"))
+    {
+        m_operator = OPR_UNI_PP;
+        for (int i = 1; i < s.children.size(); i++)
+        {
+            const sexp::stack_t &child = *(s.children[i]);
+            if (not child.is_parameter())
+                m_branches.push_back(logical_function_t(child));
+        }
+    }
     else
     {
         // ASSUMING s IS LITERAL
@@ -163,9 +173,10 @@ bool logical_function_t::is_valid_as_unification_postponement() const
         else
         {
             const literal_t &l = br.literal();
+            term_t t1("."), t2("+"), t3("*");
             for (auto it = l.terms.begin(); it != l.terms.end(); ++it)
-            if (*it != "." and *it != "+" and *it != "*")
-                return false;
+                if ((*it) != t1 and (*it) != t2 and (*it) != t3)
+                    return false;
         }
     }
 

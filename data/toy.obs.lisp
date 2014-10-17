@@ -1,2 +1,3 @@
-(O (name toy) (^ (john x :10.0) (tom y :10.0) (die y :10.0)
-		 (have x g :10.0) (gun g :10.0) (cough x :10.0)))
+(O (name toy) (^ (die-vb e1) (nsubj d1 e1 Tom)
+		 (have-vb e2) (nsubj d2 e2 John) (gun Gun) (dobj d3 e2 Gun)
+		 (cough e3) (nsubj d4 e3 John)))

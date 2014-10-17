@@ -1176,7 +1176,6 @@ hypernode_idx_t proof_graph_t::chain(
 
     /* ADD CONDITIONS FOR CHAIN */
     {
-
         if (not conds.empty())
         {
             std::list< std::pair<term_t, term_t> > *cond_sub =

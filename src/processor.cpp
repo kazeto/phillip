@@ -106,7 +106,7 @@ void compile_kb_t::process( const sexp::reader_t *reader )
         {
             lf::logical_function_t func(*stack->children[idx_pp]);
             _assert_syntax(
-                (stack->children.at(idx_inc)->children.size() >= 2), (*reader),
+                (stack->children.at(idx_pp)->children.size() >= 2), (*reader),
                 "function 'unipp' takes one argument.");
             IF_VERBOSE_FULL("Added unification-postponement: " + stack->to_string());
             _kb->insert_unification_postponement(func, name);

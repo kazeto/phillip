@@ -21,7 +21,8 @@ enum logical_operator_t
     OPR_OR,             /// Or (as "v")
     OPR_IMPLICATION,    /// Implication (as "=>")
     OPR_INCONSISTENT,   /// Inconsistent (as "xor")
-    OPR_REQUIREMENT     /// Requirement (as "require")
+    OPR_REQUIREMENT,    /// Requirement (as "require")
+    OPR_UNI_PP          /// Unification-Postponement (as "unipp")
 };
 
 
