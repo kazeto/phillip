@@ -428,7 +428,7 @@ unification_postponement_t knowledge_base_t::get_unification_postponement(const 
     {
         const term_t INDISPENSABLE("*"), PARTIAL("+"), DISPENSABLE(".");
         lf::axiom_t ax = get_axiom(ids.front());
-        const literal_t &lit = ax.func.literal();
+        const literal_t &lit = ax.func.branch(0).literal();
         std::string arity = lit.get_predicate_arity();
         std::vector<char> args(lit.terms.size(), 0);
 
