@@ -224,14 +224,22 @@ const std::vector<std::string> &arities, pg::node_idx_t target) const
 {
     std::vector< std::vector<pg::node_idx_t> > candidates;
     std::list< std::vector<pg::node_idx_t> > out;
-    bool do_ignore_target = (target < 0);
 
-    for (auto it = arities.begin(); it != arities.end(); ++it)
+    for (auto it_arity = arities.begin(); it_arity != arities.end(); ++it_arity)
     {
-        const hash_set<pg::node_idx_t> *_idx = graph->search_nodes_with_arity(*it);
-        if (_idx == NULL) return out;
-        candidates.push_back(
-            std::vector<pg::node_idx_t>(_idx->begin(), _idx->end()));
+        const hash_set<pg::node_idx_t> *_indices =
+            graph->search_nodes_with_arity(*it_arity);
+        if (_indices == NULL) return out;
+
+        candidates.push_back(std::vector<pg::node_idx_t>());
+        for (auto it_idx = _indices->begin(); it_idx != _indices->end(); ++it_idx)
+        {
+            if (*it_idx != target and
+                (m_max_depth < 0 or graph->node(*it_idx).depth() < m_max_depth))
+                candidates.back().push_back(*it_idx);
+        }
+        if (candidates.back().empty())
+            return out;
     }
 
     std::vector<int> indices(arities.size(), 0);
@@ -240,17 +248,14 @@ const std::vector<std::string> &arities, pg::node_idx_t target) const
     while (not do_end_loop)
     {
         std::vector<pg::node_idx_t> _new;
-        bool is_valid(false);
 
         for (int i = 0; i < candidates.size(); ++i)
         {
             pg::node_idx_t idx = candidates.at(i).at(indices[i]);
             _new.push_back(idx);
-            if (do_ignore_target or idx == target)
-                is_valid = true;
         }
 
-        if (is_valid) out.push_back(_new);
+        out.push_back(_new);
 
         // INCREMENT
         ++indices[0];

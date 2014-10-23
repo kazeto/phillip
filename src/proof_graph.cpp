@@ -1551,15 +1551,17 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
     for (auto it = unifiables.begin(); it != unifiables.end(); ++it)
     {
         if (not pp.empty())
-        if (pp.do_postpone(this, target, *it))
         {
-            node_idx_t n1(target), n2(*it);
-            if (n1 > n2) std::swap(n1, n2);
-            m_logs.postponed_unifications[n1].insert(n2);
+            if (pp.do_postpone(this, target, *it))
+            {
+                node_idx_t n1(target), n2(*it);
+                if (n1 > n2) std::swap(n1, n2);
+                m_logs.postponed_unifications[n1].insert(n2);
 
-            IF_VERBOSE_FULL(
-                format("Postponed unification: node[%d] - node[%d]", n1, n2));
-            continue;
+                IF_VERBOSE_FULL(
+                    format("Postponed unification: node[%d] - node[%d]", n1, n2));
+                continue;
+            }
         }
 
         _chain_for_unification(target, *it);

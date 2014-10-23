@@ -208,6 +208,7 @@ void logical_function_t::get_all_literals_sub(
     case OPR_OR:
     case OPR_AND:
     case OPR_REQUIREMENT:
+    case OPR_UNI_PP:
         for( int i=0; i<m_branches.size(); i++ )
             m_branches[i].get_all_literals_sub( p_out_list );
         break;
@@ -235,6 +236,9 @@ size_t logical_function_t::write_binary( char *bin ) const
     case OPR_INCONSISTENT:
         n += m_branches.at(0).write_binary( bin+n );
         n += m_branches.at(1).write_binary( bin+n );
+        break;
+    case OPR_UNI_PP:
+        n += m_branches.at(0).write_binary( bin+n );
         break;
     }
 
@@ -270,6 +274,9 @@ size_t logical_function_t::read_binary( const char *bin )
         n += m_branches[0].read_binary( bin+n );
         n += m_branches[1].read_binary( bin+n );
         break;
+    case OPR_UNI_PP:
+        m_branches.assign(1, logical_function_t());
+        n += m_branches[0].read_binary(bin + n);
     }
 
     n += binary_to_string( bin+n, &m_param );
@@ -293,7 +300,7 @@ void logical_function_t::print(
         break;
     case OPR_INCONSISTENT:
         m_branches[0].print( p_out_str, f_colored );
-        (*p_out_str) += " _|_ ";
+        (*p_out_str) += " xor ";
         m_branches[1].print( p_out_str, f_colored );
         break;
     case OPR_OR:
@@ -312,6 +319,11 @@ void logical_function_t::print(
             it->print( p_out_str, f_colored );
             if( not is_literal ) (*p_out_str) += ")";
         }
+        break;
+    case OPR_UNI_PP:
+        (*p_out_str) += "(uni-pp ";
+        m_branches[0].print(p_out_str, f_colored);
+        (*p_out_str) += ")";
         break;
     }
 }

@@ -307,16 +307,22 @@ void knowledge_base_t::insert_implication(
 
         for (auto it = rhs.begin(); it != rhs.end(); ++it)
         {
-            std::string arity((*it)->get_predicate_arity());
-            m_rhs_to_axioms[arity].insert(id);
-            insert_arity(arity);
+            if (not (*it)->is_equality())
+            {
+                std::string arity((*it)->get_predicate_arity());
+                m_rhs_to_axioms[arity].insert(id);
+                insert_arity(arity);
+            }
         }
 
         for (auto it = lhs.begin(); it != lhs.end(); ++it)
         {
-            std::string arity = (*it)->get_predicate_arity();
-            m_lhs_to_axioms[arity].insert(id);
-            insert_arity(arity);
+            if (not (*it)->is_equality())
+            {
+                std::string arity = (*it)->get_predicate_arity();
+                m_lhs_to_axioms[arity].insert(id);
+                insert_arity(arity);
+            }
         }
     }
 }
@@ -450,7 +456,9 @@ unification_postponement_t knowledge_base_t::get_unification_postponement(const 
         return unification_postponement_t(arity, args, num);
     }
     else
+    {
         return unification_postponement_t();
+    }
 }
 
 
@@ -681,11 +689,13 @@ void knowledge_base_t::_create_reachable_matrix_direct(
                 {
                     std::string arity2 = (*li)->get_predicate_arity();
                     const size_t *idx2 = search_arity_index(arity2);
-                    assert(idx2 != NULL);
                     
-                    auto found = target->find(*idx2);
-                    if (found == target->end())    (*target)[*idx2] = dist;
-                    else if (dist < found->second) (*target)[*idx2] = dist;
+                    if (idx2 != NULL)
+                    {
+                        auto found = target->find(*idx2);
+                        if (found == target->end())    (*target)[*idx2] = dist;
+                        else if (dist < found->second) (*target)[*idx2] = dist;
+                    }
                 }
             }
 
