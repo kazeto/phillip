@@ -111,13 +111,15 @@ public:
     /** Inserts new axiom into knowledge base as compiled axiom.
      *  This method can be called only in compile-mode. */
     void insert_implication(
-        const lf::logical_function_t &lf, std::string name);
+        const lf::logical_function_t &lf, const std::string &name);
     
     /** Inserts new inconsistency into knowledge base as compiled axiom.
      *  This method can be called only in compile-mode. */
-    void insert_inconsistency(const lf::logical_function_t &lf, std::string name);
+    void insert_inconsistency(const lf::logical_function_t &lf, const std::string &name);
 
-    void insert_unification_postponement(const lf::logical_function_t &lf, std::string name);
+    void insert_unification_postponement(const lf::logical_function_t &lf, const std::string &name);
+
+    void insert_stop_word_arity(const std::string &arity);
 
     inline lf::axiom_t get_axiom(axiom_id_t id) const;
     inline std::list<axiom_id_t> search_axioms_with_rhs(const std::string &arity) const;
@@ -264,8 +266,12 @@ private:
     hash_map<size_t, hash_map<size_t, float> > m_partial_reachable_matrix;
 
     /** All arities in this knowledge-base.
-     *  This variable is used on constructing reachable-matrix. */
+     *  This variable is used on constructing a reachable-matrix. */
     hash_set<std::string> m_arity_set;
+
+    /** A set of arities of stop-words.
+     *  These arities are ignored in constructing a reachable-matrix. */
+    hash_set<std::string> m_stop_words;
 
     hash_map<std::string, hash_set<axiom_id_t> >
         m_name_to_axioms, m_lhs_to_axioms, m_rhs_to_axioms,
@@ -283,11 +289,8 @@ private:
 class basic_distance_provider_t : public distance_provider_t
 {
 public:
-    virtual float operator() (const lf::axiom_t&) const
-    { return 1.0f; }
-
-    virtual distance_provider_type_e type() const
-    { return DISTANCE_PROVIDER_BASIC; }
+    virtual float operator() (const lf::axiom_t&) const { return 1.0f; }
+    virtual distance_provider_type_e type() const { return DISTANCE_PROVIDER_BASIC; }
 };
 
 
@@ -295,8 +298,7 @@ class cost_based_distance_provider_t : public distance_provider_t
 {
 public:
     virtual float operator()(const lf::axiom_t&) const;
-    virtual distance_provider_type_e type() const
-    { return DISTANCE_PROVIDER_COST_BASED; }
+    virtual distance_provider_type_e type() const { return DISTANCE_PROVIDER_COST_BASED; }
 };
 
 

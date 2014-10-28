@@ -89,7 +89,7 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
 
         from_set.insert(r_target.node_from);
         enumerate_chain_candidates(graph, r_target.node_from, &cands);
-
+        
         for (auto cand = cands.begin(); cand != cands.end(); ++cand)
         {
             // CHECK TIME-OUT
@@ -224,17 +224,20 @@ const std::vector<std::string> &arities, pg::node_idx_t target) const
 {
     std::vector< std::vector<pg::node_idx_t> > candidates;
     std::list< std::vector<pg::node_idx_t> > out;
-
+    std::string arity_target = graph->node(target).arity();
+    
     for (auto it_arity = arities.begin(); it_arity != arities.end(); ++it_arity)
     {
+        bool is_target_arity = (*it_arity == arity_target);
         const hash_set<pg::node_idx_t> *_indices =
             graph->search_nodes_with_arity(*it_arity);
-        if (_indices == NULL) return out;
+        if (_indices == NULL)
+            return out;
 
         candidates.push_back(std::vector<pg::node_idx_t>());
         for (auto it_idx = _indices->begin(); it_idx != _indices->end(); ++it_idx)
         {
-            if (*it_idx != target and
+            if ((not is_target_arity or *it_idx == target) and
                 (m_max_depth < 0 or graph->node(*it_idx).depth() < m_max_depth))
                 candidates.back().push_back(*it_idx);
         }

@@ -1143,8 +1143,9 @@ hypernode_idx_t proof_graph_t::chain(
     // KEY: TERM IN AXIOM, VALUE: TERMS IN PROOF-GRAPH
     hash_map<term_t, hash_set<term_t> > conds;
 
-    _get_substitutions_for_chain(
-        from, axiom, is_backward, &literals_to, &subs, &conds);
+    if (not _get_substitutions_for_chain(
+            from, axiom, is_backward, &literals_to, &subs, &conds))
+        return -1;
 
     /* CHECK VARIDITY OF CHAINING ABOUT MUTUAL-EXCLUSIVENESS */
     std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > muexs;
@@ -1224,7 +1225,7 @@ hypernode_idx_t proof_graph_t::chain(
 }
 
 
-void proof_graph_t::_get_substitutions_for_chain(
+bool proof_graph_t::_get_substitutions_for_chain(
     const std::vector<node_idx_t> &from,
     const lf::axiom_t &axiom, bool is_backward,
     std::vector<literal_t> *lits, hash_map<term_t, term_t> *subs,
@@ -1269,9 +1270,20 @@ void proof_graph_t::_get_substitutions_for_chain(
                 if (sub.empty())
                     sub = (s_hy + "/" + suf);
 
-                _get_substitutions_for_chain_sub(
-                    term_t(s_ax.substr(0, idx1)), term_t(sub), subs, conds);
+                term_t _t(s_ax.substr(0, idx1));
+                _get_substitutions_for_chain_sub(_t, term_t(sub), subs, conds);
             }
+        }
+    }
+
+    /* CHECK VALIDITY OF CONDITIONS */
+    for (auto it1 = conds->begin(); it1 != conds->end(); ++it1)
+    {
+        for (auto it2 = it1->second.begin(); it2 != it1->second.end(); ++it2)
+        {
+            const term_t &t1(it1->first), &t2(*it2);
+            if (t1.is_constant() and t2.is_constant() and t1 != t2)
+                return false;
         }
     }
 
@@ -1286,6 +1298,8 @@ void proof_graph_t::_get_substitutions_for_chain(
             term = _substitute_term_for_chain(term, subs);
         }
     }
+
+    return true;
 }
 
 
@@ -1802,14 +1816,11 @@ void proof_graph_t::_enumerate_hypernodes_disregarded_sub(hypernode_idx_t idx)
 }
 
 
-/** Return whether p1 and p2 can be unified or not.
- *  This method is from getMGU(-) in henry-n700.
- *  @param[out] out The unifier for unification of p1 and p2. */
 bool proof_graph_t::check_unifiability(
     const literal_t &p1, const literal_t &p2, bool do_ignore_truthment,
     unifier_t *out )
 {
-    out->clear();
+    if (out != NULL) out->clear();
 
     if (not do_ignore_truthment and p1.truth != p2.truth) return false;
     if (p1.predicate != p2.predicate) return false;
@@ -1821,7 +1832,7 @@ bool proof_graph_t::check_unifiability(
         {
             if (p1.terms[i].is_constant() and p2.terms[i].is_constant())
                 return false;
-            else
+            else if (out != NULL)
                 out->add(p1.terms[i], p2.terms[i]);
         }
     }

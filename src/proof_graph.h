@@ -436,13 +436,13 @@ protected:
         hash_set<term_t> m_variables;
     };
 
-    /** Get whether it is possible to unify literals p1 and p2.
+    /** Get whether it is possible to unify literals p1 and p2.     
      *  @param[in]  p1,p2 Target literals of unification.
      *  @param[out] out   The unifier of p1 and p2.
      *  @return Possibility to unify literals p1 & p2. */
     static bool check_unifiability(
         const literal_t &p1, const literal_t &p2,
-        bool do_ignore_truthment, unifier_t *out);
+        bool do_ignore_truthment, unifier_t *out = NULL);
 
     /** Return hash of node indices' list. */
     static size_t get_hash_of_nodes(std::list<node_idx_t> nodes);
@@ -473,8 +473,9 @@ protected:
     /** This is a sub-routine of chain.
      *  @param lits  Literals whom nodes hypothesized by this chain have.
      *  @param sub   Map from terms in axiom to terms in proof-graph.
-     *  @param conds Conditions for this chaining. */
-    void _get_substitutions_for_chain(
+     *  @param conds Terms pair which must be unified for this chain.
+     *  @return If this chaining is invalid, returns false. */
+    bool _get_substitutions_for_chain(
         const std::vector<node_idx_t> &from,
         const lf::axiom_t &axiom, bool is_backward,
         std::vector<literal_t> *lits, hash_map<term_t, term_t> *sub,

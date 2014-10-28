@@ -11,3 +11,4 @@
 
 (B (unipp (nsubj . * .)))
 (B (unipp (dobj . * .)))
+(B (ignore nsubj/3 dobj/3))

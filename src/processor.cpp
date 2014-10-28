@@ -72,17 +72,18 @@ void compile_kb_t::process( const sexp::reader_t *reader )
     int idx_lf = stack->find_functor("=>");
     int idx_inc = stack->find_functor("xor");
     int idx_pp = stack->find_functor("unipp");
+    int idx_sw = stack->find_functor("ignore");
     int idx_name = stack->find_functor("name");
         
     _assert_syntax(
-        (idx_lf >= 0 or idx_inc >= 0 or idx_pp >= 0), (*reader),
+        (idx_lf >= 0 or idx_inc >= 0 or idx_pp >= 0 or idx_sw >= 0), (*reader),
         "no logical connectors found." );
 
     std::string name;
     if (idx_name >= 0)
         name = stack->children.at(idx_name)->children.at(1)->get_string();
         
-    if (idx_lf >= 0 or idx_inc >= 0 or idx_pp >= 0)
+    if (idx_lf >= 0 or idx_inc >= 0 or idx_pp >= 0 or idx_sw >= 0)
     {
         if (idx_lf >= 0)
         {
@@ -110,6 +111,16 @@ void compile_kb_t::process( const sexp::reader_t *reader )
                 "function 'unipp' takes one argument.");
             IF_VERBOSE_FULL("Added unification-postponement: " + stack->to_string());
             _kb->insert_unification_postponement(func, name);
+        }
+        else if (idx_sw >= 0)
+        {
+            lf::logical_function_t func(*stack->children[idx_sw]);
+            const std::vector<term_t> &terms = func.literal().terms;
+            for (auto it = terms.begin(); it != terms.end(); ++it)
+            {
+                _kb->insert_stop_word_arity(it->string());
+                IF_VERBOSE_FULL("Added a stop-word: " + it->string());
+            }
         }
     }
 }

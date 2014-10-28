@@ -279,7 +279,7 @@ void knowledge_base_t::read_config(const char *filename)
 
 
 void knowledge_base_t::insert_implication(
-    const lf::logical_function_t &lf, std::string name)
+    const lf::logical_function_t &lf, const std::string &name)
 {
     if (m_state == STATE_COMPILE)
     {
@@ -329,7 +329,7 @@ void knowledge_base_t::insert_implication(
 
 
 void knowledge_base_t::insert_inconsistency(
-    const lf::logical_function_t &func, std::string name)
+    const lf::logical_function_t &func, const std::string &name)
 {
     if (m_state == STATE_COMPILE)
     {
@@ -357,7 +357,7 @@ void knowledge_base_t::insert_inconsistency(
 
 
 void knowledge_base_t::insert_unification_postponement(
-    const lf::logical_function_t &func, std::string name)
+    const lf::logical_function_t &func, const std::string &name)
 {
     if (m_state == STATE_COMPILE)
     {
@@ -385,6 +385,12 @@ void knowledge_base_t::insert_unification_postponement(
                 m_arity_to_postponement[arity].insert(id);
         }
     }
+}
+
+
+void knowledge_base_t::insert_stop_word_arity(const std::string &arity)
+{
+    m_stop_words.insert(arity);
 }
 
 
@@ -661,37 +667,49 @@ void knowledge_base_t::_create_reachable_matrix_direct(
     hash_map<size_t, hash_map<size_t, float> > *out_lhs,
     hash_map<size_t, hash_map<size_t, float> > *out_rhs)
 {
+    hash_set<size_t> stopped;
+    for (auto it = m_stop_words.begin(); it != m_stop_words.end(); ++it)
+    {
+        const size_t *idx = search_arity_index(*it);
+        if (idx != NULL) stopped.insert(*idx);
+    }
+    
     auto _process = [&](bool is_forward)
     {
         hash_map<size_t, hash_map<size_t, float> > *out(is_forward ? out_lhs : out_rhs);
         size_t num_processed(0);
         
         for (auto ar = arities.begin(); ar != arities.end(); ++ar)
-        {
+        {            
             const size_t *idx1 = search_arity_index(*ar);
             assert(idx1 != NULL);
             
             hash_map<size_t, float> *target = &(*out)[*idx1];
-            std::list<axiom_id_t> ids =
-                is_forward ? search_axioms_with_lhs(*ar) : search_axioms_with_rhs(*ar);
-
             (*target)[*idx1] = 0.0f;
 
-            for (auto id = ids.begin(); id != ids.end(); ++id)
+            if (stopped.count(*idx1) == 0)
             {
-                lf::axiom_t axiom = get_axiom(*id);
-                std::vector<const literal_t*>
-                    lits = axiom.func.branch(is_forward ? 1 : 0).get_all_literals();
-                float dist = (*m_rm_dist)(axiom);
+                std::list<axiom_id_t> ids = is_forward ?
+                    search_axioms_with_lhs(*ar) :
+                    search_axioms_with_rhs(*ar);
 
-                if (dist >= 0.0f)
-                for (auto li = lits.begin(); li != lits.end(); ++li)
+                for (auto id = ids.begin(); id != ids.end(); ++id)
                 {
-                    std::string arity2 = (*li)->get_predicate_arity();
-                    const size_t *idx2 = search_arity_index(arity2);
+                    lf::axiom_t axiom = get_axiom(*id);
+                    std::vector<const literal_t*>
+                        lits = axiom.func.branch(is_forward ? 1 : 0).get_all_literals();
+                    float dist = (*m_rm_dist)(axiom);
                     
-                    if (idx2 != NULL)
+                    if (dist < 0.0f) continue;
+
+                    for (auto li = lits.begin(); li != lits.end(); ++li)
                     {
+                        std::string arity2 = (*li)->get_predicate_arity();
+                        const size_t *idx2 = search_arity_index(arity2);
+                    
+                        if (idx2 == NULL) continue;
+                        if (stopped.count(*idx2) != 0) continue;
+
                         auto found = target->find(*idx2);
                         if (found == target->end())    (*target)[*idx2] = dist;
                         else if (dist < found->second) (*target)[*idx2] = dist;
