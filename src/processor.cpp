@@ -73,55 +73,69 @@ void compile_kb_t::process( const sexp::reader_t *reader )
     int idx_inc = stack->find_functor("xor");
     int idx_pp = stack->find_functor("unipp");
     int idx_sw = stack->find_functor("ignore");
+    int idx_as = stack->find_functor("argset");
     int idx_name = stack->find_functor("name");
         
     _assert_syntax(
-        (idx_lf >= 0 or idx_inc >= 0 or idx_pp >= 0 or idx_sw >= 0), (*reader),
-        "no logical connectors found." );
+        (idx_lf >= 0 or idx_inc >= 0 or idx_pp >= 0 or idx_sw >= 0 or idx_as >= 0),
+        (*reader), "no logical connectors found." );
 
     std::string name;
     if (idx_name >= 0)
         name = stack->children.at(idx_name)->children.at(1)->get_string();
-        
-    if (idx_lf >= 0 or idx_inc >= 0 or idx_pp >= 0 or idx_sw >= 0)
+
+    if (idx_lf >= 0)
     {
-        if (idx_lf >= 0)
+        lf::logical_function_t func(*stack->children[idx_lf]);
+        _assert_syntax(
+            (stack->children.at(idx_lf)->children.size() >= 3), (*reader),
+            "function '=>' takes two arguments.");
+        IF_VERBOSE_FULL("Added implication: " + stack->to_string());
+        _kb->insert_implication(func, name);
+    }
+    else if (idx_inc >= 0)
+    {
+        lf::logical_function_t func(*stack->children[idx_inc]);
+        _assert_syntax(
+            (stack->children.at(idx_inc)->children.size() >= 3), (*reader),
+            "function 'xor' takes two arguments.");
+        IF_VERBOSE_FULL("Added inconsistency: " + stack->to_string());
+        _kb->insert_inconsistency(func, name);
+    }
+    else if (idx_pp >= 0)
+    {
+        lf::logical_function_t func(*stack->children[idx_pp]);
+        _assert_syntax(
+            (stack->children.at(idx_pp)->children.size() >= 2), (*reader),
+            "function 'unipp' takes one argument.");
+        IF_VERBOSE_FULL("Added unification-postponement: " + stack->to_string());
+        _kb->insert_unification_postponement(func, name);
+    }
+    else if (idx_sw >= 0)
+    {
+        lf::logical_function_t func(*stack->children[idx_sw]);
+        if (phillip_main_t::verbose() == FULL_VERBOSE)
         {
-            lf::logical_function_t func(*stack->children[idx_lf]);
-            _assert_syntax(
-                (stack->children.at(idx_lf)->children.size() >= 3), (*reader),
-                "function '=>' takes two arguments.");
-            IF_VERBOSE_FULL("Added implication: " + stack->to_string());
-            _kb->insert_implication(func, name);
-        }
-        else if (idx_inc >= 0)
-        {
-            lf::logical_function_t func(*stack->children[idx_inc]);
-            _assert_syntax(
-                (stack->children.at(idx_inc)->children.size() >= 3), (*reader),
-                "function 'xor' takes two arguments.");
-            IF_VERBOSE_FULL("Added inconsistency: " + stack->to_string());
-            _kb->insert_inconsistency(func, name);
-        }
-        else if (idx_pp >= 0)
-        {
-            lf::logical_function_t func(*stack->children[idx_pp]);
-            _assert_syntax(
-                (stack->children.at(idx_pp)->children.size() >= 2), (*reader),
-                "function 'unipp' takes one argument.");
-            IF_VERBOSE_FULL("Added unification-postponement: " + stack->to_string());
-            _kb->insert_unification_postponement(func, name);
-        }
-        else if (idx_sw >= 0)
-        {
-            lf::logical_function_t func(*stack->children[idx_sw]);
             const std::vector<term_t> &terms = func.literal().terms;
+            std::string disp;
             for (auto it = terms.begin(); it != terms.end(); ++it)
-            {
-                _kb->insert_stop_word_arity(it->string());
-                IF_VERBOSE_FULL("Added a stop-word: " + it->string());
-            }
+                disp += (it != terms.begin() ? ", " : "") + it->string();
+            print_console("Added stop-words: {" + disp + "}");
         }
+        _kb->insert_stop_word_arity(func);
+    }
+    else if (idx_as >= 0)
+    {
+        lf::logical_function_t func(*stack->children[idx_as]);
+        if (phillip_main_t::verbose() == FULL_VERBOSE)
+        {
+            const std::vector<term_t> &terms = func.literal().terms;
+            std::string disp;
+            for (auto it = terms.begin(); it != terms.end(); ++it)
+                disp += (it != terms.begin() ? ", " : "") + it->string();
+            print_console("Added argument-set: {" + disp + "}");
+        }
+        _kb->insert_argument_set(func);
     }
 }
 

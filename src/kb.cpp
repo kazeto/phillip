@@ -54,13 +54,13 @@ bool unification_postponement_t::do_postpone(
 
         if (arg == UNI_PP_DISPENSABLE) continue;
         
-        bool flag_unify(l1.terms.at(i) == l2.terms.at(i));
-        if (flag_unify)
-            flag_unify = (graph->find_sub_node(l1.terms.at(i), l2.terms.at(i)) >= 0);
+        bool can_equal(l1.terms.at(i) == l2.terms.at(i));
+        if (not can_equal)
+            can_equal = (graph->find_sub_node(l1.terms.at(i), l2.terms.at(i)) >= 0);
 
-        if (arg == UNI_PP_INDISPENSABLE and not flag_unify)
+        if (arg == UNI_PP_INDISPENSABLE and not can_equal)
             return true;
-        if (arg == UNI_PP_INDISPENSABLE_PARTIALLY and flag_unify)
+        if (arg == UNI_PP_INDISPENSABLE_PARTIALLY and can_equal)
             ++num;
     }
 
@@ -118,7 +118,8 @@ knowledge_base_t::knowledge_base_t(
       m_cdb_lhs(filename + ".lhs.cdb"),
       m_cdb_inc_pred(filename + ".inc.pred.cdb"),
       m_cdb_axiom_group(filename + ".group.cdb"),
-      m_cdb_uni_pp(filename + ".unipp.cdb"), 
+      m_cdb_uni_pp(filename + ".unipp.cdb"),
+      m_cdb_arg_set(filename + ".args.cdb"),
       m_cdb_rm_idx(filename + ".rm.cdb"),
       m_axioms(filename), m_rm(filename + ".rm.dat"),
       m_rm_dist(new basic_distance_provider_t())
@@ -148,6 +149,7 @@ void knowledge_base_t::prepare_compile()
         m_cdb_inc_pred.prepare_compile();
         m_cdb_uni_pp.prepare_compile();
         m_cdb_axiom_group.prepare_compile();
+        m_cdb_arg_set.prepare_compile();
         m_cdb_rm_idx.prepare_compile();
 
         m_state = STATE_COMPILE;
@@ -171,6 +173,7 @@ void knowledge_base_t::prepare_query()
         m_cdb_inc_pred.prepare_query();
         m_cdb_uni_pp.prepare_query();
         m_cdb_axiom_group.prepare_query();
+        m_cdb_arg_set.prepare_query();
         m_cdb_rm_idx.prepare_query();
         m_rm.prepare_query();
 
@@ -193,6 +196,7 @@ void knowledge_base_t::finalize()
         _insert_cdb(m_inc_to_axioms, &m_cdb_inc_pred);
         _insert_cdb(m_arity_to_postponement, &m_cdb_uni_pp);
         insert_axiom_group_to_cdb();
+        insert_argument_set_to_cdb();
 
         m_name_to_axioms.clear();
         m_rhs_to_axioms.clear();
@@ -200,6 +204,7 @@ void knowledge_base_t::finalize()
         m_inc_to_axioms.clear();
         m_group_to_axioms.clear();
         m_arity_to_postponement.clear();
+        m_argument_sets.clear();
 
         create_reachable_matrix();
         write_config((m_filename + ".conf").c_str());
@@ -214,6 +219,7 @@ void knowledge_base_t::finalize()
     m_cdb_inc_pred.finalize();
     m_cdb_uni_pp.finalize();
     m_cdb_axiom_group.finalize();
+    m_cdb_arg_set.finalize();
     m_cdb_rm_idx.finalize();
     m_rm.finalize();
 
@@ -226,7 +232,7 @@ void knowledge_base_t::write_config(const char *filename) const
     std::ofstream fo(
         filename, std::ios::out | std::ios::trunc | std::ios::binary);
     char dist_type(m_rm_dist->type());
-    char version(KB_VERSION_2);
+    char version(KB_VERSION_3);
 
     fo.write(&version, sizeof(char));
     fo.write((char*)&ms_max_distance, sizeof(float));
@@ -258,7 +264,7 @@ void knowledge_base_t::read_config(const char *filename)
         return;
     }
 
-    if (m_version != KB_VERSION_2)
+    if (m_version != KB_VERSION_3)
     {
         print_error(
             "This compiled knowledge base is too old. Please re-compile it.");
@@ -388,9 +394,67 @@ void knowledge_base_t::insert_unification_postponement(
 }
 
 
-void knowledge_base_t::insert_stop_word_arity(const std::string &arity)
+void knowledge_base_t::insert_stop_word_arity(const lf::logical_function_t &f)
 {
-    m_stop_words.insert(arity);
+    if (m_state == STATE_COMPILE)
+    {
+        if (not f.is_valid_as_stop_word())
+        {
+            print_warning_fmt(
+                "Stop-words \"%s\" is invalid and skipped.",
+                f.to_string().c_str());
+        }
+        else
+        {
+            const std::vector<term_t> &terms = f.literal().terms;
+            for (auto it = terms.begin(); it != terms.end(); ++it)
+                m_stop_words.insert(it->string());
+        }
+    }
+}
+
+
+void knowledge_base_t::insert_argument_set(const lf::logical_function_t &f)
+{
+    if (m_state != STATE_COMPILE) return;
+
+    if (not f.is_valid_as_argument_set())
+    {
+        print_warning_fmt(
+            "Argument set \"%s\" is invalid and skipped.",
+            f.to_string().c_str());
+    }
+    else
+    {
+        hash_set<std::string> *pivot = NULL;
+        const std::vector<term_t> &terms(f.literal().terms);
+        std::list<std::string> args(terms.begin(), terms.end());
+
+        for (auto it_set = m_argument_sets.begin(); it_set != m_argument_sets.end();)
+        {
+            bool do_match(false);
+
+            for (auto a = args.begin(); a != args.end() and not do_match; ++a)
+            if (it_set->count(*a))
+                do_match = true;
+
+            if (do_match)
+            {
+                if (pivot == NULL)
+                {
+                    pivot = &(*it_set);
+                    pivot->insert(args.begin(), args.end());
+                    ++it_set;
+                }
+                else
+                {
+                    pivot->insert(it_set->begin(), it_set->end());
+                    it_set = m_argument_sets.erase(it_set);
+                }
+            }
+            else ++it_set;
+        }
+    }
 }
 
 
@@ -427,7 +491,8 @@ hash_set<axiom_id_t> knowledge_base_t::search_axiom_group(axiom_id_t id) const
 }
 
 
-unification_postponement_t knowledge_base_t::get_unification_postponement(const std::string &arity) const
+unification_postponement_t knowledge_base_t::
+get_unification_postponement(const std::string &arity) const
 {
     std::list<axiom_id_t> ids = search_id_list(arity, &m_cdb_uni_pp);
     if (not ids.empty())
@@ -462,11 +527,27 @@ unification_postponement_t knowledge_base_t::get_unification_postponement(const 
         return unification_postponement_t(arity, args, num);
     }
     else
-    {
         return unification_postponement_t();
-    }
 }
 
+
+argument_set_id_t knowledge_base_t::
+search_argument_set_id(const std::string &arity, int term_idx) const
+{
+    if (not m_cdb_arg_set.is_readable())
+    {
+        print_warning("kb-search: Kb-state is invalid.");
+        return 0;
+    }
+
+    char buf[16];
+    std::string key = format("%s/%d", arity.c_str(), term_idx);
+    size_t value_size;
+    const argument_set_id_t *value = (const argument_set_id_t*)
+        m_cdb_arg_set.get(key.c_str(), key.length(), &value_size);
+
+    return (value == NULL) ? 0 : (*value);
+}
 
 
 float knowledge_base_t::get_distance(
@@ -545,9 +626,7 @@ void knowledge_base_t::insert_axiom_group_to_cdb()
     const hash_map<std::string, hash_set<axiom_id_t> >& map(m_group_to_axioms);
     hash_map<axiom_id_t, hash_set<std::string> > axiom_to_group;
 
-    std::cerr
-        << time_stamp() << "starts writing " << dat.filename() << "..."
-        << std::endl;
+    print_console("starts writing " + dat.filename() + "...");
 
     for (auto it = map.begin(); it != map.end(); ++it)
     {
@@ -574,9 +653,23 @@ void knowledge_base_t::insert_axiom_group_to_cdb()
         dat.put(key.c_str(), key.length(), buffer, size);
     }
 
-    std::cerr
-        << time_stamp() << "completed writing "
-        << dat.filename() << "." << std::endl;
+    print_console("completed writing " + dat.filename() + ".");
+}
+
+
+void knowledge_base_t::insert_argument_set_to_cdb()
+{
+    print_console("starts writing " + m_cdb_arg_set.filename() + "...");
+
+    unsigned processed(1);
+    for (auto args = m_argument_sets.begin(); args != m_argument_sets.end(); ++args)
+    {
+        argument_set_id_t id = (processed++);
+        for (auto arg = args->begin(); arg != args->end(); ++arg)
+            m_cdb_arg_set.put(arg->c_str(), arg->length(), &id, sizeof(argument_set_id_t));
+    }
+
+    print_console("completed writing " + m_cdb_arg_set.filename() + ".");
 }
 
 

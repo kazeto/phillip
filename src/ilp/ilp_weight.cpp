@@ -65,7 +65,7 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
     
     auto is_timeout = [&]() -> bool {
         std::time(&now);
-        if (phillip()->is_timeout_ilp(now - begin))
+        if (phillip()->is_timeout_ilp(static_cast<int>(now - begin)))
         {
             prob->timeout(true);
             return true;

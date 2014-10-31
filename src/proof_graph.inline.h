@@ -28,13 +28,6 @@ inline const hash_set<pg::node_idx_t>& node_t::evidences() const
 }
 
 
-inline const std::vector< std::pair<term_t, term_t> >&
-node_t::get_conditions_for_non_equality_of_terms() const
-{
-    return m_conditions_neqs;
-}
-
-
 inline void node_t::set_master_hypernode(hypernode_idx_t idx)
 {
     m_master_hypernode_idx = idx;
@@ -174,8 +167,12 @@ inline node_idx_t proof_graph_t::
     add_observation(const literal_t &lit, int depth)
 {
     int idx = add_node(lit, NODE_OBSERVABLE, depth, hash_set<node_idx_t>());
-    _generate_mutual_exclusions(idx);
+    std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > muex;
+
+    _get_mutual_exclusions(lit, &muex);
+    _generate_mutual_exclusions(idx, muex);
     _generate_unification_assumptions(idx);
+
     return idx;
 }
 
@@ -392,8 +389,8 @@ inline bool proof_graph_t::_is_considered_unification(
     if (i > j) std::swap(i, j);
 
     hash_map<node_idx_t, hash_set<node_idx_t> >::const_iterator
-        it1 = m_logs.considered_unifications.find(i);
-    if( it1 == m_logs.considered_unifications.end() )
+        it1 = m_temporal.considered_unifications.find(i);
+    if( it1 == m_temporal.considered_unifications.end() )
         return false;
 
     hash_set<node_idx_t>::const_iterator it2 = it1->second.find(j);
@@ -407,8 +404,8 @@ inline bool proof_graph_t::_is_considered_exclusion(
     if (i > j) std::swap(i, j);
 
     hash_map<node_idx_t, hash_set<node_idx_t> >::const_iterator
-        it1 = m_logs.considered_exclusions.find(i);
-    if (it1 == m_logs.considered_exclusions.end())
+        it1 = m_temporal.considered_exclusions.find(i);
+    if (it1 == m_temporal.considered_exclusions.end())
         return false;
 
     hash_set<node_idx_t>::const_iterator it2 = it1->second.find(j);

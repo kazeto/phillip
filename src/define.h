@@ -40,6 +40,7 @@ class phillip_main_t;
 
 typedef long int index_t;
 typedef long int axiom_id_t;
+typedef index_t term_idx_t;
 typedef std::string predicate_t;
 
 namespace kb { class knowledge_base_t; }

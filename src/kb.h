@@ -24,6 +24,10 @@ namespace kb
 {
 
 
+typedef unsigned argument_set_id_t;
+static const int INVALID_ARGUMENT_SET_ID = 0;
+
+
 enum distance_provider_type_e
 {
     DISTANCE_PROVIDER_UNDERSPECIFIED,
@@ -43,7 +47,7 @@ enum unification_postpone_argument_type_e
 enum version_e
 {
     KB_VERSION_UNDERSPECIFIED,
-    KB_VERSION_1, KB_VERSION_2,
+    KB_VERSION_1, KB_VERSION_2, KB_VERSION_3,
     NUM_OF_KB_VERSION_TYPES
 };
 
@@ -108,18 +112,11 @@ public:
     /** Call this method on end of compiling or reading knowledge base. */
     void finalize();
 
-    /** Inserts new axiom into knowledge base as compiled axiom.
-     *  This method can be called only in compile-mode. */
-    void insert_implication(
-        const lf::logical_function_t &lf, const std::string &name);
-    
-    /** Inserts new inconsistency into knowledge base as compiled axiom.
-     *  This method can be called only in compile-mode. */
-    void insert_inconsistency(const lf::logical_function_t &lf, const std::string &name);
-
-    void insert_unification_postponement(const lf::logical_function_t &lf, const std::string &name);
-
-    void insert_stop_word_arity(const std::string &arity);
+    void insert_implication(const lf::logical_function_t &f, const std::string &name);
+    void insert_inconsistency(const lf::logical_function_t &f, const std::string &name);
+    void insert_unification_postponement(const lf::logical_function_t &f, const std::string &name);
+    void insert_stop_word_arity(const lf::logical_function_t &f);
+    void insert_argument_set(const lf::logical_function_t &f);
 
     inline lf::axiom_t get_axiom(axiom_id_t id) const;
     inline std::list<axiom_id_t> search_axioms_with_rhs(const std::string &arity) const;
@@ -127,6 +124,7 @@ public:
     inline std::list<axiom_id_t> search_inconsistencies(const std::string &arity) const;
     hash_set<axiom_id_t> search_axiom_group(axiom_id_t id) const;
     unification_postponement_t get_unification_postponement(const std::string &arity) const;
+    argument_set_id_t search_argument_set_id(const std::string &arity, int term_idx) const;
 
     /** Returns ditance between arity1 and arity2
      *  in a reachable-matrix in the current knowledge-base.
@@ -210,6 +208,7 @@ private:
 
     /** Outputs m_group_to_axioms to m_cdb_axiom_group. */
     void insert_axiom_group_to_cdb();
+    void insert_argument_set_to_cdb();
 
     /** Creates reachable matrix.
      *  This is a sub-routine of finalize. */
@@ -258,7 +257,7 @@ private:
     version_e m_version;
 
     cdb_data_t m_cdb_name, m_cdb_rhs, m_cdb_lhs;
-    cdb_data_t m_cdb_inc_pred, m_cdb_axiom_group, m_cdb_uni_pp;
+    cdb_data_t m_cdb_inc_pred, m_cdb_axiom_group, m_cdb_uni_pp, m_cdb_arg_set;
     cdb_data_t m_cdb_rm_idx;
     axioms_database_t m_axioms;
     reachable_matrix_t m_rm;
@@ -272,6 +271,8 @@ private:
     /** A set of arities of stop-words.
      *  These arities are ignored in constructing a reachable-matrix. */
     hash_set<std::string> m_stop_words;
+
+    std::list<hash_set<std::string> > m_argument_sets;
 
     hash_map<std::string, hash_set<axiom_id_t> >
         m_name_to_axioms, m_lhs_to_axioms, m_rhs_to_axioms,

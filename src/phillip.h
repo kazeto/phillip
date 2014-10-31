@@ -22,7 +22,6 @@ class ilp_solver_t;
 
 
 /** Main class of Phillip.
- *  This class is singleton class.
  *  The procedure of inference is following:
  *   - Create an instance of phillip_main_t.
  *   - Create components.

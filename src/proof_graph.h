@@ -10,6 +10,7 @@
 #include <sstream>
 #include <string>
 #include <set>
+#include <map>
 #include <ciso646>
 
 
@@ -80,11 +81,6 @@ public:
     /** Returns indices of nodes which are needs to hypothesize this node. */
     inline const hash_set<pg::node_idx_t>& evidences() const;
 
-    /** Returns a list of inconsistency of variables.
-     *  If these are violated, this node cannot be hypothesized. */
-    inline const std::vector< std::pair<term_t, term_t> >&
-        get_conditions_for_non_equality_of_terms() const;
-
     /** Returns the index of hypernode
      *  which was instantiated for instantiation of this node.
      *  CAUTION:
@@ -112,8 +108,6 @@ private:
     hypernode_idx_t m_master_hypernode_idx;
     int m_depth;
     hash_set<node_idx_t> m_evidences;
-
-    std::vector< std::pair<term_t, term_t> > m_conditions_neqs;
 };
 
 
@@ -358,9 +352,6 @@ public:
     /** Returns index of the unifying edge which unifies node i & j. */
     edge_idx_t find_unifying_edge(node_idx_t i, node_idx_t j) const;
 
-    /** Insert sub-nodes being transitive to target into target. */
-    void insert_transitive_sub_node(hash_set<node_idx_t> *target) const;
-
     inline const hash_set<term_t>* find_variable_cluster(term_t t) const;
     std::list< const hash_set<term_t>* > enumerate_variable_clusters() const;
 
@@ -464,8 +455,7 @@ protected:
 
     /** Performs backward-chaining or forward-chaining.
      *  Correspondence of each term is considered on chaining.
-     *  @return Index of the new hypernode.
-     *          If chaining has failed, returns -1. */
+     *  @return Index of the new hypernode. If chaining has failed, returns -1. */
     hypernode_idx_t chain(
         const std::vector<node_idx_t> &from,
         const lf::axiom_t &axiom, bool is_backward);
@@ -481,24 +471,16 @@ protected:
         std::vector<literal_t> *lits, hash_map<term_t, term_t> *sub,
         hash_map<term_t, hash_set<term_t> > *conds) const;
 
-    /* This is a sub-routine of _get_substitutions_for_chain. */
-    void _get_substitutions_for_chain_sub(
-        term_t t_from, term_t t_to,
-        hash_map<term_t, term_t> *subs,
-        hash_map<term_t, hash_set<term_t> > *conds) const;
-
-    /** Is a sub-routine of _get_substitutions_for_chain. */
-    term_t _substitute_term_for_chain(
-        const term_t &target, hash_map<term_t, term_t> *subs) const;
-
     /** Is a sub-routine of chain.
      *  Returns whether the chaining is possible.
      *  When returns false, the contents of muexs is invalid.
      *  @param[out] muexs Mutual exclusions around new nodes. */
-    bool _check_mutual_exclusiveness_for_chain(
+    void _get_mutual_exclusions(
+        const literal_t &to,
+        std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *muexs) const;
+    bool _check_validity_of_mutual_exclusiveness_for_chain(
         const std::vector<node_idx_t> &from,
-        const std::vector<literal_t> &to,
-        std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > *muexs) const;
+        const std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > &muexs) const;
 
     /** Is a sub-routine of chain.
      *  Returns evidences of new nodes by the chaining. */
@@ -516,17 +498,21 @@ protected:
      *               If NULL, enumerate them in this method. */
     void _generate_mutual_exclusions(
         node_idx_t target,
-        std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *muexs = NULL);
+        const std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > &muexs);
 
-    /** Is a sub-routine of generate_mutual_exclusion.
+    /** Is a sub-routine of _get_mutual_exclusion.
      *  Adds mutual-exclusions for target and nodes being inconsistent with it. */
     void _enumerate_mutual_exclusion_for_inconsistent_nodes(
         const literal_t &target,
         std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *out) const;
 
-    /** Is a sub-routine of generate_mutual_exclusion.
+    /** Is a sub-routine of _get_mutual_exclusion.
      *  Adds mutual-exclusions between target and its counter nodes. */
     void _enumerate_mutual_exclusion_for_counter_nodes(
+        const literal_t &target,
+        std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *out) const;
+
+    void _enumerate_mutual_exclusion_for_argument_set(
         const literal_t &target,
         std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *out) const;
 
@@ -537,22 +523,10 @@ protected:
     void _generate_mutual_exclusion_for_edges(
         edge_idx_t target, bool is_node_base);
 
-    /** Is a sub-routine of _generate_mutual_exclusion_for_edges. */
-    void _enumerate_exclusive_chains_from_node(
-        node_idx_t from, std::list< std::list<edge_idx_t> > *out) const;
-
-    /** Is a sub-routine of _generate_mutual_exclusion_for_edges. */
-    void _enumerate_exclusive_chains_from_hypernode(
-        hypernode_idx_t from, std::list< std::list<edge_idx_t> > *out) const;
-
     /** Is a sub-routine of generate_unification_assumptions.
      *  Returns indices of node which is unifiable with target.
      *  Node pairs which has been considered once are ignored. */
     std::list<node_idx_t> _enumerate_unifiable_nodes(node_idx_t target);
-
-    /** Is a sub-routine of enumerate_descendant_nodes. */
-    void _enumerate_descendant_nodes_sub(
-        node_idx_t idx, hash_set<node_idx_t> *out, hash_set<hypernode_idx_t> *checked) const;
 
     /** This is a sub-routine of
      *  _omit_invalid_chaining_candidates_with_coexistence
@@ -575,7 +549,7 @@ protected:
 
     /** Deletes logs, which are needed only in creation of proof-graph.
     *  Please call this after creation of proof-graph. */
-    void _clean_logs();
+    void _clean_temporal_variables();
 
     /** Enumerates indices of hypernodes to be excluded
      *  and set them to m_hypernodes_disregarded. */
@@ -616,7 +590,7 @@ protected:
     
     /** Mutual exclusiveness betwen two nodes.
      *  If unifier of third value is satisfied,
-     *  first node and second node are cannot be unified. */
+     *  first node and second node cannot be hypothesized together. */
     hash_map<node_idx_t, hash_map<node_idx_t, unifier_t> > m_mutual_exclusive_nodes;
 
     hash_map<edge_idx_t, hash_set<edge_idx_t> > m_mutual_exclusive_edges;
@@ -648,7 +622,9 @@ protected:
         *  KEY and VALUE express node pair, and KEY is less than VALUE. */
         hash_map<node_idx_t, hash_set<node_idx_t> > considered_exclusions;
 
-    } m_logs;
+        std::map<std::pair<pg::node_idx_t, term_idx_t>, unsigned> argument_set_ids;
+
+    } m_temporal;
 
     struct maps_t
     {

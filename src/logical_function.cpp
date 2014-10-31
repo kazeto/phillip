@@ -184,6 +184,59 @@ bool logical_function_t::is_valid_as_unification_postponement() const
 }
 
 
+bool logical_function_t::is_valid_as_stop_word() const
+{
+    if (not is_operator(OPR_LITERAL))
+        return false;
+    else
+    {
+        const std::vector<term_t> &terms(m_literal.terms);
+
+        for (auto it_term = terms.begin(); it_term != terms.end(); ++it_term)
+        {
+            const std::string &str = it_term->string();
+
+            for (auto c = str.rbegin(); c != str.rend(); ++c)
+            {
+                if (*c == '/')
+                    break;
+                else if (not std::isdigit(*c))
+                    return false;
+            }
+        }
+
+        return true;
+    }
+}
+
+
+bool logical_function_t::is_valid_as_argument_set() const
+{
+    if (not is_operator(OPR_LITERAL))
+        return false;
+    else
+    {
+        const std::vector<term_t> &terms(m_literal.terms);
+
+        for (auto it_term = terms.begin(); it_term != terms.end(); ++it_term)
+        {
+            const std::string &str = it_term->string();
+            int n_slash(0);
+
+            for (auto c = str.rbegin(); c != str.rend() and n_slash < 2; ++c)
+            {
+                if (*c == '/')
+                    ++n_slash;
+                else if (not std::isdigit(*c))
+                    return false;
+            }
+        }
+
+        return true;
+    }
+}
+
+
 void logical_function_t::get_all_literals( std::list<literal_t> *out ) const
 {
     auto literals = get_all_literals();
