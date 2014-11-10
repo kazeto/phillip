@@ -708,12 +708,6 @@ void knowledge_base_t::create_reachable_matrix()
     int num_thread =
         std::min<int>(m_arity_set.size(),
         std::min<int>(ms_thread_num_for_rm, std::thread::hardware_concurrency()));
-    auto _process = [this](
-        size_t idx,
-        const hash_map<size_t, hash_map<size_t, float> > &base_lhs,
-        const hash_map<size_t, hash_map<size_t, float> > &base_rhs)
-    {
-    };
     
     for (int th_id = 0; th_id < num_thread; ++th_id)
     {
@@ -781,11 +775,11 @@ void knowledge_base_t::_create_reachable_matrix_direct(
             const size_t *idx1 = search_arity_index(*ar);
             assert(idx1 != NULL);
             
-            hash_map<size_t, float> *target = &(*out)[*idx1];
-            (*target)[*idx1] = 0.0f;
-
             if (stopped.count(*idx1) == 0)
             {
+                hash_map<size_t, float> *target = &(*out)[*idx1];
+                (*target)[*idx1] = 0.0f;
+
                 std::list<axiom_id_t> ids = is_forward ?
                     search_axioms_with_lhs(*ar) :
                     search_axioms_with_rhs(*ar);
@@ -834,6 +828,8 @@ void knowledge_base_t::_create_reachable_matrix_indirect(
     const hash_map<size_t, hash_map<size_t, float> > &base_rhs,
     hash_map<size_t, float> *out) const
 {
+    if (base_lhs.count(idx1) == 0 or base_rhs.count(idx1) == 0) return;
+
     std::map<std::tuple<size_t, bool, bool>, float> current;
     std::map<std::tuple<size_t, bool, bool>, float> processed;
 
