@@ -105,6 +105,12 @@ inline const std::set<literal_t>& unifier_t::substitutions() const
 }
 
 
+inline const hash_map<term_t, term_t>& unifier_t::mapping() const
+{
+    return m_mapping;
+}
+
+
 inline void unifier_t::add(term_t x, term_t y)
 {
     if (x == y) return;
@@ -157,9 +163,6 @@ proof_graph_t::unifiable_variable_clusters_set_t::is_in_same_cluster(
 inline proof_graph_t::proof_graph_t(phillip_main_t *main, const std::string &name)
 : m_phillip(main), m_name(name), m_is_timeout(false)
 {
-#ifdef DISABLE_CUTTING_LHS
-    add_attribute("disable-cutting-lhs", "yes");
-#endif
 }
 
 
@@ -169,7 +172,7 @@ inline node_idx_t proof_graph_t::
     int idx = add_node(lit, NODE_OBSERVABLE, depth, hash_set<node_idx_t>());
     std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > muex;
 
-    _get_mutual_exclusions(lit, &muex);
+    get_mutual_exclusions(lit, &muex);
     _generate_mutual_exclusions(idx, muex);
     _generate_unification_assumptions(idx);
 

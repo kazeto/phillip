@@ -202,6 +202,15 @@ void proof_graph_t::unifiable_variable_clusters_set_t::merge(
 }
 
 
+void proof_graph_t::temporal_variables_t::clear()
+{
+    postponed_unifications.clear();
+    considered_unifications.clear();
+    considered_exclusions.clear();
+    argument_set_ids.clear();
+}
+
+
 void proof_graph_t::merge(const proof_graph_t &graph)
 {
 #define foreach(it, con) for(auto it = con.begin(); it != con.end(); ++it)
@@ -1004,7 +1013,7 @@ node_idx_t proof_graph_t::add_node(
         for (int i = 0; i < lit.terms.size(); ++i)
         {
             unsigned id = _kb->search_argument_set_id(arity, i);
-            if (id > 0)
+            if (id != kb::INVALID_ARGUMENT_SET_ID)
                 m_temporal.argument_set_ids[std::make_pair(out, i)] = id;
         }
     }
@@ -1022,43 +1031,313 @@ node_idx_t proof_graph_t::add_node(
 hypernode_idx_t proof_graph_t::chain(
     const std::vector<node_idx_t> &from, const lf::axiom_t &axiom, bool is_backward)
 {
-    int depth = get_depth_of_deepest_node(from);
-    assert(depth >= 0);
+    /* This is a sub-routine of chain.
+       @param lits  Literals whom nodes hypothesized by this chain have.
+       @param sub   Map from terms in axiom to terms in proof-graph.
+       @param conds Terms pair which must be unified for this chain.
+       @return If this chaining is invalid, returns false. */
+    auto get_substitutions = [this](
+        const std::vector<node_idx_t> &from,
+        const lf::axiom_t &axiom, bool is_backward,
+        std::vector<literal_t> *lits, hash_map<term_t, term_t> *subs,
+        std::set<std::pair<term_t, term_t> > *conds) -> bool
+    {
+        auto generate_subs = [](
+            term_t t_from, term_t t_to, hash_map<term_t, term_t> *subs,
+            std::set<std::pair<term_t, term_t> > *conds)
+        {
+            auto find1 = subs->find(t_from);
 
+            if (find1 == subs->end())
+                (*subs)[t_from] = t_to;
+            else if (t_to != find1->second)
+            {
+                term_t t1(t_to), t2(find1->second);
+                if (t1 > t2) std::swap(t1, t2);
+
+                conds->insert(std::make_pair(t1, t2));
+            }
+        };
+
+        auto substitute_term =
+            [](const term_t &target, hash_map<term_t, term_t> *subs) -> term_t
+        {
+            auto find = subs->find(target);
+            if (find != subs->end())
+                return find->second;
+
+            const std::string &str = target.string();
+            int idx1(str.find('.')), idx2(str.find('/'));
+
+            if (idx1 != std::string::npos or idx2 != std::string::npos)
+            {
+                auto npos(std::string::npos);
+                int idx = (idx1 != npos and(idx2 == npos or idx1 > idx2)) ? idx1 : idx2;
+                term_t t(str.substr(0, idx));
+                auto find2 = subs->find(t);
+
+                if (find2 != subs->end())
+                    return term_t(find2->second.string() + str.substr(idx));
+            }
+
+            term_t u = term_t::get_unknown_hash();
+            (*subs)[target] = u;
+            return u;
+        };
+
+        const lf::logical_function_t &lhs = axiom.func.branch(0);
+        const lf::logical_function_t &rhs = axiom.func.branch(1);
+        std::vector<const literal_t*>
+            ax_to(is_backward ? axiom.func.get_lhs() : axiom.func.get_rhs()),
+            ax_from(is_backward ? axiom.func.get_rhs() : axiom.func.get_lhs());
+        int n_eq(0);
+
+        /* CREATE MAP OF TERMS */
+        for (size_t i = 0; i < ax_from.size(); ++i)
+        {
+            if (ax_from.at(i)->is_equality())
+            {
+                ++n_eq;
+                continue;
+            }
+
+            const literal_t &li_ax = *(ax_from.at(i));
+            const literal_t &li_hy = node(from.at(i - n_eq)).literal();
+
+            for (size_t j = 0; j<li_ax.terms.size(); ++j)
+            {
+                const term_t &t_ax(li_ax.terms.at(j)), &t_hy(li_hy.terms.at(j));
+                generate_subs(t_ax, t_hy, subs, conds);
+
+                const std::string &s_ax(t_ax.string()), &s_hy(t_hy.string());
+                size_t idx1 = s_ax.rfind('.');
+                size_t idx2 = s_hy.rfind('/');
+
+                if (idx1 != std::string::npos)
+                {
+                    std::string sub, suf(s_ax.substr(idx1 + 1));
+
+                    if (idx2 != std::string::npos)
+                    if (suf == s_hy.substr(idx2 + 1))
+                        sub = (s_hy.substr(0, idx2));
+
+                    if (sub.empty())
+                        sub = (s_hy + "/" + suf);
+
+                    term_t _t(s_ax.substr(0, idx1));
+                    generate_subs(_t, term_t(sub), subs, conds);
+                }
+            }
+        }
+
+        /* ADD CONDITIONS BY TRANSITIVITY */
+        while (true)
+        {
+            size_t n(conds->size());
+
+            for (auto it1 = conds->begin(); it1 != conds->end(); ++it1)
+            for (auto it2 = it1; it2 != conds->end(); ++it2)
+            if (it1 != it2)
+            {
+                if (it1->first == it2->first)
+                    conds->insert(make_sorted_pair(it1->second, it2->second));
+                else if (it1->first == it2->second)
+                    conds->insert(make_sorted_pair(it1->second, it2->first));
+                else if (it1->second == it2->first)
+                    conds->insert(make_sorted_pair(it1->first, it2->second));
+                else if (it1->second == it2->second)
+                    conds->insert(make_sorted_pair(it1->first, it2->first));
+            }
+
+            if (conds->size() == n) break;
+        }
+
+        std::set<std::pair<term_t, term_t> > presup_neqs; // PRESUPOSSITION
+        {
+            hash_set<edge_idx_t> dep_edges;
+            hash_set<node_idx_t> dep_nodes(from.begin(), from.end());
+
+            for (auto idx = from.begin(); idx != from.end(); ++idx)
+                enumerate_dependent_edges(*idx, &dep_edges);
+
+            for (auto e = dep_edges.begin(); e != dep_edges.end(); ++e)
+            {
+                auto it_neqs = m_neqs_of_conditions_for_chain.find(*e);
+                if (it_neqs != m_neqs_of_conditions_for_chain.end())
+                    presup_neqs.insert(it_neqs->second.begin(), it_neqs->second.end());
+
+                const std::vector<node_idx_t> &hn_tail = hypernode(edge(*e).tail());
+                const std::vector<node_idx_t> &hn_head = hypernode(edge(*e).head());
+                dep_nodes.insert(hn_head.begin(), hn_head.end());
+                dep_nodes.insert(hn_tail.begin(), hn_tail.end());
+            }
+
+            auto obs = enumerate_observations();
+            dep_nodes.insert(obs.begin(), obs.end());
+
+            // CHECK VALIDITY OF DEPENDANT EDGES
+            for (auto it_e1 = dep_edges.begin(); it_e1 != dep_edges.end(); ++it_e1)
+            for (auto it_e2 = it_e1; it_e2 != dep_edges.end(); ++it_e2)
+            if (it_e1 != it_e2)
+            {
+                edge_idx_t e1(*it_e1), e2(*it_e2);
+                if (e1 > e2) std::swap(e1, e2);
+
+                auto found1 = m_mutual_exclusive_edges.find(e1);
+                if (found1 != m_mutual_exclusive_edges.end())
+                {
+                    auto found2 = m_mutual_exclusive_edges.find(e2);
+                    if (found2 != m_mutual_exclusive_edges.end())
+                        return false;
+                }
+            }
+
+            // INSERT UN-EQUALITIES FROM MUTUAL-EXCLUSIONS AMONG EVIDENCES.
+            for (auto it_n1 = dep_nodes.begin(); it_n1 != dep_nodes.end(); ++it_n1)
+            for (auto it_n2 = it_n1; it_n2 != dep_nodes.end(); ++it_n2)
+            if (it_n1 != it_n2)
+            {
+                node_idx_t n1(*it_n1), n2(*it_n2);
+                if (n1 > n2) std::swap(n1, n2);
+
+                auto found1 = m_mutual_exclusive_nodes.find(n1);
+                if (found1 != m_mutual_exclusive_nodes.end())
+                {
+                    auto found2 = found1->second.find(n2);
+                    if (found2 != found1->second.end())
+                    {
+                        const unifier_t &uni = found2->second;
+                        if (uni.empty())
+                            return false;
+                        else
+                        for (auto it = uni.mapping().begin(); it != uni.mapping().end(); ++it)
+                            presup_neqs.insert(make_sorted_pair(it->first, it->second));
+                    }
+                }
+            }
+        }
+
+        /* CHECK VALIDITY OF CONDITIONS */
+        for (auto it = conds->begin(); it != conds->end(); ++it)
+        {
+            if (it->first.is_constant() and it->second.is_constant())
+                return false;
+            if (presup_neqs.find(*it) != presup_neqs.end())
+                return false;
+        }
+
+        /* SUBSTITUTE TERMS IN LITERALS */
+        lits->assign(ax_to.size(), literal_t());
+        for (size_t i = 0; i < ax_to.size(); ++i)
+        {
+            (*lits)[i] = *ax_to.at(i);
+            for (size_t j = 0; j < (*lits)[i].terms.size(); ++j)
+            {
+                term_t &term = (*lits)[i].terms[j];
+                term = substitute_term(term, subs);
+            }
+        }
+
+        return true;
+    };
+
+    /* If given mutual exclusions cannot be satisfied, return true. */
+    auto check_validity_of_mutual_exclusiveness = [this](
+        const std::vector<node_idx_t> &from, const std::set<std::pair<term_t, term_t> > &cond,
+        const std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > &muexs) -> bool
+    {
+        hash_set<edge_idx_t> dep_edges;
+        hash_set<node_idx_t> evidences(from.begin(), from.end());
+        std::set<std::pair<term_t, term_t> > eqs(cond);
+
+        for (auto it_n = from.begin(); it_n != from.end(); ++it_n)
+            enumerate_dependent_edges(*it_n, &dep_edges);
+
+        // ENUMERATE EVIDENCES SUBS IN CONDITIONS OF EDGE.
+        for (auto it_e = dep_edges.begin(); it_e != dep_edges.end(); ++it_e)
+        {
+            const std::vector<node_idx_t> &tail = hypernode(edge(*it_e).tail());
+            evidences.insert(tail.begin(), tail.end());
+
+            auto it_subs = m_subs_of_conditions_for_chain.find(*it_e);
+            if (it_subs != m_subs_of_conditions_for_chain.end())
+                eqs.insert(it_subs->second.begin(), it_subs->second.end());
+        }
+
+        // ENUMERATE SUBS IN EVIDENCES.
+        for (auto it_n = evidences.begin(); it_n != evidences.end(); ++it_n)
+        if (node(*it_n).is_equality_node())
+        {
+            const std::vector<term_t> &terms = node(*it_n).literal().terms;
+            eqs.insert(std::make_pair(terms.at(0), terms.at(1)));
+        }
+
+        for (int i = 0; i < muexs.size(); ++i)
+        for (auto it_muex = muexs.at(i).begin(); it_muex != muexs.at(i).end(); ++it_muex)
+        {
+            node_idx_t n = std::get<0>(*it_muex);
+            const unifier_t &uni = std::get<1>(*it_muex);
+
+            // IF THE MUTUAL-EXCLUSION IS CERTAINLY VIOLATED, RETURN FALSE.
+            if (evidences.count(n))
+            {
+                if (uni.empty())
+                    return false;
+                else
+                {
+                    for (auto it = uni.mapping().begin(); it != uni.mapping().end(); ++it)
+                    if (eqs.count(std::make_pair(it->first, it->second)) > 0)
+                        return false;
+                }
+            }
+        }
+
+        return true;
+    };
+
+    // TERMS IN PROOF-GRAPH TO BE UNIFIED EACH OTHER.
+    std::set<std::pair<term_t, term_t> > conds;
+    // LITERALS TO BE ADDED TO PROOF-GRAPH.
     std::vector<literal_t> added;
+    // SUBSTITUTIONS FROM TERMS IN AXIOM TO TERMS IN PROOF-GRAPH.
     hash_map<term_t, term_t> subs;
+    int depth(get_depth_of_deepest_node(from));
 
-    // EQUALITIES WHICH MUST BE SATISFIED TO EXECUTE THIS CHAINING.
-    // KEY: TERM IN AXIOM, VALUE: TERMS IN PROOF-GRAPH
-    hash_map<term_t, hash_set<term_t> > conds;
-
-    if (not _get_substitutions_for_chain(from, axiom, is_backward, &added, &subs, &conds))
+    assert(depth >= 0);
+    if (not get_substitutions(from, axiom, is_backward, &added, &subs, &conds))
         return -1;
 
     /* CHECK VARIDITY OF CHAINING ABOUT MUTUAL-EXCLUSIVENESS */
     std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > muexs(
         added.size(), std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> >());
     for (int i = 0; i < added.size(); ++i)
-        _get_mutual_exclusions(added.at(i), &(muexs[i]));
-    if (not _check_validity_of_mutual_exclusiveness_for_chain(from, muexs))
+        get_mutual_exclusions(added.at(i), &(muexs[i]));
+
+    if (not check_validity_of_mutual_exclusiveness(from, conds, muexs))
         return -1;
 
     hypernode_idx_t idx_hn_from = add_hypernode(from);
+    std::vector<node_idx_t> hn_to(added.size(), -1);
 
-    /* ADD NEW NODES AND NEW HYPERNODE. */
-    std::vector<node_idx_t> hypernode_to(added.size(), -1);
-    hash_set<node_idx_t> evidences = _enumerate_evidences_for_chain(from);
+    hash_set<node_idx_t> evidences;    
     evidences.insert(from.begin(), from.end());
+    for (auto it_n = from.begin(); it_n != from.end(); ++it_n)
+        evidences.insert(node(*it_n).evidences().begin(), node(*it_n).evidences().end());
 
     for (size_t i = 0; i < added.size(); ++i)
     {
+        hash_set<node_idx_t> _ev;
+        for (size_t j = 0; j < added.size(); ++j)
+        if (j != i)
+            _ev.insert(hn_to.at(j));
+
         int d = added[i].is_equality() ? -1 : depth + 1;
-        hypernode_to[i] = add_node(added[i], NODE_HYPOTHESIS, d, evidences);
+        hn_to[i] = add_node(added[i], NODE_HYPOTHESIS, d, evidences);
     }
-    hypernode_idx_t idx_hn_to = add_hypernode(hypernode_to);
+    hypernode_idx_t idx_hn_to = add_hypernode(hn_to);
 
     /* SET MASTER-HYPERNODE OF EACH NEW NODE */
-    for (auto it = hypernode_to.begin(); it != hypernode_to.end(); ++it)
+    for (auto it = hn_to.begin(); it != hn_to.end(); ++it)
         m_nodes[*it].set_master_hypernode(idx_hn_to);
 
     /* ADD EDGE */
@@ -1072,8 +1351,7 @@ hypernode_idx_t proof_graph_t::chain(
             std::list< std::pair<term_t, term_t> > *cond_sub =
                 &m_subs_of_conditions_for_chain[edge_idx];
             for (auto it = conds.begin(); it != conds.end(); ++it)
-            for (auto t = it->second.begin(); t != it->second.end(); ++t)
-                cond_sub->push_back(std::make_pair(it->first, *t));
+                cond_sub->push_back(std::make_pair(it->first, it->second));
         }
 
         // EQUALITY IN EVIDENCES IN THE AXIOM ARE CONSIDERED AS CONDITIONS.
@@ -1081,18 +1359,17 @@ hypernode_idx_t proof_graph_t::chain(
         std::list< std::pair<term_t, term_t> >
             *cond_neq = &m_neqs_of_conditions_for_chain[edge_idx],
             *cond_sub = &m_subs_of_conditions_for_chain[edge_idx];
+
         for (auto it = ax_from.begin(); it != ax_from.end(); ++it)
+        if ((*it)->is_equality())
         {
-            if ((*it)->is_equality())
+            auto found1 = subs.find((*it)->terms.at(0));
+            auto found2 = subs.find((*it)->terms.at(1));
+            if (found1 != subs.end() and found2 != subs.end())
             {
-                auto found1 = subs.find((*it)->terms.at(0));
-                auto found2 = subs.find((*it)->terms.at(1));
-                if (found1 != subs.end() and found2 != subs.end())
-                {
-                    term_t t1(found1->second), t2(found2->second);
-                    if (t1 > t2) std::swap(t1, t2);
-                    cond_neq->push_back(std::make_pair(t1, t2));
-                }
+                term_t t1(found1->second), t2(found2->second);
+                if (t1 > t2) std::swap(t1, t2);
+                cond_neq->push_back(std::make_pair(t1, t2));
             }
         }
     }
@@ -1109,197 +1386,21 @@ hypernode_idx_t proof_graph_t::chain(
     /* GENERATE MUTUAL EXCLUSIONS & UNIFICATION ASSUMPTIONS */
     for (size_t i = 0; i < added.size(); ++i)
     {
-        _generate_mutual_exclusions(hypernode_to[i], muexs[i]);
-        _generate_unification_assumptions(hypernode_to[i]);
+        _generate_mutual_exclusions(hn_to[i], muexs[i]);
+        _generate_unification_assumptions(hn_to[i]);
     }
     
     return idx_hn_to;
 }
 
 
-bool proof_graph_t::_get_substitutions_for_chain(
-    const std::vector<node_idx_t> &from,
-    const lf::axiom_t &axiom, bool is_backward,
-    std::vector<literal_t> *lits, hash_map<term_t, term_t> *subs,
-    hash_map<term_t, hash_set<term_t> > *conds) const
-{
-    auto generate_subs = [](
-        term_t t_from, term_t t_to, hash_map<term_t, term_t> *subs,
-        hash_map<term_t, hash_set<term_t> > *conds)
-    {
-        auto find1 = subs->find(t_from);
-
-        if (find1 == subs->end())
-            (*subs)[t_from] = t_to;
-        else if (t_to != find1->second)
-        {
-            term_t t1(t_to), t2(find1->second);
-            if (t1 > t2) std::swap(t1, t2);
-
-            auto find2 = conds->find(t1);
-            if (find2 == conds->end())
-                (*conds)[t1].insert(t2);
-            else
-                find2->second.insert(t2);
-        }
-    };
-
-    auto substitute_term =
-        [](const term_t &target, hash_map<term_t, term_t> *subs) -> term_t
-    {
-        auto find = subs->find(target);
-        if (find != subs->end())
-            return find->second;
-
-        const std::string &str = target.string();
-        int idx1(str.find('.')), idx2(str.find('/'));
-
-        if (idx1 != std::string::npos or idx2 != std::string::npos)
-        {
-            auto npos(std::string::npos);
-            int idx = (idx1 != npos and(idx2 == npos or idx1 > idx2)) ? idx1 : idx2;
-            term_t t(str.substr(0, idx));
-            auto find2 = subs->find(t);
-
-            if (find2 != subs->end())
-                return term_t(find2->second.string() + str.substr(idx));
-        }
-
-        term_t u = term_t::get_unknown_hash();
-        (*subs)[target] = u;
-        return u;
-    };
-
-    const lf::logical_function_t &lhs = axiom.func.branch(0);
-    const lf::logical_function_t &rhs = axiom.func.branch(1);
-    std::vector<const literal_t*>
-        ax_to(is_backward ? axiom.func.get_lhs() : axiom.func.get_rhs()),
-        ax_from(is_backward ? axiom.func.get_rhs() : axiom.func.get_lhs());
-    int n_eq(0);
-
-    /* CREATE MAP OF TERMS */
-    for (size_t i = 0; i < ax_from.size(); ++i)
-    {
-        if (ax_from.at(i)->is_equality())
-        {
-            ++n_eq;
-            continue;
-        }
-
-        const literal_t &li_ax = *(ax_from.at(i));
-        const literal_t &li_hy = node(from.at(i - n_eq)).literal();
-
-        for (size_t j=0; j<li_ax.terms.size(); ++j)
-        {
-            const term_t &t_ax(li_ax.terms.at(j)), &t_hy(li_hy.terms.at(j));
-            generate_subs(t_ax, t_hy, subs, conds);
-
-            const std::string &s_ax(t_ax.string()), &s_hy(t_hy.string());
-            size_t idx1 = s_ax.rfind('.');
-            size_t idx2 = s_hy.rfind('/');
-
-            if (idx1 != std::string::npos)
-            {
-                std::string sub, suf(s_ax.substr(idx1 + 1));
-
-                if (idx2 != std::string::npos)
-                if (suf == s_hy.substr(idx2 + 1))
-                    sub = (s_hy.substr(0, idx2));
-
-                if (sub.empty())
-                    sub = (s_hy + "/" + suf);
-
-                term_t _t(s_ax.substr(0, idx1));
-                generate_subs(_t, term_t(sub), subs, conds);
-            }
-        }
-    }
-
-    /* CHECK VALIDITY OF CONDITIONS */
-    std::set<std::pair<term_t, term_t> > presup_neqs;
-    {
-        hash_set<edge_idx_t> dep_edges;
-        for (auto idx = from.begin(); idx != from.end(); ++idx)
-            enumerate_dependent_edges(*idx, &dep_edges);
-        for (auto e = dep_edges.begin(); e != dep_edges.end(); ++e)
-        {
-            auto it_neqs = m_neqs_of_conditions_for_chain.find(*e);
-            if (it_neqs != m_neqs_of_conditions_for_chain.end())
-                presup_neqs.insert(it_neqs->second.begin(), it_neqs->second.end());
-        }
-    }
-    for (auto it1 = conds->begin(); it1 != conds->end(); ++it1)
-    {
-        for (auto it2 = it1->second.begin(); it2 != it1->second.end(); ++it2)
-        {
-            std::pair<term_t, term_t> t(it1->first, *it2);
-            if (t.first.is_constant() and t.second.is_constant() and t.first != t.second)
-                return false;
-            if (presup_neqs.find(t) != presup_neqs.end())
-                return false;
-        }
-    }
-
-    /* SUBSTITUTE TERMS IN LITERALS */
-    lits->assign(ax_to.size(), literal_t());
-    for (size_t i = 0; i < ax_to.size(); ++i)
-    {
-        (*lits)[i] = *ax_to.at(i);
-        for (size_t j = 0; j < (*lits)[i].terms.size(); ++j)
-        {
-            term_t &term = (*lits)[i].terms[j];
-            term = substitute_term(term, subs);
-        }
-    }
-
-    return true;
-}
-
-
-void proof_graph_t::_get_mutual_exclusions(
-    const literal_t &lit,
+void proof_graph_t::get_mutual_exclusions(
+    const literal_t &target,
     std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *muex) const
 {
-    _enumerate_mutual_exclusion_for_counter_nodes(lit, muex);
-    _enumerate_mutual_exclusion_for_inconsistent_nodes(lit, muex);
-    _enumerate_mutual_exclusion_for_argument_set(lit, muex);
-}
-
-
-bool proof_graph_t::_check_validity_of_mutual_exclusiveness_for_chain(
-    const std::vector<node_idx_t> &from,
-    const std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > &muexs) const
-{
-    hash_set<node_idx_t> evs = _enumerate_evidences_for_chain(from);
-
-    for (int i = 0; i < muexs.size(); ++i)
-    {
-        const std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > &_muex = muexs.at(i);
-
-        for (auto it = _muex.begin(); it != _muex.end(); ++it)
-        {
-            node_idx_t n = std::get<0>(*it);
-            const unifier_t &uni = std::get<1>(*it);
-
-            if (evs.count(n) > 0 and uni.empty())
-                return false;
-        }
-    }
-
-    return true;
-}
-
-
-hash_set<node_idx_t> proof_graph_t::_enumerate_evidences_for_chain(
-    const std::vector<node_idx_t> &from) const
-{
-    hash_set<node_idx_t> out;
-    for (auto it = from.begin(); it != from.end(); ++it)
-    {
-        auto ev = node(*it).evidences();
-        out.insert(ev.begin(), ev.end());
-    }
-    return out;
+    _enumerate_mutual_exclusion_for_counter_nodes(target, muex);
+    _enumerate_mutual_exclusion_for_inconsistent_nodes(target, muex);
+    _enumerate_mutual_exclusion_for_argument_set(target, muex);
 }
 
 
@@ -1445,13 +1546,50 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_inconsistent_nodes(
 
 void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
 {
-    if (node(target).is_equality_node() or
-        node(target).is_non_equality_node())
+    if (node(target).literal().is_equality())
         return;
 
-    std::list<node_idx_t> unifiables = _enumerate_unifiable_nodes(target);
-    if (unifiables.empty()) return;
+    /* Returns nodes which is unifiable with target. */
+    auto enumerate_unifiable_nodes = [this](node_idx_t target) -> std::list<node_idx_t>
+    {
+        const literal_t &lit = node(target).literal();
+        auto candidates =
+            search_nodes_with_predicate(lit.predicate, lit.terms.size());
+        std::list<node_idx_t> unifiables;
+        unifier_t unifier;
 
+        for (auto it = candidates->begin(); it != candidates->end(); ++it)
+        {
+            if (target == (*it)) continue;
+
+            node_idx_t n1 = target;
+            node_idx_t n2 = (*it);
+            if (n1 > n2) std::swap(n1, n2);
+
+            // IGNORE THE PAIR WHICH HAS BEEN CONSIDERED ALREADY.
+            if (_is_considered_unification(n1, n2)) continue;
+            else m_temporal.considered_unifications[n1].insert(n2); // ADD TO LOG
+
+            // IF ONE IS THE ANCESTOR OF ANOTHER, THE PAIR CANNOT UNIFY.
+            if (node(n1).evidences().count(n2) > 0 or
+                node(n2).evidences().count(n1) > 0)
+                continue;
+
+            bool unifiable = check_unifiability(
+                node(n1).literal(), node(n2).literal(), false, &unifier);
+
+            // FILTERING WITH CO-EXISTENCY OF UNIFIED NODES
+            if (unifiable)
+                unifiable = _check_nodes_coexistency(n1, n2, &unifier);
+
+            if (unifiable and can_unify_nodes(n1, n2))
+                unifiables.push_back(*it);
+        }
+
+        return unifiables;
+    };
+
+    std::list<node_idx_t> unifiables = enumerate_unifiable_nodes(target);
     kb::unification_postponement_t pp =
         kb::knowledge_base_t::instance()->get_unification_postponement(node(target).arity());
 
@@ -1477,49 +1615,6 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
 }
 
 
-std::list<node_idx_t>
-    proof_graph_t::_enumerate_unifiable_nodes(node_idx_t target)
-{
-    const literal_t &lit = node(target).literal();
-    auto candidates =
-        search_nodes_with_predicate(lit.predicate, lit.terms.size());
-    std::list<node_idx_t> unifiables;
-    unifier_t unifier;
-
-    for (auto it = candidates->begin(); it != candidates->end(); ++it)
-    {
-        if (target == (*it)) continue;
-
-        node_idx_t n1 = target;
-        node_idx_t n2 = (*it);
-        if (n1 > n2) std::swap(n1, n2);
-
-        // IGNORE THE PAIR WHICH HAS BEEN CONSIDERED ALREADY.
-        if (_is_considered_unification(n1, n2)) continue;
-        else m_temporal.considered_unifications[n1].insert(n2); // ADD TO LOG
-
-        // IF ONE IS THE ANCESTOR OF ANOTHER, THE PAIR CANNOT UNIFY.
-        if (node(n1).evidences().count(n2) > 0 or
-            node(n2).evidences().count(n1) > 0)
-            continue;
-
-        bool unifiable = check_unifiability(
-            node(n1).literal(), node(n2).literal(), false, &unifier);
-
-#ifndef DISABLE_CUTTING_LHS
-        // FILTERING WITH CO-EXISTENCY OF UNIFIED NODES
-        if (unifiable)
-            unifiable = _check_nodes_coexistency(n1, n2, &unifier);
-#endif
-
-        if (unifiable and can_unify_nodes(n1, n2))
-            unifiables.push_back(*it);
-    }
-
-    return unifiables;
-}
-
-
 void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
 {
     std::vector<node_idx_t> unified_nodes; // FROM
@@ -1533,8 +1628,9 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
     if (not check_unifiability(node(i).literal(), node(j).literal(), false, &uni))
         return;
 
-    hash_set<node_idx_t> evidences = _enumerate_evidences_for_chain(unified_nodes);
-    evidences.insert(unified_nodes.begin(), unified_nodes.end());
+    hash_set<node_idx_t> evidences(unified_nodes.begin(), unified_nodes.end());
+    evidences.insert(node(i).evidences().begin(), node(i).evidences().end());
+    evidences.insert(node(j).evidences().begin(), node(j).evidences().end());
 
     /* CREATE UNIFICATION-NODES & UPDATE VARIABLES. */
     const std::set<literal_t> &subs = uni.substitutions();
@@ -1553,7 +1649,7 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
             m_vc_unifiable.add(t1, t2);
 
             std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > muex;
-            _get_mutual_exclusions(*sub, &muex);
+            get_mutual_exclusions(*sub, &muex);
             _generate_mutual_exclusions(sub_node_idx, muex);
             _add_nodes_of_transitive_unification(t1);
         }
@@ -1596,46 +1692,8 @@ void proof_graph_t::_add_nodes_of_transitive_unification(term_t t)
             m_maps.terms_to_sub_node[t1][t2] = idx;
 
             std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > muex;
-            _get_mutual_exclusions(sub, &muex);
+            get_mutual_exclusions(sub, &muex);
             _generate_mutual_exclusions(idx, muex);
-        }
-    }
-}
-
-
-void proof_graph_t::_generate_unification_assumptions_postponed()
-{
-    IF_VERBOSE_3("Generating postponed unification assumptions...");
-
-    bool do_break(false);
-
-    while (not do_break)
-    {
-        do_break = true;
-
-        for (auto it1 = m_temporal.postponed_unifications.begin(); it1 != m_temporal.postponed_unifications.end();)
-        {
-            for (auto it2 = it1->second.begin(); it2 != it1->second.end();)
-            {
-                const node_idx_t n1(it1->first), n2(*it2);
-                kb::unification_postponement_t pp =
-                    kb::knowledge_base_t::instance()->get_unification_postponement(node(n1).arity());
-                assert(not pp.empty());
-
-                if (not pp.do_postpone(this, n1, n2))
-                {
-                    _chain_for_unification(n1, n2);
-                    do_break = false;
-                    it2 = it1->second.erase(it2);
-                }
-                else
-                    ++it2;
-            }
-
-            if (it1->second.empty())
-                it1 = m_temporal.postponed_unifications.erase(it1);
-            else
-                ++it1;
         }
     }
 }
@@ -1753,20 +1811,44 @@ size_t proof_graph_t::get_hash_of_nodes(std::list<node_idx_t> nodes)
 
 void proof_graph_t::post_process()
 {
-    _generate_unification_assumptions_postponed();
-    _clean_temporal_variables();
-    // _enumerate_hypernodes_disregarded();
-}
+    IF_VERBOSE_3("Generating postponed unification assumptions...");
+    {
+        bool do_break(false);
+        while (not do_break)
+        {
+            do_break = true;
 
+            for (auto it1 = m_temporal.postponed_unifications.begin(); it1 != m_temporal.postponed_unifications.end();)
+            {
+                for (auto it2 = it1->second.begin(); it2 != it1->second.end();)
+                {
+                    const node_idx_t n1(it1->first), n2(*it2);
+                    kb::unification_postponement_t pp =
+                        kb::knowledge_base_t::instance()->get_unification_postponement(node(n1).arity());
+                    assert(not pp.empty());
 
-void proof_graph_t::_clean_temporal_variables()
-{
+                    if (not pp.do_postpone(this, n1, n2))
+                    {
+                        _chain_for_unification(n1, n2);
+                        do_break = false;
+                        it2 = it1->second.erase(it2);
+                    }
+                    else
+                        ++it2;
+                }
+
+                if (it1->second.empty())
+                    it1 = m_temporal.postponed_unifications.erase(it1);
+                else
+                    ++it1;
+            }
+        }
+    }
+
     IF_VERBOSE_4("Cleaned logs.");
+    m_temporal.clear();
 
-    m_temporal.considered_unifications.clear();
-    m_temporal.considered_exclusions.clear();
-    m_temporal.postponed_unifications.clear();
-    m_temporal.argument_set_ids.clear();
+    // _enumerate_hypernodes_disregarded();
 }
 
 

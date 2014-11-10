@@ -60,8 +60,8 @@ enum verboseness_t
 class string_hash_t
 {
 public:
-    inline string_hash_t() : m_hash(0) {}
-    inline string_hash_t(const string_hash_t& h) : m_hash(h.m_hash) {}
+    inline string_hash_t();
+    inline string_hash_t(const string_hash_t& h);
     inline string_hash_t(const std::string& s);
 
     static inline string_hash_t get_unknown_hash();
@@ -93,7 +93,11 @@ private:
     static std::vector<std::string> ms_strs;
     static unsigned ms_issued_variable_count;
 
-    unsigned m_hash;    
+    unsigned m_hash;
+
+#ifdef _DEBUG
+    std::string m_string;
+#endif
 };
 
 
@@ -315,6 +319,8 @@ template <class It> bool has_intersection(
 /** Returns intersection of set1 and set2. */
 template <class T> hash_set<T> intersection(
     const hash_set<T> &set1, const hash_set<T> &set2);
+
+template <class T> inline std::pair<T, T> make_sorted_pair(const T &x, const T &y);
 
 template <class Container> void erase(Container &c, size_t i);
 

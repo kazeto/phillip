@@ -428,7 +428,7 @@ void knowledge_base_t::insert_argument_set(const lf::logical_function_t &f)
     {
         hash_set<std::string> *pivot = NULL;
         const std::vector<term_t> &terms(f.literal().terms);
-        std::list<std::string> args(terms.begin(), terms.end());
+        hash_set<std::string> args(terms.begin(), terms.end());
 
         for (auto it_set = m_argument_sets.begin(); it_set != m_argument_sets.end();)
         {
@@ -454,6 +454,9 @@ void knowledge_base_t::insert_argument_set(const lf::logical_function_t &f)
             }
             else ++it_set;
         }
+
+        if (pivot == NULL)
+            m_argument_sets.push_back(args);
     }
 }
 
@@ -660,11 +663,12 @@ void knowledge_base_t::insert_axiom_group_to_cdb()
 void knowledge_base_t::insert_argument_set_to_cdb()
 {
     print_console("starts writing " + m_cdb_arg_set.filename() + "...");
+    IF_VERBOSE_4(format("  # of arg-sets = %d", m_argument_sets.size()));
 
-    unsigned processed(1);
+    unsigned processed(0);
     for (auto args = m_argument_sets.begin(); args != m_argument_sets.end(); ++args)
     {
-        argument_set_id_t id = (processed++);
+        argument_set_id_t id = (++processed);
         for (auto arg = args->begin(); arg != args->end(); ++arg)
             m_cdb_arg_set.put(arg->c_str(), arg->length(), &id, sizeof(argument_set_id_t));
     }

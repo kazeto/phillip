@@ -78,7 +78,8 @@ public:
      *  Unification-nodes have depth of -1. */
     inline int depth() const { return m_depth; }
 
-    /** Returns indices of nodes which are needs to hypothesize this node. */
+    /** Returns indices of nodes which must be hypothesized
+     *  when this node is hypothesized. */
     inline const hash_set<pg::node_idx_t>& evidences() const;
 
     /** Returns the index of hypernode
@@ -170,6 +171,7 @@ public:
     inline void add(term_t x, term_t y);
 
     inline const std::set<literal_t>& substitutions() const;
+    inline const hash_map<term_t, term_t>& mapping() const;
 
     /** Returns the term which x is substituted to.
      *  If not found, returns NULL. */
@@ -460,32 +462,10 @@ protected:
         const std::vector<node_idx_t> &from,
         const lf::axiom_t &axiom, bool is_backward);
 
-    /** This is a sub-routine of chain.
-     *  @param lits  Literals whom nodes hypothesized by this chain have.
-     *  @param sub   Map from terms in axiom to terms in proof-graph.
-     *  @param conds Terms pair which must be unified for this chain.
-     *  @return If this chaining is invalid, returns false. */
-    bool _get_substitutions_for_chain(
-        const std::vector<node_idx_t> &from,
-        const lf::axiom_t &axiom, bool is_backward,
-        std::vector<literal_t> *lits, hash_map<term_t, term_t> *sub,
-        hash_map<term_t, hash_set<term_t> > *conds) const;
-
-    /** Is a sub-routine of chain.
-     *  Returns whether the chaining is possible.
-     *  When returns false, the contents of muexs is invalid.
-     *  @param[out] muexs Mutual exclusions around new nodes. */
-    void _get_mutual_exclusions(
-        const literal_t &to,
+    /** Get mutual exclusions around the literal 'target'. */
+    void get_mutual_exclusions(
+        const literal_t &target,
         std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *muexs) const;
-    bool _check_validity_of_mutual_exclusiveness_for_chain(
-        const std::vector<node_idx_t> &from,
-        const std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > &muexs) const;
-
-    /** Is a sub-routine of chain.
-     *  Returns evidences of new nodes by the chaining. */
-    hash_set<node_idx_t> _enumerate_evidences_for_chain(
-        const std::vector<node_idx_t> &from) const;
 
     /** Is a sub-routine of add_node.
      *  Generates unification assumptions between target node
@@ -523,11 +503,6 @@ protected:
     void _generate_mutual_exclusion_for_edges(
         edge_idx_t target, bool is_node_base);
 
-    /** Is a sub-routine of generate_unification_assumptions.
-     *  Returns indices of node which is unifiable with target.
-     *  Node pairs which has been considered once are ignored. */
-    std::list<node_idx_t> _enumerate_unifiable_nodes(node_idx_t target);
-
     /** This is a sub-routine of
      *  _omit_invalid_chaining_candidates_with_coexistence
      *  and _enumerate_unifiable_nodes.
@@ -544,12 +519,6 @@ protected:
     /** Sub-routine of chain_for_unification.
      *  Add nodes for transitive unification around the given term. */
     void _add_nodes_of_transitive_unification(term_t t);
-
-    void _generate_unification_assumptions_postponed();
-
-    /** Deletes logs, which are needed only in creation of proof-graph.
-    *  Please call this after creation of proof-graph. */
-    void _clean_temporal_variables();
 
     /** Enumerates indices of hypernodes to be excluded
      *  and set them to m_hypernodes_disregarded. */
@@ -607,8 +576,10 @@ protected:
     hash_set<hypernode_idx_t> m_hypernodes_disregarded;
     std::hash<std::string> m_hasher_for_nodes;
 
-    struct
+    struct temporal_variables_t
     {
+        void clear();
+
         /** Set of pair of nodes whose unification was postponed. */
         hash_map<node_idx_t, hash_set<node_idx_t> > postponed_unifications;
 
@@ -623,7 +594,6 @@ protected:
         hash_map<node_idx_t, hash_set<node_idx_t> > considered_exclusions;
 
         std::map<std::pair<pg::node_idx_t, term_idx_t>, unsigned> argument_set_ids;
-
     } m_temporal;
 
     struct maps_t

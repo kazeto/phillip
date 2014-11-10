@@ -10,9 +10,27 @@ namespace phil
 {
 
 
-inline string_hash_t::string_hash_t( const std::string &s )
-    : m_hash( get_hash(s) )
+inline string_hash_t::string_hash_t()
+: m_hash(0)
 {}
+
+
+inline string_hash_t::string_hash_t(const string_hash_t& h)
+: m_hash(h.m_hash)
+{
+#ifdef _DEBUG
+    m_string = h.string();
+#endif
+}
+
+
+inline string_hash_t::string_hash_t( const std::string &s )
+    : m_hash(get_hash(s))
+{
+#ifdef _DEBUG
+    m_string = s;
+#endif
+}
 
 
 inline string_hash_t string_hash_t::get_unknown_hash()
@@ -59,6 +77,11 @@ inline string_hash_t::operator const std::string& () const
 inline string_hash_t& string_hash_t::operator = (const std::string &s)
 {
     m_hash = get_hash(s);
+
+#ifdef _DEBUG
+    m_string = s;
+#endif
+
     return *this;
 }
 
@@ -66,6 +89,11 @@ inline string_hash_t& string_hash_t::operator = (const std::string &s)
 inline string_hash_t& string_hash_t::operator = (const string_hash_t &h)
 {
     m_hash = h.m_hash;
+
+#ifdef _DEBUG
+    m_string = h.string();
+#endif
+
     return *this;
 }
 
@@ -461,6 +489,12 @@ template <class T> hash_set<T> intersection(
     }
 
     return out;
+}
+
+
+template <class T> std::pair<T, T> make_sorted_pair(const T &x, const T &y)
+{
+    return (x < y) ? std::make_pair(x, y) : std::make_pair(y, x);
 }
 
 
