@@ -12,6 +12,7 @@ namespace phil
 
 
 int phillip_main_t::ms_verboseness = 0;
+const std::string phillip_main_t::VERSION = "phil-2014.11.14";
 
 
 phillip_main_t::phillip_main_t()
@@ -480,6 +481,8 @@ phillip_main_t::split_input(const lf::input_t &input) const
 void phillip_main_t::write_configure(std::ofstream *fo) const
 {
     (*fo) << "<configure>" << std::endl;
+
+    (*fo) << "<version>" << VERSION << "</version>" << std::endl;
 
     (*fo) << "<components lhs=\"" << m_lhs_enumerator->repr()
           << "\" ilp=\"" << m_ilp_convertor->repr()

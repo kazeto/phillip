@@ -17,6 +17,7 @@ int main(int argc, char* argv[])
     std::vector<std::string> inputs;
 
     print_console("Phillip starts...");
+    print_console("  version: " + phillip_main_t::VERSION);
     
     bin::parse_options(argc, argv, &phillip, &config, &inputs);
     print_console("Phillip has completed parsing comand options.");

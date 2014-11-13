@@ -33,6 +33,8 @@ public:
     static inline void set_verbose(int v);
     static inline const int verbose();
 
+    static const std::string VERSION;
+
     phillip_main_t();
     ~phillip_main_t();
 
