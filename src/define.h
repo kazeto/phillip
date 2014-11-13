@@ -83,6 +83,7 @@ public:
 
     inline bool is_constant() const;
     inline bool is_unknown()  const;
+    inline bool is_hard_term() const;
     
 private:
     /** Assign a hash to str if needed, and return the hash of str. */

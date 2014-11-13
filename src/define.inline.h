@@ -146,6 +146,12 @@ inline bool string_hash_t::is_unknown() const
 }
 
 
+inline bool string_hash_t::is_hard_term() const
+{
+    return startswith(this->string(), "*");
+}
+
+
 inline literal_t::literal_t( const std::string &_pred, bool _truth )
     : predicate(_pred), truth(_truth) {}
     

@@ -1044,7 +1044,7 @@ hypernode_idx_t proof_graph_t::chain(
     {
         auto generate_subs = [](
             term_t t_from, term_t t_to, hash_map<term_t, term_t> *subs,
-            std::set<std::pair<term_t, term_t> > *conds)
+            std::set<std::pair<term_t, term_t> > *conds) -> bool
         {
             auto find1 = subs->find(t_from);
 
@@ -1052,11 +1052,18 @@ hypernode_idx_t proof_graph_t::chain(
                 (*subs)[t_from] = t_to;
             else if (t_to != find1->second)
             {
-                term_t t1(t_to), t2(find1->second);
-                if (t1 > t2) std::swap(t1, t2);
+                if (t_from.is_hard_term())
+                    return false;
+                else
+                {
+                    term_t t1(t_to), t2(find1->second);
+                    if (t1 > t2) std::swap(t1, t2);
 
-                conds->insert(std::make_pair(t1, t2));
+                    conds->insert(std::make_pair(t1, t2));
+                }
             }
+
+            return true;
         };
 
         auto substitute_term =
@@ -1107,7 +1114,8 @@ hypernode_idx_t proof_graph_t::chain(
             for (size_t j = 0; j<li_ax.terms.size(); ++j)
             {
                 const term_t &t_ax(li_ax.terms.at(j)), &t_hy(li_hy.terms.at(j));
-                generate_subs(t_ax, t_hy, subs, conds);
+                if (not generate_subs(t_ax, t_hy, subs, conds))
+                    return false;
 
                 const std::string &s_ax(t_ax.string()), &s_hy(t_hy.string());
                 size_t idx1 = s_ax.rfind('.');
@@ -1125,7 +1133,8 @@ hypernode_idx_t proof_graph_t::chain(
                         sub = (s_hy + "/" + suf);
 
                     term_t _t(s_ax.substr(0, idx1));
-                    generate_subs(_t, term_t(sub), subs, conds);
+                    if (not generate_subs(_t, term_t(sub), subs, conds))
+                        return false;
                 }
             }
         }
