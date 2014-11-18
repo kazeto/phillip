@@ -12,7 +12,7 @@ namespace phil
 
 
 int phillip_main_t::ms_verboseness = 0;
-const std::string phillip_main_t::VERSION = "phil-2014.11.14";
+const std::string phillip_main_t::VERSION = "phil-2014.11.18";
 
 
 phillip_main_t::phillip_main_t()
@@ -358,14 +358,14 @@ phillip_main_t::split_input(const lf::input_t &input) const
         auto obs = ipt.obs.get_all_literals();
         auto req = ipt.req.get_all_literals();
         std::list<const literal_t*> lits;
-        std::string arity = lit.get_predicate_arity();
+        std::string arity = lit.get_arity();
 
         lits.insert(lits.end(), obs.begin(), obs.end());
         lits.insert(lits.end(), req.begin(), req.end());
 
         for (auto it = lits.begin(); it != lits.end(); ++it)
         {
-            std::string ar = (*it)->get_predicate_arity();
+            std::string ar = (*it)->get_arity();
             if (arity == ar) return true;
             
             float dist = base->get_distance(arity, ar);

@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cstring>
+
 #include "logical_function.h"
+#include "kb.h"
 
 
 namespace phil
@@ -10,6 +12,18 @@ namespace phil
 
 namespace lf
 {
+
+
+const std::string OPR_STR_NAME = "name";
+const std::string OPR_STR_AND = "^";
+const std::string OPR_STR_OR = "v";
+const std::string OPR_STR_IMPLICATION = "=>";
+const std::string OPR_STR_PARAPHRASE = "<=>";
+const std::string OPR_STR_INCONSISTENT = "xor";
+const std::string OPR_STR_REQUIREMENT = "req";
+const std::string OPR_STR_UNIPP = "unipp";
+const std::string OPR_STR_STOPWORD = "ignore";
+const std::string OPR_STR_EXARGSET = "argset";
 
 
 logical_function_t::logical_function_t(
@@ -24,21 +38,27 @@ logical_function_t::logical_function_t(
 logical_function_t::logical_function_t(const sexp::stack_t &s)
     : m_operator(OPR_UNDERSPECIFIED)
 {
-    if (s.is_functor("=>"))
+    if (s.is_functor(OPR_STR_IMPLICATION))
     {
         m_operator = OPR_IMPLICATION;
         m_branches.push_back(logical_function_t(*(s.children[1])));
         m_branches.push_back(logical_function_t(*(s.children[2])));
     }
-    else if (s.is_functor("xor"))
+    else if (s.is_functor(OPR_STR_PARAPHRASE))
+    {
+        m_operator = OPR_PARAPHRASE;
+        m_branches.push_back(logical_function_t(*(s.children[1])));
+        m_branches.push_back(logical_function_t(*(s.children[2])));
+    }
+    else if (s.is_functor(OPR_STR_INCONSISTENT))
     {
         m_operator = OPR_INCONSISTENT;
         m_branches.push_back(logical_function_t(*(s.children[1])));
         m_branches.push_back(logical_function_t(*(s.children[2])));
     }
-    else if (s.is_functor("^") or s.is_functor("v"))
+    else if (s.is_functor(OPR_STR_AND) or s.is_functor(OPR_STR_OR))
     {
-        m_operator = s.is_functor("^") ? OPR_AND : OPR_OR;
+        m_operator = s.is_functor(OPR_STR_AND) ? OPR_AND : OPR_OR;
         for (int i = 1; i < s.children.size(); i++)
         {
             const sexp::stack_t &child = *(s.children[i]);
@@ -46,7 +66,7 @@ logical_function_t::logical_function_t(const sexp::stack_t &s)
                 m_branches.push_back(logical_function_t(child));
         }
     }
-    else if (s.is_functor("require"))
+    else if (s.is_functor(OPR_STR_REQUIREMENT))
     {
         m_operator = OPR_REQUIREMENT;
         for (int i = 1; i < s.children.size(); i++)
@@ -56,9 +76,9 @@ logical_function_t::logical_function_t(const sexp::stack_t &s)
                 m_branches.push_back(logical_function_t(child));
         }
     }
-    else if (s.is_functor("unipp"))
+    else if (s.is_functor(OPR_STR_UNIPP))
     {
-        m_operator = OPR_UNI_PP;
+        m_operator = OPR_UNIPP;
         for (int i = 1; i < s.children.size(); i++)
         {
             const sexp::stack_t &child = *(s.children[i]);
@@ -121,8 +141,38 @@ bool logical_function_t::do_include(const literal_t& lit) const
 
 bool logical_function_t::is_valid_as_implication() const
 {
-    if (not is_operator(OPR_IMPLICATION)) return false;
-    if (branches().size() != 2) return false;
+    if (not is_operator(OPR_IMPLICATION))
+        return false;
+    if (branches().size() != 2)
+        return false;
+
+    // CHECKING LHS & RHS
+    for (int i = 0; i < 2; ++i)
+    {
+        const logical_function_t &br = branch(i);
+
+        if (br.is_operator(OPR_LITERAL))
+            continue;
+        else if (br.is_operator(OPR_AND))
+        {
+            for (auto it = br.branches().begin(); it != br.branches().end(); ++it)
+            if (not it->is_operator(OPR_LITERAL))
+                return false;
+        }
+        else
+            return false;
+    }
+
+    return true;
+}
+
+
+bool logical_function_t::is_valid_as_paraphrase() const
+{
+    if (not is_operator(OPR_PARAPHRASE))
+        return false;
+    if (branches().size() != 2)
+        return false;
 
     // CHECKING LHS & RHS
     for (int i = 0; i < 2; ++i)
@@ -254,6 +304,7 @@ void logical_function_t::get_all_literals_sub(
         p_out_list->push_back( &m_literal );
         break;
     case OPR_IMPLICATION:
+    case OPR_PARAPHRASE:
     case OPR_INCONSISTENT:
         m_branches[0].get_all_literals_sub( p_out_list );
         m_branches[1].get_all_literals_sub( p_out_list );
@@ -261,7 +312,7 @@ void logical_function_t::get_all_literals_sub(
     case OPR_OR:
     case OPR_AND:
     case OPR_REQUIREMENT:
-    case OPR_UNI_PP:
+    case OPR_UNIPP:
         for( int i=0; i<m_branches.size(); i++ )
             m_branches[i].get_all_literals_sub( p_out_list );
         break;
@@ -286,11 +337,12 @@ size_t logical_function_t::write_binary( char *bin ) const
             n += m_branches.at(i).write_binary( bin+n );
         break;
     case OPR_IMPLICATION:
+    case OPR_PARAPHRASE:
     case OPR_INCONSISTENT:
         n += m_branches.at(0).write_binary( bin+n );
         n += m_branches.at(1).write_binary( bin+n );
         break;
-    case OPR_UNI_PP:
+    case OPR_UNIPP:
         n += m_branches.at(0).write_binary( bin+n );
         break;
     }
@@ -322,12 +374,13 @@ size_t logical_function_t::read_binary( const char *bin )
             n += m_branches[i].read_binary( bin+n );
         break;
     case OPR_IMPLICATION:
+    case OPR_PARAPHRASE:
     case OPR_INCONSISTENT:
         m_branches.assign( 2, logical_function_t() );
         n += m_branches[0].read_binary( bin+n );
         n += m_branches[1].read_binary( bin+n );
         break;
-    case OPR_UNI_PP:
+    case OPR_UNIPP:
         m_branches.assign(1, logical_function_t());
         n += m_branches[0].read_binary(bin + n);
     }
@@ -347,9 +400,14 @@ void logical_function_t::print(
         (*p_out_str) += m_literal.to_string( f_colored );
         break;
     case OPR_IMPLICATION:
-        m_branches[0].print( p_out_str, f_colored );
+        m_branches[0].print(p_out_str, f_colored);
         (*p_out_str) += " => ";
-        m_branches[1].print( p_out_str, f_colored );
+        m_branches[1].print(p_out_str, f_colored);
+        break;
+    case OPR_PARAPHRASE:
+        m_branches[0].print(p_out_str, f_colored);
+        (*p_out_str) += " <=> ";
+        m_branches[1].print(p_out_str, f_colored);
         break;
     case OPR_INCONSISTENT:
         m_branches[0].print( p_out_str, f_colored );
@@ -373,7 +431,7 @@ void logical_function_t::print(
             if( not is_literal ) (*p_out_str) += ")";
         }
         break;
-    case OPR_UNI_PP:
+    case OPR_UNIPP:
         (*p_out_str) += "(uni-pp ";
         m_branches[0].print(p_out_str, f_colored);
         (*p_out_str) += ")";
@@ -386,6 +444,7 @@ void logical_function_t::add_branch(const logical_function_t &lf)
 {
     m_branches.push_back(lf);
 }
+
 
 
 }

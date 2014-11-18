@@ -14,11 +14,9 @@ namespace lhs
 
 depth_based_enumerator_t::depth_based_enumerator_t(
     phillip_main_t *ptr,
-    bool do_deduction, bool do_abduction,
     int max_depth, float max_distance, float max_redundancy,
     bool do_disable_reachable_matrix)
     : lhs_enumerator_t(ptr),
-      m_do_deduction(do_deduction), m_do_abduction(do_abduction),
       m_depth_max(max_depth), m_distance_max(max_distance),
       m_redundancy_max(max_redundancy),
       m_do_disable_reachable_matrix(do_disable_reachable_matrix)
@@ -28,8 +26,7 @@ depth_based_enumerator_t::depth_based_enumerator_t(
 lhs_enumerator_t* depth_based_enumerator_t::duplicate(phillip_main_t *ptr) const
 {
     return new depth_based_enumerator_t(
-        ptr, m_do_deduction, m_do_abduction,
-        m_depth_max, m_distance_max, m_redundancy_max,
+        ptr, m_depth_max, m_distance_max, m_redundancy_max,
         m_do_disable_reachable_matrix);
 }
 
@@ -136,22 +133,15 @@ enumerate_chain_candidates(const pg::proof_graph_t *graph, int depth) const
         for (auto it = nodes->begin(); it != nodes->end(); ++it)
         {
             const pg::node_t &n = graph->node(*it);
-            std::string arity = n.literal().get_predicate_arity();
+            std::string arity = n.literal().get_arity();
 
-            if (m_do_deduction)
-            {
-                std::list<axiom_id_t> _axioms =
-                    base->search_axioms_with_lhs(arity);
-                for (auto ax = _axioms.begin(); ax != _axioms.end(); ++ax)
-                    axioms.insert(std::make_tuple(*ax, true));
-            }
-            if (m_do_abduction)
-            {
-                std::list<axiom_id_t> _axioms =
-                    base->search_axioms_with_rhs(arity);
-                for (auto ax = _axioms.begin(); ax != _axioms.end(); ++ax)
-                    axioms.insert(std::make_tuple(*ax, false));
-            }
+            std::list<axiom_id_t> ax_deductive = base->search_axioms_with_lhs(arity);
+            for (auto ax = ax_deductive.begin(); ax != ax_deductive.end(); ++ax)
+                axioms.insert(std::make_tuple(*ax, true));
+
+            std::list<axiom_id_t> ax_abductive = base->search_axioms_with_rhs(arity);
+            for (auto ax = ax_abductive.begin(); ax != ax_abductive.end(); ++ax)
+                axioms.insert(std::make_tuple(*ax, false));
         }
     }
 
@@ -176,7 +166,7 @@ void depth_based_enumerator_t::enumerate_chain_candidates_sub(
 
     for (auto it = lits.begin(); it != lits.end(); ++it)
     if (not (*it)->is_equality())
-        arities.push_back((*it)->get_predicate_arity());
+        arities.push_back((*it)->get_arity());
 
     if (not arities.empty())
     {
@@ -270,8 +260,8 @@ const pg::proof_graph_t *graph) const
         const pg::node_t &node1 = graph->node(*n1);
         const pg::node_t &node2 = graph->node(*n2);
         float dist = kb->get_distance(
-            node1.literal().get_predicate_arity(),
-            node2.literal().get_predicate_arity());
+            node1.literal().get_arity(),
+            node2.literal().get_arity());
 
         if (dist >= 0 and (m_distance_max < 0.0 or dist <= m_distance_max))
         {
@@ -338,11 +328,11 @@ bool depth_based_enumerator_t::compute_reachability_of_chaining(
     for (auto it = rcs_from.begin(); it != rcs_from.end(); ++it)
     {
         std::string arity =
-            graph->node(it->first).literal().get_predicate_arity();
+            graph->node(it->first).literal().get_arity();
 
         for (int i = 0; i < literals.size(); ++i)
         {
-            std::string arity2 = literals.at(i)->get_predicate_arity();
+            std::string arity2 = literals.at(i)->get_arity();
             float distance = base->get_distance(arity, arity2);
             float redundancy =
                 it->second.redundancy +
@@ -369,7 +359,7 @@ void depth_based_enumerator_t::filter_unified_reachability(
 {
     const hash_set<pg::node_idx_t> *nodes =
         graph->search_nodes_with_arity(
-        graph->node(target).literal().get_predicate_arity());
+        graph->node(target).literal().get_arity());
     hash_set<pg::node_idx_t> evidences;
 
     for (auto it = nodes->begin(); it != nodes->end(); ++it)
@@ -416,10 +406,7 @@ bool depth_based_enumerator_t::is_available(std::list<std::string>*) const
 
 std::string depth_based_enumerator_t::repr() const
 {
-    std::string name = m_do_deduction ?
-        (m_do_abduction ? "BasicEnumerator" : "BasicDeductiveEnumerator") :
-        (m_do_abduction ? "BasicAbductiveEnumerator" : "NullEnumerator");
-    return name + format("(depth = %d)", m_depth_max);
+    return "DepthBasedEnumerator";
 }
 
 

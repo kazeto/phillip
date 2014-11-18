@@ -1,5 +1,6 @@
 /* -*- coding: utf-8 -*- */
 
+#include <iomanip>
 #include <cassert>
 #include <cstring>
 #include <climits>
@@ -73,8 +74,6 @@ std::unique_ptr<knowledge_base_t, knowledge_base_t::deleter> knowledge_base_t::m
 std::string knowledge_base_t::ms_filename = "kb";
 distance_provider_type_e knowledge_base_t::ms_distance_provider_type = DISTANCE_PROVIDER_BASIC;
 float knowledge_base_t::ms_max_distance = -1.0f;
-bool knowledge_base_t::ms_do_compute_distance_for_abduction = true;
-bool knowledge_base_t::ms_do_compute_distance_for_deduction = true;
 int knowledge_base_t::ms_thread_num_for_rm = 1;
 std::mutex knowledge_base_t::ms_mutex_for_cache;
 std::mutex knowledge_base_t::ms_mutex_for_rm;
@@ -90,8 +89,7 @@ knowledge_base_t* knowledge_base_t::instance()
 
 void knowledge_base_t::setup(
     std::string filename, distance_provider_type_e dist_type,
-    float max_distance, int thread_num_for_rm,
-    bool do_compute_for_abduction, bool do_compute_for_deduction)
+    float max_distance, int thread_num_for_rm)
 {
     if (not ms_instance)
     {
@@ -99,8 +97,6 @@ void knowledge_base_t::setup(
         ms_distance_provider_type = dist_type;
         ms_max_distance = max_distance;
         ms_thread_num_for_rm = thread_num_for_rm;
-        ms_do_compute_distance_for_abduction = do_compute_for_abduction;
-        ms_do_compute_distance_for_deduction = do_compute_for_deduction;
 
         if (ms_thread_num_for_rm < 0) ms_thread_num_for_rm = 1;
     }
@@ -164,7 +160,7 @@ void knowledge_base_t::prepare_query()
 
     if (m_state == STATE_NULL)
     {
-        read_config((m_filename + ".conf").c_str());
+        read_config();
 
         m_axioms.prepare_query();
         m_cdb_name.prepare_query();
@@ -207,7 +203,43 @@ void knowledge_base_t::finalize()
         m_argument_sets.clear();
 
         create_reachable_matrix();
-        write_config((m_filename + ".conf").c_str());
+        write_config();
+
+        if (phillip_main_t::verbose() == FULL_VERBOSE)
+        {
+            std::cerr << "Reachability Matrix:" << std::endl;
+            m_rm.prepare_query();
+
+            std::cerr << std::setw(30) << std::right << "" << " | ";
+            for (auto it = m_arity_set.begin(); it != m_arity_set.end(); ++it)
+                std::cerr << (*it) << " | ";
+            std::cerr << std::endl;
+
+            for (auto it1 = m_arity_set.begin(); it1 != m_arity_set.end(); ++it1)
+            {
+                const size_t *idx1 = search_arity_index(*it1);
+                std::cerr << std::setw(30) << std::right << (*it1) << " | ";
+
+                if (idx1 == NULL)
+                {
+                    std::cerr << std::endl;
+                    continue;
+                }
+                else
+                {
+                    for (auto it2 = m_arity_set.begin(); it2 != m_arity_set.end(); ++it2)
+                    {
+                        const size_t *idx2 = search_arity_index(*it2);
+                        if (idx2 != NULL)
+                        {
+                            float dist = m_rm.get(*idx1, *idx2);
+                            std::cerr << std::setw(it2->length()) << (int)dist << " | ";
+                        }
+                    }
+                    std::cerr << std::endl;
+                }
+            }
+        }
 
         m_arity_set.clear();
     }
@@ -227,30 +259,27 @@ void knowledge_base_t::finalize()
 }
 
 
-void knowledge_base_t::write_config(const char *filename) const
+void knowledge_base_t::write_config() const
 {
+    std::string filename(m_filename + ".conf");
     std::ofstream fo(
-        filename, std::ios::out | std::ios::trunc | std::ios::binary);
+        filename.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);
     char dist_type(m_rm_dist->type());
-    char version(KB_VERSION_3);
+    char version(KB_VERSION_4);
 
     fo.write(&version, sizeof(char));
     fo.write((char*)&ms_max_distance, sizeof(float));
     fo.write(&dist_type, sizeof(char));
 
-    char flag_abduction(ms_do_compute_distance_for_abduction ? 0xff : 0x00);
-    char flag_deduction(ms_do_compute_distance_for_deduction ? 0xff : 0x00);
-    fo.write(&flag_abduction, sizeof(char));
-    fo.write(&flag_deduction, sizeof(char));
-
     fo.close();
 }
 
 
-void knowledge_base_t::read_config(const char *filename)
+void knowledge_base_t::read_config()
 {
-    std::ifstream fi(filename, std::ios::in | std::ios::binary);
-    char dist_type, version, flag_abduction, flag_deduction;
+    std::string filename(m_filename + ".conf");
+    std::ifstream fi(filename.c_str(), std::ios::in | std::ios::binary);
+    char dist_type, version;
 
     fi.read(&version, sizeof(char));
 
@@ -264,7 +293,7 @@ void knowledge_base_t::read_config(const char *filename)
         return;
     }
 
-    if (m_version != KB_VERSION_3)
+    if (m_version != KB_VERSION_4)
     {
         print_error(
             "This compiled knowledge base is too old. Please re-compile it.");
@@ -273,32 +302,31 @@ void knowledge_base_t::read_config(const char *filename)
 
     fi.read((char*)&ms_max_distance, sizeof(float));
     fi.read(&dist_type, sizeof(char));
-    fi.read(&flag_abduction, sizeof(char));
-    fi.read(&flag_deduction, sizeof(char));
+
     fi.close();
 
-    ms_do_compute_distance_for_abduction = (flag_abduction != 0x00);
-    ms_do_compute_distance_for_deduction = (flag_deduction != 0x00);
     ms_distance_provider_type = static_cast<distance_provider_type_e>(dist_type);
     set_distance_provider(ms_distance_provider_type);
 }
 
 
-void knowledge_base_t::insert_implication(
-    const lf::logical_function_t &lf, const std::string &name)
+axiom_id_t knowledge_base_t::insert_implication(
+    const lf::logical_function_t &func, const std::string &name)
 {
     if (m_state == STATE_COMPILE)
     {
-        if (not lf.is_valid_as_implication())
+        bool is_implication = func.is_valid_as_implication();
+        bool is_paraphrase = func.is_valid_as_paraphrase();
+
+        if (not is_implication and not is_paraphrase)
         {
             print_warning_fmt(
-                "Implication \"%s\" is invalid and skipped.",
-                lf.to_string().c_str());
-            return;
+                "Axiom \"%s\" is invalid and skipped.", func.to_string().c_str());
+            return INVALID_AXIOM_ID;
         }
 
         axiom_id_t id = m_axioms.num_axioms();
-        m_axioms.put(name, lf);
+        m_axioms.put(name, func);
         m_name_to_axioms[name].insert(id);
 
         // REGISTER AXIOMS'S GROUPS
@@ -309,32 +337,35 @@ void knowledge_base_t::insert_implication(
                 m_group_to_axioms[spl[i]].insert(id);
         }
 
-        std::vector<const literal_t*> rhs(lf.get_rhs()), lhs(lf.get_lhs());
+        std::vector<const literal_t*> rhs(func.get_rhs());
+        std::vector<const literal_t*> lhs(func.get_lhs());
 
         for (auto it = rhs.begin(); it != rhs.end(); ++it)
+        if (not (*it)->is_equality())
         {
-            if (not (*it)->is_equality())
-            {
-                std::string arity((*it)->get_predicate_arity());
-                m_rhs_to_axioms[arity].insert(id);
-                insert_arity(arity);
-            }
+            std::string arity((*it)->get_arity());
+            insert_arity(arity);
+            m_rhs_to_axioms[arity].insert(id);
         }
 
+
         for (auto it = lhs.begin(); it != lhs.end(); ++it)
+        if (not(*it)->is_equality())
         {
-            if (not (*it)->is_equality())
-            {
-                std::string arity = (*it)->get_predicate_arity();
+            std::string arity = (*it)->get_arity();
+            insert_arity(arity);
+            if (is_paraphrase)
                 m_lhs_to_axioms[arity].insert(id);
-                insert_arity(arity);
-            }
         }
+
+        return id;
     }
+    else
+        return INVALID_AXIOM_ID;
 }
 
 
-void knowledge_base_t::insert_inconsistency(
+axiom_id_t knowledge_base_t::insert_inconsistency(
     const lf::logical_function_t &func, const std::string &name)
 {
     if (m_state == STATE_COMPILE)
@@ -344,6 +375,7 @@ void knowledge_base_t::insert_inconsistency(
             print_warning_fmt(
                 "Inconsistency \"%s\" is invalid and skipped.",
                 func.to_string().c_str());
+            return INVALID_AXIOM_ID;
         }
         else
         {
@@ -354,15 +386,19 @@ void knowledge_base_t::insert_inconsistency(
             std::vector<const literal_t*> literals = func.get_all_literals();
             for (auto it = literals.begin(); it != literals.end(); ++it)
             {
-                std::string arity = (*it)->get_predicate_arity();
+                std::string arity = (*it)->get_arity();
                 m_inc_to_axioms[arity].insert(id);
             }
+
+            return id;
         }
     }
+    else
+        return INVALID_AXIOM_ID;
 }
 
 
-void knowledge_base_t::insert_unification_postponement(
+axiom_id_t knowledge_base_t::insert_unification_postponement(
     const lf::logical_function_t &func, const std::string &name)
 {
     if (m_state == STATE_COMPILE)
@@ -372,6 +408,7 @@ void knowledge_base_t::insert_unification_postponement(
             print_warning_fmt(
                 "Unification postponement \"%s\" is invalid and skipped.",
                 func.to_string().c_str());
+            return INVALID_AXIOM_ID;
         }
         else
         {
@@ -379,7 +416,7 @@ void knowledge_base_t::insert_unification_postponement(
             m_axioms.put(name, func);
 
             /* REGISTER AXIOM-ID TO MAP FOR UNI-PP */
-            std::string arity = func.branch(0).literal().get_predicate_arity();
+            std::string arity = func.branch(0).literal().get_arity();
             if (m_arity_to_postponement.count(arity) > 0)
             {
                 print_warning_fmt(
@@ -389,8 +426,12 @@ void knowledge_base_t::insert_unification_postponement(
             }
             else
                 m_arity_to_postponement[arity].insert(id);
+
+            return id;
         }
     }
+    else
+        return INVALID_AXIOM_ID;
 }
 
 
@@ -503,7 +544,7 @@ get_unification_postponement(const std::string &arity) const
         const term_t INDISPENSABLE("*"), PARTIAL("+"), DISPENSABLE(".");
         lf::axiom_t ax = get_axiom(ids.front());
         const literal_t &lit = ax.func.branch(0).literal();
-        std::string arity = lit.get_predicate_arity();
+        std::string arity = lit.get_arity();
         std::vector<char> args(lit.terms.size(), 0);
 
         for (size_t i = 0; i < args.size(); ++i)
@@ -543,7 +584,6 @@ search_argument_set_id(const std::string &arity, int term_idx) const
         return 0;
     }
 
-    char buf[16];
     std::string key = format("%s/%d", arity.c_str(), term_idx);
     size_t value_size;
     const argument_set_id_t *value = (const argument_set_id_t*)
@@ -700,8 +740,9 @@ void knowledge_base_t::create_reachable_matrix()
     print_console_fmt("  num of parallel threads = %d", ms_thread_num_for_rm);
 
     hash_map<size_t, hash_map<size_t, float> > base_lhs, base_rhs;
+    std::set<std::pair<size_t, size_t> > base_para;
     print_console("  computing distance of direct edges...");
-    _create_reachable_matrix_direct(m_arity_set, &base_lhs, &base_rhs);
+    _create_reachable_matrix_direct(m_arity_set, &base_lhs, &base_rhs, &base_para);
 
     print_console("  writing reachable matrix...");
     std::vector<std::thread> worker;
@@ -717,7 +758,8 @@ void knowledge_base_t::create_reachable_matrix()
                 for(int idx = th_id; idx < m_arity_set.size(); idx += num_thread)
                 {
                     hash_map<size_t, float> dist;
-                    _create_reachable_matrix_indirect(idx, base_lhs, base_rhs, &dist);
+                    _create_reachable_matrix_indirect(
+                        idx, base_lhs, base_rhs, base_para, &dist);
                     m_rm.put(idx, dist);
 
                     ms_mutex_for_rm.lock();
@@ -739,10 +781,6 @@ void knowledge_base_t::create_reachable_matrix()
     }
     for (auto &t : worker) t.join();
     
-    for (size_t idx = 0; idx < m_arity_set.size(); ++idx)
-    {
-    }
-
     time(&time_end);
     int proc_time(time_end - time_start); 
     double coverage(num_inserted * 100.0 / (double)(N * N));
@@ -756,114 +794,158 @@ void knowledge_base_t::create_reachable_matrix()
 void knowledge_base_t::_create_reachable_matrix_direct(
     const hash_set<std::string> &arities,
     hash_map<size_t, hash_map<size_t, float> > *out_lhs,
-    hash_map<size_t, hash_map<size_t, float> > *out_rhs)
+    hash_map<size_t, hash_map<size_t, float> > *out_rhs,
+    std::set<std::pair<size_t, size_t> > *out_para)
 {
+    size_t num_processed(0);
     hash_set<size_t> stopped;
+
     for (auto it = m_stop_words.begin(); it != m_stop_words.end(); ++it)
     {
         const size_t *idx = search_arity_index(*it);
         if (idx != NULL) stopped.insert(*idx);
     }
-    
-    auto _process = [&](bool is_forward)
+
+    for (auto ar = arities.begin(); ar != arities.end(); ++ar)
     {
-        hash_map<size_t, hash_map<size_t, float> > *out(is_forward ? out_lhs : out_rhs);
-        size_t num_processed(0);
-        
-        for (auto ar = arities.begin(); ar != arities.end(); ++ar)
-        {            
-            const size_t *idx1 = search_arity_index(*ar);
-            assert(idx1 != NULL);
-            
-            if (stopped.count(*idx1) == 0)
+        const size_t *idx1 = search_arity_index(*ar);
+        assert(idx1 != NULL);
+
+        if (stopped.count(*idx1) == 0)
+        {
+            (*out_lhs)[*idx1][*idx1] = 0.0f;
+            (*out_rhs)[*idx1][*idx1] = 0.0f;
+        }
+    }
+
+    for (axiom_id_t id = 0; id < m_axioms.num_axioms(); ++id)
+    {
+        lf::axiom_t axiom = get_axiom(id);
+
+        if (axiom.func.is_operator(lf::OPR_IMPLICATION) or
+            axiom.func.is_operator(lf::OPR_PARAPHRASE))
+        {
+            float dist = (*m_rm_dist)(axiom);
+
+            if (dist >= 0.0f)
             {
-                hash_map<size_t, float> *target = &(*out)[*idx1];
-                (*target)[*idx1] = 0.0f;
+                hash_set<size_t> lhs_ids, rhs_ids;
 
-                std::list<axiom_id_t> ids = is_forward ?
-                    search_axioms_with_lhs(*ar) :
-                    search_axioms_with_rhs(*ar);
-
-                for (auto id = ids.begin(); id != ids.end(); ++id)
                 {
-                    lf::axiom_t axiom = get_axiom(*id);
-                    std::vector<const literal_t*>
-                        lits = axiom.func.branch(is_forward ? 1 : 0).get_all_literals();
-                    float dist = (*m_rm_dist)(axiom);
-                    
-                    if (dist < 0.0f) continue;
+                    std::vector<const literal_t*> lhs = axiom.func.get_lhs();
+                    std::vector<const literal_t*> rhs = axiom.func.get_rhs();
 
-                    for (auto li = lits.begin(); li != lits.end(); ++li)
+                    for (auto it_l = lhs.begin(); it_l != lhs.end(); ++it_l)
                     {
-                        std::string arity2 = (*li)->get_predicate_arity();
-                        const size_t *idx2 = search_arity_index(arity2);
-                    
-                        if (idx2 == NULL) continue;
-                        if (stopped.count(*idx2) != 0) continue;
+                        std::string arity = (*it_l)->get_arity();
+                        const size_t *idx = search_arity_index(arity);
 
-                        auto found = target->find(*idx2);
-                        if (found == target->end())    (*target)[*idx2] = dist;
-                        else if (dist < found->second) (*target)[*idx2] = dist;
+                        if (idx != NULL)
+                        if (stopped.count(*idx) == 0)
+                            lhs_ids.insert(*idx);
+                    }
+
+                    for (auto it_r = rhs.begin(); it_r != rhs.end(); ++it_r)
+                    {
+                        std::string arity = (*it_r)->get_arity();
+                        const size_t *idx = search_arity_index(arity);
+
+                        if (idx != NULL)
+                        if (stopped.count(*idx) == 0)
+                            rhs_ids.insert(*idx);
                     }
                 }
-            }
 
-            if (++num_processed % 10 == 0)
-            {
-                float progress = (float)(num_processed) * 100.0f / (float)arities.size();
-                std::cerr << format("processed %d predicates [%.4f%%]\r", num_processed, progress);
+                for (auto it_l = lhs_ids.begin(); it_l != lhs_ids.end(); ++it_l)
+                {
+                    hash_map<size_t, float> &target = (*out_lhs)[*it_l];
+                    for (auto it_r = rhs_ids.begin(); it_r != rhs_ids.end(); ++it_r)
+                    {
+                        auto found = target.find(*it_r);
+                        if (found == target.end())
+                            target[*it_r] = dist;
+                        else if (dist < found->second)
+                            target[*it_r] = dist;
+                    }
+                }
+
+                for (auto it_r = rhs_ids.begin(); it_r != rhs_ids.end(); ++it_r)
+                {
+                    hash_map<size_t, float> &target = (*out_rhs)[*it_r];
+                    for (auto it_l = lhs_ids.begin(); it_l != lhs_ids.end(); ++it_l)
+                    {
+                        auto found = target.find(*it_l);
+                        if (found == target.end())
+                            target[*it_l] = dist;
+                        else if (dist < found->second)
+                            target[*it_l] = dist;
+                    }
+                }
+
+                if (axiom.func.is_operator(lf::OPR_PARAPHRASE))
+                for (auto it_l = lhs_ids.begin(); it_l != lhs_ids.end(); ++it_l)
+                for (auto it_r = rhs_ids.begin(); it_r != rhs_ids.end(); ++it_r)
+                    out_para->insert(make_sorted_pair(*it_l, *it_r));
             }
-                    
         }
-    };
 
-    _process(true);
-    _process(false);
+        if (++num_processed % 10 == 0)
+        {
+            float progress = (float)(num_processed)* 100.0f / (float)m_axioms.num_axioms();
+            std::cerr << format("processed %d axioms [%.4f%%]\r", num_processed, progress);
+        }
+    }    
 }
 
 
 void knowledge_base_t::_create_reachable_matrix_indirect(
-    size_t idx1,
+    size_t target,
     const hash_map<size_t, hash_map<size_t, float> > &base_lhs,
     const hash_map<size_t, hash_map<size_t, float> > &base_rhs,
+    const std::set<std::pair<size_t, size_t> > &base_para,
     hash_map<size_t, float> *out) const
 {
-    if (base_lhs.count(idx1) == 0 or base_rhs.count(idx1) == 0) return;
+    if (base_lhs.count(target) == 0 or base_rhs.count(target) == 0) return;
 
     std::map<std::tuple<size_t, bool, bool>, float> current;
     std::map<std::tuple<size_t, bool, bool>, float> processed;
 
-    current[std::make_tuple(idx1, true, true)] = 0.0f;
-    processed[std::make_tuple(idx1, true, true)] = 0.0f;
-    (*out)[idx1] = 0.0f;
+    current[std::make_tuple(target, true, true)] = 0.0f;
+    processed[std::make_tuple(target, true, true)] = 0.0f;
+    (*out)[target] = 0.0f;
 
     while (not current.empty())
     {
         std::map<std::tuple<size_t, bool, bool>, float> next;
         auto _process = [&](
-            size_t idx, bool can_abduction, bool can_deduction,
+            size_t idx1, bool can_abduction, bool can_deduction,
             float dist, bool is_forward)
         {
             const hash_map<size_t, hash_map<size_t, float> >
                 &base = (is_forward ? base_lhs : base_rhs);
-            auto found = base.find(idx);
+            auto found = base.find(idx1);
 
             if (found != base.end())
             for (auto it2 = found->second.begin(); it2 != found->second.end(); ++it2)
             {
                 size_t idx2(it2->first);
+                if (idx1 == idx2) continue;
+
+                bool is_paraphrasal =
+                    (base_para.count(make_sorted_pair(idx1, idx2)) > 0);
+                if (not is_paraphrasal and
+                    ((is_forward and not can_deduction) or
+                    (not is_forward and not can_abduction)))
+                    continue;
+
                 float dist_new(dist + it2->second); // DISTANCE idx1 ~ idx2
-
-                if (idx == idx2) continue;
-
                 if (get_max_distance() < 0.0f or dist_new <= get_max_distance())
                 {
                     std::tuple<size_t, bool, bool> key =
                         std::make_tuple(idx2, can_abduction, can_deduction);
-                    if (is_forward and not ms_do_compute_distance_for_deduction)
-                        std::get<1>(key) = false;
-                    if (not is_forward and not ms_do_compute_distance_for_abduction)
-                        std::get<2>(key) = false;
+
+                    // ONCE DONE DEDUCTION, YOU CANNOT DO ABDUCTION!
+                    if (is_forward and not is_paraphrasal) std::get<1>(key) = false;
 
                     bool do_add(false);
                     auto found = processed.find(key);
@@ -889,10 +971,8 @@ void knowledge_base_t::_create_reachable_matrix_indirect(
             bool can_abduction = std::get<1>(it1->first);
             bool can_deduction = std::get<2>(it1->first);
 
-            if (can_abduction)
-                _process(idx, can_abduction, can_deduction, it1->second, false);
-            if (can_deduction)
-                _process(idx, can_abduction, can_deduction, it1->second, true);
+            _process(idx, can_abduction, can_deduction, it1->second, false);
+            _process(idx, can_abduction, can_deduction, it1->second, true);
         }
 
         current = next;

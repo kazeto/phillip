@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <map>
+#include <set>
 #include <list>
 #include <string>
 #include <memory>
@@ -24,8 +25,10 @@ namespace kb
 {
 
 
-typedef unsigned argument_set_id_t;
-static const int INVALID_ARGUMENT_SET_ID = 0;
+typedef unsigned long int argument_set_id_t;
+
+static const axiom_id_t INVALID_AXIOM_ID = -1;
+static const argument_set_id_t INVALID_ARGUMENT_SET_ID = 0;
 
 
 enum distance_provider_type_e
@@ -47,7 +50,7 @@ enum unification_postpone_argument_type_e
 enum version_e
 {
     KB_VERSION_UNDERSPECIFIED,
-    KB_VERSION_1, KB_VERSION_2, KB_VERSION_3,
+    KB_VERSION_1, KB_VERSION_2, KB_VERSION_3, KB_VERSION_4,
     NUM_OF_KB_VERSION_TYPES
 };
 
@@ -95,9 +98,7 @@ public:
     static knowledge_base_t* instance();
     static void setup(
         std::string filename, distance_provider_type_e dist_type,
-        float max_distance, int thread_num_for_rm,
-        bool do_compute_for_abduction = true,
-        bool do_compute_for_deduction = true);
+        float max_distance, int thread_num_for_rm);
     static inline float get_max_distance();
 
     ~knowledge_base_t();
@@ -112,9 +113,9 @@ public:
     /** Call this method on end of compiling or reading knowledge base. */
     void finalize();
 
-    void insert_implication(const lf::logical_function_t &f, const std::string &name);
-    void insert_inconsistency(const lf::logical_function_t &f, const std::string &name);
-    void insert_unification_postponement(const lf::logical_function_t &f, const std::string &name);
+    axiom_id_t insert_implication(const lf::logical_function_t &f, const std::string &name);
+    axiom_id_t insert_inconsistency(const lf::logical_function_t &f, const std::string &name);
+    axiom_id_t insert_unification_postponement(const lf::logical_function_t &f, const std::string &name);
     void insert_stop_word_arity(const lf::logical_function_t &f);
     void insert_argument_set(const lf::logical_function_t &f);
 
@@ -178,6 +179,7 @@ private:
         void prepare_compile();
         void prepare_query();
         void finalize();
+
         void put(size_t idx1, const hash_map<size_t, float> &dist);
         float get(size_t idx1, size_t idx2) const;
         hash_set<float> get(size_t idx) const;
@@ -199,8 +201,8 @@ private:
     knowledge_base_t(
         const std::string &filename, distance_provider_type_e dist);
 
-    void write_config(const char *filename) const;
-    void read_config(const char *filename);
+    void write_config() const;
+    void read_config();
 
     void _insert_cdb(
         const hash_map<std::string, hash_set<axiom_id_t> > &ids, cdb_data_t *dat);
@@ -217,11 +219,13 @@ private:
     void _create_reachable_matrix_direct(
         const hash_set<std::string> &arities,
         hash_map<size_t, hash_map<size_t, float> > *out_lhs,
-        hash_map<size_t, hash_map<size_t, float> > *out_rhs);
+        hash_map<size_t, hash_map<size_t, float> > *out_rhs,
+        std::set<std::pair<size_t, size_t> > *out_para);
     void _create_reachable_matrix_indirect(
         size_t key,
         const hash_map<size_t, hash_map<size_t, float> > &base_lhs,
         const hash_map<size_t, hash_map<size_t, float> > &base_rhs,
+        const std::set<std::pair<size_t, size_t> > &base_para,
         hash_map<size_t, float> *out) const;
 
     void extend_inconsistency();
@@ -246,8 +250,6 @@ private:
     static std::string ms_filename;
     static distance_provider_type_e ms_distance_provider_type;
     static float ms_max_distance;
-    static bool ms_do_compute_distance_for_abduction;
-    static bool ms_do_compute_distance_for_deduction;
     static int ms_thread_num_for_rm;
     static std::mutex ms_mutex_for_cache;
     static std::mutex ms_mutex_for_rm;

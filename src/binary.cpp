@@ -285,43 +285,20 @@ kb::distance_provider_type_e _get_distance_provider_type(const std::string &arg)
 
 lhs_enumerator_t* _new_lhs_enumerator(phillip_main_t *phillip, const std::string &key)
 {
-    if (key == "a*:bidirection")
+    if (key == "a*")
         return new lhs::a_star_based_enumerator_t(
-            phillip, true, true,
-            phillip->param_float("max_distance"),
-            phillip->param_int("max_depth"));
-    if (key == "a*:abduction")
-        return new lhs::a_star_based_enumerator_t(
-            phillip, false, true,
-            phillip->param_float("max_distance"),
-            phillip->param_int("max_depth"));
-    if (key == "a*:deduction")
-        return new lhs::a_star_based_enumerator_t(
-            phillip, true, false,
+            phillip,
             phillip->param_float("max_distance"),
             phillip->param_int("max_depth"));
     
-    if (key == "depth:bidirection" or key == "bidirection")
+    if (key == "depth")
         return new lhs::depth_based_enumerator_t(
-        phillip, true, true,
+        phillip,
         phillip->param_int("max_depth"),
         phillip->param_float("max_distance"),
         phillip->param_float("max_redundancy"),
         phillip->flag("disable_reachable_matrix"));
-    if (key == "depth:abduction"  or key == "abduction")
-        return new lhs::depth_based_enumerator_t(
-        phillip, false, true,
-        phillip->param_int("max_depth"),
-        phillip->param_float("max_distance"),
-        phillip->param_float("max_redundancy"),
-        phillip->flag("disable_reachable_matrix"));
-    if (key == "depth:deduction" or key == "deduction")
-        return new lhs::depth_based_enumerator_t(
-        phillip, true, false,
-        phillip->param_int("max_depth"),
-        phillip->param_float("max_distance"),
-        phillip->param_float("max_redundancy"),
-        phillip->flag("disable_reachable_matrix"));
+
     return NULL;
 }
 
@@ -376,8 +353,6 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
     kb::distance_provider_type_e dist_type(kb::DISTANCE_PROVIDER_BASIC);
     float max_dist = phillip->param_float("kb_max_distance", -1.0);
     int thread_num = phillip->param_int("kb_thread_num", 1);
-    bool do_compute_dist_for_abduction(true);
-    bool do_compute_dist_for_deduction(true);
 
     if (not config.dist_key.empty())
     {
@@ -393,21 +368,12 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
         }
     }
 
-    auto found = phillip->params().find("rm_direction");
-    if (found != phillip->params().end())
-    {
-        std::string dir(found->second);
-        if (dir == "abduction") do_compute_dist_for_deduction = false;
-        if (dir == "deduction") do_compute_dist_for_abduction = false;
-    }
-
     lhs_enumerator_t *lhs = _new_lhs_enumerator(phillip, config.lhs_key);
     ilp_converter_t *ilp = _new_ilp_converter(phillip, config.ilp_key);
     ilp_solver_t *sol = _new_ilp_solver(phillip, config.sol_key);
 
     kb::knowledge_base_t::setup(
-        config.kb_name, dist_type, max_dist, thread_num,
-        do_compute_dist_for_abduction, do_compute_dist_for_deduction);
+        config.kb_name, dist_type, max_dist, thread_num);
 
     switch (config.mode)
     {

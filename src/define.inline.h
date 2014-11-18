@@ -196,7 +196,7 @@ inline std::string literal_t::to_string( bool f_colored ) const
 }
 
 
-inline std::string literal_t::get_predicate_arity(
+inline std::string literal_t::get_arity(
     bool do_distinguish_negation) const
 {
     std::string out = phil::format(

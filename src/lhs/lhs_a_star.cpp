@@ -51,18 +51,15 @@ erase(hash_set<pg::node_idx_t> from_set, pg::node_idx_t target)
 
 
 a_star_based_enumerator_t::a_star_based_enumerator_t(
-    phillip_main_t *ptr, bool do_deduction, bool do_abduction,
-    float max_dist, int max_depth)
+    phillip_main_t *ptr, float max_dist, int max_depth)
     : lhs_enumerator_t(ptr),
-      m_do_deduction(do_deduction), m_do_abduction(do_abduction),
       m_max_distance(max_dist), m_max_depth(max_depth)
 {}
 
 
 lhs_enumerator_t* a_star_based_enumerator_t::duplicate(phillip_main_t *ptr) const
 {
-    return new a_star_based_enumerator_t(
-        ptr, m_do_deduction, m_do_abduction, m_max_distance, m_max_depth);
+    return new a_star_based_enumerator_t(ptr, m_max_distance, m_max_depth);
 }
 
 
@@ -154,31 +151,21 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
 
     std::set<std::tuple<axiom_id_t, bool> > axioms;
     {
-        std::string arity = n.literal().get_predicate_arity();
+        std::string arity = n.literal().get_arity();
 
-        if (m_do_deduction)
-        {
-            std::list<axiom_id_t> found(base->search_axioms_with_lhs(arity));
-            for (auto ax = found.begin(); ax != found.end(); ++ax)
-                axioms.insert(std::make_tuple(*ax, true));
-        }
+        std::list<axiom_id_t> ax_deductive(base->search_axioms_with_lhs(arity));
+        for (auto ax = ax_deductive.begin(); ax != ax_deductive.end(); ++ax)
+            axioms.insert(std::make_tuple(*ax, true));
 
-        if (m_do_abduction)
-        {
-            std::list<axiom_id_t> found(base->search_axioms_with_rhs(arity));
-            for (auto ax = found.begin(); ax != found.end(); ++ax)
-                axioms.insert(std::make_tuple(*ax, false));
-        }
+        std::list<axiom_id_t> ax_abductive(base->search_axioms_with_rhs(arity));
+        for (auto ax = ax_abductive.begin(); ax != ax_abductive.end(); ++ax)
+            axioms.insert(std::make_tuple(*ax, false));
     }
 
     for (auto it = axioms.begin(); it != axioms.end(); ++it)
     {
         lf::axiom_t axiom = base->get_axiom(std::get<0>(*it));
         bool is_forward(std::get<1>(*it));
-
-        if ((is_forward and not m_do_deduction) or
-            (not is_forward and not m_do_abduction))
-            continue;
 
         enumerate_chain_candidates_sub(graph, axiom, !is_forward, i, out);
     }
@@ -195,7 +182,7 @@ void a_star_based_enumerator_t::enumerate_chain_candidates_sub(
 
     for (auto it = lits.begin(); it != lits.end(); ++it)
     if (not (*it)->is_equality())
-        arities.push_back((*it)->get_predicate_arity());
+        arities.push_back((*it)->get_arity());
 
     if (not arities.empty())
     {
@@ -289,8 +276,8 @@ const pg::proof_graph_t *graph, reachability_manager_t *out) const
         const pg::node_t &node1 = graph->node(*n1);
         const pg::node_t &node2 = graph->node(*n2);
         float dist = kb->get_distance(
-            node1.literal().get_predicate_arity(),
-            node2.literal().get_predicate_arity());
+            node1.literal().get_arity(),
+            node2.literal().get_arity());
 
         if (check_permissibility_of(dist))
         {
@@ -354,11 +341,11 @@ bool a_star_based_enumerator_t::compute_reachability_of_chaining(
     {
         const reachability_t &r_from = it->second;
         std::string arity =
-            graph->node(it->first).literal().get_predicate_arity();
+            graph->node(it->first).literal().get_arity();
 
         for (int i = 0; i < literals.size(); ++i)
         {
-            std::string arity2 = literals.at(i)->get_predicate_arity();
+            std::string arity2 = literals.at(i)->get_arity();
             float dist_to = base->get_distance(arity, arity2);
             float dist_from = r_from.dist_from + d0;
             if (dist_to < 0.0f) continue;
@@ -438,10 +425,7 @@ bool a_star_based_enumerator_t::is_available(std::list<std::string>*) const
 
 std::string a_star_based_enumerator_t::repr() const
 {
-    std::string name = m_do_deduction ?
-        (m_do_abduction ? "A*BasedEnumerator" : "A*BasedDeductiveEnumerator") :
-        (m_do_abduction ? "A*BasedAbductiveEnumerator" : "NullEnumerator");
-    return name;
+    return "A*BasedEnumerator";
 }
 
 

@@ -324,9 +324,9 @@ void ilp_problem_t::add_constraints_to_forbid_looping_unification(
 
     hash_map<std::string, hash_set<pg::node_idx_t> > a2n_1, a2n_2;
     for (auto it = descendants.begin(); it != descendants.end(); ++it)
-        a2n_1[m_graph->node(*it).literal().get_predicate_arity()].insert(*it);
+        a2n_1[m_graph->node(*it).literal().get_arity()].insert(*it);
     for (auto it = ancestors.begin(); it != ancestors.end(); ++it)
-        a2n_2[m_graph->node(*it).literal().get_predicate_arity()].insert(*it);
+        a2n_2[m_graph->node(*it).literal().get_arity()].insert(*it);
 
     for (auto it1 = a2n_1.begin(); it1 != a2n_1.end(); ++it1)
     {
@@ -547,7 +547,7 @@ void ilp_problem_t::add_variable_for_requirement(
         else
         {
             const hash_set<pg::node_idx_t> *_nodes =
-                m_graph->search_nodes_with_arity(lit.get_predicate_arity());
+                m_graph->search_nodes_with_arity(lit.get_arity());
             hash_set<pg::hypernode_idx_t> _hns;
 
             for (auto it = _nodes->begin(); it != _nodes->end(); ++it)

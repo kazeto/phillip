@@ -1,5 +1,7 @@
 /* -*- coding: utf-8 -*- */
 
+#include <algorithm>
+
 #include "./processor.h"
 #include "./phillip.h"
 
@@ -30,9 +32,9 @@ void parse_obs_t::process( const sexp::reader_t *reader )
     _assert_syntax(reader->is_root(), (*reader), "Function O should be root." );
 
     std::string name = "?";
-    int i_x = stack.find_functor("^");
-    int i_y = stack.find_functor("require");
-    int i_name = stack.find_functor("name");
+    int i_x = stack.find_functor(lf::OPR_STR_AND);
+    int i_y = stack.find_functor(lf::OPR_STR_REQUIREMENT);
+    int i_name = stack.find_functor(lf::OPR_STR_NAME);
     
     if( i_name >= 0 )
         name = stack.children.at(i_name)->children.at(1)->get_string();
@@ -69,28 +71,32 @@ void compile_kb_t::process( const sexp::reader_t *reader )
     _assert_syntax(reader->is_root(), (*reader), "Function B should be root." );
         
     /* IDENTIFY THE LOGICAL FORM PART. */
-    int idx_lf = stack->find_functor("=>");
-    int idx_inc = stack->find_functor("xor");
-    int idx_pp = stack->find_functor("unipp");
-    int idx_sw = stack->find_functor("ignore");
-    int idx_as = stack->find_functor("argset");
-    int idx_name = stack->find_functor("name");
+    index_t idx_lf = stack->find_functor(lf::OPR_STR_IMPLICATION);
+    index_t idx_para = stack->find_functor(lf::OPR_STR_PARAPHRASE);
+    index_t idx_inc = stack->find_functor(lf::OPR_STR_INCONSISTENT);
+    index_t idx_pp = stack->find_functor(lf::OPR_STR_UNIPP);
+    index_t idx_sw = stack->find_functor(lf::OPR_STR_STOPWORD);
+    index_t idx_as = stack->find_functor(lf::OPR_STR_EXARGSET);
+    index_t idx_name = stack->find_functor(lf::OPR_STR_NAME);
         
     _assert_syntax(
-        (idx_lf >= 0 or idx_inc >= 0 or idx_pp >= 0 or idx_sw >= 0 or idx_as >= 0),
+        (idx_lf >= 0 or idx_para >= 0 or idx_inc >= 0 or idx_pp >= 0 or idx_sw >= 0 or idx_as >= 0),
         (*reader), "no logical connectors found." );
 
     std::string name;
     if (idx_name >= 0)
         name = stack->children.at(idx_name)->children.at(1)->get_string();
 
-    if (idx_lf >= 0)
+    if (idx_lf >= 0 or idx_para >= 0)
     {
-        lf::logical_function_t func(*stack->children[idx_lf]);
+        index_t idx = std::max(idx_lf, idx_para);
+        lf::logical_function_t func(*stack->children[idx]);
         _assert_syntax(
-            (stack->children.at(idx_lf)->children.size() >= 3), (*reader),
-            "function '=>' takes two arguments.");
-        IF_VERBOSE_FULL("Added implication: " + stack->to_string());
+            (stack->children.at(idx)->children.size() >= 3), (*reader),
+            "function '=>' and '<=>' takes two arguments.");
+        IF_VERBOSE_FULL(
+            ((idx_lf >= 0) ? "Added implication: " : "Added paraphrase") +
+            stack->to_string());
         _kb->insert_implication(func, name);
     }
     else if (idx_inc >= 0)

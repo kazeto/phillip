@@ -1008,7 +1008,7 @@ node_idx_t proof_graph_t::add_node(
     }
     else
     {
-        std::string arity = lit.get_predicate_arity();
+        std::string arity = lit.get_arity();
         const kb::knowledge_base_t *_kb = kb::knowledge_base_t::instance();
         for (int i = 0; i < lit.terms.size(); ++i)
         {
@@ -1512,7 +1512,7 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_inconsistent_nodes(
     if (target.is_equality()) return;
 
     const kb::knowledge_base_t *kb = kb::knowledge_base_t::instance();
-    std::string arity = target.get_predicate_arity();
+    std::string arity = target.get_arity();
     std::list<axiom_id_t> axioms = kb->search_inconsistencies(arity);
 
     for (auto ax = axioms.begin(); ax != axioms.end(); ++ax)
@@ -1521,7 +1521,7 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_inconsistent_nodes(
 
         const literal_t &lit1 = axiom.func.branch(0).literal();
         const literal_t &lit2 = axiom.func.branch(1).literal();
-        bool do_rev = (lit1.get_predicate_arity() != arity);
+        bool do_rev = (lit1.get_arity() != arity);
 
         const hash_set<node_idx_t> *idx_nodes = do_rev ?
             search_nodes_with_predicate(lit1.predicate, lit1.terms.size()) :
@@ -1915,7 +1915,7 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_argument_set(
     if (target.is_equality()) return;
 
     kb::knowledge_base_t *_kb = kb::knowledge_base_t::instance();
-    std::string arity = target.get_predicate_arity();
+    std::string arity = target.get_arity();
     hash_map<pg::node_idx_t, std::set<std::pair<term_idx_t, term_idx_t> > > cands;
 
     for (term_idx_t i = 0; i < target.terms.size(); ++i)

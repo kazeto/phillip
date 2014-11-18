@@ -22,7 +22,6 @@ class a_star_based_enumerator_t : public lhs_enumerator_t
 public:
     a_star_based_enumerator_t(
         phillip_main_t *ptr,
-        bool do_deduction, bool do_abduction,
         float max_dist, int max_depth = -1);
     virtual lhs_enumerator_t* duplicate(phillip_main_t *ptr) const;
     virtual pg::proof_graph_t* execute() const;
@@ -114,7 +113,6 @@ private:
     inline bool check_permissibility_of(float dist) const;
     inline bool check_permissibility_of(const reachability_t &r) const;
 
-    bool m_do_deduction, m_do_abduction;
     float m_max_distance;
     int m_max_depth;
 };
@@ -127,7 +125,6 @@ class depth_based_enumerator_t : public lhs_enumerator_t
 public:
     depth_based_enumerator_t(
         phillip_main_t *ptr,
-        bool do_deduction, bool do_abduction,
         int max_depth, float max_distance, float max_redundancy,
         bool do_disable_reachable_matrix = false);
     virtual lhs_enumerator_t* duplicate(phillip_main_t *ptr) const;
@@ -188,7 +185,6 @@ private:
         const pg::proof_graph_t *graph, const lf::axiom_t &axiom,
         const pg::chain_candidate_t &cand, pg::hypernode_idx_t to) const;
 
-    bool m_do_deduction, m_do_abduction;
     int m_depth_max;
     float m_distance_max, m_redundancy_max;
     bool m_do_disable_reachable_matrix;

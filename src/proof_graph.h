@@ -68,7 +68,7 @@ public:
 
     inline node_type_e type() const { return m_type; }
     inline const literal_t& literal() const { return m_literal; }
-    inline std::string arity() const { return m_literal.get_predicate_arity(); }
+    inline std::string arity() const { return m_literal.get_arity(); }
 
     /** Returns the index of this node in a proof-graph. */
     inline index_t index() const { return m_index; }
@@ -593,7 +593,7 @@ protected:
         *  KEY and VALUE express node pair, and KEY is less than VALUE. */
         hash_map<node_idx_t, hash_set<node_idx_t> > considered_exclusions;
 
-        std::map<std::pair<pg::node_idx_t, term_idx_t>, unsigned> argument_set_ids;
+        std::map<std::pair<pg::node_idx_t, term_idx_t>, unsigned long int> argument_set_ids;
     } m_temporal;
 
     struct maps_t
