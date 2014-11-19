@@ -107,6 +107,9 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
         prob->add_variable_for_requirement(*req, false);
     if (is_timeout()) return prob;
     
+    prob->add_constraints_of_mutual_exclusions();
+    if (is_timeout()) return prob;
+    
     prob->add_constrains_of_exclusive_chains();
     if (is_timeout()) return prob;
     

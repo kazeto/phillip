@@ -39,6 +39,8 @@ literal_t::literal_t(const sexp::stack_t &s)
     }
     else
         predicate = s.children[0]->str;
+
+    regularize();
 }
 
 

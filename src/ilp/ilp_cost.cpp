@@ -112,6 +112,7 @@ ilp::ilp_problem_t* costed_converter_t::execute() const
     if (req != NULL) prob->add_variable_for_requirement(*req, false);
 
     prob->add_constrains_of_exclusive_chains();
+    prob->add_constraints_of_mutual_exclusions();
     prob->add_constraints_of_transitive_unifications();
 
     return prob;

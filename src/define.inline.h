@@ -158,13 +158,19 @@ inline literal_t::literal_t( const std::string &_pred, bool _truth )
 
 inline literal_t::literal_t(
     predicate_t _pred, const std::vector<term_t> _terms, bool _truth )
-    : predicate(_pred), terms(_terms), truth(_truth) {}
+    : predicate(_pred), terms(_terms), truth(_truth)
+{
+    regularize();
+}
 
 
 inline literal_t::literal_t(
     const std::string &_pred,
     const std::vector<term_t> _terms, bool _truth )
-    : predicate(_pred), terms(_terms), truth(_truth) {}
+    : predicate(_pred), terms(_terms), truth(_truth)
+{
+    regularize();
+}
 
 
 inline literal_t::literal_t(
@@ -174,6 +180,7 @@ inline literal_t::literal_t(
 {
     terms.push_back(term1);
     terms.push_back(term2);
+    regularize();
 }
 
 
@@ -185,6 +192,7 @@ inline literal_t::literal_t(
 {
     terms.push_back( string_hash_t(term1) );
     terms.push_back( string_hash_t(term2) );
+    regularize();
 }
 
 
@@ -203,6 +211,14 @@ inline std::string literal_t::get_arity(
         "%s/%d", predicate.c_str(), (int)terms.size());
     if (do_distinguish_negation and not truth) out = "!" + out;
     return std::string(out);
+}
+
+
+inline void literal_t::regularize()
+{
+    if (is_equality())
+        if (terms.at(0) > terms.at(1))
+            std::swap(terms[0], terms[1]);
 }
 
 

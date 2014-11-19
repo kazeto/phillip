@@ -1,6 +1,6 @@
 /* -*- coding: utf-8 -*- */
 
-#include <iomanip>
+// #include <iomanip>
 #include <cassert>
 #include <cstring>
 #include <climits>
@@ -205,6 +205,7 @@ void knowledge_base_t::finalize()
         create_reachable_matrix();
         write_config();
 
+        /*
         if (phillip_main_t::verbose() == FULL_VERBOSE)
         {
             std::cerr << "Reachability Matrix:" << std::endl;
@@ -240,6 +241,7 @@ void knowledge_base_t::finalize()
                 }
             }
         }
+        */
 
         m_arity_set.clear();
     }

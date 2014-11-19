@@ -107,8 +107,9 @@ typedef std::pair<term_t, term_t> substitution_t;
 
 
 /** A struct of literal. */
-struct literal_t
+class literal_t
 {
+public:
     inline literal_t() {}
     inline literal_t(const std::string &_pred, bool _truth = true);
     inline literal_t(
@@ -147,6 +148,9 @@ struct literal_t
     predicate_t predicate;
     std::vector<term_t> terms;
     bool truth;
+
+private:
+    inline void regularize();
 };
 
 
