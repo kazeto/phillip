@@ -48,6 +48,12 @@ inline float knowledge_base_t::get_distance(const lf::axiom_t &axiom) const
 }
 
 
+inline float knowledge_base_t::get_distance(axiom_id_t id) const
+{
+    return get_distance(get_axiom(id));
+}
+
+
 inline version_e knowledge_base_t::version() const
 {
     return m_version;

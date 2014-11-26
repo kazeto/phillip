@@ -198,6 +198,7 @@ private:
  *  This class can be used as the key of std::map or the value of std::set. */
 struct chain_candidate_t
 {
+    chain_candidate_t() : axiom_id(0), is_forward(false) {}
     inline chain_candidate_t(
         const std::vector<node_idx_t> &_nodes,
         axiom_id_t _id, bool _is_forward)
@@ -208,9 +209,9 @@ struct chain_candidate_t
     bool operator==(const chain_candidate_t &x) const;
     bool operator!=(const chain_candidate_t &x) const;
 
-    const std::vector<node_idx_t> nodes;
-    const axiom_id_t axiom_id;
-    const bool is_forward;
+    std::vector<node_idx_t> nodes;
+    axiom_id_t axiom_id;
+    bool is_forward;
 };
 
 

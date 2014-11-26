@@ -135,6 +135,7 @@ public:
 
     /** Returns distance between arity1 and arity2 with distance-provider. */
     inline float get_distance(const lf::axiom_t &axiom) const;
+    inline float get_distance(axiom_id_t id) const;
 
     inline version_e version() const;
     inline bool is_valid_version() const;
