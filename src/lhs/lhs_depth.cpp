@@ -38,7 +38,7 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
         new pg::proof_graph_t(phillip(), phillip()->get_input()->name);
     hash_map<pg::node_idx_t, reachable_map_t> reachability;
     time_t begin, now;
-
+    
     time(&begin);
     add_observations(graph);
 
@@ -57,6 +57,13 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
         for (auto it = cands.begin(); it != cands.end(); ++it)
         if (axioms.count(it->axiom_id) == 0)
             axioms[it->axiom_id] = base->get_axiom(it->axiom_id);
+
+        if (phillip_main_t::verbose() == FULL_VERBOSE)
+        {
+            print_console_fmt("  depth %d:", depth);
+            print_console_fmt("    # of cands = %d", cands.size());
+            print_console_fmt("    # of axioms = %d", axioms.size());
+        }
 
         // EXECUTE CHAINING
         for (auto it = cands.begin(); it != cands.end(); ++it)

@@ -292,7 +292,7 @@ private:
 class basic_distance_provider_t : public distance_provider_t
 {
 public:
-    virtual float operator() (const lf::axiom_t&) const { return 1.0f; }
+    virtual float operator() (const lf::axiom_t&) const;
     virtual distance_provider_type_e type() const { return DISTANCE_PROVIDER_BASIC; }
 };
 

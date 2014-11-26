@@ -34,35 +34,39 @@ private:
         inline reachability_t();
         inline reachability_t(pg::node_idx_t, pg::node_idx_t, float, float);
         float distance() const { return dist_from + dist_to; }
+        inline std::string to_string() const;
 
-        pg::node_idx_t node_from, node_to;
-        float dist_from, dist_to;
+        pg::node_idx_t node_from; // The current node.
+        pg::node_idx_t node_to;   // The goal node.
+        float dist_from; // Distance from the start-node to the current-node.
+        float dist_to;   // Distance from the current-node to the goal-node.
     };
 
     class reachability_manager_t
     {
     public:
-        struct shorter_distance_t {
-            inline bool operator()(const reachability_t &a, const reachability_t &b) const;
-        };
+        static bool shorter_distance(const reachability_t &a, const reachability_t &b);
 
-        inline const reachability_t& top() const { return m_list.front(); }
+        reachability_manager_t() : m_top(NULL) {}
+
+        inline const reachability_t& top() const { return *m_top; }
         inline const reachability_t& at(pg::node_idx_t i) { m_map.at(i); }
         inline const hash_map<pg::node_idx_t,
             hash_map<pg::node_idx_t, const reachability_t*> >& map() const { return m_map; }
         inline bool empty() const { return m_list.empty(); }
 
         inline void add(const reachability_t &x);
-        inline void erase(const reachability_t &x);
-        void erase(pg::node_idx_t from, pg::node_idx_t to);
         void erase(hash_set<pg::node_idx_t> froms, pg::node_idx_t target);
 
         template <class It> void insert(It begin, It end);
 
     private:
+        void set_top_reachability();
+        
         std::list<reachability_t> m_list;
         hash_map<pg::node_idx_t,
             hash_map<pg::node_idx_t, const reachability_t*> > m_map;
+        const reachability_t *m_top;
     };
 
     /** This is a sub-routine of execute.
@@ -220,8 +224,15 @@ reachability_t(pg::node_idx_t i_from, pg::node_idx_t i_to, float d_from, float d
 {}
 
 
+inline std::string a_star_based_enumerator_t::reachability_t::to_string() const
+{
+    return format("node[%d] -> node[%d] (dist_from = %f, dist_to = %f)",
+                  node_from, node_to, dist_from, dist_to);
+}
+
+
 inline bool a_star_based_enumerator_t::reachability_manager_t::
-shorter_distance_t::operator()(const reachability_t &a, const reachability_t &b) const
+shorter_distance(const reachability_t &a, const reachability_t &b)
 {
     return a.distance() < b.distance();
 }
@@ -232,25 +243,18 @@ reachability_manager_t::add(const reachability_t &x)
 {
     m_list.push_back(x);
     m_map[x.node_from][x.node_to] = &m_list.back();
-    m_list.sort(shorter_distance_t());
-}
 
-
-inline void a_star_based_enumerator_t::
-reachability_manager_t::erase(const reachability_t &x)
-{
-    erase(x.node_from, x.node_to);
+    if (m_top == NULL)
+        m_top = &m_list.back();
+    else if (not shorter_distance(*m_top, m_list.back()))
+        m_top = &m_list.back();
 }
 
 
 template <class It> void a_star_based_enumerator_t::reachability_manager_t::insert(It begin, It end)
 {
     for (auto it = begin; it != end; ++it)
-    {
-        m_list.push_back(*it);
-        m_map[it->node_from][it->node_to] = &m_list.back();
-    }
-    m_list.sort(shorter_distance_t());
+        add(*it);
 }
 
 

@@ -12,20 +12,6 @@ namespace lhs
 {
 
 
-void a_star_based_enumerator_t::
-reachability_manager_t::erase(pg::node_idx_t from, pg::node_idx_t to)
-{
-    for (auto it = m_list.begin(); it != m_list.end(); ++it)
-    {
-        if (it->node_from == from and it->node_to == to)
-        {
-            m_map[from].erase(to);
-            m_list.erase(it);
-            break;
-        }
-    }
-}
-
 
 void a_star_based_enumerator_t::reachability_manager_t::
 erase(hash_set<pg::node_idx_t> from_set, pg::node_idx_t target)
@@ -47,6 +33,15 @@ erase(hash_set<pg::node_idx_t> from_set, pg::node_idx_t target)
         }
         else ++it;
     }
+
+    set_top_reachability();
+}
+
+
+void a_star_based_enumerator_t::reachability_manager_t::set_top_reachability()
+{
+    m_list.sort(shorter_distance);
+    m_top = &m_list.front();
 }
 
 
@@ -71,7 +66,8 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
     ilp_converter_t::enumeration_stopper_t *stopper =
         phillip()->ilp_convertor()->enumeration_stopper();
     time_t begin, now;
-
+    std::set<pg::chain_candidate_t> considered;
+    
     time(&begin);
     add_observations(graph);
 
@@ -84,10 +80,12 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
         hash_set<pg::node_idx_t> from_set;
         std::set<pg::chain_candidate_t> cands;
 
+        IF_VERBOSE_FULL("Top candidates: " + r_target.to_string());
+
         from_set.insert(r_target.node_from);
         enumerate_chain_candidates(graph, r_target.node_from, &cands);
         
-        for (auto cand = cands.begin(); cand != cands.end(); ++cand)
+        for (auto cand : cands)
         {
             // CHECK TIME-OUT
             time(&now);
@@ -97,16 +95,21 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
                 break;
             }
 
-            lf::axiom_t axiom = base->get_axiom(cand->axiom_id);
+            if (considered.count(cand) > 0)
+                continue;
+            else
+                considered.insert(cand);
+                
+            lf::axiom_t axiom = base->get_axiom(cand.axiom_id);
             std::vector<std::list<reachability_t> > rm_new;
-
+            
             if (not compute_reachability_of_chaining(
-                graph, rm, cand->nodes, axiom, cand->is_forward, &rm_new))
+                graph, rm, cand.nodes, axiom, cand.is_forward, &rm_new))
                 continue;
 
-            pg::hypernode_idx_t to = cand->is_forward ?
-                graph->forward_chain(cand->nodes, axiom) :
-                graph->backward_chain(cand->nodes, axiom);
+            pg::hypernode_idx_t to = cand.is_forward ?
+                graph->forward_chain(cand.nodes, axiom) :
+                graph->backward_chain(cand.nodes, axiom);
             if (to < 0) continue;
 
             std::list<reachability_t> satisfied;
@@ -122,11 +125,11 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
                     graph, hn_to[i], &rm_new[i], &satisfied);
                 rm.insert(rm_new[i].begin(), rm_new[i].end());
             }
-            from_set.insert(cand->nodes.begin(), cand->nodes.end());
+            from_set.insert(cand.nodes.begin(), cand.nodes.end());
 
             // FOR DEBUG
-            if (phillip()->verbose() == FULL_VERBOSE)
-                print_chain_for_debug(graph, axiom, (*cand), to);
+            if (phillip()->verbose() >= VERBOSE_4)
+                print_chain_for_debug(graph, axiom, cand, to);
         }
 
         rm.erase(from_set, r_target.node_from);

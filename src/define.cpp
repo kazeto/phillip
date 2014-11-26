@@ -534,6 +534,14 @@ std::string normalize_path(const std::string &target)
             year, month, day, hour, minute, second);
         out = replace(out, "%TIME", _replace);
     }
+    if (out.find("%DAY") >= 0)
+    {
+        int year, month, day, hour, minute, second;
+        beginning_time(&year, &month, &day, &hour, &minute, &second);
+
+        std::string _replace = format("%04d%02d%02d", year, month, day);
+        out = replace(out, "%DAY", _replace);
+    }
 
     return out;
 }

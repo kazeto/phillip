@@ -1,6 +1,6 @@
 /* -*- coding: utf-8 -*- */
 
-// #include <iomanip>
+#include <iomanip>
 #include <cassert>
 #include <cstring>
 #include <climits>
@@ -205,7 +205,6 @@ void knowledge_base_t::finalize()
         create_reachable_matrix();
         write_config();
 
-        /*
         if (phillip_main_t::verbose() == FULL_VERBOSE)
         {
             std::cerr << "Reachability Matrix:" << std::endl;
@@ -241,7 +240,6 @@ void knowledge_base_t::finalize()
                 }
             }
         }
-        */
 
         m_arity_set.clear();
     }
@@ -665,8 +663,6 @@ void knowledge_base_t::insert_arity(const std::string &arity)
 
 void knowledge_base_t::insert_axiom_group_to_cdb()
 {
-    const int SIZE(512 * 512);
-    char buffer[SIZE];
     cdb_data_t &dat(m_cdb_axiom_group);
     const hash_map<std::string, hash_set<axiom_id_t> >& map(m_group_to_axioms);
     hash_map<axiom_id_t, hash_set<std::string> > axiom_to_group;
@@ -675,8 +671,8 @@ void knowledge_base_t::insert_axiom_group_to_cdb()
 
     for (auto it = map.begin(); it != map.end(); ++it)
     {
-        size_t read_size = sizeof(size_t)+sizeof(axiom_id_t)* it->second.size();
-        assert(read_size < SIZE);
+        size_t byte_size = sizeof(size_t)+sizeof(axiom_id_t)* it->second.size();
+        char *buffer = new char[byte_size];
 
         int size = to_binary<size_t>(it->second.size(), buffer);
         for (auto id = it->second.begin(); id != it->second.end(); ++id)
@@ -685,14 +681,22 @@ void knowledge_base_t::insert_axiom_group_to_cdb()
             axiom_to_group[*id].insert(it->first);
         }
 
+        assert(byte_size == size);
+        
         dat.put(it->first.c_str(), it->first.length(), buffer, size);
+        delete [] buffer;
     }
 
+    const int SIZE(512 * 512);
+    char buffer[SIZE];
+    
     for (auto it = axiom_to_group.begin(); it != axiom_to_group.end(); ++it)
     {
         int size = to_binary<size_t>(it->second.size(), buffer);
-        for (auto grp = it->second.begin(); grp != it->second.end(); ++grp)
-            size += string_to_binary(*grp, buffer + size);
+        for (auto grp : it->second)
+            size += string_to_binary(grp, buffer + size);
+
+        assert(size < SIZE);
 
         std::string key = format("#%lu", it->first);
         dat.put(key.c_str(), key.length(), buffer, size);
@@ -745,6 +749,40 @@ void knowledge_base_t::create_reachable_matrix()
     std::set<std::pair<size_t, size_t> > base_para;
     print_console("  computing distance of direct edges...");
     _create_reachable_matrix_direct(m_arity_set, &base_lhs, &base_rhs, &base_para);
+
+    {
+        std::ofstream fo("connectivity.list");
+        std::list<std::tuple<std::string, size_t, size_t, size_t> > counts;
+        for (auto a : m_arity_set)
+        {
+            size_t idx = *search_arity_index(a);
+            hash_set<size_t> connective;
+            size_t n_lhs(0), n_rhs(0);
+            for (auto it : base_lhs[idx])
+                if (it.second > 0.0f)
+                {
+                    connective.insert(it.first);
+                    ++n_lhs;
+                }
+            for (auto it : base_rhs[idx])
+                if (it.second > 0.0f)
+                {
+                    connective.insert(it.first);
+                    ++n_rhs;
+                }
+            counts.push_back(std::make_tuple(a, connective.size(), n_lhs, n_rhs));
+        }
+        counts.sort([](const std::tuple<std::string, size_t, size_t, size_t> &a,
+                       const std::tuple<std::string, size_t, size_t, size_t> &b){
+                        return std::get<1>(a) > std::get<1>(b); });
+        fo << "all\tlhs\trhs\tarity" << std::endl;
+        for (auto p : counts)
+            fo << std::get<1>(p) << "\t"
+               << std::get<2>(p) << "\t"
+               << std::get<3>(p) << "\t"
+               << std::get<0>(p) << std::endl;
+        fo.close();
+    }
 
     print_console("  writing reachable matrix...");
     std::vector<std::thread> worker;
@@ -1372,6 +1410,21 @@ hash_set<float> knowledge_base_t::reachable_matrix_t::get(size_t idx) const
     }
 
     return out;
+}
+
+
+float basic_distance_provider_t::operator()(const lf::axiom_t &ax) const
+{
+    auto splitted = split(ax.func.param(), ":");
+    float dist;
+
+    for (auto s : splitted)
+    {
+        if (_sscanf(s.c_str(), "d%f", &dist) > 0)
+            return dist;
+    }
+
+    return 1.0f;
 }
 
 
