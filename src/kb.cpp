@@ -744,45 +744,20 @@ void knowledge_base_t::create_reachable_matrix()
     print_console_fmt("  num of arities = %d", N);
     print_console_fmt("  max distance = %.2f", get_max_distance());
     print_console_fmt("  num of parallel threads = %d", ms_thread_num_for_rm);
+    print_console("  computing distance of direct edges...");
 
     hash_map<size_t, hash_map<size_t, float> > base_lhs, base_rhs;
+    hash_set<size_t> ignored;
     std::set<std::pair<size_t, size_t> > base_para;
-    print_console("  computing distance of direct edges...");
-    _create_reachable_matrix_direct(m_arity_set, &base_lhs, &base_rhs, &base_para);
-
+    
+    for (auto it = m_stop_words.begin(); it != m_stop_words.end(); ++it)
     {
-        std::ofstream fo("connectivity.list");
-        std::list<std::tuple<std::string, size_t, size_t, size_t> > counts;
-        for (auto a : m_arity_set)
-        {
-            size_t idx = *search_arity_index(a);
-            hash_set<size_t> connective;
-            size_t n_lhs(0), n_rhs(0);
-            for (auto it : base_lhs[idx])
-                if (it.second > 0.0f)
-                {
-                    connective.insert(it.first);
-                    ++n_lhs;
-                }
-            for (auto it : base_rhs[idx])
-                if (it.second > 0.0f)
-                {
-                    connective.insert(it.first);
-                    ++n_rhs;
-                }
-            counts.push_back(std::make_tuple(a, connective.size(), n_lhs, n_rhs));
-        }
-        counts.sort([](const std::tuple<std::string, size_t, size_t, size_t> &a,
-                       const std::tuple<std::string, size_t, size_t, size_t> &b){
-                        return std::get<1>(a) > std::get<1>(b); });
-        fo << "all\tlhs\trhs\tarity" << std::endl;
-        for (auto p : counts)
-            fo << std::get<1>(p) << "\t"
-               << std::get<2>(p) << "\t"
-               << std::get<3>(p) << "\t"
-               << std::get<0>(p) << std::endl;
-        fo.close();
+        const size_t *idx = search_arity_index(*it);
+        if (idx != NULL) ignored.insert(*idx);
     }
+    
+    _create_reachable_matrix_direct(
+        m_arity_set, ignored, &base_lhs, &base_rhs, &base_para);
 
     print_console("  writing reachable matrix...");
     std::vector<std::thread> worker;
@@ -795,14 +770,17 @@ void knowledge_base_t::create_reachable_matrix()
         worker.emplace_back(
             [&](int th_id)
             {
-                for(int idx = th_id; idx < m_arity_set.size(); idx += num_thread)
+                for(size_t idx = th_id; idx < m_arity_set.size(); idx += num_thread)
                 {
+                    if (ignored.count(idx) != 0) continue;
+                    
                     hash_map<size_t, float> dist;
                     _create_reachable_matrix_indirect(
                         idx, base_lhs, base_rhs, base_para, &dist);
                     m_rm.put(idx, dist);
 
                     ms_mutex_for_rm.lock();
+                    
                     num_inserted += dist.size();
                     ++processed;
 
@@ -815,6 +793,7 @@ void knowledge_base_t::create_reachable_matrix()
                         std::cerr.flush();
                         clock_past = c;
                     }
+                    
                     ms_mutex_for_rm.unlock();
                 }
             }, th_id);
@@ -833,25 +812,19 @@ void knowledge_base_t::create_reachable_matrix()
 
 void knowledge_base_t::_create_reachable_matrix_direct(
     const hash_set<std::string> &arities,
+    const hash_set<size_t> &ignored,
     hash_map<size_t, hash_map<size_t, float> > *out_lhs,
     hash_map<size_t, hash_map<size_t, float> > *out_rhs,
     std::set<std::pair<size_t, size_t> > *out_para)
 {
     size_t num_processed(0);
-    hash_set<size_t> stopped;
-
-    for (auto it = m_stop_words.begin(); it != m_stop_words.end(); ++it)
-    {
-        const size_t *idx = search_arity_index(*it);
-        if (idx != NULL) stopped.insert(*idx);
-    }
 
     for (auto ar = arities.begin(); ar != arities.end(); ++ar)
     {
         const size_t *idx1 = search_arity_index(*ar);
         assert(idx1 != NULL);
 
-        if (stopped.count(*idx1) == 0)
+        if (ignored.count(*idx1) == 0)
         {
             (*out_lhs)[*idx1][*idx1] = 0.0f;
             (*out_rhs)[*idx1][*idx1] = 0.0f;
@@ -881,7 +854,7 @@ void knowledge_base_t::_create_reachable_matrix_direct(
                         const size_t *idx = search_arity_index(arity);
 
                         if (idx != NULL)
-                        if (stopped.count(*idx) == 0)
+                        if (ignored.count(*idx) == 0)
                             lhs_ids.insert(*idx);
                     }
 
@@ -891,7 +864,7 @@ void knowledge_base_t::_create_reachable_matrix_direct(
                         const size_t *idx = search_arity_index(arity);
 
                         if (idx != NULL)
-                        if (stopped.count(*idx) == 0)
+                        if (ignored.count(*idx) == 0)
                             rhs_ids.insert(*idx);
                     }
                 }

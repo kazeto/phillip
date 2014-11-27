@@ -219,6 +219,7 @@ private:
     
     void _create_reachable_matrix_direct(
         const hash_set<std::string> &arities,
+        const hash_set<size_t> &ignored,
         hash_map<size_t, hash_map<size_t, float> > *out_lhs,
         hash_map<size_t, hash_map<size_t, float> > *out_rhs,
         std::set<std::pair<size_t, size_t> > *out_para);

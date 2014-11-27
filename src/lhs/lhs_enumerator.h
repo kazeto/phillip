@@ -63,13 +63,6 @@ private:
         const pg::proof_graph_t *graph, pg::node_idx_t i,
         std::set<pg::chain_candidate_t> *out) const;
 
-    /** This is a sub-routine of execute.
-     *  @param target Reachabilities whose from-index equals to idx. */
-    void erase_satisfied_reachability(
-        const pg::proof_graph_t *graph, pg::node_idx_t idx,
-        std::list<reachability_t> *target,
-        std::list<reachability_t> *erased) const;
-
     void print_chain_for_debug(
         const pg::proof_graph_t *graph, const lf::axiom_t &axiom,
         const pg::chain_candidate_t &cand, pg::hypernode_idx_t to) const;
