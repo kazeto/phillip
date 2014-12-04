@@ -61,31 +61,6 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
         if (considered.count(static_cast<pg::chain_candidate_t>(cand)) == 0)
         {
             lf::axiom_t axiom = base->get_axiom(cand.axiom_id);
-
-            
-            // -------- TEMPORAL --------
-
-            bool do_continue(false);
-            for (auto l : axiom.func.get_all_literals())
-            {
-                if (l->predicate == "want-vb")
-                {
-                    do_continue = true;
-                    break;
-                }
-            }
-
-            if (cand.axiom_id == 154943) do_continue = true;
-            if (cand.axiom_id == 154944) do_continue = true;
-            if (cand.axiom_id == 155142) do_continue = true;
-            if (cand.axiom_id == 155143) do_continue = true;
-            
-            if (do_continue)
-                continue;
-
-            // ---------------------------
-
-            
             pg::hypernode_idx_t hn_new = cand.is_forward ?
                 graph->forward_chain(cand.nodes, axiom) :
                 graph->backward_chain(cand.nodes, axiom);

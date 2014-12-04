@@ -12,7 +12,7 @@ namespace phil
 
 
 int phillip_main_t::ms_verboseness = 0;
-const std::string phillip_main_t::VERSION = "phil.2.11";
+const std::string phillip_main_t::VERSION = "phil.2.12";
 
 
 phillip_main_t::phillip_main_t()
