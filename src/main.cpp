@@ -67,25 +67,33 @@ int main(int argc, char* argv[])
         for (int i = 0; i < parsed_inputs.size(); ++i)
         {
             const lf::input_t &ipt = parsed_inputs.at(i);
-
-            print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
-            kb::knowledge_base_t::instance()->clear_distance_cache();
-            do_parallel_inference ?
-                phillip.infer_parallel(parsed_inputs, i, do_write_parallel_out) :
-                phillip.infer(parsed_inputs, i);
-
-            if (i == 0)
+            
+            std::string obs_name = ipt.name;
+            if (obs_name.rfind("::") != std::string::npos)
+                obs_name = obs_name.substr(obs_name.rfind("::") + 2);
+            std::cerr << obs_name << std::endl;
+            
+            if (phillip.is_target(obs_name) and not phillip.is_excluded(obs_name))
             {
-                std::cout << "<phillip>" << std::endl;
-                phillip.write_configure(&std::cout);
+                print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
+                kb::knowledge_base_t::instance()->clear_distance_cache();
+                do_parallel_inference ?
+                    phillip.infer_parallel(parsed_inputs, i, do_write_parallel_out) :
+                    phillip.infer(parsed_inputs, i);
+
+                if (i == 0)
+                {
+                    std::cout << "<phillip>" << std::endl;
+                    phillip.write_configure(&std::cout);
+                }
+
+                auto sols = phillip.get_solutions();
+                for (auto sol = sols.begin(); sol != sols.end(); ++sol)
+                    sol->print_graph();
+
+                if (i == parsed_inputs.size() - 1)
+                    std::cout << "</phillip>" << std::endl;
             }
-
-            auto sols = phillip.get_solutions();
-            for (auto sol = sols.begin(); sol != sols.end(); ++sol)
-                sol->print_graph();
-
-            if (i == parsed_inputs.size() - 1)
-                std::cout << "</phillip>" << std::endl;
         }
     }
 }

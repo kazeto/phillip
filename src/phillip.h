@@ -100,6 +100,11 @@ public:
     inline float get_time_for_ilp()  const;
     inline float get_time_for_sol()  const;
     inline float get_time_for_infer() const;
+
+    inline void add_target(const std::string &name);
+    inline bool is_target(const std::string &name) const;
+    inline void add_exclusion(const std::string &name);
+    inline bool is_excluded(const std::string &name) const;
     
     void write_configure(std::ostream *fo) const;
 
@@ -124,6 +129,9 @@ private:
     hash_map<std::string, std::string> m_params;
     hash_set<std::string> m_flags;
     int  m_timeout_lhs, m_timeout_ilp, m_timeout_sol;
+    
+    hash_set<std::string> m_target_obs_names;
+    hash_set<std::string> m_excluded_obs_names;
 
     // ---- PRODUCTS OF INFERENCE
     lf::input_t *m_input;

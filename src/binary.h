@@ -33,7 +33,8 @@ struct execution_configure_t
     
     execution_mode_e mode;
     std::string kb_name;         /// Filename of compile_kb's output.
-    std::string target_obs_name; /// Name of observation to solve.
+    hash_set<std::string> target_obs_names; /// Name of observation to solve.
+    hash_set<std::string> excluded_obs_names; /// Name of observation to solve.
 
     std::string lhs_key, ilp_key, sol_key, dist_key;
 };

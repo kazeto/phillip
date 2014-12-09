@@ -231,6 +231,30 @@ inline float phillip_main_t::get_time_for_infer() const
 }
 
 
+inline void phillip_main_t::add_target(const std::string &name)
+{
+    m_target_obs_names.insert(name);
+}
+
+
+inline bool phillip_main_t::is_target(const std::string &name) const
+{
+    return m_target_obs_names.empty() ? true : (m_target_obs_names.count(name) > 0);
+}
+
+
+inline void phillip_main_t::add_exclusion(const std::string &name)
+{
+    m_excluded_obs_names.insert(name);
+}
+
+
+inline bool phillip_main_t::is_excluded(const std::string &name) const
+{
+    return m_excluded_obs_names.empty() ? false : (m_excluded_obs_names.count(name) > 0);
+}
+
+
 inline bool phillip_main_t::can_infer() const
 {
     return

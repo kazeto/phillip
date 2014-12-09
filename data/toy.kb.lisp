@@ -2,7 +2,7 @@
 		       (^ (shoot-vb *e2 :0.4) (nsubj d3 *e2 x :0.4) (dobj d4 *e2 z :0.4))))
 (B (name shot_kill) (=> (^ (shoot-vb *e1 :0.4) (nsubj d1 *e1 x :0.4) (dobj d2 *e1 y :0.4))
 			(^ (kill-vb *e2 :0.4) (nsubj d3 *e2 x :0.4) (dobj d4 *e2 y :0.4))))
-(B (name die#kill_die) (=> (^ (kill-vb *e1 :0.4) (nsubj d1 *e1 x :0.4) (dobj d2 *e1 y :0.4))
+(B (name die#kill_die) (=> (^ (kill-vb *e1 :0.4) (nsubj d1 *e1 x :0.4) (dobj d2 *e1 y :0.4) (!= x y))
 			   (^ (die-vb *e2 :0.5) (nsubj d3 *e2 y :0.5))))
 (B (name die#sick_die) (=> (^ (sick-jj *e1 :0.6) (nsubj d1 *e1 x :0.6))
 			   (^ (die-vb *e2 :0.6) (nsubj d2 *e2 x :0.6))))

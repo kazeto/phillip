@@ -32,7 +32,7 @@ const std::string USAGE =
     "  Options in compile_kb mode:\n"
     "    -k <NAME> : Set filename of output of compile_kb.\n";
 
-char ACCEPTABLE_OPTIONS[] = "c:f:k:l:m:o:p:t:v:P:T:";
+char ACCEPTABLE_OPTIONS[] = "c:e:f:k:l:m:o:p:t:v:P:T:";
 
 
 bool _load_config_file(
@@ -170,6 +170,12 @@ bool _interpret_option(
         return false;
     }
 
+    case 'e': // ---- SET NAME OF THE OBSERVATION TO EXCLUDE
+    {
+        config->excluded_obs_names.insert(arg);
+        return true;
+    }
+    
     case 'f':
         phillip->set_flag(arg);
         return true;
@@ -198,7 +204,7 @@ bool _interpret_option(
         
     case 'o': // ---- SET NAME OF THE OBSERVATION TO SOLVE
     {
-        config->target_obs_name = arg;
+        config->target_obs_names.insert(arg);
         return true;
     }
         
@@ -367,6 +373,11 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
                 config.dist_key.c_str());
         }
     }
+
+    for (auto n : config.target_obs_names)
+        phillip->add_target(n);
+    for (auto n : config.excluded_obs_names)
+        phillip->add_exclusion(n);
 
     lhs_enumerator_t *lhs = _new_lhs_enumerator(phillip, config.lhs_key);
     ilp_converter_t *ilp = _new_ilp_converter(phillip, config.ilp_key);
