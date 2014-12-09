@@ -339,6 +339,9 @@ bool depth_based_enumerator_t::compute_reachability_of_chaining(
 
         for (int i = 0; i < literals.size(); ++i)
         {
+            if (literals.at(i)->is_equality())
+                continue;
+
             std::string arity2 = literals.at(i)->get_arity();
             float distance = base->get_distance(arity, arity2);
             float redundancy =
@@ -364,10 +367,13 @@ void depth_based_enumerator_t::filter_unified_reachability(
     const pg::proof_graph_t *graph, pg::node_idx_t target,
     reachable_map_t *out) const
 {
+    if (graph->node(target).literal().is_equality()) return;
+
     const hash_set<pg::node_idx_t> *nodes =
         graph->search_nodes_with_arity(
         graph->node(target).literal().get_arity());
     hash_set<pg::node_idx_t> evidences;
+    assert(nodes != NULL);
 
     for (auto it = nodes->begin(); it != nodes->end(); ++it)
     if (target != *it)
