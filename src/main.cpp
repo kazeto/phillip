@@ -71,7 +71,6 @@ int main(int argc, char* argv[])
             std::string obs_name = ipt.name;
             if (obs_name.rfind("::") != std::string::npos)
                 obs_name = obs_name.substr(obs_name.rfind("::") + 2);
-            std::cerr << obs_name << std::endl;
             
             if (phillip.is_target(obs_name) and not phillip.is_excluded(obs_name))
             {
