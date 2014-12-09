@@ -478,7 +478,7 @@ phillip_main_t::split_input(const lf::input_t &input) const
 }
 
 
-void phillip_main_t::write_configure(std::ofstream *fo) const
+void phillip_main_t::write_configure(std::ostream *fo) const
 {
     (*fo) << "<configure>" << std::endl;
 

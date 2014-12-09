@@ -100,6 +100,8 @@ public:
     inline float get_time_for_ilp()  const;
     inline float get_time_for_sol()  const;
     inline float get_time_for_infer() const;
+    
+    void write_configure(std::ostream *fo) const;
 
 private:
     enum process_mode_e { MODE_COMPILE_KB, MODE_INPUT_OBS };
@@ -108,8 +110,6 @@ private:
     
     inline bool can_infer() const;
     inline void reset_for_inference();
-
-    void write_configure(std::ofstream *fo) const;
 
     std::vector<lf::input_t> split_input(const lf::input_t&) const;
 

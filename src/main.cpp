@@ -74,9 +74,18 @@ int main(int argc, char* argv[])
                 phillip.infer_parallel(parsed_inputs, i, do_write_parallel_out) :
                 phillip.infer(parsed_inputs, i);
 
+            if (i == 0)
+            {
+                std::cout << "<phillip>" << std::endl;
+                phillip.write_configure(&std::cout);
+            }
+
             auto sols = phillip.get_solutions();
             for (auto sol = sols.begin(); sol != sols.end(); ++sol)
                 sol->print_graph();
+
+            if (i == parsed_inputs.size() - 1)
+                std::cout << "</phillip>" << std::endl;
         }
     }
 }
