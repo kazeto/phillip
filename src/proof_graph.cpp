@@ -1043,23 +1043,31 @@ hypernode_idx_t proof_graph_t::chain(
         std::set<std::pair<term_t, term_t> > *conds) -> bool
     {
         auto generate_subs = [](
-            term_t t_from, term_t t_to, hash_map<term_t, term_t> *subs,
+            term_t t_ax, term_t t_hy, hash_map<term_t, term_t> *subs,
             std::set<std::pair<term_t, term_t> > *conds) -> bool
         {
-            auto find1 = subs->find(t_from);
+            auto find1 = subs->find(t_ax);
 
-            if (find1 == subs->end())
-                (*subs)[t_from] = t_to;
-            else if (t_to != find1->second)
+            if (t_ax.is_constant())
             {
-                if (t_from.is_hard_term())
-                    return false;
-                else
+                if (t_ax != t_hy)
                 {
-                    term_t t1(t_to), t2(find1->second);
-                    if (t1 > t2) std::swap(t1, t2);
-
-                    conds->insert(std::make_pair(t1, t2));
+                    if (t_hy.is_constant())
+                        return false;
+                    else
+                        conds->insert(make_sorted_pair(t_ax, t_hy));
+                }
+            }
+            else
+            {
+                if (find1 == subs->end())
+                    (*subs)[t_ax] = t_hy;
+                else if (t_hy != find1->second)
+                {
+                    if (t_ax.is_hard_term())
+                        return false;
+                    else
+                        conds->insert(make_sorted_pair(t_hy, find1->second));
                 }
             }
 
@@ -1243,7 +1251,8 @@ hypernode_idx_t proof_graph_t::chain(
             for (size_t j = 0; j < (*lits)[i].terms.size(); ++j)
             {
                 term_t &term = (*lits)[i].terms[j];
-                term = substitute_term(term, subs);
+                if (not term.is_constant())
+                    term = substitute_term(term, subs);
             }
         }
 
@@ -1506,48 +1515,66 @@ void proof_graph_t::_generate_mutual_exclusions(
 
 
 void proof_graph_t::_enumerate_mutual_exclusion_for_inconsistent_nodes(
-    const literal_t &target,
+    const literal_t &target1,
     std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *out) const
 {
-    if (target.is_equality()) return;
+    if (target1.is_equality()) return;
 
     const kb::knowledge_base_t *kb = kb::knowledge_base_t::instance();
-    std::string arity = target.get_arity();
+    std::string arity = target1.get_arity();
     std::list<axiom_id_t> axioms = kb->search_inconsistencies(arity);
+
+    auto check_constant = [](
+        const literal_t &tgt, const literal_t &inc, unifier_t *uni) -> bool
+    {
+        for (unsigned i = 0; i < tgt.terms.size(); i++)
+        if (inc.terms.at(i).is_constant())
+        {
+            if (tgt.terms.at(i).is_constant())
+            {
+                if (tgt.terms.at(i) != inc.terms.at(i))
+                    return false;
+            }
+            else
+                uni->add(tgt.terms.at(i), inc.terms.at(i));
+        }
+        return true;
+    };
 
     for (auto ax = axioms.begin(); ax != axioms.end(); ++ax)
     {
         lf::axiom_t axiom = kb->get_axiom(*ax);
+        bool do_rev = (axiom.func.branch(0).literal().get_arity() != arity);
 
-        const literal_t &lit1 = axiom.func.branch(0).literal();
-        const literal_t &lit2 = axiom.func.branch(1).literal();
-        bool do_rev = (lit1.get_arity() != arity);
+        const literal_t &inc1 = axiom.func.branch(do_rev ? 1 : 0).literal();
+        const literal_t &inc2 = axiom.func.branch(do_rev ? 0 : 1).literal();
+        const hash_set<node_idx_t> *idx_nodes =
+            search_nodes_with_predicate(inc2.predicate, inc2.terms.size());
 
-        const hash_set<node_idx_t> *idx_nodes = do_rev ?
-            search_nodes_with_predicate(lit1.predicate, lit1.terms.size()) :
-            search_nodes_with_predicate(lit2.predicate, lit2.terms.size());
-
-        if (idx_nodes == NULL) continue;
-
-        for (auto it = idx_nodes->begin(); it != idx_nodes->end(); ++it)
+        if (idx_nodes != NULL)
+        for (auto idx : (*idx_nodes))
         {
-            const literal_t &target2 = node(*it).literal();
-            const literal_t &inc_1 = (do_rev ? lit2 : lit1);
-            const literal_t &inc_2 = (do_rev ? lit1 : lit2);
+            const literal_t &target2 = node(idx).literal();
+            bool is_valid(true);
             unifier_t uni;
 
-            for (unsigned t1 = 0; t1 < target.terms.size(); t1++)
+            if (not check_constant(target1, inc1, &uni)) continue;
+            if (not check_constant(target2, inc2, &uni)) continue;
+
+            for (unsigned t1 = 0; t1 < target1.terms.size(); t1++)
             for (unsigned t2 = 0; t2 < target2.terms.size(); t2++)
             {
-                if (inc_1.terms.at(t1) == inc_2.terms.at(t2))
+                if (inc1.terms.at(t1) == inc2.terms.at(t2))
+                if (not inc1.terms.at(t1).is_constant())
+                if (not inc2.terms.at(t2).is_constant())
                 {
-                    const term_t &term1 = target.terms.at(t1);
+                    const term_t &term1 = target1.terms.at(t1);
                     const term_t &term2 = target2.terms.at(t2);
                     if (term1 != term2) uni.add(term1, term2);
                 }
             }
 
-            out->push_back(std::make_tuple(*it, uni, *ax));
+            out->push_back(std::make_tuple(idx, uni, *ax));
         }
     }
 }

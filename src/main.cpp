@@ -75,17 +75,18 @@ int main(int argc, char* argv[])
             
             if (phillip.is_target(obs_name) and not phillip.is_excluded(obs_name))
             {
+                if (not flag_printing)
+                {
+                    phillip.write_header();
+                    flag_printing = true;
+                }
+
                 print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
                 kb::knowledge_base_t::instance()->clear_distance_cache();
                 do_parallel_inference ?
                     phillip.infer_parallel(parsed_inputs, i, do_write_parallel_out) :
                     phillip.infer(parsed_inputs, i);
 
-                if (not flag_printing)
-                {
-                    phillip.write_header();
-                    flag_printing = true;
-                }
 
                 auto sols = phillip.get_solutions();
                 for (auto sol = sols.begin(); sol != sols.end(); ++sol)
