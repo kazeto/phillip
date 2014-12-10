@@ -90,9 +90,7 @@ void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
         return;
     }
     
-    bool is_begin(idx == 0), is_end(idx == inputs.size() - 1);
-    std::ios::openmode mode =
-        std::ios::out | (is_begin ? std::ios::trunc : std::ios::app);
+    std::ios::openmode mode = std::ios::out | std::ios::app;
     std::ofstream *fo(NULL);
 
     reset_for_inference();
@@ -112,13 +110,7 @@ void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
 
     if ((fo = _open_file(param("path_lhs_out"), mode)) != NULL)
     {
-        if (is_begin)
-        {
-            (*fo) << "<phillip>" << std::endl;
-            write_configure(fo);
-        }
         m_lhs->print(fo);
-        if (is_end) (*fo) << "</phillip>" << std::endl;
         delete fo;
     }
 
@@ -134,13 +126,7 @@ void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
 
     if ((fo = _open_file(param("path_ilp_out"), mode)) != NULL)
     {
-        if (is_begin)
-        {
-            (*fo) << "<phillip>" << std::endl;
-            write_configure(fo);
-        }
         m_ilp->print(fo);
-        if (is_end) (*fo) << "</phillip>" << std::endl;
         delete fo;
     }
 
@@ -155,27 +141,15 @@ void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
 
     if ((fo = _open_file(param("path_sol_out"), mode)) != NULL)
     {
-        if (is_begin)
-        {
-            (*fo) << "<phillip>" << std::endl;
-            write_configure(fo);
-        }
         for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
             sol->print(fo);
-        if (is_end) (*fo) << "</phillip>" << std::endl;
         delete fo;
     }
 
     if ((fo = _open_file(param("path_out"), mode)) != NULL)
     {
-        if (is_begin)
-        {
-            (*fo) << "<phillip>" << std::endl;
-            write_configure(fo);
-        }
         for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
             sol->print_graph(fo);
-        if (is_end) (*fo) << "</phillip>" << std::endl;
         delete fo;
     }
 }
@@ -202,9 +176,7 @@ void phillip_main_t::infer_parallel(
         return;
     }
 
-    bool is_begin(idx == 0), is_end(idx == inputs.size() - 1);
-    std::ios::openmode mode =
-        std::ios::out | (is_begin ? std::ios::trunc : std::ios::app);
+    std::ios::openmode mode = std::ios::out | std::ios::app;
     std::ofstream *fo(NULL);
 
     reset_for_inference();
@@ -291,51 +263,27 @@ void phillip_main_t::infer_parallel(
 
     if ((fo = _open_file(param("path_lhs_out"), mode)) != NULL)
     {
-        if (is_begin)
-        {
-            (*fo) << "<phillip>" << std::endl;
-            write_configure(fo);
-        }
         m_lhs->print(fo);
-        if (is_end) (*fo) << "</phillip>" << std::endl;
         delete fo;
     }
 
     if ((fo = _open_file(param("path_ilp_out"), mode)) != NULL)
     {
-        if (is_begin)
-        {
-            (*fo) << "<phillip>" << std::endl;
-            write_configure(fo);
-        }
         m_ilp->print(fo);
-        if (is_end) (*fo) << "</phillip>" << std::endl;
         delete fo;
     }
 
     if ((fo = _open_file(param("path_sol_out"), mode)) != NULL)
     {
-        if (is_begin)
-        {
-            (*fo) << "<phillip>" << std::endl;
-            write_configure(fo);
-        }
         for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
             sol->print(fo);
-        if (is_end) (*fo) << "</phillip>" << std::endl;
         delete fo;
     }
 
     if ((fo = _open_file(param("path_out"), mode)) != NULL)
     {
-        if (is_begin)
-        {
-            (*fo) << "<phillip>" << std::endl;
-            write_configure(fo);
-        }
         for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
             sol->print_graph(fo);
-        if (is_end) (*fo) << "</phillip>" << std::endl;
         delete fo;
     }
 }
@@ -478,31 +426,77 @@ phillip_main_t::split_input(const lf::input_t &input) const
 }
 
 
-void phillip_main_t::write_configure(std::ostream *fo) const
+void phillip_main_t::write_header() const
 {
-    (*fo) << "<configure>" << std::endl;
+    auto write = [this](std::ostream *os)
+    {
+        (*os) << "<phillip>" << std::endl;
+        (*os) << "<configure>" << std::endl;
 
-    (*fo) << "<version>" << VERSION << "</version>" << std::endl;
+        (*os) << "<version>" << VERSION << "</version>" << std::endl;
 
-    (*fo) << "<components lhs=\"" << m_lhs_enumerator->repr()
-          << "\" ilp=\"" << m_ilp_convertor->repr()
-          << "\" sol=\"" << m_ilp_solver->repr()
-          << "\"></components>" << std::endl;
-    
-    (*fo) << "<params timeout_lhs=\"" << timeout_lhs()
-          << "\" timeout_ilp=\"" << timeout_ilp()
-          << "\" timeout_sol=\"" << timeout_sol()
-          << "\" verbose=\"" << verbose();
-    
-    for (auto it = m_params.begin(); it != m_params.end(); ++it)
-        (*fo) << "\" " << it->first << "=\"" << it->second;
-    
-    for (auto it = m_flags.begin(); it != m_flags.end(); ++it)
-        (*fo) << "\" " << (*it) << "=\"yes";
-            
-    (*fo) << "\"></params>" << std::endl;
-    
-    (*fo) << "</configure>" << std::endl;
+        (*os)
+            << "<components lhs=\"" << m_lhs_enumerator->repr()
+            << "\" ilp=\"" << m_ilp_convertor->repr()
+            << "\" sol=\"" << m_ilp_solver->repr()
+            << "\"></components>" << std::endl;
+
+        (*os)
+            << "<params timeout_lhs=\"" << timeout_lhs()
+            << "\" timeout_ilp=\"" << timeout_ilp()
+            << "\" timeout_sol=\"" << timeout_sol()
+            << "\" verbose=\"" << verbose();
+
+        for (auto it = m_params.begin(); it != m_params.end(); ++it)
+            (*os) << "\" " << it->first << "=\"" << it->second;
+
+        for (auto it = m_flags.begin(); it != m_flags.end(); ++it)
+            (*os) << "\" " << (*it) << "=\"yes";
+
+        (*os) << "\"></params>" << std::endl;
+
+        (*os) << "</configure>" << std::endl;
+    };
+
+    auto f_write = [&](const std::string &key)
+    {
+        std::ofstream *fo(NULL);
+        if ((fo = _open_file(param(key), (std::ios::out | std::ios::trunc))) != NULL)
+        {
+            write(fo);
+            delete fo;
+        }
+    };
+
+    f_write("path_lhs_out");
+    f_write("path_ilp_out");
+    f_write("path_sol_out");
+    f_write("path_out");
+    write(&std::cout);
+}
+
+
+void phillip_main_t::write_footer() const
+{
+    auto write = [this](std::ostream *os)
+    {
+        (*os) << "</phillip>" << std::endl;
+    };
+    auto f_write = [&](const std::string &key)
+    {
+        std::ofstream *fo(NULL);
+        if ((fo = _open_file(param(key), (std::ios::out | std::ios::app))) != NULL)
+        {
+            write(fo);
+            delete fo;
+        }
+    };
+
+    f_write("path_lhs_out");
+    f_write("path_ilp_out");
+    f_write("path_sol_out");
+    f_write("path_out");
+    write(&std::cout);
 }
 
 

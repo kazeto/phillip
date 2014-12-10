@@ -52,6 +52,7 @@ int main(int argc, char* argv[])
         proc::processor_t processor;
         bool do_parallel_inference(phillip.flag("do_parallel_inference"));
         bool do_write_parallel_out(phillip.flag("do_write_parallel_out"));
+        bool flag_printing(false);
 
         print_console("Loading observations ...");
 
@@ -80,19 +81,19 @@ int main(int argc, char* argv[])
                     phillip.infer_parallel(parsed_inputs, i, do_write_parallel_out) :
                     phillip.infer(parsed_inputs, i);
 
-                if (i == 0)
+                if (not flag_printing)
                 {
-                    std::cout << "<phillip>" << std::endl;
-                    phillip.write_configure(&std::cout);
+                    phillip.write_header();
+                    flag_printing = true;
                 }
 
                 auto sols = phillip.get_solutions();
                 for (auto sol = sols.begin(); sol != sols.end(); ++sol)
                     sol->print_graph();
-
-                if (i == parsed_inputs.size() - 1)
-                    std::cout << "</phillip>" << std::endl;
             }
         }
+
+        if (flag_printing)
+            phillip.write_footer();
     }
 }

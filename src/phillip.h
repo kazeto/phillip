@@ -106,7 +106,8 @@ public:
     inline void add_exclusion(const std::string &name);
     inline bool is_excluded(const std::string &name) const;
     
-    void write_configure(std::ostream *fo) const;
+    void write_header() const;
+    void write_footer() const;
 
 private:
     enum process_mode_e { MODE_COMPILE_KB, MODE_INPUT_OBS };
