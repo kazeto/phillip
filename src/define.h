@@ -60,11 +60,11 @@ enum verboseness_t
 class string_hash_t
 {
 public:
+    static inline string_hash_t get_unknown_hash();
+
     inline string_hash_t();
     inline string_hash_t(const string_hash_t& h);
     inline string_hash_t(const std::string& s);
-
-    static inline string_hash_t get_unknown_hash();
 
     inline const std::string& string() const;
     inline operator const std::string& () const;
@@ -81,9 +81,9 @@ public:
 
     inline const unsigned& get_hash() const { return m_hash; }
 
-    inline bool is_constant() const;
-    inline bool is_unknown()  const;
-    inline bool is_hard_term() const;
+    inline bool is_constant() const { return m_is_constant; }
+    inline bool is_unknown()  const { return m_is_unknown; }
+    inline bool is_hard_term() const { return m_is_hard_term; }
     
 private:
     /** Assign a hash to str if needed, and return the hash of str. */
@@ -94,7 +94,10 @@ private:
     static std::vector<std::string> ms_strs;
     static unsigned ms_issued_variable_count;
 
+    inline void set_flags(const std::string &str);
+
     unsigned m_hash;
+    bool m_is_constant, m_is_unknown, m_is_hard_term;
 
 #ifdef _DEBUG
     std::string m_string;

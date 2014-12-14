@@ -1077,6 +1077,9 @@ hypernode_idx_t proof_graph_t::chain(
         auto substitute_term =
             [](const term_t &target, hash_map<term_t, term_t> *subs) -> term_t
         {
+            if (target.is_constant())
+                return target;
+
             auto find = subs->find(target);
             if (find != subs->end())
                 return find->second;
@@ -1251,8 +1254,7 @@ hypernode_idx_t proof_graph_t::chain(
             for (size_t j = 0; j < (*lits)[i].terms.size(); ++j)
             {
                 term_t &term = (*lits)[i].terms[j];
-                if (not term.is_constant())
-                    term = substitute_term(term, subs);
+                term = substitute_term(term, subs);
             }
         }
 

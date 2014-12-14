@@ -18,6 +18,7 @@ inline string_hash_t::string_hash_t()
 inline string_hash_t::string_hash_t(const string_hash_t& h)
 : m_hash(h.m_hash)
 {
+    set_flags(string());
 #ifdef _DEBUG
     m_string = h.string();
 #endif
@@ -27,6 +28,7 @@ inline string_hash_t::string_hash_t(const string_hash_t& h)
 inline string_hash_t::string_hash_t( const std::string &s )
     : m_hash(get_hash(s))
 {
+    set_flags(s);
 #ifdef _DEBUG
     m_string = s;
 #endif
@@ -77,6 +79,7 @@ inline string_hash_t::operator const std::string& () const
 inline string_hash_t& string_hash_t::operator = (const std::string &s)
 {
     m_hash = get_hash(s);
+    set_flags(s);
 
 #ifdef _DEBUG
     m_string = s;
@@ -89,6 +92,7 @@ inline string_hash_t& string_hash_t::operator = (const std::string &s)
 inline string_hash_t& string_hash_t::operator = (const string_hash_t &h)
 {
     m_hash = h.m_hash;
+    set_flags(string());
 
 #ifdef _DEBUG
     m_string = h.string();
@@ -134,21 +138,11 @@ inline bool string_hash_t::operator != (const string_hash_t &h) const
 }
 
 
-inline bool string_hash_t::is_constant() const
+inline void string_hash_t::set_flags(const std::string &str)
 {
-    return std::isupper(this->string().at(0));
-}
-
-
-inline bool string_hash_t::is_unknown() const
-{
-    return startswith(this->string(), "_u");
-}
-
-
-inline bool string_hash_t::is_hard_term() const
-{
-    return startswith(this->string(), "*");
+    m_is_constant = std::isupper(str.at(0));
+    m_is_unknown = startswith(str, "_u");
+    m_is_hard_term = startswith(str, "*");
 }
 
 
