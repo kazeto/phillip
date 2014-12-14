@@ -33,7 +33,7 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
     ilp_converter_t::enumeration_stopper_t *stopper =
         phillip()->ilp_convertor()->enumeration_stopper();
     time_t begin, now;
-    std::set<pg::chain_candidate_t> considered;
+    std::map<pg::chain_candidate_t, pg::hypernode_idx_t> considered;
     
     time(&begin);
     add_observations(graph);
@@ -44,10 +44,6 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
     while (not rm.empty())
     {
         const reachability_t cand = rm.top();
-        rm.pop();
-
-        std::set<pg::chain_candidate_t> cands;
-
         IF_VERBOSE_FULL("Candidates: " + cand.to_string());
 
         // CHECK TIME-OUT
@@ -68,30 +64,49 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
             if (hn_new >= 0)
             {
                 const std::vector<pg::node_idx_t> nodes_new = graph->hypernode(hn_new);
-                std::string arity_goal = graph->node(cand.node_to).arity();
-                bool is_satisfied(false);
+                hash_map<pg::node_idx_t, float> goal2dist;
 
-                for (auto n : nodes_new)
-                if (graph->node(n).arity() == arity_goal)
+                for (auto it_r = rm.begin(); it_r != rm.end(); ++it_r)
+                if (static_cast<pg::chain_candidate_t>(cand)
+                    == static_cast<pg::chain_candidate_t>(*it_r))
                 {
-                    is_satisfied = true;
-                    break;
+                    float d = it_r->dist_from;
+                    auto found = goal2dist.find(it_r->node_to);
+
+                    if (found == goal2dist.end())
+                        goal2dist[it_r->node_to] = d;
+                    else if (found->second > d)
+                        goal2dist[it_r->node_to] = d;
                 }
 
-                if (not is_satisfied)
+                for (auto g : goal2dist)
                 {
-                    float dist = cand.dist_from + base->get_distance(axiom);
+                    std::string arity_goal = graph->node(g.first).arity();
+
                     for (auto n : nodes_new)
-                        add_reachability(
-                        graph, cand.node_from, n, cand.node_to, dist, &rm);
+                    {
+                        if (graph->node(n).arity() == arity_goal)
+                        {
+                            float dist = g.second + base->get_distance(axiom);
+                            for (auto n : nodes_new)
+                                add_reachability(
+                                graph, cand.node_from, n, cand.node_to, dist, &rm);
+                        }
+                    }
                 }
-
-                // FOR DEBUG
-                if (phillip()->verbose() >= VERBOSE_4)
-                    print_chain_for_debug(graph, axiom, cand, hn_new);
             }
 
-            considered.insert(static_cast<pg::chain_candidate_t>(cand));
+            considered.insert(
+                std::make_pair(static_cast<pg::chain_candidate_t>(cand), hn_new));
+        }
+
+        for (auto it = rm.begin(); it != rm.end();)
+        {
+            if (static_cast<pg::chain_candidate_t>(cand)
+                == static_cast<pg::chain_candidate_t>(*it))
+                it = rm.erase(it);
+            else
+                ++it;
         }
 
         if ((*stopper)(graph)) break;
@@ -279,26 +294,6 @@ void a_star_based_enumerator_t::add_reachability(
 }
 
 
-void a_star_based_enumerator_t::print_chain_for_debug(
-    const pg::proof_graph_t *graph, const lf::axiom_t &axiom,
-    const pg::chain_candidate_t &cand, pg::hypernode_idx_t to) const
-{
-    pg::hypernode_idx_t from =
-        graph->find_hypernode_with_ordered_nodes(cand.nodes);
-    const std::vector<pg::node_idx_t>
-        &hn_from(cand.nodes), &hn_to(graph->hypernode(to));
-    std::string
-        str_from(join(hn_from.begin(), hn_from.end(), "%d", ",")),
-        str_to(join(hn_to.begin(), hn_to.end(), "%d", ","));
-    std::string disp(cand.is_forward ? "ForwardChain: " : "BackwardChain: ");
-
-    disp += format("%d:[%s] <= %s <= %d:[%s]",
-        from, str_from.c_str(), axiom.name.c_str(), to, str_to.c_str());
-
-    std::cerr << time_stamp() << disp << std::endl;
-}
-
-
 bool a_star_based_enumerator_t::is_available(std::list<std::string>*) const
 { return true; }
 
@@ -315,6 +310,21 @@ std::string a_star_based_enumerator_t::reachability_t::to_string() const
     return format(
         "nodes: {%s}, axiom: %d, reachability: [%d](dist = %f) -> [%d](dist = %f)",
         from.c_str(), axiom_id, node_from, dist_from, node_to, dist_to);
+}
+
+
+void a_star_based_enumerator_t::reachability_manager_t::push(const reachability_t& r)
+{
+    float d = r.distance();
+
+    for (auto it = begin(); it != end(); ++it)
+    if (d <= it->distance())
+    {
+        insert(it, r);
+        return;
+    }
+
+    push_back(r);
 }
 
 

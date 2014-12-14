@@ -110,10 +110,6 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
                     }
                 }
             }
-
-            // FOR DEBUG
-            if (to >= 0 and phillip()->verbose() == FULL_VERBOSE)
-                print_chain_for_debug(graph, axiom, (*it), to);
         }
 
         if (graph->is_timeout()) break;
@@ -390,26 +386,6 @@ void depth_based_enumerator_t::filter_unified_reachability(
         else
             ++it;
     }
-}
-
-
-void depth_based_enumerator_t::print_chain_for_debug(
-    const pg::proof_graph_t *graph, const lf::axiom_t &axiom,
-    const pg::chain_candidate_t &cand, pg::hypernode_idx_t to) const
-{
-    pg::hypernode_idx_t from =
-        graph->find_hypernode_with_ordered_nodes(cand.nodes);
-    const std::vector<pg::node_idx_t>
-        &hn_from(cand.nodes), &hn_to(graph->hypernode(to));
-    std::string
-        str_from(join(hn_from.begin(), hn_from.end(), "%d", ",")),
-        str_to(join(hn_to.begin(), hn_to.end(), "%d", ","));
-    std::string disp(cand.is_forward ? "ForwardChain: " : "BackwardChain: ");
-
-    disp += format("%d:[%s] <= %s <= %d:[%s]",
-        from, str_from.c_str(), axiom.name.c_str(), to, str_to.c_str());
-
-    std::cerr << time_stamp() << disp << std::endl;
 }
 
 

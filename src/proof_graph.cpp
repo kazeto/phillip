@@ -1313,6 +1313,23 @@ hypernode_idx_t proof_graph_t::chain(
         return true;
     };
 
+    auto print_for_debug = [this](
+        const lf::axiom_t &axiom, bool is_backward,
+        pg::hypernode_idx_t from, pg::hypernode_idx_t to)
+    {
+        const std::vector<pg::node_idx_t>
+            &hn_from(hypernode(from)), &hn_to(hypernode(to));
+        std::string
+            header(is_backward ? "BackwardChain: " : "ForwardChain: "),
+            str_from(join(hn_from.begin(), hn_from.end(), "%d", ",")),
+            str_to(join(hn_to.begin(), hn_to.end(), "%d", ",")),
+            arrow(is_backward ? "<=" : "=>");
+
+        print_console_fmt("%s: %d:[%s] %s %s %s %d:[%s]",
+            header.c_str(), from, str_from.c_str(), arrow.c_str(),
+            axiom.name.c_str(), arrow.c_str(), to, str_to.c_str());
+    };
+
     // TERMS IN PROOF-GRAPH TO BE UNIFIED EACH OTHER.
     std::set<std::pair<term_t, term_t> > conds;
     // LITERALS TO BE ADDED TO PROOF-GRAPH.
@@ -1391,6 +1408,9 @@ hypernode_idx_t proof_graph_t::chain(
             }
         }
     }
+
+    if (phillip_main_t::verbose() >= VERBOSE_4)
+        print_for_debug(axiom, is_backward, idx_hn_from, idx_hn_to);
 
     /* ADD AXIOM HISTORY */
     hash_map<axiom_id_t, hash_set<hypernode_idx_t> > &ax2hn = is_backward ?

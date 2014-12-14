@@ -44,13 +44,11 @@ private:
         float dist_to;   // Distance from new node to the goal node.
     };
 
-    struct longer_distance_t
+    struct reachability_manager_t : public std::list<reachability_t>
     {
-        bool operator()(const reachability_t &a, const reachability_t &b) const;
+        const reachability_t &top() const { return front(); }
+        void push(const reachability_t&);
     };
-
-    typedef std::priority_queue<reachability_t, std::vector<reachability_t>, longer_distance_t>
-        reachability_manager_t;
 
     void initialize_reachability(
         const pg::proof_graph_t*, reachability_manager_t*) const;
@@ -62,10 +60,6 @@ private:
     void enumerate_chain_candidates(
         const pg::proof_graph_t *graph, pg::node_idx_t i,
         std::set<pg::chain_candidate_t> *out) const;
-
-    void print_chain_for_debug(
-        const pg::proof_graph_t *graph, const lf::axiom_t &axiom,
-        const pg::chain_candidate_t &cand, pg::hypernode_idx_t to) const;
 
     inline bool check_permissibility_of(float dist) const;
     inline bool check_permissibility_of(const reachability_t &r) const;
@@ -138,10 +132,6 @@ private:
         const pg::proof_graph_t *graph, pg::node_idx_t target,
         reachable_map_t *out) const;
 
-    void print_chain_for_debug(
-        const pg::proof_graph_t *graph, const lf::axiom_t &axiom,
-        const pg::chain_candidate_t &cand, pg::hypernode_idx_t to) const;
-
     int m_depth_max;
     float m_distance_max, m_redundancy_max;
     bool m_do_disable_reachable_matrix;
@@ -177,13 +167,6 @@ inline a_star_based_enumerator_t::reachability_t::reachability_t(
     : pg::chain_candidate_t(cand),
     node_from(i_from), node_to(i_to), dist_from(d_from), dist_to(d_to)
 {}
-
-
-inline bool a_star_based_enumerator_t::longer_distance_t::
-operator()(const reachability_t &a, const reachability_t &b) const
-{
-    return a.distance() > b.distance();
-}
 
 
 }
