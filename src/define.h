@@ -285,8 +285,10 @@ bool endswith(const std::string &str, const std::string &query);
 
 inline bool do_exist_file(const std::string &path);
 inline std::string get_file_name(const std::string &path);
+inline std::string get_directory_name(const std::string &path);
 inline size_t get_file_size(const std::string &filename);
 inline size_t get_file_size(std::istream &ifs);
+void mkdir(std::string path);
 
 std::string normalize_path(const std::string &target);
 std::string indexize_path(std::string str, int idx);

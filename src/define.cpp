@@ -1,7 +1,17 @@
 /* -*- coding: utf-8 -*- */
 
 #include <cstring>
+#include <cassert>
 #include "./define.h"
+
+#ifdef _WIN32
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#define _mkdir(path) mkdir(path, 0755)
+#endif
+
+const int FAILURE_MKDIR = -1;
 
 
 namespace phil
@@ -506,6 +516,34 @@ bool endswith(const std::string &str, const std::string &query)
     }
     else
         return false;
+}
+
+
+void mkdir(std::string path)
+{
+    std::list<std::string> log;
+    
+    while (_mkdir(path.c_str()) == FAILURE_MKDIR)
+    {
+#ifdef _WIN32
+        int idx = path.rfind('\\');
+#else
+        int idx = path.rfind('/');
+#endif
+        assert(idx > 0);
+        log.push_front(path.substr(idx + 1));
+        path = path.substr(0, idx);
+    }
+
+    for (auto s : log)
+    {
+#ifdef _WIN32
+        path += '\\' + s;
+#else
+        path += '/' + s;
+#endif
+        assert(_mkdir(path.c_str()) != FAILURE_MKDIR);
+    }
 }
 
 
