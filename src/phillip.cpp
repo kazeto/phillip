@@ -62,6 +62,8 @@ std::ofstream* _open_file(const std::string &path, std::ios::openmode mode)
 {
     if (not path.empty())
     {
+        mkdir(get_directory_name(path));
+
         std::ofstream *fo = new std::ofstream(path.c_str(), mode);
         if (fo->good())
             return fo;

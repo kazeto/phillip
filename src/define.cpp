@@ -2,13 +2,14 @@
 
 #include <cstring>
 #include <cassert>
+#include <errno.h>
+
 #include "./define.h"
 
 #ifdef _WIN32
 #include <direct.h>
 #else
 #include <sys/stat.h>
-#define _mkdir(path) mkdir(path, 0755)
 #endif
 
 const int FAILURE_MKDIR = -1;
@@ -521,28 +522,43 @@ bool endswith(const std::string &str, const std::string &query)
 
 void mkdir(std::string path)
 {
-    std::list<std::string> log;
-    
-    while (_mkdir(path.c_str()) == FAILURE_MKDIR)
+    auto makedir = [](const std::string path) -> bool
     {
 #ifdef _WIN32
-        int idx = path.rfind('\\');
+        if (_mkdir(path.c_str()))
+            return true;
 #else
-        int idx = path.rfind('/');
+        if (mkdir(path.c_str(), 0755))
+            return true;
 #endif
-        assert(idx > 0);
-        log.push_front(path.substr(idx + 1));
-        path = path.substr(0, idx);
-    }
+        else
+            return (errno == EEXIST);
+    };
 
-    for (auto s : log)
-    {
 #ifdef _WIN32
-        path += '\\' + s;
+    auto splitted = split(path, "\\");
 #else
-        path += '/' + s;
+    auto splitted = split(path, "/");
 #endif
-        assert(_mkdir(path.c_str()) != FAILURE_MKDIR);
+
+    path = "";
+
+    for (auto s : splitted)
+    {
+        if (not path.empty())
+        {
+#ifdef _WIN32
+            path += '\\';
+#else
+            path += '/';
+#endif
+        }
+        path += s;
+        if (not makedir(path))
+        {
+            print_error_fmt("Failed to make directory \"%s\"", path.c_str());
+            return;
+        }
     }
 }
 
