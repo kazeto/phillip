@@ -525,10 +525,10 @@ void mkdir(std::string path)
     auto makedir = [](const std::string path) -> bool
     {
 #ifdef _WIN32
-        if (_mkdir(path.c_str()))
+        if (::_mkdir(path.c_str()))
             return true;
 #else
-        if (mkdir(path.c_str(), 0755))
+        if (::mkdir(path.c_str(), 0755))
             return true;
 #endif
         else
