@@ -331,16 +331,19 @@ class Vis(ProofGraph):
 """ % (
 self.name, self.name, self.state, self.objective,
 self.time['lhs'], self.time['ilp'], self.time['sol'], self.time['all'],
-self.timeout['lhs'], self.timeout['ilp'], self.timeout['sol'], self.timeout['all'],
+self.timeout['lhs'], self.timeout['ilp'],
+self.timeout['sol'], self.timeout['all'],
 ",\n    ".join(nodes), ",\n    ".join(edges))
 
 
 def main():
-    tree = et.parse(sys.argv[1])
+    if len(sys.argv) > 1:
+        tree = et.parse(sys.argv[1])
+    else:
+        tree = et.fromstring(sys.stdin.read())
         
     vis = Vis(tree.getroot())
     vis.write()
-
 
     
 if(__name__=='__main__'):
