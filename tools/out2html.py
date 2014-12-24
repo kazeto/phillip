@@ -339,10 +339,11 @@ self.timeout['sol'], self.timeout['all'],
 def main():
     if len(sys.argv) > 1:
         tree = et.parse(sys.argv[1])
+        vis = Vis(tree.getroot())
     else:
-        tree = et.fromstring(sys.stdin.read())
+        root = et.fromstring(sys.stdin.read())
+        vis = Vis(root)
         
-    vis = Vis(tree.getroot())
     vis.write()
 
     
