@@ -82,7 +82,10 @@ std::mutex knowledge_base_t::ms_mutex_for_rm;
 knowledge_base_t* knowledge_base_t::instance()
 {
     if (not ms_instance)
+    {
+        mkdir(get_directory_name(ms_filename));
         ms_instance.reset(new knowledge_base_t(ms_filename, ms_distance_provider_type));
+    }
     return ms_instance.get();
 }
 

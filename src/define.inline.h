@@ -332,8 +332,23 @@ inline bool do_exist_file(const std::string &path)
 
 inline std::string get_file_name( const std::string &path )
 {
+#ifdef _WIN32
+    int idx = path.rfind("\\");
+#else
     int idx = path.rfind("/");
+#endif
     return ( idx >= 0 ) ? path.substr(idx+1) : path;
+}
+
+
+inline std::string get_directory_name(const std::string &path)
+{
+#ifdef _WIN32
+    int idx = path.rfind("\\");
+#else
+    int idx = path.rfind("/");
+#endif
+    return (idx >= 0) ? path.substr(0, idx) : "";
 }
 
 

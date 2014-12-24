@@ -1,7 +1,18 @@
 /* -*- coding: utf-8 -*- */
 
 #include <cstring>
+#include <cassert>
+#include <errno.h>
+
 #include "./define.h"
+
+#ifdef _WIN32
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#endif
+
+const int FAILURE_MKDIR = -1;
 
 
 namespace phil
@@ -506,6 +517,49 @@ bool endswith(const std::string &str, const std::string &query)
     }
     else
         return false;
+}
+
+
+void mkdir(std::string path)
+{
+    auto makedir = [](const std::string path) -> bool
+    {
+#ifdef _WIN32
+        if (::_mkdir(path.c_str()))
+            return true;
+#else
+        if (::mkdir(path.c_str(), 0755))
+            return true;
+#endif
+        else
+            return (errno == EEXIST);
+    };
+
+#ifdef _WIN32
+    auto splitted = split(path, "\\");
+#else
+    auto splitted = split(path, "/");
+#endif
+
+    path = "";
+
+    for (auto s : splitted)
+    {
+        if (not path.empty())
+        {
+#ifdef _WIN32
+            path += '\\';
+#else
+            path += '/';
+#endif
+        }
+        path += s;
+        if (not makedir(path))
+        {
+            print_error_fmt("Failed to make directory \"%s\"", path.c_str());
+            return;
+        }
+    }
 }
 
 

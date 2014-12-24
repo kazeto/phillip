@@ -12,7 +12,7 @@ namespace phil
 
 
 int phillip_main_t::ms_verboseness = 0;
-const std::string phillip_main_t::VERSION = "phil.2.20";
+const std::string phillip_main_t::VERSION = "phil.2.21";
 
 
 phillip_main_t::phillip_main_t()
@@ -62,6 +62,8 @@ std::ofstream* _open_file(const std::string &path, std::ios::openmode mode)
 {
     if (not path.empty())
     {
+        mkdir(get_directory_name(path));
+
         std::ofstream *fo = new std::ofstream(path.c_str(), mode);
         if (fo->good())
             return fo;
