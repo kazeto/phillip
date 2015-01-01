@@ -105,6 +105,7 @@ public:
     inline bool is_target(const std::string &name) const;
     inline void add_exclusion(const std::string &name);
     inline bool is_excluded(const std::string &name) const;
+    inline bool check_validity() const;
     
     void write_header() const;
     void write_footer() const;
@@ -114,7 +115,6 @@ private:
     
     bool interpret_option(int opt, const char *optarg);
     
-    inline bool can_infer() const;
     inline void reset_for_inference();
 
     std::vector<lf::input_t> split_input(const lf::input_t&) const;

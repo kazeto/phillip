@@ -64,6 +64,7 @@ int main(int argc, char* argv[])
 
         kb::knowledge_base_t::instance()->prepare_query();
 
+        if (phillip.check_validity())
         if (kb::knowledge_base_t::instance()->is_valid_version())
         for (int i = 0; i < parsed_inputs.size(); ++i)
         {

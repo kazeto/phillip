@@ -79,19 +79,6 @@ std::ofstream* _open_file(const std::string &path, std::ios::openmode mode)
 
 void phillip_main_t::infer(const std::vector<lf::input_t> &inputs, size_t idx)
 {
-    if( not can_infer() )
-    {
-        print_error("Henry cannot infer!!");
-        if (m_lhs_enumerator == NULL)
-            print_error("    - No lhs_enumerator!");
-        if (m_ilp_convertor == NULL)
-            print_error("    - No ilp_convertor!");
-        if (m_ilp_solver == NULL)
-            print_error("    - No ilp_solver!");
-
-        return;
-    }
-    
     std::ios::openmode mode = std::ios::out | std::ios::app;
     std::ofstream *fo(NULL);
 
@@ -164,20 +151,6 @@ void phillip_main_t::infer_parallel(
     const std::vector<lf::input_t> &inputs, size_t idx,
     bool do_print_on_each_thread)
 {
-
-    if (not can_infer())
-    {
-        print_error("Henry cannot infer!!");
-        if (m_lhs_enumerator == NULL)
-            print_error("    - No lhs_enumerator!");
-        if (m_ilp_convertor == NULL)
-            print_error("    - No ilp_convertor!");
-        if (m_ilp_solver == NULL)
-            print_error("    - No ilp_solver!");
-
-        return;
-    }
-
     std::ios::openmode mode = std::ios::out | std::ios::app;
     std::ofstream *fo(NULL);
 

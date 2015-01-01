@@ -255,12 +255,25 @@ inline bool phillip_main_t::is_excluded(const std::string &name) const
 }
 
 
-inline bool phillip_main_t::can_infer() const
+inline bool phillip_main_t::check_validity() const
 {
-    return
+    bool can_infer = 
         (m_lhs_enumerator != NULL) and
         (m_ilp_convertor != NULL) and
         (m_ilp_solver != NULL);
+
+    if (not can_infer)
+    {
+        print_error("Henry cannot infer!!");
+        if (lhs_enumerator() == NULL)
+            print_error("    - No lhs_enumerator!");
+        if (ilp_convertor() == NULL)
+            print_error("    - No ilp_convertor!");
+        if (ilp_solver() == NULL)
+            print_error("    - No ilp_solver!");
+    }
+
+    return can_infer;
 }
 
 
