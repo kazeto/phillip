@@ -140,9 +140,19 @@ inline bool string_hash_t::operator != (const string_hash_t &h) const
 
 inline void string_hash_t::set_flags(const std::string &str)
 {
-    m_is_constant = std::isupper(str.at(0));
-    m_is_unknown = startswith(str, "_u");
-    m_is_hard_term = startswith(str, "*");
+    assert(not str.empty());
+    if (not str.empty())
+    {
+        m_is_constant = std::isupper(str.at(0));
+        m_is_unknown = startswith(str, "_u");
+        m_is_hard_term = startswith(str, "*");
+    }
+    else
+    {
+        m_is_constant = false;
+        m_is_unknown = false;
+        m_is_hard_term = false;
+    }
 }
 
 
