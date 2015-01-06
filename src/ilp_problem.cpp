@@ -211,7 +211,7 @@ variable_idx_t ilp_problem_t::add_variable_of_edge(
         variable_idx_t v_tail = find_variable_with_hypernode(edge.tail());
         variable_idx_t v_head = find_variable_with_hypernode(edge.head());
 
-        if (v_tail >= 0 and v_tail >= 0)
+        if (v_tail >= 0 and v_head >= 0)
         {
             con.add_term(var, -2.0);
             con.add_term(v_tail, 1.0);

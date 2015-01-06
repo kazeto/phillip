@@ -79,6 +79,7 @@ inline bool constraint_t::is_empty() const
 
 inline void constraint_t::add_term( variable_idx_t var_idx, double coe )
 {
+    assert(var_idx >= 0);
     term_t t = { var_idx, coe };
     m_terms.push_back(t);
 }
