@@ -84,9 +84,13 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
 
     // ADD VARIABLES FOR HYPERNODES
     for (pg::hypernode_idx_t i = 0; i < graph->hypernodes().size(); ++i)
-        ilp::variable_idx_t var = prob->add_variable_of_hypernode(i);
+        prob->add_variable_of_hypernode(i);
     if (is_timeout()) return prob;
-    
+
+    for (pg::edge_idx_t i = 0; i < graph->edges().size(); ++i)
+        prob->add_variable_of_edge(i);
+    if (is_timeout()) return prob;
+
     // ADD CONSTRAINTS FOR NODES
     for (pg::node_idx_t i = 0; i < graph->nodes().size(); ++i)
         prob->add_constraint_of_dependence_of_node_on_hypernode(i);
@@ -119,7 +123,8 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
     // ASSIGN COSTS OF EDGES TO HYPERNODES
     hash_map<pg::node_idx_t, ilp::variable_idx_t> node2costvar;
     
-    add_variables_for_observation_cost(graph, *phillip()->get_input(), prob, &node2costvar);
+    add_variables_for_observation_cost(
+        graph, *phillip()->get_input(), prob, &node2costvar);
     if (is_timeout()) return prob;
     
     add_variables_for_hypothesis_cost(graph, prob, &node2costvar);
@@ -263,10 +268,7 @@ void weighted_converter_t::add_constraints_for_cost(
 
         for (auto e = edges.begin(); e != edges.end(); ++e)
         {
-            pg::hypernode_idx_t head = graph->edge(*e).head();
-            ilp::variable_idx_t var = prob->find_variable_with_hypernode(
-                head >= 0 ? head : graph->edge(*e).tail());
-
+            ilp::variable_idx_t var = prob->find_variable_with_edge(*e);
             if (var >= 0)
                 cons.add_term(var, 1.0);
         }

@@ -308,6 +308,14 @@ inline variable_idx_t ilp_problem_t::find_variable_with_hypernode(
 }
 
 
+inline variable_idx_t ilp_problem_t::find_variable_with_edge(pg::edge_idx_t idx) const
+{
+    if (idx < 0) return -1;
+    auto found = m_map_edge_to_variable.find(idx);
+    return (found != m_map_edge_to_variable.end()) ? found->second : -1;
+}
+
+
 inline const hash_map<pg::node_idx_t, variable_idx_t>&
 ilp_problem_t::node_to_variable() const
 {

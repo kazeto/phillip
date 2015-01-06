@@ -56,9 +56,22 @@ ilp_converter_t* costed_converter_t::duplicate(phillip_main_t *ptr) const
 
 ilp::ilp_problem_t* costed_converter_t::execute() const
 {
+    std::time_t begin, now;
+    std::time(&begin);
+
     const pg::proof_graph_t *graph = phillip()->get_latent_hypotheses_set();
     ilp::ilp_problem_t *prob = new ilp::ilp_problem_t(
         graph, new ilp::basic_solution_interpreter_t(), false);
+
+    auto is_timeout = [&]() -> bool {
+        std::time(&now);
+        if (phillip()->is_timeout_ilp(static_cast<int>(now - begin)))
+        {
+            prob->timeout(true);
+            return true;
+        }
+        return false;
+    };
 
     // ADD VARIABLES FOR NODES
     for (pg::node_idx_t i = 0; i < graph->nodes().size(); ++i)
@@ -67,22 +80,31 @@ ilp::ilp_problem_t* costed_converter_t::execute() const
         if (graph->node(i).type() == pg::NODE_OBSERVABLE)
             prob->add_constancy_of_variable(var, 1.0);
     }
+    if (is_timeout()) return prob;
 
     // ADD VARIABLES FOR HYPERNODES
     for (pg::hypernode_idx_t i = 0; i < graph->hypernodes().size(); ++i)
         ilp::variable_idx_t var = prob->add_variable_of_hypernode(i);
+    if (is_timeout()) return prob;
+
+    for (pg::edge_idx_t i = 0; i < graph->edges().size(); ++i)
+        prob->add_variable_of_edge(i);
+    if (is_timeout()) return prob;
 
     // ADD CONSTRAINTS FOR NODES
     for (pg::node_idx_t i = 0; i < graph->nodes().size(); ++i)
         prob->add_constraint_of_dependence_of_node_on_hypernode(i);
+    if (is_timeout()) return prob;
 
     // ADD CONSTRAINTS FOR HYPERNODES
     for (pg::hypernode_idx_t i = 0; i < graph->hypernodes().size(); ++i)
         prob->add_constraint_of_dependence_of_hypernode_on_parents(i);
+    if (is_timeout()) return prob;
 
     // ADD CONSTRAINTS FOR CHAINING EDGES
     for (pg::edge_idx_t i = 0; i < graph->edges().size(); ++i)
         prob->add_constrains_of_conditions_for_chain(i);
+    if (is_timeout()) return prob;
 
     // ASSIGN COSTS OF NODES
     for (pg::node_idx_t i = 0; i < graph->nodes().size(); ++i)
@@ -95,18 +117,20 @@ ilp::ilp_problem_t* costed_converter_t::execute() const
             prob->variable(var).set_coefficient(cost);
         }
     }
+    if (is_timeout()) return prob;
 
-    // ASSIGN COSTS OF EDGES TO HEAD-HYPERNODES
+    // ASSIGN COSTS OF EDGES
     for (pg::edge_idx_t i = 0; i < graph->edges().size(); ++i)
     {
         ilp::variable_idx_t var =
-            prob->find_variable_with_hypernode(graph->edge(i).head());
+            prob->find_variable_with_edge(i);
         if (var >= 0)
         {
             double cost = m_cost_provider->edge_cost(graph, i);
             prob->variable(var).set_coefficient(cost);
         }
     }
+    if (is_timeout()) return prob;
 
     const lf::logical_function_t *req = phillip()->get_requirement();
     if (req != NULL) prob->add_variable_for_requirement(*req, false);

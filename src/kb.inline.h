@@ -17,7 +17,10 @@ inline float knowledge_base_t::get_max_distance()
 
 inline lf::axiom_t knowledge_base_t::get_axiom(axiom_id_t id) const
 {
-    return m_axioms.get(id);
+    if (id >= 0 and id < m_axioms.num_axioms())
+        return m_axioms.get(id);
+    else
+        return lf::axiom_t();
 }
 
 

@@ -178,6 +178,53 @@ variable_idx_t ilp_problem_t::add_variable_of_hypernode(
 }
 
 
+variable_idx_t ilp_problem_t::add_variable_of_edge(
+    pg::edge_idx_t idx, double coef, bool do_add_constraint_for_node)
+{
+    const pg::edge_t &edge = m_graph->edge(idx);
+
+    if (ms_do_economize)
+    {
+        variable_idx_t var(-1);
+
+        if (edge.is_chain_edge())
+            variable_idx_t var = find_variable_with_hypernode(edge.head());
+        if (edge.is_unify_edge() and edge.head() < 0)
+            variable_idx_t var = find_variable_with_hypernode(edge.tail());
+
+        if (var >= 0)
+        {
+            m_map_edge_to_variable[idx] = var;
+            return var;
+        }
+    }
+
+    variable_idx_t var = add_variable(variable_t(
+        format("edge(%d):hn(%d,%d)", idx, edge.tail(), edge.head()), 0.0));
+
+    if (do_add_constraint_for_node)
+    {
+        /* IF THE EDGE IS TRUE, TAIL AND HEAD MUST BE TRUE, TOO. */
+        constraint_t con(
+            format("e_hn_dependency:e(%d):hn(%d,%d)", idx, edge.tail(), edge.head()),
+            OPR_GREATER_EQ, 0.0);
+        variable_idx_t v_tail = find_variable_with_hypernode(edge.tail());
+        variable_idx_t v_head = find_variable_with_hypernode(edge.head());
+
+        if (v_tail >= 0 and v_tail >= 0)
+        {
+            con.add_term(var, -2.0);
+            con.add_term(v_tail, 1.0);
+            con.add_term(v_head, 1.0);
+            add_constraint(con);
+        }
+    }
+
+    m_map_edge_to_variable[idx] = var;
+    return var;
+}
+
+
 constraint_idx_t ilp_problem_t::
 add_constraint_of_dependence_of_node_on_hypernode(pg::node_idx_t idx)
 {   
@@ -621,11 +668,10 @@ void ilp_problem_t::
 add_constrains_of_conditions_for_chain(pg::edge_idx_t idx)
 {
     const pg::edge_t &edge = m_graph->edge(idx);
-    variable_idx_t head = find_variable_with_hypernode(edge.head());
-    if (head < 0) return;
+    variable_idx_t v_edge = find_variable_with_edge(idx);
+    if (v_edge < 0) return;
 
-    if (edge.type() != pg::EDGE_IMPLICATION and
-        edge.type() != pg::EDGE_HYPOTHESIZE)
+    if (not edge.is_chain_edge())
         return;
 
     hash_set<pg::node_idx_t> conds1, conds2;
@@ -633,7 +679,7 @@ add_constrains_of_conditions_for_chain(pg::edge_idx_t idx)
 
     // IF THE CHAIN IS NOT AVAILABLE, HEAD-HYPERNODE MUST BE FALSE.
     if (not is_available)
-        add_constancy_of_variable(head, 0.0);
+        add_constancy_of_variable(v_edge, 0.0);
     else
     {
         if (not conds1.empty())
@@ -650,7 +696,7 @@ add_constrains_of_conditions_for_chain(pg::edge_idx_t idx)
                 con.add_term(_v, 1.0);
             }
 
-            con.add_term(head, -1.0 * con.terms().size());
+            con.add_term(v_edge, -1.0 * con.terms().size());
             add_constraint(con);
         }
 
@@ -669,7 +715,7 @@ add_constrains_of_conditions_for_chain(pg::edge_idx_t idx)
             }
 
             double b = -1.0 * con.terms().size();
-            con.add_term(head, b);
+            con.add_term(v_edge, b);
             con.set_bound(b);
             add_constraint(con);
         }

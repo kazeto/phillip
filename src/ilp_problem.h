@@ -157,12 +157,16 @@ public:
         pg::node_idx_t idx, double coef = 0.0);
 
     /** Add new variable of the hypernode and related constraints.
-     *  If adds the constraint for its member, it is required that
-     *  variables of nodes in the hypernode have been created.
+     *  It is required that the variables of
+     *  nodes in the hypernode have been already created.
      *  @return The index of added variable in m_variables. */
     variable_idx_t add_variable_of_hypernode(
         pg::hypernode_idx_t idx, double coef = 0.0,
         bool do_add_constraint_for_member = true);
+
+    variable_idx_t add_variable_of_edge(
+        pg::edge_idx_t idx, double coef = 0.0,
+        bool do_add_constraint_for_node = true);
 
     /** Add constraint for dependency between the target node
      *  and hypernodes which have the node as its element.
@@ -241,6 +245,8 @@ public:
     template<class T> variable_idx_t
         find_variable_with_hypernode_unordered(T begin, T end) const;
 
+    inline variable_idx_t find_variable_with_edge(pg::edge_idx_t) const;
+
     inline const hash_map<pg::node_idx_t, variable_idx_t>&
         node_to_variable() const;
     inline const hash_map<pg::hypernode_idx_t, variable_idx_t>&
@@ -306,6 +312,7 @@ protected:
     
     hash_map<pg::node_idx_t, variable_idx_t> m_map_node_to_variable;
     hash_map<pg::hypernode_idx_t, variable_idx_t> m_map_hypernode_to_variable;
+    hash_map<pg::edge_idx_t, variable_idx_t> m_map_edge_to_variable;
 
     std::list< std::pair<
         const lf::logical_function_t*, variable_idx_t> > m_variables_for_requirements;
