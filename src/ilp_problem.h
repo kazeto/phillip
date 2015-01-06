@@ -96,6 +96,8 @@ public:
 
     inline void set_bound(double lower, double upper);
     inline void set_bound(double target);
+
+    inline void set_name(const std::string &name) { m_name = name; }
     
     void print(
         std::string *p_out,
