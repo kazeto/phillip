@@ -64,33 +64,35 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
             if (hn_new >= 0)
             {
                 const std::vector<pg::node_idx_t> nodes_new = graph->hypernode(hn_new);
-                hash_map<pg::node_idx_t, float> goal2dist;
+                hash_map<pg::node_idx_t, std::pair<pg::node_idx_t, float> > goal2dist;
 
-                for (auto it_r = rm.begin(); it_r != rm.end(); ++it_r)
-                if (static_cast<pg::chain_candidate_t>(cand)
-                    == static_cast<pg::chain_candidate_t>(*it_r))
+                // ENUMERATE REACHABLE-NODE AND THEIR PRE-ESTIMATED DISTANCE.
+                for (auto rc : rm)
                 {
-                    float d = it_r->dist_from;
-                    auto found = goal2dist.find(it_r->node_to);
+                    if (static_cast<pg::chain_candidate_t>(cand)
+                        == static_cast<pg::chain_candidate_t>(rc))
+                    {
+                        float d = rc.dist_from;
+                        auto found = goal2dist.find(rc.node_to);
 
-                    if (found == goal2dist.end())
-                        goal2dist[it_r->node_to] = d;
-                    else if (found->second > d)
-                        goal2dist[it_r->node_to] = d;
+                        if (found == goal2dist.end())
+                            goal2dist[rc.node_to] = std::make_pair(rc.node_from, d);
+                        else if (found->second.second > d)
+                            goal2dist[rc.node_to] = std::make_pair(rc.node_from, d);
+                    }
                 }
 
                 for (auto g : goal2dist)
                 {
                     std::string arity_goal = graph->node(g.first).arity();
+                    float dist = g.second.second + base->get_distance(axiom);
 
                     for (auto n : nodes_new)
                     {
-                        if (graph->node(n).arity() == arity_goal)
+                        if (graph->node(n).arity() != arity_goal)
                         {
-                            float dist = g.second + base->get_distance(axiom);
-                            for (auto n : nodes_new)
-                                add_reachability(
-                                graph, cand.node_from, n, cand.node_to, dist, &rm);
+                            add_reachability(
+                                graph, g.second.first, n, g.first, dist, &rm);
                         }
                     }
                 }
