@@ -54,6 +54,19 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
     if (lazy_cons.count(i) == 0 or not do_cpi)
         add_constraint(&model, i, vars);
 
+    int timeout = phillip()->timeout_sol();
+    if (phillip()->timeout_all() > 0)
+    {
+        int t_o_all =
+            phillip()->timeout_all()
+            - phillip()->get_time_for_lhs()
+            - phillip()->get_time_for_ilp();
+        if (t_o_all > 0 and t_o_all < timeout)
+            timeout = t_o_all;
+        if (t_o_all <= 0)
+            timeout = 1;
+    }
+
     GRBEXECUTE(
         model.update();
         model.set(
@@ -62,8 +75,8 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
         model.getEnv().set(GRB_IntParam_OutputFlag, m_do_output_log ? 1 : 0);
         if (m_thread_num > 1)
             model.getEnv().set(GRB_IntParam_Threads, m_thread_num);
-        if (phillip()->timeout_sol() > 0)
-            model.getEnv().set(GRB_DoubleParam_TimeLimit, phillip()->timeout_sol()););
+        if (timeout > 0)
+            model.getEnv().set(GRB_DoubleParam_TimeLimit, timeout););
     
     size_t num_loop(0);
     while (true)
@@ -121,7 +134,13 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
             if (not do_break)
             {
                 std::time(&now);
-                if (phillip()->is_timeout_sol(now - begin))
+                int t_sol(now - begin);
+                int t_all(
+                    phillip()->get_time_for_lhs() +
+                    phillip()->get_time_for_ilp() + t_sol);
+                
+                if (phillip()->is_timeout_sol(t_sol)
+                    or phillip()->is_timeout_all(t_all))
                 {
                     sol.timeout(true);
                     do_break = true;

@@ -65,6 +65,7 @@ public:
     inline void set_timeout_lhs(int t);
     inline void set_timeout_ilp(int t);
     inline void set_timeout_sol(int t);
+    inline void set_timeout_all(int t);
     inline void set_param(const std::string &key, const std::string &param);
     inline void set_flag(const std::string &key);
     
@@ -79,9 +80,11 @@ public:
     inline int timeout_lhs() const;
     inline int timeout_ilp() const;
     inline int timeout_sol() const;
+    inline int timeout_all() const;
     inline bool is_timeout_lhs(int sec) const;
     inline bool is_timeout_ilp(int sec) const;
     inline bool is_timeout_sol(int sec) const;
+    inline bool is_timeout_all(int sec) const;
 
     inline const hash_map<std::string, std::string>& params() const;
     inline const std::string& param(const std::string &key) const;
@@ -129,7 +132,7 @@ private:
     // ---- DATA, SETTING, ETC...
     hash_map<std::string, std::string> m_params;
     hash_set<std::string> m_flags;
-    int  m_timeout_lhs, m_timeout_ilp, m_timeout_sol;
+    int  m_timeout_lhs, m_timeout_ilp, m_timeout_sol, m_timeout_all;
     
     hash_set<std::string> m_target_obs_names;
     hash_set<std::string> m_excluded_obs_names;

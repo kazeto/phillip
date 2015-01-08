@@ -65,7 +65,10 @@ ilp::ilp_problem_t* costed_converter_t::execute() const
 
     auto is_timeout = [&]() -> bool {
         std::time(&now);
-        if (phillip()->is_timeout_ilp(static_cast<int>(now - begin)))
+        int t_ilp(now - begin);
+        int t_all(phillip()->get_time_for_lhs() + t_ilp);
+        if (phillip()->is_timeout_ilp(t_ilp)
+            or phillip()->is_timeout_all(t_all))
         {
             prob->timeout(true);
             return true;

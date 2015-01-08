@@ -97,6 +97,10 @@ inline void phillip_main_t::set_timeout_sol(int t)
 { m_timeout_sol = t; }
 
 
+inline void phillip_main_t::set_timeout_all(int t)
+{ m_timeout_all = t; }
+
+
 inline void phillip_main_t::set_param(
     const std::string &key, const std::string &param )
 { m_params[key] = param; }
@@ -146,6 +150,10 @@ inline int phillip_main_t::timeout_sol() const
 { return m_timeout_sol; }
 
 
+inline int phillip_main_t::timeout_all() const
+{ return m_timeout_all; }
+
+
 inline bool phillip_main_t::is_timeout_lhs(int sec) const
 { return (m_timeout_lhs > 0 and sec >= m_timeout_lhs); }
 
@@ -156,6 +164,10 @@ inline bool phillip_main_t::is_timeout_ilp(int sec) const
 
 inline bool phillip_main_t::is_timeout_sol(int sec) const
 { return (m_timeout_sol > 0 and sec >= m_timeout_sol); }
+
+
+inline bool phillip_main_t::is_timeout_all(int sec) const
+{ return (m_timeout_all > 0 and sec >= m_timeout_all); }
 
 
 inline const hash_map<std::string, std::string>& phillip_main_t::params() const

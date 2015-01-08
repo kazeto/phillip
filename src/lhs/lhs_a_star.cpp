@@ -48,7 +48,8 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
 
         // CHECK TIME-OUT
         time(&now);
-        if (phillip()->is_timeout_lhs(now - begin))
+        int t(now - begin);
+        if (phillip()->is_timeout_lhs(t) or phillip()->is_timeout_all(t))
         {
             graph->timeout(true);
             break;

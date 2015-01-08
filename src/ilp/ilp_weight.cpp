@@ -33,7 +33,8 @@ parse_string_to_weight_provider(const std::string &str)
 
 weighted_converter_t::weighted_converter_t(
     phillip_main_t *main, double default_obs_cost, weight_provider_t *ptr)
-    : ilp_converter_t(main), m_default_observation_cost(default_obs_cost), m_weight_provider(ptr)
+    : ilp_converter_t(main), m_default_observation_cost(default_obs_cost),
+      m_weight_provider(ptr)
 {
     if (ptr == NULL)
         m_weight_provider = new basic_weight_provider_t(1.2);
@@ -65,7 +66,10 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
     
     auto is_timeout = [&]() -> bool {
         std::time(&now);
-        if (phillip()->is_timeout_ilp(static_cast<int>(now - begin)))
+        int t_ilp(now - begin);
+        int t_all(phillip()->get_time_for_lhs() + t_ilp);
+        if (phillip()->is_timeout_ilp(t_ilp)
+            or phillip()->is_timeout_all(t_all))
         {
             prob->timeout(true);
             return true;

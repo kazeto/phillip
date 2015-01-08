@@ -247,9 +247,7 @@ bool _interpret_option(
         if (spl.size() == 1)
         {
             _sscanf(arg.c_str(), "%d", &t);
-            phillip->set_timeout_lhs(t);
-            phillip->set_timeout_ilp(t);
-            phillip->set_timeout_sol(t);
+            phillip->set_timeout_all(t);
             return true;
         }
         else if (spl.size() == 2)

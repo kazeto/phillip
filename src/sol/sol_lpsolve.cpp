@@ -68,7 +68,13 @@ void lp_solve_t::execute(
         else do_break = true;
 
         std::time(&now);
-        if (phillip()->is_timeout_sol(now - begin))
+        int t_sol(now - begin);
+        int t_all(
+            phillip()->get_time_for_lhs() +
+            phillip()->get_time_for_ilp() + t_sol);
+        
+        if (phillip()->is_timeout_sol(t_sol)
+            or phillip()->is_timeout_all(t_all))
             do_break = is_timeout = true;
 
         if (do_break)
