@@ -536,16 +536,17 @@ void mkdir(std::string path)
     };
 
 #ifdef _WIN32
-    auto splitted = split(path, "\\");
+    const std::string det = "\\";
 #else
-    auto splitted = split(path, "/");
+    const std::string det = "/";
 #endif
+    
+    auto splitted = split(path, det.c_str());
+    path = (path[0] == det[0]) ? det : "";
 
-    path = "";
-
-    for (auto s : splitted)
+    for (auto it = splitted.begin(); it != splitted.end(); ++it)
     {
-        if (not path.empty())
+        if (it != splitted.begin())
         {
 #ifdef _WIN32
             path += '\\';
@@ -553,7 +554,10 @@ void mkdir(std::string path)
             path += '/';
 #endif
         }
-        path += s;
+            
+        path += (*it);
+
+        if (not path.empty())
         if (not makedir(path))
         {
             print_error_fmt("Failed to make directory \"%s\"", path.c_str());
