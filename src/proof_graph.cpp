@@ -1675,6 +1675,31 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
 
 void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
 {
+    auto add_nodes_of_transitive_unification = [this](term_t t)
+    {
+        const hash_set<term_t> *terms = m_vc_unifiable.find_cluster(t);
+        assert(terms != NULL);
+
+        for (auto it = terms->begin(); it != terms->end(); ++it)
+        {
+            if (t == (*it)) continue;
+            if (t.is_constant() and it->is_constant()) continue;
+
+            /* GENERATE TRANSITIVE UNIFICATION. */
+            if (find_sub_node(t, *it) < 0)
+            {
+                std::pair<term_t, term_t> ts = make_sorted_pair(t, *it);
+                literal_t sub("=", ts.first, ts.second);
+                node_idx_t idx = add_node(sub, NODE_HYPOTHESIS, -1, hash_set<node_idx_t>());
+                m_maps.terms_to_sub_node[ts.first][ts.second] = idx;
+
+                std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > muex;
+                get_mutual_exclusions(sub, &muex);
+                _generate_mutual_exclusions(idx, muex);
+            }
+        }
+    };
+
     std::vector<node_idx_t> unified_nodes; // FROM
     std::vector<node_idx_t> unify_nodes; // TO
     unifier_t uni;
@@ -1709,7 +1734,8 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
             std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > muex;
             get_mutual_exclusions(*sub, &muex);
             _generate_mutual_exclusions(sub_node_idx, muex);
-            _add_nodes_of_transitive_unification(t1);
+            add_nodes_of_transitive_unification(t1);
+            add_nodes_of_transitive_unification(t2);
         }
 
         unify_nodes.push_back(sub_node_idx);
@@ -1726,34 +1752,6 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
     /* SET MASTER-HYPERNODE */
     for (auto it = unify_nodes.begin(); it != unify_nodes.end(); ++it)
         m_nodes[*it].set_master_hypernode(hn_unify);
-}
-
-
-void proof_graph_t::_add_nodes_of_transitive_unification(term_t t)
-{
-    const hash_set<term_t> *terms = m_vc_unifiable.find_cluster(t);
-    assert( terms != NULL );
-
-    for( auto it = terms->begin(); it != terms->end(); ++it )
-    {
-        if( t == (*it) ) continue;
-        if( t.is_constant() and it->is_constant() ) continue;
-
-        /* GENERATE TRANSITIVE UNIFICATION. */
-        if (find_sub_node(t, *it) < 0)
-        {
-            term_t t1(t), t2(*it);
-            if (t1 > t2) std::swap(t1, t2);
-
-            literal_t sub("=", t1, t2);
-            node_idx_t idx = add_node(sub, NODE_HYPOTHESIS, -1, hash_set<node_idx_t>());
-            m_maps.terms_to_sub_node[t1][t2] = idx;
-
-            std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > muex;
-            get_mutual_exclusions(sub, &muex);
-            _generate_mutual_exclusions(idx, muex);
-        }
-    }
 }
 
 
@@ -1876,13 +1874,15 @@ void proof_graph_t::post_process()
         {
             do_break = true;
 
-            for (auto it1 = m_temporal.postponed_unifications.begin(); it1 != m_temporal.postponed_unifications.end();)
+            for (auto it1 = m_temporal.postponed_unifications.begin();
+                it1 != m_temporal.postponed_unifications.end();)
             {
                 for (auto it2 = it1->second.begin(); it2 != it1->second.end();)
                 {
                     const node_idx_t n1(it1->first), n2(*it2);
                     kb::unification_postponement_t pp =
-                        kb::knowledge_base_t::instance()->get_unification_postponement(node(n1).arity());
+                        kb::knowledge_base_t::instance()
+                        ->get_unification_postponement(node(n1).arity());
                     assert(not pp.empty());
 
                     if (not pp.do_postpone(this, n1, n2))
@@ -1899,6 +1899,32 @@ void proof_graph_t::post_process()
                     it1 = m_temporal.postponed_unifications.erase(it1);
                 else
                     ++it1;
+            }
+        }
+    }
+
+    IF_VERBOSE_3("Generating mutual exclusions among transitive equalities...");
+    {
+        for (auto terms : m_vc_unifiable.clusters())
+        {
+            std::set<std::pair<term_t, term_t> > muex_terms;
+
+            for (auto t1 : terms.second)
+            if (t1.is_constant())
+            {
+                for (auto t2 : terms.second)
+                if (t2.is_constant())
+                    muex_terms.insert(make_sorted_pair(t1, t2));
+            }
+
+            for (auto ts : muex_terms)
+            for (auto t : terms.second)
+            if (t != ts.first and t != ts.second)
+            {
+                std::pair<node_idx_t, node_idx_t> ns = make_sorted_pair(
+                    find_sub_node(ts.first, t), find_sub_node(ts.second, t));
+                if (ns.first >= 0 and ns.second >= 0)
+                    m_mutual_exclusive_nodes[ns.first][ns.second] = unifier_t();
             }
         }
     }

@@ -517,10 +517,6 @@ protected:
      *  And, update m_vc_unifiable and m_maps.terms_to_sub_node. */
     void _chain_for_unification(node_idx_t i, node_idx_t j);
 
-    /** Sub-routine of chain_for_unification.
-     *  Add nodes for transitive unification around the given term. */
-    void _add_nodes_of_transitive_unification(term_t t);
-
     /** Enumerates indices of hypernodes to be excluded
      *  and set them to m_hypernodes_disregarded. */
     void _enumerate_hypernodes_disregarded();
