@@ -12,7 +12,7 @@ namespace phil
 
 
 int phillip_main_t::ms_verboseness = 0;
-const std::string phillip_main_t::VERSION = "phil.2.3";
+const std::string phillip_main_t::VERSION = "phil.2.31";
 
 
 phillip_main_t::phillip_main_t()
@@ -415,6 +415,13 @@ void phillip_main_t::write_header() const
             << "\" ilp=\"" << m_ilp_convertor->repr()
             << "\" sol=\"" << m_ilp_solver->repr()
             << "\"></components>" << std::endl;
+
+        const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
+        (*os)
+            << "<knowledge_base path=\"" << base->filename()
+            << "\" size=\"" << base->num_of_axioms()
+            << "\" max_distance=\"" << base->get_max_distance()
+            << "\"></knowledge_base>" << std::endl;
 
         (*os)
             << "<params timeout_lhs=\"" << timeout_lhs()

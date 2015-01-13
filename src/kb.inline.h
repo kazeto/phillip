@@ -69,6 +69,18 @@ inline bool knowledge_base_t::is_valid_version() const
 }
 
 
+inline int knowledge_base_t::num_of_axioms() const
+{
+    return m_axioms.num_axioms();
+}
+
+
+inline const std::string& knowledge_base_t::filename() const
+{
+    return m_filename;
+}
+
+
 inline void knowledge_base_t::clear_distance_cache()
 {
     std::lock_guard<std::mutex> lock(ms_mutex_for_cache);

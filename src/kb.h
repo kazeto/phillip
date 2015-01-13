@@ -139,6 +139,8 @@ public:
 
     inline version_e version() const;
     inline bool is_valid_version() const;
+    inline const std::string& filename() const;
+    inline int num_of_axioms() const;
 
     inline void clear_distance_cache();
 
