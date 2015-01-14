@@ -1943,7 +1943,7 @@ void proof_graph_t::post_process()
             {
                 std::pair<node_idx_t, node_idx_t> ns = make_sorted_pair(
                     find_sub_node(ts.first, t), find_sub_node(ts.second, t));
-                if (ns.first >= 0 and ns.second >= 0)
+                if (ns.first >= 0 and ns.second >= 0 and ns.first != ns.second)
                     m_mutual_exclusive_nodes[ns.first][ns.second] = unifier_t();
             }
         }
