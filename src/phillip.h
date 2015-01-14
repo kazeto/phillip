@@ -110,9 +110,12 @@ public:
     void write_footer() const;
 
 protected:
-
     inline void reset_for_inference();
     inline void set_input(const lf::input_t&);
+
+    void execute_enumerator();
+    void execute_convertor();
+    void execute_solver();
 
 private:
     static int ms_verboseness;

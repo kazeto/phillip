@@ -83,62 +83,93 @@ void phillip_main_t::infer(const lf::input_t &input)
     std::ofstream *fo(NULL);
 
     reset_for_inference();
-    m_input = new lf::input_t(input);
+    set_input(input);
 
     clock_t begin_infer(clock());
     
-    IF_VERBOSE_2("Generating latent-hypotheses-set...");
-    clock_t begin_flhs(clock());
-    m_lhs = m_lhs_enumerator->execute();
-    clock_t end_flhs(clock());
-    m_clock_for_enumerate += end_flhs - begin_flhs;
-    IF_VERBOSE_2(
-        m_lhs->is_timeout() ?
-        "Interrupted generating latent-hypotheses-set." :
-        "Completed generating latent-hypotheses-set.");
+    execute_enumerator();
+    execute_convertor();
+    execute_solver();
 
-    if ((fo = _open_file(param("path_lhs_out"), mode)) != NULL)
-    {
-        m_lhs->print(fo);
-        delete fo;
-    }
-
-    IF_VERBOSE_2("Converting LHS into linear-programming-problems...");
-    clock_t begin_flpp(clock());
-    m_ilp = m_ilp_convertor->execute();
-    clock_t end_flpp(clock());
-    m_clock_for_convert += end_flpp - begin_flpp;
-    IF_VERBOSE_2(
-        m_ilp->is_timeout() ?
-        "Interrupted convertion into linear-programming-problems." :
-        "Completed convertion into linear-programming-problems.");
-
-    if ((fo = _open_file(param("path_ilp_out"), mode)) != NULL)
-    {
-        m_ilp->print(fo);
-        delete fo;
-    }
-
-    IF_VERBOSE_2("Solving...");
-    clock_t begin_fsol(clock());
-    m_ilp_solver->execute(&m_sol);
-    clock_t end_fsol(clock());
-    m_clock_for_solve += end_fsol - begin_fsol;
     clock_t end_infer(clock());
-    m_clock_for_infer += end_infer - begin_infer;
-    IF_VERBOSE_2("Completed inference.");
-
-    if ((fo = _open_file(param("path_sol_out"), mode)) != NULL)
-    {
-        for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
-            sol->print(fo);
-        delete fo;
-    }
+    m_clock_for_infer = end_infer - begin_infer;
 
     if ((fo = _open_file(param("path_out"), mode)) != NULL)
     {
         for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
             sol->print_graph(fo);
+        delete fo;
+    }
+}
+
+
+void phillip_main_t::execute_enumerator()
+{
+    IF_VERBOSE_2("Generating latent-hypotheses-set...");
+
+    if (m_lhs != NULL) delete m_lhs;
+
+    clock_t begin_flhs(clock());
+    m_lhs = m_lhs_enumerator->execute();
+    clock_t end_flhs(clock());
+    m_clock_for_enumerate = end_flhs - begin_flhs;
+
+    IF_VERBOSE_2(
+        m_lhs->is_timeout() ?
+        "Interrupted generating latent-hypotheses-set." :
+        "Completed generating latent-hypotheses-set.");
+
+    std::ios::openmode mode = std::ios::out | std::ios::app;
+    std::ofstream *fo(NULL);
+    if ((fo = _open_file(param("path_lhs_out"), mode)) != NULL)
+    {
+        m_lhs->print(fo);
+        delete fo;
+    }
+}
+
+
+void phillip_main_t::execute_convertor()
+{
+    IF_VERBOSE_2("Converting LHS into linear-programming-problems...");
+
+    clock_t begin_flpp(clock());
+    m_ilp = m_ilp_convertor->execute();
+    clock_t end_flpp(clock());
+    m_clock_for_convert = end_flpp - begin_flpp;
+
+    IF_VERBOSE_2(
+        m_ilp->is_timeout() ?
+        "Interrupted convertion into linear-programming-problems." :
+        "Completed convertion into linear-programming-problems.");
+
+    std::ios::openmode mode = std::ios::out | std::ios::app;
+    std::ofstream *fo(NULL);
+    if ((fo = _open_file(param("path_ilp_out"), mode)) != NULL)
+    {
+        m_ilp->print(fo);
+        delete fo;
+    }
+}
+
+
+void phillip_main_t::execute_solver()
+{
+    IF_VERBOSE_2("Solving...");
+
+    clock_t begin_fsol(clock());
+    m_ilp_solver->execute(&m_sol);
+    clock_t end_fsol(clock());
+    m_clock_for_solve = end_fsol - begin_fsol;
+
+    IF_VERBOSE_2("Completed inference.");
+
+    std::ios::openmode mode = std::ios::out | std::ios::app;
+    std::ofstream *fo(NULL);
+    if ((fo = _open_file(param("path_sol_out"), mode)) != NULL)
+    {
+        for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
+            sol->print(fo);
         delete fo;
     }
 }
