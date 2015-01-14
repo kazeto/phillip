@@ -210,6 +210,14 @@ void phillip_main_t::write_header() const
         for (auto it = m_flags.begin(); it != m_flags.end(); ++it)
             (*os) << "\" " << (*it) << "=\"yes";
 
+#ifdef DISABLE_CANCELING
+        (*os) << "\" disable_canceling=\"yes";
+#endif
+
+#ifdef DISABLE_HARD_TERM
+        (*os) << "\" disable_hard_term=\"yes";
+#endif
+
         (*os) << "\"></params>" << std::endl;
 
         (*os) << "</configure>" << std::endl;
