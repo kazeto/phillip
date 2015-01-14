@@ -18,13 +18,6 @@ inline const int phillip_main_t::verbose()
 }
 
 
-inline void phillip_main_t::infer(const lf::input_t &input)
-{
-    std::vector<lf::input_t> inputs(1, input);
-    infer(inputs, 0);
-}
-
-
 inline const lhs_enumerator_t* phillip_main_t::lhs_enumerator() const
 {
     return m_lhs_enumerator;
@@ -58,6 +51,14 @@ inline const ilp_solver_t* phillip_main_t::ilp_solver() const
 inline ilp_solver_t* phillip_main_t::ilp_solver()
 {
     return m_ilp_solver;
+}
+
+
+inline void phillip_main_t::set_input(const lf::input_t &ipt)
+{
+    if (m_input != NULL)
+        delete m_input;
+    m_input = new lf::input_t(ipt);
 }
 
 
@@ -132,10 +133,6 @@ inline const ilp::ilp_problem_t* phillip_main_t::get_ilp_problem() const
 
 inline const std::vector<ilp::ilp_solution_t>& phillip_main_t::get_solutions() const
 { return m_sol; }
-
-
-inline const std::vector<phillip_main_t*>& phillip_main_t::get_parallel_phillips() const
-{ return m_phillips_parallel; }
 
 
 inline int phillip_main_t::timeout_lhs() const
@@ -249,6 +246,12 @@ inline void phillip_main_t::add_target(const std::string &name)
 }
 
 
+inline void phillip_main_t::clear_targets()
+{
+    m_target_obs_names.clear();
+}
+
+
 inline bool phillip_main_t::is_target(const std::string &name) const
 {
     return m_target_obs_names.empty() ? true : (m_target_obs_names.count(name) > 0);
@@ -258,6 +261,12 @@ inline bool phillip_main_t::is_target(const std::string &name) const
 inline void phillip_main_t::add_exclusion(const std::string &name)
 {
     m_excluded_obs_names.insert(name);
+}
+
+
+inline void phillip_main_t::clear_exclusions()
+{
+    m_excluded_obs_names.clear();
 }
 
 

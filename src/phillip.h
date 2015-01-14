@@ -44,13 +44,8 @@ public:
      *  You can get the results via accesser functions.
      *  @param inputs A list of observations.
      *  @param idx    Index of an observation to infer. */
-    void infer(const std::vector<lf::input_t> &inputs, size_t idx);
-    inline void infer(const lf::input_t &input);
+    void infer(const lf::input_t &input);
 
-    void infer_parallel(
-        const std::vector<lf::input_t> &inputs, size_t idx,
-        bool do_print_on_each_thread = false);
-    
     inline const lhs_enumerator_t* lhs_enumerator() const;
     inline lhs_enumerator_t* lhs_enumerator();
     inline const ilp_converter_t* ilp_convertor() const;
@@ -75,8 +70,7 @@ public:
     inline const pg::proof_graph_t* get_latent_hypotheses_set() const;
     inline const ilp::ilp_problem_t* get_ilp_problem() const;
     inline const std::vector<ilp::ilp_solution_t>& get_solutions() const;
-    inline const std::vector<phillip_main_t*>& get_parallel_phillips() const;
-    
+
     inline int timeout_lhs() const;
     inline int timeout_ilp() const;
     inline int timeout_sol() const;
@@ -105,23 +99,22 @@ public:
     inline float get_time_for_infer() const;
 
     inline void add_target(const std::string &name);
+    inline void clear_targets();
     inline bool is_target(const std::string &name) const;
     inline void add_exclusion(const std::string &name);
+    inline void clear_exclusions();
     inline bool is_excluded(const std::string &name) const;
     inline bool check_validity() const;
     
     void write_header() const;
     void write_footer() const;
 
-private:
-    enum process_mode_e { MODE_COMPILE_KB, MODE_INPUT_OBS };
-    
-    bool interpret_option(int opt, const char *optarg);
-    
+protected:
+
     inline void reset_for_inference();
+    inline void set_input(const lf::input_t&);
 
-    std::vector<lf::input_t> split_input(const lf::input_t&) const;
-
+private:
     static int ms_verboseness;
 
     // ---- FUNCTION CLASS OF EACH PROCEDURE

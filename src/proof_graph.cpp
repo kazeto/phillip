@@ -398,6 +398,7 @@ void proof_graph_t::enumerate_dependent_nodes(
 bool proof_graph_t::check_availability_of_chain(
     pg::edge_idx_t idx, hash_set<node_idx_t> *subs1, hash_set<node_idx_t> *subs2) const
 {
+#ifndef DISABLE_CANCELING
     auto found_subs = m_subs_of_conditions_for_chain.find(idx);
     if (found_subs != m_subs_of_conditions_for_chain.end())
     {
@@ -420,6 +421,7 @@ bool proof_graph_t::check_availability_of_chain(
             if (n >= 0) subs2->insert(n);
         }
     }
+#endif
 
     return true;
 }
@@ -428,6 +430,7 @@ bool proof_graph_t::check_availability_of_chain(
 bool proof_graph_t::_check_nodes_coexistency(
     node_idx_t n1, node_idx_t n2, const unifier_t *uni) const
 {
+#ifndef DISABLE_CANCELING
     hash_set<edge_idx_t>
         e1(enumerate_dependent_edges(n1)),
         e2(enumerate_dependent_edges(n2));
@@ -475,6 +478,7 @@ bool proof_graph_t::_check_nodes_coexistency(
             }
         }
     }
+#endif
 
     return true;
 }
@@ -1052,9 +1056,11 @@ hypernode_idx_t proof_graph_t::chain(
             {
                 if (t_ax != t_hy)
                 {
+#ifndef DISABLE_CANCELING
                     if (t_hy.is_constant())
                         return false;
                     else
+#endif
                         conds->insert(make_sorted_pair(t_ax, t_hy));
                 }
             }
@@ -1195,6 +1201,7 @@ hypernode_idx_t proof_graph_t::chain(
             auto obs = enumerate_observations();
             dep_nodes.insert(obs.begin(), obs.end());
 
+#ifndef DISABLE_CANCELING
             // CHECK VALIDITY OF DEPENDANT EDGES
             for (auto it_e1 = dep_edges.begin(); it_e1 != dep_edges.end(); ++it_e1)
             for (auto it_e2 = it_e1; it_e2 != dep_edges.end(); ++it_e2)
@@ -1211,6 +1218,7 @@ hypernode_idx_t proof_graph_t::chain(
                         return false;
                 }
             }
+#endif
 
             // INSERT UN-EQUALITIES FROM MUTUAL-EXCLUSIONS AMONG EVIDENCES.
             for (auto it_n1 = dep_nodes.begin(); it_n1 != dep_nodes.end(); ++it_n1)
@@ -1227,16 +1235,21 @@ hypernode_idx_t proof_graph_t::chain(
                     if (found2 != found1->second.end())
                     {
                         const unifier_t &uni = found2->second;
-                        if (uni.empty())
-                            return false;
+                        if (not uni.empty())
+                        {
+                            for (auto p : uni.mapping())
+                                presup_neqs.insert(make_sorted_pair(p.first, p.second));
+                        }
+#ifndef DISABLE_CANCELING
                         else
-                        for (auto it = uni.mapping().begin(); it != uni.mapping().end(); ++it)
-                            presup_neqs.insert(make_sorted_pair(it->first, it->second));
+                            return false;
+#endif
                     }
                 }
             }
         }
 
+#ifndef DISABLE_CANCELING
         /* CHECK VALIDITY OF CONDITIONS */
         for (auto it = conds->begin(); it != conds->end(); ++it)
         {
@@ -1245,6 +1258,7 @@ hypernode_idx_t proof_graph_t::chain(
             if (presup_neqs.find(*it) != presup_neqs.end())
                 return false;
         }
+#endif
 
         /* SUBSTITUTE TERMS IN LITERALS */
         lits->assign(ax_to.size(), literal_t());
@@ -1261,6 +1275,7 @@ hypernode_idx_t proof_graph_t::chain(
         return true;
     };
 
+#ifndef DISABLE_CANCELING
     /* If given mutual exclusions cannot be satisfied, return true. */
     auto check_validity_of_mutual_exclusiveness = [this](
         const std::vector<node_idx_t> &from, const std::set<std::pair<term_t, term_t> > &cond,
@@ -1314,6 +1329,7 @@ hypernode_idx_t proof_graph_t::chain(
 
         return true;
     };
+#endif
 
     auto print_for_debug = [this](
         const lf::axiom_t &axiom, bool is_backward,
@@ -1350,8 +1366,10 @@ hypernode_idx_t proof_graph_t::chain(
     for (int i = 0; i < added.size(); ++i)
         get_mutual_exclusions(added.at(i), &(muexs[i]));
 
+#ifndef DISABLE_CANCELING
     if (not check_validity_of_mutual_exclusiveness(from, conds, muexs))
         return -1;
+#endif
 
     hypernode_idx_t idx_hn_from = add_hypernode(from);
     std::vector<node_idx_t> hn_to(added.size(), -1);

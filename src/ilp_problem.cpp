@@ -870,17 +870,6 @@ void ilp_problem_t::print_solution(
         << "\" all=\"" << phillip()->get_time_for_infer()
         << "\"></time>" << std::endl;
 
-    auto phs = phillip()->get_parallel_phillips();
-    (*os) << "<parallel ";
-    if (phs.empty())
-        (*os) << "active=\"no\" num=\"-1\">";
-    else
-    {
-        (*os) << "active=\"yes\" num=\""
-              << phs.size() << "\">";
-    }
-    (*os) << "</parallel>" << std::endl;
-
     const ilp::ilp_problem_t *prob(sol->problem());
     const pg::proof_graph_t *graph(sol->problem()->proof_graph());
     bool is_time_out_all =

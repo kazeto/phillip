@@ -50,8 +50,6 @@ int main(int argc, char* argv[])
     {
         std::vector<lf::input_t> parsed_inputs;
         proc::processor_t processor;
-        bool do_parallel_inference(phillip.flag("do_parallel_inference"));
-        bool do_write_parallel_out(phillip.flag("do_write_parallel_out"));
         bool flag_printing(false);
 
         print_console("Loading observations ...");
@@ -84,9 +82,7 @@ int main(int argc, char* argv[])
 
                 print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
                 kb::knowledge_base_t::instance()->clear_distance_cache();
-                do_parallel_inference ?
-                    phillip.infer_parallel(parsed_inputs, i, do_write_parallel_out) :
-                    phillip.infer(parsed_inputs, i);
+                phillip.infer(ipt);
 
 
                 auto sols = phillip.get_solutions();

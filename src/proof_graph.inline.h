@@ -332,6 +332,7 @@ template <class ContainerPtr>
 void proof_graph_t::erase_invalid_chain_candidates_with_coexistence(
     ContainerPtr ptr_cands) const
 {
+#ifndef DISABLE_CANCELING
     hash_map<node_idx_t, hash_map<node_idx_t, bool> > log;
 
     for (auto it = ptr_cands->begin(); it != ptr_cands->end();)
@@ -363,6 +364,7 @@ void proof_graph_t::erase_invalid_chain_candidates_with_coexistence(
         if (is_valid) ++it;
         else it = ptr_cands->erase(it);
     }
+#endif
 }
 
 
