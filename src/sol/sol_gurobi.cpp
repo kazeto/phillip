@@ -36,6 +36,23 @@ ilp_solver_t* gurobi_t::duplicate(phillip_main_t *ptr) const
 void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
 {
 #ifdef USE_GUROBI
+    auto get_timeout = [this](int passed) -> int
+    {
+        int timeout(-1);
+        int t_o_sol = phillip()->timeout_sol() - passed;
+        int t_o_all =
+            phillip()->timeout_all()
+            - phillip()->get_time_for_lhs() - phillip()->get_time_for_ilp()
+            - passed;
+        
+        if (t_o_sol > t_o_all)
+            timeout = (t_o_all > 0) ? t_o_all : t_o_sol;
+        else
+            timeout = (t_o_sol > 0) ? t_o_sol : t_o_all;
+        
+        return (timeout > 0) ? timeout : -1;
+    };
+    
     g_mutex_gurobi.lock();
     const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
     GRBEnv env;
@@ -54,18 +71,7 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
     if (lazy_cons.count(i) == 0 or not do_cpi)
         add_constraint(&model, i, vars);
 
-    int timeout = phillip()->timeout_sol();
-    if (phillip()->timeout_all() > 0)
-    {
-        int t_o_all =
-            phillip()->timeout_all()
-            - phillip()->get_time_for_lhs()
-            - phillip()->get_time_for_ilp();
-        if (t_o_all > 0 and t_o_all < timeout)
-            timeout = t_o_all;
-        if (t_o_all <= 0)
-            timeout = 1;
-    }
+    int timeout = get_timeout(0);
 
     GRBEXECUTE(
         model.update();
@@ -134,16 +140,22 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
             if (not do_break)
             {
                 std::time(&now);
-                int t_sol(now - begin);
-                int t_all(
+                int passed(now - begin);
+                int passed_all(
                     phillip()->get_time_for_lhs() +
-                    phillip()->get_time_for_ilp() + t_sol);
+                    phillip()->get_time_for_ilp() + passed);
                 
-                if (phillip()->is_timeout_sol(t_sol)
-                    or phillip()->is_timeout_all(t_all))
+                if (phillip()->is_timeout_sol(passed)
+                    or phillip()->is_timeout_all(passed_all))
                 {
                     sol.timeout(true);
                     do_break = true;
+                }
+                else
+                {
+                    int t_o = get_timeout(passed);
+                    if (timeout > 0)
+                        GRBEXECUTE(model.getEnv().set(GRB_DoubleParam_TimeLimit, t_o););
                 }
             }
 
