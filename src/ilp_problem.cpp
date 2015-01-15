@@ -1169,10 +1169,8 @@ bool basic_solution_interpreter_t::hypernode_is_active(
 bool basic_solution_interpreter_t::edge_is_active(
     const ilp_solution_t &sol, pg::edge_idx_t idx) const
 {
-    const pg::edge_t &edge = sol.problem()->proof_graph()->edge(idx);
-    return
-        hypernode_is_active(sol, edge.tail()) and
-        hypernode_is_active(sol, edge.head());
+    variable_idx_t var = sol.problem()->find_variable_with_edge(idx);
+    return (var >= 0) ? sol.variable_is_active(var) : false;
 }
 
 
