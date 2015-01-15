@@ -15,15 +15,6 @@ inline float knowledge_base_t::get_max_distance()
 }
 
 
-inline lf::axiom_t knowledge_base_t::get_axiom(axiom_id_t id) const
-{
-    if (id >= 0 and id < m_axioms.num_axioms())
-        return m_axioms.get(id);
-    else
-        return lf::axiom_t();
-}
-
-
 inline std::list<axiom_id_t> knowledge_base_t::
 search_axioms_with_rhs(const std::string &rhs) const
 {
@@ -81,9 +72,16 @@ inline const std::string& knowledge_base_t::filename() const
 }
 
 
+inline void knowledge_base_t::clear_axioms_cache()
+{
+    std::lock_guard<std::mutex> lock(ms_mutex_for_ax_cache);
+    m_cache_axioms.clear();
+}
+
+
 inline void knowledge_base_t::clear_distance_cache()
 {
-    std::lock_guard<std::mutex> lock(ms_mutex_for_cache);
+    std::lock_guard<std::mutex> lock(ms_mutex_for_dist_cache);
     m_cache_distance.clear();
 }
 

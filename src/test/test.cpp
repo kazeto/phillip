@@ -26,7 +26,7 @@ bool virtual_test_t::operator()(phillip_main_t *main) const
 
 void compiling_axioms_t::test(phillip_main_t *main) const
 {
-    kb::knowledge_base_t::setup("test.kb.", kb::DISTANCE_PROVIDER_BASIC, 6, 1);
+    kb::knowledge_base_t::setup("test.kb.", kb::DISTANCE_PROVIDER_BASIC, 6, 5000, 1);
 
     proc::processor_t processor;
     print_console("Compiling knowledge-base ...");
