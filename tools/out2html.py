@@ -269,7 +269,7 @@ class Vis(ProofGraph):
 
 <form name=\"configVis\">
   <input type=\"checkbox\" value=\"NonActiveEntities\">Non active entities
-  <input type=\"checkbox\" value=\"Hierarchical layout\">Hierarchical layout
+  <input type=\"checkbox\" value=\"Hierarchical layout\" checked=\"checked\">Hierarchical layout
   <input type=\"button\" value=\"Reload\" onclick=\"updateNetwork()\">
 </form>
 <div id=\"visualization\"></div>
