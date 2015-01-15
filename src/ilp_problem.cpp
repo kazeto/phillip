@@ -303,10 +303,8 @@ void ilp_problem_t::add_constraints_to_forbid_chaining_from_explained_node(
     // IF A LITERAL IS UNIFIED AND EXPLAINED BY ANOTHER ONE,
     // THEN CHAINING FROM THE LITERAL IS FORBIDDEN.
 
-    variable_idx_t v_uni_tail = find_variable_with_hypernode(e_uni.tail());
-    variable_idx_t v_uni_head = find_variable_with_hypernode(e_uni.head());
-    variable_idx_t v_uni = (e_uni.head() >= 0 ? v_uni_head : v_uni_tail);
-    if (v_uni_tail < 0 or(e_uni.head() >= 0 and v_uni_head < 0)) return;
+    variable_idx_t v_uni = find_variable_with_edge(idx_unify);
+    if (v_uni < 0) return;
 
     auto from = m_graph->hypernode(e_uni.tail());
     if (from[0] != idx_explained and from[1] != idx_explained) return;
@@ -318,27 +316,21 @@ void ilp_problem_t::add_constraints_to_forbid_chaining_from_explained_node(
         for (auto j = es->begin(); j != es->end(); ++j)
         {
             const pg::edge_t &e_ch = m_graph->edge(*j);
-            if (not e_ch.is_chain_edge()) continue;
-            if (e_ch.tail() != (*hn)) continue;
+            if (not e_ch.is_chain_edge() or e_ch.tail() != (*hn)) continue;
 
             constraint_t con(
                 format("unify_or_chain:e(%d):e(%d)", idx_unify, *j), OPR_GREATER_EQ, -1.0);
-            variable_idx_t v_ch_head = find_variable_with_hypernode(e_ch.head());
+            variable_idx_t v_ch = find_variable_with_edge(*j);
 
-            if (v_ch_head >= 0)
+            if (v_ch >= 0)
             {
-                con.add_term(v_ch_head, -1.0);
-                con.add_term(v_uni_tail, -1.0);
-                if (e_uni.head() >= 0)
-                {
-                    con.add_term(v_uni_head, -1.0);
-                    con.set_bound(con.bound() - 1.0);
-                }
+                con.add_term(v_ch, -1.0);
+                con.add_term(v_uni, -1.0);
 
-                constraint_idx_t _idx = add_constraint(con);
+                constraint_idx_t con_idx = add_constraint(con);
 
-                if (_idx >= 0 and out != NULL)
-                    out->push_back(_idx);
+                if (con_idx >= 0 and out != NULL)
+                    out->push_back(con_idx);
             }
         }
     }
@@ -346,20 +338,19 @@ void ilp_problem_t::add_constraints_to_forbid_chaining_from_explained_node(
 
 
 void ilp_problem_t::add_constraints_to_forbid_looping_unification(
-    pg::edge_idx_t idx_unify, pg::node_idx_t idx_explained,
+    pg::edge_idx_t idx_uni_1, pg::node_idx_t idx_explained,
     std::list<constraint_idx_t> *out)
 {
-    const pg::edge_t &e_uni = m_graph->edge(idx_unify);
-    if (not e_uni.is_unify_edge()) return;
+    const pg::edge_t &e_uni_1 = m_graph->edge(idx_uni_1);
+    assert(e_uni_1.is_unify_edge());
 
     // IF A LITERAL IS UNIFIED AND EXPLAINED BY ANOTHER ONE,
     // THEN CHAINING FROM THE LITERAL IS FORBIDDEN.
 
-    variable_idx_t v_uni_tail = find_variable_with_hypernode(e_uni.tail());
-    variable_idx_t v_uni_head = find_variable_with_hypernode(e_uni.head());
-    if (v_uni_tail < 0 or(e_uni.head() >= 0 and v_uni_head < 0)) return;
+    variable_idx_t v_uni_1 = find_variable_with_edge(idx_uni_1);
+    if (v_uni_1 < 0) return;
 
-    auto from = m_graph->hypernode(e_uni.tail());
+    auto from = m_graph->hypernode(e_uni_1.tail());
     if (from[0] != idx_explained and from[1] != idx_explained) return;
 
     pg::node_idx_t idx_explains = (from[0] == idx_explained) ? from[1] : from[0];
@@ -384,36 +375,25 @@ void ilp_problem_t::add_constraints_to_forbid_looping_unification(
         for (auto n1 = it1->second.begin(); n1 != it1->second.end(); ++n1)
         for (auto n2 = it2->second.begin(); n2 != it2->second.end(); ++n2)
         {
-            pg::edge_idx_t _uni = m_graph->find_unifying_edge(*n1, *n2);
-            if (_uni < 0 or _uni == idx_unify) continue;
+            pg::edge_idx_t idx_uni_2 = m_graph->find_unifying_edge(*n1, *n2);
+            if (idx_uni_2 < 0 or idx_uni_2 == idx_uni_1) continue;
 
-            const pg::edge_t &_e_uni = m_graph->edge(_uni);
-            ilp::variable_idx_t _v_uni_tail = find_variable_with_hypernode(_e_uni.tail());
-            ilp::variable_idx_t _v_uni_head = find_variable_with_hypernode(_e_uni.head());
+            const pg::edge_t &e_uni_2 = m_graph->edge(idx_uni_2);
+            ilp::variable_idx_t v_uni_2 = find_variable_with_edge(idx_uni_2);
 
-            if (_v_uni_tail >= 0 and(_e_uni.head() < 0 or _v_uni_head >= 0))
+            if (v_uni_2 >= 0)
             {
                 ilp::constraint_t con(
-                    format("muex_unify:e(%d,%d)", idx_unify, _uni),
+                    format("muex_unify:e(%d,%d)", idx_uni_1, idx_uni_2),
                     ilp::OPR_GREATER_EQ, -1.0);
 
-                con.add_term(v_uni_tail, -1.0);
-                con.add_term(_v_uni_tail, -1.0);
-                if (e_uni.head() >= 0)
-                {
-                    con.add_term(v_uni_head, -1.0);
-                    con.set_bound(con.bound() - 1.0);
-                }
-                if (_e_uni.head() >= 0 and _e_uni.head() != e_uni.head())
-                {
-                    con.add_term(_v_uni_head, -1.0);
-                    con.set_bound(con.bound() - 1.0);
-                }
+                con.add_term(v_uni_1, -1.0);
+                con.add_term(v_uni_2, -1.0);
 
-                constraint_idx_t _idx = add_constraint(con);
+                constraint_idx_t con_idx = add_constraint(con);
 
-                if (_idx >= 0 and out != NULL)
-                    out->push_back(_idx);
+                if (con_idx >= 0 and out != NULL)
+                    out->push_back(con_idx);
             }
         }
     }
@@ -749,8 +729,7 @@ size_t ilp_problem_t::add_constrains_of_exclusive_chains(
 
         for (auto e = it->begin(); e != it->end(); ++e)
         {
-            pg::hypernode_idx_t hn = m_graph->edge(*e).head();
-            variable_idx_t v = find_variable_with_hypernode(hn);
+            variable_idx_t v = find_variable_with_edge(*e);
             if (v >= 0)
                 con.add_term(v, -1.0);
             else
