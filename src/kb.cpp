@@ -40,6 +40,9 @@ unification_postponement_t::unification_postponement_t(
 bool unification_postponement_t::do_postpone(
     const pg::proof_graph_t *graph, index_t n1, index_t n2) const
 {
+#ifdef DISABLE_UNIPP
+    return false;
+#else
     const literal_t &l1 = graph->node(n1).literal();
     const literal_t &l2 = graph->node(n2).literal();
     int num(0);
@@ -66,6 +69,7 @@ bool unification_postponement_t::do_postpone(
     }
 
     return (num < m_num_for_partial_indispensability);
+#endif
 }
 
 

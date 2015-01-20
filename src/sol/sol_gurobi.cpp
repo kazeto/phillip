@@ -1,4 +1,5 @@
 #include <mutex>
+#include <algorithm>
 #include "./ilp_solver.h"
 
 
@@ -36,21 +37,25 @@ ilp_solver_t* gurobi_t::duplicate(phillip_main_t *ptr) const
 void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
 {
 #ifdef USE_GUROBI
-    auto get_timeout = [this](int passed) -> int
+    auto get_timeout = [this](int passed) -> double
     {
-        int timeout(-1);
-        int t_o_sol = phillip()->timeout_sol() - passed;
-        int t_o_all =
-            phillip()->timeout_all()
-            - phillip()->get_time_for_lhs() - phillip()->get_time_for_ilp()
-            - passed;
-        
+        double t_o_sol(-1), t_o_all(-1);
+        if (phillip()->timeout_sol() > 0)
+            t_o_sol = std::max<double>(0.01, phillip()->timeout_sol() - passed);
+        if (phillip()->timeout_all() > 0)
+            t_o_all = std::max<double>(
+                0.01,
+                phillip()->timeout_all()
+                - phillip()->get_time_for_lhs() - phillip()->get_time_for_ilp()
+                - passed);
+
+        double timeout(-1);
         if (t_o_sol > t_o_all)
-            timeout = (t_o_all > 0) ? t_o_all : t_o_sol;
+            timeout = (t_o_all > 0.0) ? t_o_all : t_o_sol;
         else
-            timeout = (t_o_sol > 0) ? t_o_sol : t_o_all;
+            timeout = (t_o_sol > 0.0) ? t_o_sol : t_o_all;
         
-        return (timeout > 0) ? timeout : -1;
+        return (timeout > 0.0) ? timeout : -1.0;
     };
     
     g_mutex_gurobi.lock();
@@ -71,7 +76,7 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
     if (lazy_cons.count(i) == 0 or not do_cpi)
         add_constraint(&model, i, vars);
 
-    int timeout = get_timeout(0);
+    double timeout = get_timeout(0);
 
     GRBEXECUTE(
         model.update();
@@ -153,8 +158,8 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
                 }
                 else
                 {
-                    int t_o = get_timeout(passed);
-                    if (timeout > 0)
+                    double t_o = get_timeout(passed);
+                    if (t_o > 0.0)
                         GRBEXECUTE(model.getEnv().set(GRB_DoubleParam_TimeLimit, t_o););
                 }
             }

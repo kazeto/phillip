@@ -1070,11 +1070,9 @@ hypernode_idx_t proof_graph_t::chain(
                     (*subs)[t_ax] = t_hy;
                 else if (t_hy != find1->second)
                 {
-#ifndef DISABLE_HARD_TERM
                     if (t_ax.is_hard_term())
                         return false;
                     else
-#endif
                         conds->insert(make_sorted_pair(t_hy, find1->second));
                 }
             }
