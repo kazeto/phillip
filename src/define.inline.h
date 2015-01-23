@@ -144,11 +144,12 @@ inline void string_hash_t::set_flags(const std::string &str)
     if (not str.empty())
     {
         m_is_constant = std::isupper(str.at(0));
-        m_is_unknown = startswith(str, "_u");
+        m_is_unknown = (str.size() < 2) ? false :
+            (str.at(0) == '_' and str.at(1) == 'u');
 #ifdef DISABLE_HARD_TERM
         m_is_hard_term = false;
-#else
-        m_is_hard_term = startswith(str, "*");
+#else        
+        m_is_hard_term = str.empty() ? false : (str.front() == '*');
 #endif
     }
     else
