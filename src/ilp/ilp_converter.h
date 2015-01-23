@@ -81,23 +81,8 @@ public:
         const pg::proof_graph_t*, pg::edge_idx_t) const;
 
 protected:
-    inline void add_variable_for_cost(
-        pg::node_idx_t idx, double cost, ilp::ilp_problem_t *prob,
-        hash_map<pg::node_idx_t, ilp::variable_idx_t> *node2costvar) const;
-    void add_variables_for_observation_cost(
-        const pg::proof_graph_t *graph,
-        const lf::input_t &input, ilp::ilp_problem_t *prob,
-        hash_map<pg::node_idx_t, ilp::variable_idx_t> *node2costvar) const;
-    void add_variables_for_hypothesis_cost(
-        const pg::proof_graph_t *graph, ilp::ilp_problem_t *prob,
-        hash_map<pg::node_idx_t, ilp::variable_idx_t> *node2costvar) const;
-    void add_constraints_for_cost(
-        const pg::proof_graph_t *graph, ilp::ilp_problem_t *prob,
-        const hash_map<pg::node_idx_t, ilp::variable_idx_t> &node2costvar) const;
-    inline double get_cost_of_node(
-        pg::node_idx_t idx, const ilp::ilp_problem_t *prob,
-        const hash_map<pg::node_idx_t, ilp::variable_idx_t> &node2costvar) const;
-
+    bool is_timeout(std::time_t begin) const;
+    
     double m_default_observation_cost;
     weight_provider_t *m_weight_provider;
 };
@@ -157,30 +142,6 @@ std::vector<double> weighted_converter_t::get_weights(
     return (*m_weight_provider)(graph, i);
 }
 
-
-inline void weighted_converter_t::add_variable_for_cost(
-    pg::node_idx_t idx, double cost, ilp::ilp_problem_t *prob,
-    hash_map<pg::node_idx_t, ilp::variable_idx_t> *node2costvar) const
-{
-    ilp::variable_idx_t v(prob->find_variable_with_node(idx));
-    if (v >= 0)
-    {
-        std::string name = format("cost(n:%d)", idx);
-        ilp::variable_idx_t costvar =
-            prob->add_variable(ilp::variable_t(name, cost));
-        (*node2costvar)[idx] = costvar;
-    }
-}
-
-
-inline double weighted_converter_t::get_cost_of_node(
-    pg::node_idx_t idx, const ilp::ilp_problem_t *prob,
-    const hash_map<pg::node_idx_t, ilp::variable_idx_t> &node2costvar) const
-{
-    auto find = node2costvar.find(idx);
-    return (find != node2costvar.end()) ?
-        prob->variable(find->second).objective_coefficient() : 0.0;
-}
 
 
 }
