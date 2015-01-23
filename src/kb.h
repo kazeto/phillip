@@ -98,7 +98,7 @@ public:
     static knowledge_base_t* instance();
     static void setup(
         std::string filename, distance_provider_type_e dist_type,
-        float max_distance, int max_axiom_cache_num, int thread_num_for_rm);
+        float max_distance, int thread_num_for_rm);
     static inline float get_max_distance();
 
     ~knowledge_base_t();
