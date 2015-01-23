@@ -81,11 +81,9 @@ int main(int argc, char* argv[])
                 }
 
                 print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
-                
-                kb::knowledge_base_t::instance()->clear_axioms_cache();
                 kb::knowledge_base_t::instance()->clear_distance_cache();
-                
                 phillip.infer(ipt);
+
 
                 auto sols = phillip.get_solutions();
                 for (auto sol = sols.begin(); sol != sols.end(); ++sol)

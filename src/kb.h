@@ -119,7 +119,7 @@ public:
     void insert_stop_word_arity(const lf::logical_function_t &f);
     void insert_argument_set(const lf::logical_function_t &f);
 
-    lf::axiom_t get_axiom(axiom_id_t id) const;
+    inline lf::axiom_t get_axiom(axiom_id_t id) const;
     inline std::list<axiom_id_t> search_axioms_with_rhs(const std::string &arity) const;
     inline std::list<axiom_id_t> search_axioms_with_lhs(const std::string &arity) const;
     inline std::list<axiom_id_t> search_inconsistencies(const std::string &arity) const;
@@ -142,7 +142,6 @@ public:
     inline const std::string& filename() const;
     inline int num_of_axioms() const;
 
-    inline void clear_axioms_cache();
     inline void clear_distance_cache();
 
 private:
@@ -255,10 +254,8 @@ private:
     static std::string ms_filename;
     static distance_provider_type_e ms_distance_provider_type;
     static float ms_max_distance;
-    static int ms_max_cached_axiom_num;
     static int ms_thread_num_for_rm;
-    static std::mutex ms_mutex_for_ax_cache;
-    static std::mutex ms_mutex_for_dist_cache;
+    static std::mutex ms_mutex_for_cache;
     static std::mutex ms_mutex_for_rm;
 
     kb_state_e m_state;
@@ -291,8 +288,7 @@ private:
     distance_provider_t *m_rm_dist;
 
     bool m_do_create_local_reachability_matrix;
-
-    mutable hash_map<axiom_id_t, lf::axiom_t> m_cache_axioms;
+    
     mutable hash_map<size_t, hash_map<size_t, float> > m_cache_distance;
 };
 

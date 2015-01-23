@@ -78,10 +78,8 @@ std::unique_ptr<knowledge_base_t, knowledge_base_t::deleter> knowledge_base_t::m
 std::string knowledge_base_t::ms_filename = "kb";
 distance_provider_type_e knowledge_base_t::ms_distance_provider_type = DISTANCE_PROVIDER_BASIC;
 float knowledge_base_t::ms_max_distance = -1.0f;
-int knowledge_base_t::ms_max_cached_axiom_num = 5000;
 int knowledge_base_t::ms_thread_num_for_rm = 1;
-std::mutex knowledge_base_t::ms_mutex_for_ax_cache;
-std::mutex knowledge_base_t::ms_mutex_for_dist_cache;
+std::mutex knowledge_base_t::ms_mutex_for_cache;
 std::mutex knowledge_base_t::ms_mutex_for_rm;
 
 
@@ -98,20 +96,19 @@ knowledge_base_t* knowledge_base_t::instance()
 
 void knowledge_base_t::setup(
     std::string filename, distance_provider_type_e dist_type,
-    float max_distance, int max_axiom_cache_num, int thread_num_for_rm)
+    float max_distance, int thread_num_for_rm)
 {
     if (not ms_instance)
     {
         ms_filename = filename;
         ms_distance_provider_type = dist_type;
         ms_max_distance = max_distance;
-        ms_max_cached_axiom_num = max_axiom_cache_num;
         ms_thread_num_for_rm = thread_num_for_rm;
 
         if (ms_thread_num_for_rm < 0) ms_thread_num_for_rm = 1;
     }
     else
-        print_error("Failed to setup. The instance of KB has been already created.");
+        print_error("Failed to setup. The instance of KB has been created.");
 }
 
 
@@ -512,34 +509,6 @@ void knowledge_base_t::insert_argument_set(const lf::logical_function_t &f)
 }
 
 
-lf::axiom_t knowledge_base_t::get_axiom(axiom_id_t id) const
-{
-    if (id >= 0 and id < m_axioms.num_axioms())
-    {
-#ifdef DISABLE_AXIOM_CACHE
-        return m_axioms.get(id);
-#else
-        std::lock_guard<std::mutex> lock(ms_mutex_for_ax_cache);
-        auto found = m_cache_axioms.find(id);
-        
-        if (found == m_cache_axioms.end())
-        {
-            lf::axiom_t ax = m_axioms.get(id);
-            if (ms_max_cached_axiom_num > 0)
-            if (m_cache_axioms.size() >= ms_max_cached_axiom_num)
-                m_cache_axioms.clear();
-            return m_cache_axioms.insert(std::make_pair(id, ax)).first->second;
-        }
-        else
-            return found->second;
-#endif
-    }
-    else
-        return lf::axiom_t();
-}
-
-
-
 hash_set<axiom_id_t> knowledge_base_t::search_axiom_group(axiom_id_t id) const
 {
     std::string key = format("#%lu", id);
@@ -645,7 +614,7 @@ float knowledge_base_t::get_distance(
     const size_t *get2 = search_arity_index(arity2);
     if (get1 == NULL or get2 == NULL) return -1.0f;
 
-    std::lock_guard<std::mutex> lock(ms_mutex_for_dist_cache);
+    std::lock_guard<std::mutex> lock(ms_mutex_for_cache);
     auto found1 = m_cache_distance.find(*get1);
     if (found1 != m_cache_distance.end())
     {
@@ -871,7 +840,7 @@ void knowledge_base_t::_create_reachable_matrix_direct(
 
     for (axiom_id_t id = 0; id < m_axioms.num_axioms(); ++id)
     {
-        lf::axiom_t axiom = m_axioms.get(id);
+        lf::axiom_t axiom = get_axiom(id);
 
         if (axiom.func.is_operator(lf::OPR_IMPLICATION) or
             axiom.func.is_operator(lf::OPR_PARAPHRASE))

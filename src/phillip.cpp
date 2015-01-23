@@ -217,10 +217,6 @@ void phillip_main_t::write_header() const
 #ifdef DISABLE_HARD_TERM
         (*os) << "\" disable_hard_term=\"yes";
 #endif
-        
-#ifdef DISABLE_AXIOM_CACHE
-        (*os) << "\" disable_axiom_cache=\"yes";
-#endif
 
         (*os) << "\"></params>" << std::endl;
 
