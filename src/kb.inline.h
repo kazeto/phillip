@@ -88,14 +88,13 @@ inline void knowledge_base_t::clear_distance_cache()
 }
 
 
-inline const size_t* knowledge_base_t::
-    search_arity_index(const std::string &arity) const
+inline size_t knowledge_base_t::search_arity_id(const std::string &arity) const
 {
     size_t size;
-    const size_t *get1;
-    get1 = (const size_t*)m_cdb_rm_idx.get(arity.c_str(), arity.size(), &size);
+    const size_t *get;
+    get = (const size_t*)m_cdb_rm_idx.get(arity.c_str(), arity.size(), &size);
 
-    return get1;
+    return (get != NULL) ? (*get) : INVALID_ARITY_ID;
 }
 
 

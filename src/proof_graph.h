@@ -32,11 +32,6 @@ class ilp_solution_t;
 namespace pg
 {
 
-typedef index_t entity_idx_t;
-typedef index_t node_idx_t;
-typedef index_t edge_idx_t;
-typedef index_t hypernode_idx_t;
-
 class node_t;
 class edge_t;
 class proof_graph_t;
@@ -271,6 +266,10 @@ public:
         enumerate_mutual_exclusive_nodes() const;
 
     std::list<hash_set<edge_idx_t> > enumerate_mutual_exclusive_edges() const;
+
+    /** Returns queries for getting axioms around pivot node. */
+    void enumerate_queries_for_knowledge_base(
+        node_idx_t pivot, std::list<kb::search_query_t> *out) const;
 
     /** Return pointer of unifier for mutual-exclusiveness between given nodes.
      *  If not found, return NULL. */
@@ -550,6 +549,8 @@ protected:
     std::vector<node_t> m_nodes;
     std::vector< std::vector<node_idx_t> > m_hypernodes;
     std::vector<edge_t> m_edges;
+
+    std::vector<kb::arity_id_t> m_arity_ids;
     
     /** These are written in xml-file of output as attributes. */
     hash_map<std::string, std::string> m_attributes;
@@ -635,6 +636,8 @@ protected:
 
         /** Map to get nodes which have given term. */
         hash_map<term_t, hash_set<node_idx_t> > term_to_nodes;
+
+        hash_map<kb::arity_id_t, hash_set<node_idx_t> > arity_to_nodes;
     } m_maps;
 };
 

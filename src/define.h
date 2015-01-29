@@ -43,7 +43,26 @@ typedef long int axiom_id_t;
 typedef index_t term_idx_t;
 typedef std::string predicate_t;
 
-namespace kb { class knowledge_base_t; }
+namespace kb
+{
+class knowledge_base_t;
+
+typedef unsigned long int argument_set_id_t;
+typedef size_t arity_id_t;
+typedef std::pair<arity_id_t, char> term_pos_t;
+
+typedef std::pair<
+    std::list<arity_id_t>,
+    std::list<std::pair<term_pos_t, term_pos_t > > > search_query_t;
+}
+
+namespace pg
+{
+typedef index_t entity_idx_t;
+typedef index_t node_idx_t;
+typedef index_t edge_idx_t;
+typedef index_t hypernode_idx_t;
+}
 
 
 /** Verboseness of debug printing */

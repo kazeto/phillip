@@ -124,7 +124,7 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
     const pg::proof_graph_t *graph, pg::node_idx_t i,
     std::set<pg::chain_candidate_t> *out) const
 {
-    auto enumerate = [this](
+    auto enumerate_chain_candidates = [this](
         const pg::proof_graph_t *graph, const lf::axiom_t &ax, bool is_backward,
         pg::node_idx_t target, std::set<pg::chain_candidate_t> *out)
     {
@@ -232,7 +232,7 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
         lf::axiom_t axiom = base->get_axiom(std::get<0>(*it));
         bool is_forward(std::get<1>(*it));
 
-        enumerate(graph, axiom, !is_forward, i, out);
+        enumerate_chain_candidates(graph, axiom, !is_forward, i, out);
     }
 }
 

@@ -24,17 +24,9 @@ namespace pg { class proof_graph_t; }
 namespace kb
 {
 
-
-typedef unsigned long int argument_set_id_t;
-typedef size_t arity_id_t;
-typedef std::pair<arity_id_t, char> term_pos_t;
-
-typedef std::pair<
-    std::list<arity_id_t>,
-    std::list<std::pair<term_pos_t, term_pos_t > > > search_query_t;
-
 static const axiom_id_t INVALID_AXIOM_ID = -1;
 static const argument_set_id_t INVALID_ARGUMENT_SET_ID = 0;
+static const arity_id_t INVALID_ARITY_ID = 0;
 
 
 enum distance_provider_type_e
@@ -129,13 +121,14 @@ public:
     inline std::list<axiom_id_t> search_axioms_with_rhs(const std::string &arity) const;
     inline std::list<axiom_id_t> search_axioms_with_lhs(const std::string &arity) const;
     inline std::list<axiom_id_t> search_inconsistencies(const std::string &arity) const;
+    inline arity_id_t search_arity_id(const std::string &arity) const;
     hash_set<axiom_id_t> search_axiom_group(axiom_id_t id) const;
     unification_postponement_t get_unification_postponement(const std::string &arity) const;
     argument_set_id_t search_argument_set_id(const std::string &arity, int term_idx) const;
-
-    /** Returns index of given arity in reachable-matrix.
-    *  On calling this method, ~.rm.idx.cdb must be readable. */
-    inline const size_t* search_arity_index(const std::string &arity) const;
+    void search_queries(arity_id_t arity, std::list<search_query_t> *out) const;
+    void search_axioms_with_query(
+        const search_query_t &query,
+        std::list<std::pair<axiom_id_t, bool> > *out) const;
 
     /** Returns ditance between arity1 and arity2
      *  in a reachable-matrix in the current knowledge-base.
@@ -231,16 +224,16 @@ private:
     
     void _create_reachable_matrix_direct(
         const hash_set<std::string> &arities,
-        const hash_set<size_t> &ignored,
-        hash_map<size_t, hash_map<size_t, float> > *out_lhs,
-        hash_map<size_t, hash_map<size_t, float> > *out_rhs,
-        std::set<std::pair<size_t, size_t> > *out_para);
+        const hash_set<arity_id_t> &ignored,
+        hash_map<arity_id_t, hash_map<arity_id_t, float> > *out_lhs,
+        hash_map<arity_id_t, hash_map<arity_id_t, float> > *out_rhs,
+        std::set<std::pair<arity_id_t, arity_id_t> > *out_para);
     void _create_reachable_matrix_indirect(
-        size_t key,
-        const hash_map<size_t, hash_map<size_t, float> > &base_lhs,
-        const hash_map<size_t, hash_map<size_t, float> > &base_rhs,
-        const std::set<std::pair<size_t, size_t> > &base_para,
-        hash_map<size_t, float> *out) const;
+        arity_id_t target,
+        const hash_map<arity_id_t, hash_map<arity_id_t, float> > &base_lhs,
+        const hash_map<arity_id_t, hash_map<arity_id_t, float> > &base_rhs,
+        const std::set<std::pair<arity_id_t, arity_id_t> > &base_para,
+        hash_map<arity_id_t, float> *out) const;
 
     void extend_inconsistency();
     void _enumerate_deducible_literals(
@@ -317,7 +310,7 @@ public:
 
 
 void query_to_binary(const search_query_t &q, std::vector<char> *bin);
-void binary_to_query(char *bin, search_query_t *out);
+size_t binary_to_query(const char *bin, search_query_t *out);
 
 }
 

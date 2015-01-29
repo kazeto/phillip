@@ -1009,17 +1009,23 @@ node_idx_t proof_graph_t::add_node(
             m_maps.terms_to_sub_node[t1][t2] = out;
         else
             m_maps.terms_to_negsub_node[t1][t2] = out;
+        m_arity_ids.push_back(kb::INVALID_ARITY_ID);
     }
     else
     {
+        const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
         std::string arity = lit.get_arity();
-        const kb::knowledge_base_t *_kb = kb::knowledge_base_t::instance();
+        kb::arity_id_t arity_id = base->search_arity_id(arity);
+
         for (int i = 0; i < lit.terms.size(); ++i)
         {
-            unsigned id = _kb->search_argument_set_id(arity, i);
+            unsigned id = base->search_argument_set_id(arity, i);
             if (id != kb::INVALID_ARGUMENT_SET_ID)
                 m_temporal.argument_set_ids[std::make_pair(out, i)] = id;
         }
+        m_arity_ids.push_back(arity_id);
+        if (arity_id != kb::INVALID_ARITY_ID)
+            m_maps.arity_to_nodes[arity_id].insert(out);
     }
     
     for (unsigned i = 0; i < lit.terms.size(); i++)
@@ -1520,6 +1526,76 @@ proof_graph_t::enumerate_mutual_exclusive_edges() const
         out.push_back(hash_set<edge_idx_t>(it->begin(), it->end()));
 
     return out;
+}
+
+
+void proof_graph_t::enumerate_queries_for_knowledge_base(
+    node_idx_t pivot, std::list<kb::search_query_t> *out) const
+{
+    const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
+
+    std::list<kb::search_query_t> queries;
+    base->search_queries(m_arity_ids.at(pivot), &queries);
+
+    for (auto q : queries)
+    {
+        const std::list<kb::arity_id_t> &arities(q.first);
+        hash_map<kb::arity_id_t, int> arity_count;
+        hash_map<kb::arity_id_t, hash_set<node_idx_t> > a2ns;
+
+        for (auto a : arities)
+        {
+            auto found = arity_count.find(a);
+            if (found == arity_count.end()) arity_count[a] = 1;
+            else ++(found->second);
+        }
+
+        for (auto p : arity_count)
+        {
+            if (p.first == m_arity_ids.at(pivot) and p.second == 1)
+                a2ns[p.first].insert(pivot);
+            else
+            {
+                auto found = m_maps.arity_to_nodes.find(p.first);
+                if (found != m_maps.arity_to_nodes.end())
+                    a2ns.insert(std::make_pair(p.first, found->second));
+                else break;
+            }
+        }
+
+        if (a2ns.size() != arity_count.size()) continue;
+
+        bool is_valid_query(true);
+
+        for (auto p : q.second)
+        {
+            kb::term_pos_t &t1(p.first);
+            kb::term_pos_t &t2(p.second);
+            hash_set<term_t> terms;
+            bool do_exist_term_pair(false);
+
+            for (auto n : a2ns.at(t1.first))
+                terms.insert(node(n).literal().terms.at(t1.second));
+
+            for (auto n : a2ns.at(t2.first))
+            {
+                if (terms.count(node(n).literal().terms.at(t2.second)) > 0)
+                {
+                    do_exist_term_pair = true;
+                    break;
+                }
+            }
+
+            if (not do_exist_term_pair)
+            {
+                is_valid_query = false;
+                break;
+            }
+        }
+
+        if (is_valid_query)
+            out->push_back(q);
+    }
 }
 
 

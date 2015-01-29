@@ -254,10 +254,10 @@ void knowledge_base_t::finalize()
 
             for (auto it1 = m_arity_set.begin(); it1 != m_arity_set.end(); ++it1)
             {
-                const size_t *idx1 = search_arity_index(*it1);
+                arity_id_t idx1 = search_arity_id(*it1);
                 std::cerr << std::setw(30) << std::right << (*it1) << " | ";
 
-                if (idx1 == NULL)
+                if (idx1 == INVALID_ARITY_ID)
                 {
                     std::cerr << std::endl;
                     continue;
@@ -266,10 +266,10 @@ void knowledge_base_t::finalize()
                 {
                     for (auto it2 = m_arity_set.begin(); it2 != m_arity_set.end(); ++it2)
                     {
-                        const size_t *idx2 = search_arity_index(*it2);
-                        if (idx2 != NULL)
+                        arity_id_t idx2 = search_arity_id(*it2);
+                        if (idx2 != INVALID_ARITY_ID)
                         {
-                            float dist = m_rm.get(*idx1, *idx2);
+                            float dist = m_rm.get(idx1, idx2);
                             std::cerr << std::setw(it2->length()) << (int)dist << " | ";
                         }
                     }
@@ -632,6 +632,64 @@ search_argument_set_id(const std::string &arity, int term_idx) const
 }
 
 
+void knowledge_base_t::search_queries(arity_id_t arity, std::list<search_query_t> *out) const
+{
+    if (not m_cdb_arity_to_queries.is_readable())
+    {
+        print_warning("kb-search: Kb-state is invalid.");
+        return;
+    }
+
+    size_t value_size;
+    const char *value = (const char*)
+        m_cdb_arity_to_queries.get(&arity, sizeof(arity_id_t), &value_size);
+
+    if (value != NULL)
+    {
+        size_t num_query, read_size(0);
+        read_size += binary_to<size_t>(value, &num_query);
+        out->assign(num_query, search_query_t());
+
+        for (auto q : (*out))
+            binary_to_query(value + read_size, &q);
+    }
+}
+
+
+void knowledge_base_t::search_axioms_with_query(
+    const search_query_t &query,
+    std::list<std::pair<axiom_id_t, bool> > *out) const
+{
+    if (not m_cdb_query_to_ids.is_readable())
+    {
+        print_warning("kb-search: Kb-state is invalid.");
+        return;
+    }
+
+    std::vector<char> key;
+    query_to_binary(query, &key);
+
+    size_t value_size;
+    const char *value = (const char*)
+        m_cdb_query_to_ids.get(&key[0], key.size(), &value_size);
+
+    if (value != NULL)
+    {
+        size_t size(0), num_id(0);
+        size += binary_to<size_t>(value + size, &num_id);
+        out->assign(num_id, std::pair<axiom_id_t, bool>());
+
+        for (auto p : (*out))
+        {
+            char flag;
+            size += binary_to<axiom_id_t>(value + size, &p.first);
+            size += binary_to<char>(value + size, &flag);
+            p.second = (flag != 0x00);
+        }
+    }
+}
+
+
 float knowledge_base_t::get_distance(
     const std::string &arity1, const std::string &arity2 ) const
 {
@@ -642,21 +700,21 @@ float knowledge_base_t::get_distance(
         return -1;
     }
 
-    const size_t *get1 = search_arity_index(arity1);
-    const size_t *get2 = search_arity_index(arity2);
-    if (get1 == NULL or get2 == NULL) return -1.0f;
+    arity_id_t get1 = search_arity_id(arity1);
+    arity_id_t get2 = search_arity_id(arity2);
+    if (get1 == INVALID_ARITY_ID or get2 == INVALID_ARITY_ID) return -1.0f;
 
     std::lock_guard<std::mutex> lock(ms_mutex_for_cache);
-    auto found1 = m_cache_distance.find(*get1);
+    auto found1 = m_cache_distance.find(get1);
     if (found1 != m_cache_distance.end())
     {
-        auto found2 = found1->second.find(*get2);
+        auto found2 = found1->second.find(get2);
         if (found2 != found1->second.end())
             return found2->second;
     }
 
-    float dist(m_rm.get(*get1, *get2));
-    m_cache_distance[*get1][*get2] = dist;
+    float dist(m_rm.get(get1, get2));
+    m_cache_distance[get1][get2] = dist;
     return dist;
 }
 
@@ -665,9 +723,10 @@ void knowledge_base_t::insert_arity(const std::string &arity)
 {
     if (m_arity_set.count(arity) == 0)
     {
+        m_arity_set.insert(arity);
+
         size_t idx = m_arity_set.size();
         m_cdb_rm_idx.put(arity.c_str(), arity.length(), &idx, sizeof(size_t));
-        m_arity_set.insert(arity);
     }
 }
 
@@ -750,26 +809,26 @@ void knowledge_base_t::create_query_map()
     auto proc = [this, &query_to_ids, &arity_to_queries](const lf::axiom_t &ax, bool is_backward)
     {
         auto lits = is_backward ? ax.func.get_rhs() : ax.func.get_lhs();
-        hash_set<std::string> arities;
+        std::list<std::string> arities;
         hash_map<string_hash_t, std::set<std::pair<arity_id_t, char> > > term2arity;
 
         for (auto lit : lits)
         {
             std::string arity = lit->get_arity();
-            const arity_id_t *idx = search_arity_index(arity);
-            assert(idx != NULL);
-            arities.insert(arity);
+            arity_id_t idx = search_arity_id(arity);
+            assert(idx != INVALID_ARITY_ID);
+            arities.push_back(arity);
 
             for (int i_t = 0; i_t < lit->terms.size(); ++i_t)
             if (lit->terms.at(i_t).is_hard_term())
-                term2arity[lit->terms.at(i_t)].insert(std::make_pair(*idx, (char)i_t));
+                term2arity[lit->terms.at(i_t)].insert(std::make_pair(idx, (char)i_t));
         }
 
         search_query_t query;
         for (auto a : arities)
         {
-            const arity_id_t *idx = search_arity_index(a);
-            query.first.push_back(*idx);
+            arity_id_t idx = search_arity_id(a);
+            query.first.push_back(idx);
         }
         query.first.sort();
 
@@ -873,7 +932,7 @@ void knowledge_base_t::create_reachable_matrix()
 {
     print_console("starts to create reachable matrix...");
 
-    size_t N(m_arity_set.size()), processed(0), num_inserted(0);
+    size_t processed(0), num_inserted(0);
     clock_t clock_past = clock_t();
     time_t time_start, time_end;
     time(&time_start);
@@ -887,20 +946,21 @@ void knowledge_base_t::create_reachable_matrix()
     m_rm.prepare_compile();
 
     print_console_fmt("  num of axioms = %d", m_axioms.num_axioms());
-    print_console_fmt("  num of arities = %d", N);
+    print_console_fmt("  num of arities = %d", m_arity_set.size());
     print_console_fmt("  max distance = %.2f", get_max_distance());
     print_console_fmt("  num of parallel threads = %d", ms_thread_num_for_rm);
     print_console("  computing distance of direct edges...");
 
-    hash_map<size_t, hash_map<size_t, float> > base_lhs, base_rhs;
-    hash_set<size_t> ignored;
-    std::set<std::pair<size_t, size_t> > base_para;
+    hash_map<arity_id_t, hash_map<arity_id_t, float> > base_lhs, base_rhs;
+    hash_set<arity_id_t> ignored;
+    std::set<std::pair<arity_id_t, arity_id_t> > base_para;
     
     for (auto it = m_stop_words.begin(); it != m_stop_words.end(); ++it)
     {
-        const size_t *idx = search_arity_index(*it);
-        if (idx != NULL) ignored.insert(*idx);
+        const arity_id_t idx = search_arity_id(*it);
+        if (idx != INVALID_ARITY_ID) ignored.insert(idx);
     }
+    ignored.insert(INVALID_ARITY_ID);
     
     _create_reachable_matrix_direct(
         m_arity_set, ignored, &base_lhs, &base_rhs, &base_para);
@@ -916,11 +976,11 @@ void knowledge_base_t::create_reachable_matrix()
         worker.emplace_back(
             [&](int th_id)
             {
-                for(size_t idx = th_id; idx < m_arity_set.size(); idx += num_thread)
+                for(arity_id_t idx = th_id; idx < m_arity_set.size(); idx += num_thread)
                 {
                     if (ignored.count(idx) != 0) continue;
                     
-                    hash_map<size_t, float> dist;
+                    hash_map<arity_id_t, float> dist;
                     _create_reachable_matrix_indirect(
                         idx, base_lhs, base_rhs, base_para, &dist);
                     m_rm.put(idx, dist);
@@ -933,7 +993,7 @@ void knowledge_base_t::create_reachable_matrix()
                     clock_t c = clock();
                     if (c - clock_past > CLOCKS_PER_SEC)
                     {
-                        float progress = (float)(processed)* 100.0f / (float)N;
+                        float progress = (float)(processed)* 100.0f / (float)m_arity_set.size();
                         std::cerr << format(
                             "processed %d tokens [%.4f%%]\r", processed, progress);
                         std::cerr.flush();
@@ -948,7 +1008,9 @@ void knowledge_base_t::create_reachable_matrix()
     
     time(&time_end);
     int proc_time(time_end - time_start); 
-    double coverage(num_inserted * 100.0 / (double)(N * N));
+    double coverage(
+        num_inserted * 100.0 /
+        (double)(m_arity_set.size() * m_arity_set.size()));
     
     print_console("completed computation.");
     print_console_fmt("  process-time = %d", proc_time);
@@ -958,22 +1020,22 @@ void knowledge_base_t::create_reachable_matrix()
 
 void knowledge_base_t::_create_reachable_matrix_direct(
     const hash_set<std::string> &arities,
-    const hash_set<size_t> &ignored,
-    hash_map<size_t, hash_map<size_t, float> > *out_lhs,
-    hash_map<size_t, hash_map<size_t, float> > *out_rhs,
-    std::set<std::pair<size_t, size_t> > *out_para)
+    const hash_set<arity_id_t> &ignored,
+    hash_map<arity_id_t, hash_map<arity_id_t, float> > *out_lhs,
+    hash_map<arity_id_t, hash_map<arity_id_t, float> > *out_rhs,
+    std::set<std::pair<arity_id_t, arity_id_t> > *out_para)
 {
     size_t num_processed(0);
 
     for (auto ar = arities.begin(); ar != arities.end(); ++ar)
     {
-        const size_t *idx1 = search_arity_index(*ar);
-        assert(idx1 != NULL);
+        arity_id_t idx1 = search_arity_id(*ar);
+        assert(idx1 != INVALID_ARITY_ID);
 
-        if (ignored.count(*idx1) == 0)
+        if (ignored.count(idx1) == 0)
         {
-            (*out_lhs)[*idx1][*idx1] = 0.0f;
-            (*out_rhs)[*idx1][*idx1] = 0.0f;
+            (*out_lhs)[idx1][idx1] = 0.0f;
+            (*out_rhs)[idx1][idx1] = 0.0f;
         }
     }
 
@@ -988,7 +1050,7 @@ void knowledge_base_t::_create_reachable_matrix_direct(
 
             if (dist >= 0.0f)
             {
-                hash_set<size_t> lhs_ids, rhs_ids;
+                hash_set<arity_id_t> lhs_ids, rhs_ids;
 
                 {
                     std::vector<const literal_t*> lhs = axiom.func.get_lhs();
@@ -997,27 +1059,27 @@ void knowledge_base_t::_create_reachable_matrix_direct(
                     for (auto it_l = lhs.begin(); it_l != lhs.end(); ++it_l)
                     {
                         std::string arity = (*it_l)->get_arity();
-                        const size_t *idx = search_arity_index(arity);
+                        arity_id_t idx = search_arity_id(arity);
 
-                        if (idx != NULL)
-                        if (ignored.count(*idx) == 0)
-                            lhs_ids.insert(*idx);
+                        if (idx != INVALID_ARITY_ID)
+                        if (ignored.count(idx) == 0)
+                            lhs_ids.insert(idx);
                     }
 
                     for (auto it_r = rhs.begin(); it_r != rhs.end(); ++it_r)
                     {
                         std::string arity = (*it_r)->get_arity();
-                        const size_t *idx = search_arity_index(arity);
+                        arity_id_t idx = search_arity_id(arity);
 
-                        if (idx != NULL)
-                        if (ignored.count(*idx) == 0)
-                            rhs_ids.insert(*idx);
+                        if (idx != INVALID_ARITY_ID)
+                        if (ignored.count(idx) == 0)
+                            rhs_ids.insert(idx);
                     }
                 }
 
                 for (auto it_l = lhs_ids.begin(); it_l != lhs_ids.end(); ++it_l)
                 {
-                    hash_map<size_t, float> &target = (*out_lhs)[*it_l];
+                    hash_map<arity_id_t, float> &target = (*out_lhs)[*it_l];
                     for (auto it_r = rhs_ids.begin(); it_r != rhs_ids.end(); ++it_r)
                     {
                         auto found = target.find(*it_r);
@@ -1030,7 +1092,7 @@ void knowledge_base_t::_create_reachable_matrix_direct(
 
                 for (auto it_r = rhs_ids.begin(); it_r != rhs_ids.end(); ++it_r)
                 {
-                    hash_map<size_t, float> &target = (*out_rhs)[*it_r];
+                    hash_map<arity_id_t, float> &target = (*out_rhs)[*it_r];
                     for (auto it_l = lhs_ids.begin(); it_l != lhs_ids.end(); ++it_l)
                     {
                         auto found = target.find(*it_l);
@@ -1058,16 +1120,16 @@ void knowledge_base_t::_create_reachable_matrix_direct(
 
 
 void knowledge_base_t::_create_reachable_matrix_indirect(
-    size_t target,
-    const hash_map<size_t, hash_map<size_t, float> > &base_lhs,
-    const hash_map<size_t, hash_map<size_t, float> > &base_rhs,
-    const std::set<std::pair<size_t, size_t> > &base_para,
-    hash_map<size_t, float> *out) const
+    arity_id_t target,
+    const hash_map<arity_id_t, hash_map<arity_id_t, float> > &base_lhs,
+    const hash_map<arity_id_t, hash_map<arity_id_t, float> > &base_rhs,
+    const std::set<std::pair<arity_id_t, arity_id_t> > &base_para,
+    hash_map<arity_id_t, float> *out) const
 {
     if (base_lhs.count(target) == 0 or base_rhs.count(target) == 0) return;
 
-    std::map<std::tuple<size_t, bool, bool>, float> current;
-    std::map<std::tuple<size_t, bool, bool>, float> processed;
+    std::map<std::tuple<arity_id_t, bool, bool>, float> current;
+    std::map<std::tuple<arity_id_t, bool, bool>, float> processed;
 
     current[std::make_tuple(target, true, true)] = 0.0f;
     processed[std::make_tuple(target, true, true)] = 0.0f;
@@ -1075,19 +1137,19 @@ void knowledge_base_t::_create_reachable_matrix_indirect(
 
     while (not current.empty())
     {
-        std::map<std::tuple<size_t, bool, bool>, float> next;
+        std::map<std::tuple<arity_id_t, bool, bool>, float> next;
         auto _process = [&](
-            size_t idx1, bool can_abduction, bool can_deduction,
+            arity_id_t idx1, bool can_abduction, bool can_deduction,
             float dist, bool is_forward)
         {
-            const hash_map<size_t, hash_map<size_t, float> >
+            const hash_map<arity_id_t, hash_map<arity_id_t, float> >
                 &base = (is_forward ? base_lhs : base_rhs);
             auto found = base.find(idx1);
 
             if (found != base.end())
             for (auto it2 = found->second.begin(); it2 != found->second.end(); ++it2)
             {
-                size_t idx2(it2->first);
+                arity_id_t idx2(it2->first);
                 if (idx1 == idx2) continue;
 
                 bool is_paraphrasal =
@@ -1100,7 +1162,7 @@ void knowledge_base_t::_create_reachable_matrix_indirect(
                 float dist_new(dist + it2->second); // DISTANCE idx1 ~ idx2
                 if (get_max_distance() < 0.0f or dist_new <= get_max_distance())
                 {
-                    std::tuple<size_t, bool, bool> key =
+                    std::tuple<arity_id_t, bool, bool> key =
                         std::make_tuple(idx2, can_abduction, can_deduction);
 
                     // ONCE DONE DEDUCTION, YOU CANNOT DO ABDUCTION!
@@ -1126,7 +1188,7 @@ void knowledge_base_t::_create_reachable_matrix_indirect(
 
         for (auto it1 = current.begin(); it1 != current.end(); ++it1)
         {
-            size_t idx = std::get<0>(it1->first);
+            arity_id_t idx = std::get<0>(it1->first);
             bool can_abduction = std::get<1>(it1->first);
             bool can_deduction = std::get<2>(it1->first);
 
@@ -1582,7 +1644,7 @@ void query_to_binary(const search_query_t &q, std::vector<char> *bin)
 };
 
 
-void binary_to_query(char *bin, search_query_t *out)
+size_t binary_to_query(const char *bin, search_query_t *out)
 {
     size_t size(0);
     int num_arity, num_hardterm;
@@ -1610,6 +1672,8 @@ void binary_to_query(char *bin, search_query_t *out)
         out->second.push_back(std::make_pair(
             std::make_pair(id1, idx1), std::make_pair(id2, idx2)));
     }
+
+    return size;
 }
 
 
