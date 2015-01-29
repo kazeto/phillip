@@ -26,6 +26,12 @@ namespace kb
 
 
 typedef unsigned long int argument_set_id_t;
+typedef size_t arity_id_t;
+typedef std::pair<arity_id_t, char> term_pos_t;
+
+typedef std::pair<
+    std::list<arity_id_t>,
+    std::list<std::pair<term_pos_t, term_pos_t > > > search_query_t;
 
 static const axiom_id_t INVALID_AXIOM_ID = -1;
 static const argument_set_id_t INVALID_ARGUMENT_SET_ID = 0;
@@ -50,7 +56,7 @@ enum unification_postpone_argument_type_e
 enum version_e
 {
     KB_VERSION_UNDERSPECIFIED,
-    KB_VERSION_1, KB_VERSION_2, KB_VERSION_3, KB_VERSION_4,
+    KB_VERSION_1, KB_VERSION_2, KB_VERSION_3, KB_VERSION_4, KB_VERSION_5,
     NUM_OF_KB_VERSION_TYPES
 };
 
@@ -126,6 +132,10 @@ public:
     hash_set<axiom_id_t> search_axiom_group(axiom_id_t id) const;
     unification_postponement_t get_unification_postponement(const std::string &arity) const;
     argument_set_id_t search_argument_set_id(const std::string &arity, int term_idx) const;
+
+    /** Returns index of given arity in reachable-matrix.
+    *  On calling this method, ~.rm.idx.cdb must be readable. */
+    inline const size_t* search_arity_index(const std::string &arity) const;
 
     /** Returns ditance between arity1 and arity2
      *  in a reachable-matrix in the current knowledge-base.
@@ -207,13 +217,13 @@ private:
     void write_config() const;
     void read_config();
 
-    void _insert_cdb(
-        const hash_map<std::string, hash_set<axiom_id_t> > &ids, cdb_data_t *dat);
     void insert_arity(const std::string &arity);
 
     /** Outputs m_group_to_axioms to m_cdb_axiom_group. */
     void insert_axiom_group_to_cdb();
     void insert_argument_set_to_cdb();
+
+    void create_query_map();
 
     /** Creates reachable matrix.
      *  This is a sub-routine of finalize. */
@@ -242,10 +252,6 @@ private:
     std::list<axiom_id_t> search_id_list(
         const std::string &query, const cdb_data_t *dat) const;
 
-    /** Returns index of given arity in reachable-matrix.
-     *  On calling this method, ~.rm.idx.cdb must be readable. */
-    inline const size_t* search_arity_index(const std::string &arity) const;
-
     /** Sets new distance-provider.
      *  This object is used in making reachable-matrix. */
     void set_distance_provider(distance_provider_type_e);
@@ -264,6 +270,7 @@ private:
 
     cdb_data_t m_cdb_name, m_cdb_rhs, m_cdb_lhs;
     cdb_data_t m_cdb_inc_pred, m_cdb_axiom_group, m_cdb_uni_pp, m_cdb_arg_set;
+    cdb_data_t m_cdb_arity_to_queries, m_cdb_query_to_ids;
     cdb_data_t m_cdb_rm_idx;
     axioms_database_t m_axioms;
     reachable_matrix_t m_rm;
@@ -308,6 +315,9 @@ public:
     virtual distance_provider_type_e type() const { return DISTANCE_PROVIDER_COST_BASED; }
 };
 
+
+void query_to_binary(const search_query_t &q, std::vector<char> *bin);
+void binary_to_query(char *bin, search_query_t *out);
 
 }
 

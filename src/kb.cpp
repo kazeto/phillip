@@ -123,6 +123,8 @@ knowledge_base_t::knowledge_base_t(
       m_cdb_axiom_group(filename + ".group.cdb"),
       m_cdb_uni_pp(filename + ".unipp.cdb"),
       m_cdb_arg_set(filename + ".args.cdb"),
+      m_cdb_arity_to_queries(filename + ".a2qs.cdb"),
+      m_cdb_query_to_ids(filename + ".q2ids.cdb"),
       m_cdb_rm_idx(filename + ".rm.cdb"),
       m_axioms(filename), m_rm(filename + ".rm.dat"),
       m_rm_dist(new basic_distance_provider_t())
@@ -153,6 +155,8 @@ void knowledge_base_t::prepare_compile()
         m_cdb_uni_pp.prepare_compile();
         m_cdb_axiom_group.prepare_compile();
         m_cdb_arg_set.prepare_compile();
+        m_cdb_arity_to_queries.prepare_compile();
+        m_cdb_query_to_ids.prepare_compile();
         m_cdb_rm_idx.prepare_compile();
 
         m_state = STATE_COMPILE;
@@ -177,6 +181,8 @@ void knowledge_base_t::prepare_query()
         m_cdb_uni_pp.prepare_query();
         m_cdb_axiom_group.prepare_query();
         m_cdb_arg_set.prepare_query();
+        m_cdb_arity_to_queries.prepare_query();
+        m_cdb_query_to_ids.prepare_query();
         m_cdb_rm_idx.prepare_query();
         m_rm.prepare_query();
 
@@ -191,13 +197,36 @@ void knowledge_base_t::finalize()
 
     if (m_state == STATE_COMPILE)
     {
+        auto insert_cdb = [](
+            const hash_map<std::string, hash_set<axiom_id_t> > &ids,
+            cdb_data_t *dat)
+        {
+            print_console("starts writing " + dat->filename() + "...");
+
+            for (auto it = ids.begin(); it != ids.end(); ++it)
+            {
+                size_t read_size = sizeof(size_t)+sizeof(axiom_id_t)* it->second.size();
+                char *buffer = new char[read_size];
+
+                int size = to_binary<size_t>(it->second.size(), buffer);
+                for (auto id = it->second.begin(); id != it->second.end(); ++id)
+                    size += to_binary<axiom_id_t>(*id, buffer + size);
+
+                assert(read_size == size);
+                dat->put(it->first.c_str(), it->first.length(), buffer, size);
+                delete[] buffer;
+            }
+
+            print_console("completed writing " + dat->filename() + ".");
+        };
+
         extend_inconsistency();
 
-        _insert_cdb(m_name_to_axioms, &m_cdb_name);
-        _insert_cdb(m_rhs_to_axioms, &m_cdb_rhs);
-        _insert_cdb(m_lhs_to_axioms, &m_cdb_lhs);
-        _insert_cdb(m_inc_to_axioms, &m_cdb_inc_pred);
-        _insert_cdb(m_arity_to_postponement, &m_cdb_uni_pp);
+        insert_cdb(m_name_to_axioms, &m_cdb_name);
+        insert_cdb(m_rhs_to_axioms, &m_cdb_rhs);
+        insert_cdb(m_lhs_to_axioms, &m_cdb_lhs);
+        insert_cdb(m_inc_to_axioms, &m_cdb_inc_pred);
+        insert_cdb(m_arity_to_postponement, &m_cdb_uni_pp);
         insert_axiom_group_to_cdb();
         insert_argument_set_to_cdb();
 
@@ -209,6 +238,7 @@ void knowledge_base_t::finalize()
         m_arity_to_postponement.clear();
         m_argument_sets.clear();
 
+        create_query_map();
         create_reachable_matrix();
         write_config();
 
@@ -259,6 +289,8 @@ void knowledge_base_t::finalize()
     m_cdb_uni_pp.finalize();
     m_cdb_axiom_group.finalize();
     m_cdb_arg_set.finalize();
+    m_cdb_arity_to_queries.finalize();
+    m_cdb_query_to_ids.finalize();
     m_cdb_rm_idx.finalize();
     m_rm.finalize();
 
@@ -272,7 +304,7 @@ void knowledge_base_t::write_config() const
     std::ofstream fo(
         filename.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);
     char dist_type(m_rm_dist->type());
-    char version(KB_VERSION_4);
+    char version(NUM_OF_KB_VERSION_TYPES - 1); // LATEST VERSION
 
     fo.write(&version, sizeof(char));
     fo.write((char*)&ms_max_distance, sizeof(float));
@@ -629,34 +661,6 @@ float knowledge_base_t::get_distance(
 }
 
 
-void knowledge_base_t::_insert_cdb(
-    const hash_map<std::string, hash_set<axiom_id_t> > &ids,
-    cdb_data_t *dat)
-{
-   std::cerr
-        << time_stamp() << "starts writing " << dat->filename() << "..."
-        << std::endl;
-
-    for( auto it=ids.begin(); it!=ids.end(); ++it )
-    {
-        size_t read_size = sizeof(size_t) + sizeof(axiom_id_t) * it->second.size();
-        char *buffer = new char[read_size];
-
-        int size = to_binary<size_t>(it->second.size(), buffer);
-        for (auto id = it->second.begin(); id != it->second.end(); ++id)
-            size += to_binary<axiom_id_t>(*id, buffer + size);
-
-        assert(read_size == size);
-        dat->put(it->first.c_str(), it->first.length(), buffer, size);
-        delete [] buffer;
-    }
-
-    std::cerr
-        << time_stamp() << "completed writing "
-        << dat->filename() << "." << std::endl;
-}
-
-
 void knowledge_base_t::insert_arity(const std::string &arity)
 {
     if (m_arity_set.count(arity) == 0)
@@ -727,6 +731,141 @@ void knowledge_base_t::insert_argument_set_to_cdb()
     }
 
     print_console("completed writing " + m_cdb_arg_set.filename() + ".");
+}
+
+
+void knowledge_base_t::create_query_map()
+{
+    print_console("Creating the query map...");
+
+    m_axioms.prepare_query();
+    m_cdb_rhs.prepare_query();
+    m_cdb_lhs.prepare_query();
+    m_cdb_inc_pred.prepare_query();
+    m_cdb_rm_idx.prepare_query();
+
+    std::map<arity_id_t, std::set<search_query_t> > arity_to_queries;
+    std::map<search_query_t, std::set< std::pair<axiom_id_t, bool> > > query_to_ids;
+
+    auto proc = [this, &query_to_ids, &arity_to_queries](const lf::axiom_t &ax, bool is_backward)
+    {
+        auto lits = is_backward ? ax.func.get_rhs() : ax.func.get_lhs();
+        hash_set<std::string> arities;
+        hash_map<string_hash_t, std::set<std::pair<arity_id_t, char> > > term2arity;
+
+        for (auto lit : lits)
+        {
+            std::string arity = lit->get_arity();
+            const arity_id_t *idx = search_arity_index(arity);
+            assert(idx != NULL);
+            arities.insert(arity);
+
+            for (int i_t = 0; i_t < lit->terms.size(); ++i_t)
+            if (lit->terms.at(i_t).is_hard_term())
+                term2arity[lit->terms.at(i_t)].insert(std::make_pair(*idx, (char)i_t));
+        }
+
+        search_query_t query;
+        for (auto a : arities)
+        {
+            const arity_id_t *idx = search_arity_index(a);
+            query.first.push_back(*idx);
+        }
+        query.first.sort();
+
+        for (auto e : term2arity)
+        {
+            for (auto it1 = e.second.begin(); it1 != e.second.end(); ++it1)
+            for (auto it2 = e.second.begin(); it2 != it1; ++it2)
+                query.second.push_back(make_sorted_pair(*it1, *it2));
+        }
+        query.second.sort();
+
+        query_to_ids[query].insert(std::make_pair(ax.id, is_backward));
+        for (auto a : query.first)
+            arity_to_queries[a].insert(query);
+    };
+
+    for (axiom_id_t i = 0; i < m_axioms.num_axioms(); ++i)
+    {
+        lf::axiom_t ax = get_axiom(i);
+
+        if (ax.func.is_operator(lf::OPR_IMPLICATION))
+            proc(ax, true);
+        else if (ax.func.is_operator(lf::OPR_PARAPHRASE))
+        {
+            proc(ax, true);
+            proc(ax, false);
+        }
+
+        if (i % 10 == 0)
+        {
+            float progress = (float)(i)* 100.0f / (float)m_axioms.num_axioms();
+            std::cerr << format("processed %d axioms [%.4f%%]\r", i, progress);
+        }
+    }
+
+    m_cdb_arity_to_queries.prepare_compile();
+    print_console("  Writing " + m_cdb_arity_to_queries.filename() + "...");
+
+    for (auto p : arity_to_queries)
+    {
+        std::list< std::vector<char> > queries;
+        size_t size_value(0);
+
+        size_value += sizeof(size_t);
+        for (auto q : p.second)
+        {
+            std::vector<char> bin;
+            query_to_binary(q, &bin);
+            queries.push_back(bin);
+            size_value += bin.size();
+        }
+
+        char *value = new char[size_value];
+        size_t size(0);
+
+        size += to_binary<size_t>(p.second.size(), value);
+        for (auto q : queries)
+        {
+            std::memcpy(value + size, &q[0], q.size());
+            size += q.size();
+        }
+
+        assert(size == size_value);
+        m_cdb_arity_to_queries.put(
+            (char*)(&p.first), sizeof(arity_id_t), value, size_value);
+
+        delete[] value;
+    }
+
+    print_console("  Completed writing " + m_cdb_arity_to_queries.filename() + ".");
+    m_cdb_query_to_ids.prepare_compile();
+    print_console("  Writing " + m_cdb_query_to_ids.filename() + "...");
+
+    for (auto p : query_to_ids)
+    {
+        std::vector<char> key, val;
+
+        query_to_binary(p.first, &key);
+
+        size_t size_val = sizeof(size_t) + (sizeof(axiom_id_t) + sizeof(char)) * p.second.size();
+        val.assign(size_val, '\0');
+
+        size_t size = to_binary<size_t>(p.second.size(), &val[0]);
+        for (auto p2 : p.second)
+        {
+            size += to_binary<axiom_id_t>(p2.first, &val[0] + size);
+            size += to_binary<char>((p2.second ? 0xff : 0x00), &val[0] + size);
+        }
+        assert(size == size_val);
+
+        m_cdb_query_to_ids.put(&key[0], key.size(), &val[0], val.size());
+    }
+
+    print_console_fmt("    # of queries = %d", query_to_ids.size());
+    print_console("  Completed writing " + m_cdb_query_to_ids.filename() + ".");
+    print_console("Completed the query map creation.");
 }
 
 
@@ -1414,6 +1553,63 @@ float cost_based_distance_provider_t::operator()(const lf::axiom_t &ax) const
     float out(-1.0f);
     _sscanf(param.substr(1).c_str(), "%f", &out);
     return out;
+}
+
+
+void query_to_binary(const search_query_t &q, std::vector<char> *bin)
+{
+    size_t size_expected =
+        sizeof(unsigned char)* 2 +
+        sizeof(arity_id_t)* q.first.size() +
+        (sizeof(arity_id_t)+sizeof(char)) * 2 * q.second.size();
+    size_t size = 0;
+    bin->assign(size_expected, '\0');
+
+    size += num_to_binary(q.first.size(), &(*bin)[0]);
+    for (auto id : q.first)
+        size += to_binary<arity_id_t>(id, &(*bin)[0] + size);
+
+    size += num_to_binary(q.second.size(), &(*bin)[0] + size);
+    for (auto ht : q.second)
+    {
+        size += to_binary<arity_id_t>(ht.first.first, &(*bin)[0] + size);
+        size += to_binary<char>(ht.first.second, &(*bin)[0] + size);
+        size += to_binary<arity_id_t>(ht.second.first, &(*bin)[0] + size);
+        size += to_binary<char>(ht.second.second, &(*bin)[0] + size);
+    }
+
+    assert(size == size_expected);
+};
+
+
+void binary_to_query(char *bin, search_query_t *out)
+{
+    size_t size(0);
+    int num_arity, num_hardterm;
+
+    out->first.clear();
+    out->second.clear();
+
+    size += binary_to_num(bin + size, &num_arity);
+    for (int i = 0; i < num_arity; ++i)
+    {
+        arity_id_t id;
+        size += binary_to<arity_id_t>(bin + size, &id);
+        out->first.push_back(id);
+    }
+
+    size += binary_to_num(bin + size, &num_hardterm);
+    for (int i = 0; i < num_hardterm; ++i)
+    {
+        arity_id_t id1, id2;
+        char idx1, idx2;
+        size += binary_to<arity_id_t>(bin + size, &id1);
+        size += binary_to<char>(bin + size, &idx1);
+        size += binary_to<arity_id_t>(bin + size, &id2);
+        size += binary_to<char>(bin + size, &idx2);
+        out->second.push_back(std::make_pair(
+            std::make_pair(id1, idx1), std::make_pair(id2, idx2)));
+    }
 }
 
 
