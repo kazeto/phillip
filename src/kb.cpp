@@ -332,7 +332,7 @@ void knowledge_base_t::read_config()
         return;
     }
 
-    if (m_version != KB_VERSION_4)
+    if (not is_valid_version())
     {
         print_error(
             "This compiled knowledge base is too old. Please re-compile it.");
@@ -650,8 +650,8 @@ void knowledge_base_t::search_queries(arity_id_t arity, std::list<search_query_t
         read_size += binary_to<size_t>(value, &num_query);
         out->assign(num_query, search_query_t());
 
-        for (auto q : (*out))
-            binary_to_query(value + read_size, &q);
+        for (auto it = out->begin(); it != out->end(); ++it)
+            binary_to_query(value + read_size, &(*it));
     }
 }
 
@@ -679,12 +679,12 @@ void knowledge_base_t::search_axioms_with_query(
         size += binary_to<size_t>(value + size, &num_id);
         out->assign(num_id, std::pair<axiom_id_t, bool>());
 
-        for (auto p : (*out))
+        for (auto it = out->begin(); it != out->end(); ++it)
         {
             char flag;
-            size += binary_to<axiom_id_t>(value + size, &p.first);
+            size += binary_to<axiom_id_t>(value + size, &(it->first));
             size += binary_to<char>(value + size, &flag);
-            p.second = (flag != 0x00);
+            it->second = (flag != 0x00);
         }
     }
 }
@@ -841,8 +841,13 @@ void knowledge_base_t::create_query_map()
         query.second.sort();
 
         query_to_ids[query].insert(std::make_pair(ax.id, is_backward));
-        for (auto a : query.first)
-            arity_to_queries[a].insert(query);
+
+        for (auto a : arities)
+        if (m_stop_words.count(a) == 0)
+        {
+            arity_id_t idx = search_arity_id(a);
+            arity_to_queries[idx].insert(query);
+        }
     };
 
     for (axiom_id_t i = 0; i < m_axioms.num_axioms(); ++i)

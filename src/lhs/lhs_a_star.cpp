@@ -121,7 +121,7 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
 
 
 void a_star_based_enumerator_t::enumerate_chain_candidates(
-    const pg::proof_graph_t *graph, pg::node_idx_t i,
+    const pg::proof_graph_t *graph, pg::node_idx_t pivot,
     std::set<pg::chain_candidate_t> *out) const
 {
     auto enumerate_chain_candidates = [this](
@@ -210,7 +210,7 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
     };
 
     const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
-    const pg::node_t &n = graph->node(i);
+    const pg::node_t &n = graph->node(pivot);
 
     if (m_max_depth >= 0 and n.depth() >= m_max_depth) return;
 
@@ -232,7 +232,125 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
         lf::axiom_t axiom = base->get_axiom(std::get<0>(*it));
         bool is_forward(std::get<1>(*it));
 
-        enumerate_chain_candidates(graph, axiom, !is_forward, i, out);
+        enumerate_chain_candidates(graph, axiom, !is_forward, pivot, out);
+    }
+}
+
+
+void a_star_based_enumerator_t::enumerate_chain_candidates_dev(
+    const pg::proof_graph_t *graph, pg::node_idx_t pivot,
+    std::set<pg::chain_candidate_t> *out) const
+{
+    auto enumerate_chain_candidates = [this](
+        const pg::proof_graph_t *graph, const lf::axiom_t &ax, bool is_backward,
+        pg::node_idx_t target, std::set<pg::chain_candidate_t> *out)
+    {
+        auto enumerate_nodes_array_with_arities = [this](
+            const pg::proof_graph_t *graph,
+            const std::vector<std::string> &arities, pg::node_idx_t target)
+        {
+            std::vector< std::vector<pg::node_idx_t> > candidates;
+            std::list< std::vector<pg::node_idx_t> > out;
+            std::string arity_target = graph->node(target).arity();
+
+            for (auto arity : arities)
+            {
+                bool is_target_arity = (arity == arity_target);
+                const hash_set<pg::node_idx_t> *_indices =
+                    graph->search_nodes_with_arity(arity);
+
+                if (_indices == NULL) return out;
+
+                candidates.push_back(std::vector<pg::node_idx_t>());
+                for (auto _idx : (*_indices))
+                if ((not is_target_arity or _idx == target) and
+                    (m_max_depth < 0 or graph->node(_idx).depth() < m_max_depth))
+                    candidates.back().push_back(_idx);
+
+                if (candidates.back().empty())
+                    return out;
+            }
+
+            std::vector<int> indices(arities.size(), 0);
+            bool do_end_loop(false);
+
+            while (not do_end_loop)
+            {
+                std::vector<pg::node_idx_t> _new;
+
+                for (int i = 0; i < candidates.size(); ++i)
+                {
+                    pg::node_idx_t idx = candidates.at(i).at(indices[i]);
+                    _new.push_back(idx);
+                }
+
+                out.push_back(_new);
+
+                // INCREMENT
+                ++indices[0];
+                for (int i = 0; i < candidates.size(); ++i)
+                if (indices[i] >= candidates[i].size())
+                {
+                    if (i < indices.size() - 1)
+                    {
+                        indices[i] = 0;
+                        ++indices[i + 1];
+                    }
+                    else do_end_loop = true;
+                }
+            }
+
+            return out;
+        };
+
+        std::vector<const literal_t*>
+            lits = (is_backward ? ax.func.get_rhs() : ax.func.get_lhs());
+        std::vector<std::string> arities;
+
+        for (auto it = lits.begin(); it != lits.end(); ++it)
+        if (not(*it)->is_equality())
+            arities.push_back((*it)->get_arity());
+
+        if (not arities.empty())
+        {
+            std::list<std::vector<pg::node_idx_t> > targets =
+                enumerate_nodes_array_with_arities(graph, arities, target);
+            std::set<pg::chain_candidate_t> _out;
+
+            for (auto it = targets.begin(); it != targets.end(); ++it)
+            if (not do_include_requirement(graph, *it))
+                _out.insert(pg::chain_candidate_t(*it, ax.id, !is_backward));
+
+            graph->erase_invalid_chain_candidates_with_coexistence(&_out);
+            out->insert(_out.begin(), _out.end());
+        }
+    };
+
+    const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
+
+    if (m_max_depth >= 0 and
+        graph->node(pivot).depth() >= m_max_depth)
+        return;
+
+    std::set<std::tuple<axiom_id_t, bool> > axioms;
+    {
+        std::list<kb::search_query_t> queries;
+        graph->enumerate_queries_for_knowledge_base(pivot, &queries);
+
+        for (auto q : queries)
+        {
+            std::list<std::pair<axiom_id_t, bool> > axs;
+            base->search_axioms_with_query(q, &axs);
+            axioms.insert(axs.begin(), axs.end());
+        }
+    }
+
+    for (auto it = axioms.begin(); it != axioms.end(); ++it)
+    {
+        lf::axiom_t axiom = base->get_axiom(std::get<0>(*it));
+        bool is_backward(std::get<1>(*it));
+
+        enumerate_chain_candidates(graph, axiom, is_backward, pivot, out);
     }
 }
 
@@ -270,7 +388,7 @@ void a_star_based_enumerator_t::add_reachability(
     std::set<pg::chain_candidate_t> cands;
     std::string arity_goal = graph->node(goal).arity();
 
-    enumerate_chain_candidates(graph, current, &cands);
+    enumerate_chain_candidates_dev(graph, current, &cands);
 
     for (auto c : cands)
     {
