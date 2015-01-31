@@ -120,7 +120,7 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
 }
 
 
-void a_star_based_enumerator_t::enumerate_chain_candidates(
+void a_star_based_enumerator_t::enumerate_chain_candidates_old(
     const pg::proof_graph_t *graph, pg::node_idx_t pivot,
     std::set<pg::chain_candidate_t> *out) const
 {
@@ -237,7 +237,7 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
 }
 
 
-void a_star_based_enumerator_t::enumerate_chain_candidates_dev(
+void a_star_based_enumerator_t::enumerate_chain_candidates(
     const pg::proof_graph_t *graph, pg::node_idx_t pivot,
     std::set<pg::chain_candidate_t> *out) const
 {
@@ -332,7 +332,7 @@ void a_star_based_enumerator_t::enumerate_chain_candidates_dev(
         graph->node(pivot).depth() >= m_max_depth)
         return;
 
-    std::set<std::tuple<axiom_id_t, bool> > axioms;
+    std::set<std::pair<axiom_id_t, bool> > axioms;
     {
         std::list<kb::search_query_t> queries;
         graph->enumerate_queries_for_knowledge_base(pivot, &queries);
@@ -347,8 +347,8 @@ void a_star_based_enumerator_t::enumerate_chain_candidates_dev(
 
     for (auto it = axioms.begin(); it != axioms.end(); ++it)
     {
-        lf::axiom_t axiom = base->get_axiom(std::get<0>(*it));
-        bool is_backward(std::get<1>(*it));
+        lf::axiom_t axiom = base->get_axiom(it->first);
+        bool is_backward(it->second);
 
         enumerate_chain_candidates(graph, axiom, is_backward, pivot, out);
     }
@@ -388,7 +388,7 @@ void a_star_based_enumerator_t::add_reachability(
     std::set<pg::chain_candidate_t> cands;
     std::string arity_goal = graph->node(goal).arity();
 
-    enumerate_chain_candidates_dev(graph, current, &cands);
+    enumerate_chain_candidates(graph, current, &cands);
 
     for (auto c : cands)
     {

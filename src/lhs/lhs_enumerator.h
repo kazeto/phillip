@@ -57,11 +57,11 @@ private:
         pg::node_idx_t, pg::node_idx_t, pg::node_idx_t, float,
         reachability_manager_t*) const;
 
-    void enumerate_chain_candidates(
+    void enumerate_chain_candidates_old(
         const pg::proof_graph_t *graph, pg::node_idx_t i,
         std::set<pg::chain_candidate_t> *out) const;
 
-    void enumerate_chain_candidates_dev(
+    void enumerate_chain_candidates(
         const pg::proof_graph_t *graph, pg::node_idx_t i,
         std::set<pg::chain_candidate_t> *out) const;
 

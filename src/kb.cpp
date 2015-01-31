@@ -651,7 +651,7 @@ void knowledge_base_t::search_queries(arity_id_t arity, std::list<search_query_t
         out->assign(num_query, search_query_t());
 
         for (auto it = out->begin(); it != out->end(); ++it)
-            binary_to_query(value + read_size, &(*it));
+            read_size += binary_to_query(value + read_size, &(*it));
     }
 }
 
@@ -1219,8 +1219,6 @@ void knowledge_base_t::extend_inconsistency()
 
     for (auto it = m_inc_to_axioms.begin(); it != m_inc_to_axioms.end(); ++it)
     {
-
-
         for (auto ax = it->second.begin(); ax != it->second.end(); ++ax)
         {
             lf::axiom_t axiom = get_axiom(*ax);
