@@ -1,6 +1,6 @@
 /* -*- coding:utf-8 -*- */
 
-
+#include <thread>
 #include <ctime>
 #include "./lhs_enumerator.h"
 
@@ -13,10 +13,14 @@ namespace lhs
 
 
 a_star_based_enumerator_t::a_star_based_enumerator_t(
-    phillip_main_t *ptr, float max_dist, int max_depth)
+    phillip_main_t *ptr, float max_dist, int max_depth, int threads_num)
     : lhs_enumerator_t(ptr),
-      m_max_distance(max_dist), m_max_depth(max_depth)
-{}
+      m_max_distance(max_dist), m_max_depth(max_depth),
+      m_threads_num(threads_num)
+{
+    if (m_threads_num <= 0)
+        m_threads_num = 1;
+}
 
 
 lhs_enumerator_t* a_star_based_enumerator_t::duplicate(phillip_main_t *ptr) const
@@ -83,6 +87,8 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
                     }
                 }
 
+                std::vector<argument_of_adding_reachability> args;
+
                 for (auto g : goal2dist)
                 {
                     std::string arity_goal = graph->node(g.first).arity();
@@ -91,12 +97,11 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
                     for (auto n : nodes_new)
                     {
                         if (graph->node(n).arity() != arity_goal)
-                        {
-                            add_reachability(
-                                graph, g.second.first, n, g.first, dist, &rm);
-                        }
+                            args.push_back(std::make_tuple(g.second.first, n, g.first, dist));
                     }
                 }
+
+                add_reachabilities(graph, args, &rm);
             }
 
             considered.insert(
@@ -360,6 +365,7 @@ const pg::proof_graph_t *graph, reachability_manager_t *out) const
 {
     const kb::knowledge_base_t *kb = kb::knowledge_base_t::instance();
     hash_set<pg::node_idx_t> obs = graph->enumerate_observations();
+    std::vector<argument_of_adding_reachability> args;
 
     for (auto n1 = obs.begin(); n1 != obs.end(); ++n1)
     for (auto n2 = obs.begin(); n2 != n1; ++n2)
@@ -370,10 +376,12 @@ const pg::proof_graph_t *graph, reachability_manager_t *out) const
 
         if (check_permissibility_of(dist))
         {
-            add_reachability(graph, *n1, *n1, *n2, 0.0f, out);
-            add_reachability(graph, *n2, *n2, *n1, 0.0f, out);
+            args.push_back(std::make_tuple(*n1, *n1, *n2, 0.0f));
+            args.push_back(std::make_tuple(*n2, *n2, *n1, 0.0f));
         }
     }
+
+    add_reachabilities(graph, args, out);
 }
 
 
@@ -415,6 +423,55 @@ void a_star_based_enumerator_t::add_reachability(
 }
 
 
+void a_star_based_enumerator_t::add_reachabilities(
+    const pg::proof_graph_t *graph,
+    const std::vector<argument_of_adding_reachability> &args,
+    reachability_manager_t *out) const
+{
+    int threads_num =
+        std::min<int>(args.size(), std::min<int>(m_threads_num,
+        std::thread::hardware_concurrency()));
+
+    if (threads_num <= 1)
+    {
+        for (auto a : args)
+            add_reachability(
+            graph, std::get<0>(a), std::get<1>(a),
+            std::get<2>(a), std::get<3>(a), out);
+    }
+    else
+    {
+        std::vector<std::thread> worker;
+
+        for (int th_id = 0; th_id < threads_num; ++th_id)
+        {
+            worker.emplace_back([&](int th_id)
+            {
+                for (int i = 0;; ++i)
+                {
+                    int idx(th_id + threads_num * i);
+                    if (idx < args.size())
+                    {
+                        reachability_manager_t rm;
+                        const argument_of_adding_reachability &arg = args.at(idx);
+
+                        add_reachability(
+                            graph, std::get<0>(arg), std::get<1>(arg),
+                            std::get<2>(arg), std::get<3>(arg), &rm);
+
+                        m_mutex_rm.lock();
+                        for (auto r : rm) out->push(r);
+                        m_mutex_rm.unlock();
+                    }
+                    else break;
+                }
+            }, th_id);
+        }
+        for (auto &t : worker) t.join();
+    }
+}
+
+
 bool a_star_based_enumerator_t::is_available(std::list<std::string>*) const
 { return true; }
 
@@ -439,10 +496,12 @@ void a_star_based_enumerator_t::reachability_manager_t::push(const reachability_
     float d = r.distance();
 
     for (auto it = begin(); it != end(); ++it)
-    if (d <= it->distance())
     {
-        insert(it, r);
-        return;
+        if (d <= it->distance())
+        {
+            insert(it, r);
+            return;
+        }
     }
 
     push_back(r);

@@ -222,6 +222,7 @@ bool _interpret_option(
         {
             phillip->set_param("kb_thread_num", spl[0]);
             phillip->set_param("gurobi_thread_num", spl[0]);
+            phillip->set_param("a_star_thread_num", spl[0]);
             return true;
         }
         else if (spl.size() == 2)
@@ -234,6 +235,11 @@ bool _interpret_option(
             else if (spl[0] == "grb")
             {
                 phillip->set_param("gurobi_thread_num", spl[1]);
+                return true;
+            }
+            else if (spl[0] == "a*")
+            {
+                phillip->set_param("a_star_thread_num", spl[1]);
                 return true;
             }
             else
@@ -310,7 +316,8 @@ lhs_enumerator_t* _new_lhs_enumerator(phillip_main_t *phillip, const std::string
         return new lhs::a_star_based_enumerator_t(
             phillip,
             phillip->param_float("max_distance"),
-            phillip->param_int("max_depth"));
+            phillip->param_int("max_depth"),
+            phillip->param_int("a_star_thread_num", 1));
     
     if (key == "depth")
         return new lhs::depth_based_enumerator_t(
