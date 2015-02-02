@@ -1908,8 +1908,7 @@ void proof_graph_t::_enumerate_hypernodes_disregarded_sub(hypernode_idx_t idx)
         }
 
         bool do_insert(true);
-        for (auto e_it = children_edges.begin();
-            e_it != children_edges.end() and do_insert; ++e_it)
+        for (auto e_it = children_edges.begin(); e_it != children_edges.end() and do_insert; ++e_it)
         {
             const edge_t &e = edge(*e_it);
             if (e.is_unify_edge())

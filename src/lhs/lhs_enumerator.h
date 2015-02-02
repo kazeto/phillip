@@ -3,7 +3,6 @@
 #include <set>
 #include <tuple>
 #include <queue>
-#include <mutex>
 
 #include "../phillip.h"
 
@@ -23,7 +22,7 @@ class a_star_based_enumerator_t : public lhs_enumerator_t
 public:
     a_star_based_enumerator_t(
         phillip_main_t *ptr,
-        float max_dist, int max_depth = -1, int threads_num = 1);
+        float max_dist, int max_depth = -1);
     virtual lhs_enumerator_t* duplicate(phillip_main_t *ptr) const;
     virtual pg::proof_graph_t* execute() const;
     virtual bool is_available(std::list<std::string>*) const;
@@ -51,18 +50,11 @@ private:
         void push(const reachability_t&);
     };
 
-    typedef std::tuple<pg::node_idx_t, pg::node_idx_t, pg::node_idx_t, float>
-        argument_of_adding_reachability;
-
     void initialize_reachability(
         const pg::proof_graph_t*, reachability_manager_t*) const;
     void add_reachability(
         const pg::proof_graph_t*,
         pg::node_idx_t, pg::node_idx_t, pg::node_idx_t, float,
-        reachability_manager_t*) const;
-    void add_reachabilities(
-        const pg::proof_graph_t*,
-        const std::vector<argument_of_adding_reachability>&,
         reachability_manager_t*) const;
 
     void enumerate_chain_candidates_old(
@@ -78,9 +70,6 @@ private:
 
     float m_max_distance;
     int m_max_depth;
-    int m_threads_num;
-
-    mutable std::mutex m_mutex_rm;
 };
 
 
