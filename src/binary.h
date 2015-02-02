@@ -23,6 +23,7 @@ enum execution_mode_e
 {
     EXE_MODE_UNDERSPECIFIED,
     EXE_MODE_INFERENCE,
+    EXE_MODE_HELP,
     EXE_MODE_COMPILE_KB
 };
 
@@ -53,8 +54,8 @@ bool parse_options(
  *  Create instance of each component of phil according to config. */
 bool preprocess(const execution_configure_t &config, phillip_main_t *phillip);
 
+void print_usage();
 
-extern const std::string USAGE;
 extern char ACCEPTABLE_OPTIONS[];
 
 

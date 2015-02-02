@@ -9,30 +9,7 @@ namespace bin
 {
 
 
-/** String for usage printing. */
-const std::string USAGE =
-    "Usage: phil -m [MODE] [OPTIONS]\n"
-    "  Mode:\n"
-    "    -m inference : Inference mode.\n"
-    "    -m compile_kb : Compiling knowledge-base mode.\n"
-    "  Common Options:\n"
-    "    -l <NAME> : Load a config-file.\n"
-    "    -p <NAME>=<VALUE> : set a parameter.\n"
-    "        kb_max_distance : limitation of distance between literals.\n"
-    "    -f <NAME> : Set flag.\n"
-    "        do_compile_kb : In inference-mode, compile knowledge base at first.\n"
-    "    -v <INT>  : Set verbosity.\n"
-    "  Options in inference-mode:\n"
-    "    -c lhs=<NAME> : Set component for making latent hypotheses sets.\n"
-    "    -c ilp=<NAME> : Set component for making ILP problems.\n"
-    "    -c sol=<NAME> : Set component for making solution hypotheses.\n"
-    "    -k <NAME> : Set filename of knowledge-base.\n"
-    "    -o <NAME> : Set name of the observation to solve.\n"
-    "    -T <INT>  : Set timeout. [second]\n"
-    "  Options in compile_kb mode:\n"
-    "    -k <NAME> : Set filename of output of compile_kb.\n";
-
-char ACCEPTABLE_OPTIONS[] = "c:e:f:k:l:m:o:p:t:v:P:T:";
+char ACCEPTABLE_OPTIONS[] = "hc:e:f:k:l:m:o:p:t:v:T:";
 
 
 bool _load_config_file(
@@ -73,7 +50,8 @@ bool parse_options(
         {
             print_error(
                 "Any error occured during parsing command line options:"
-                + format("-%c %s", opt, arg.c_str()) );
+                + format("-%c %s", opt, arg.c_str()));
+            print_usage();
         }
     }
 
@@ -121,6 +99,7 @@ bool _load_config_file(
                 print_error(
                     "Any error occured during parsing command line options:"
                     + std::string(line));
+                print_usage();
             }
         }
         if (spl.at(0).at(0) != '-' and spl.size() == 1)
@@ -179,6 +158,10 @@ bool _interpret_option(
     case 'f':
         phillip->set_flag(arg);
         return true;
+
+    case 'h':
+        config->mode = EXE_MODE_HELP;
+        return true;
     
     case 'k': // ---- SET FILENAME OF KNOWLEDGE-BASE
     {
@@ -195,9 +178,15 @@ bool _interpret_option(
     
     case 'm': // ---- SET MODE
     {
-        if      (arg == "inference")  config->mode = EXE_MODE_INFERENCE;
-        else if (arg == "compile_kb") config->mode = EXE_MODE_COMPILE_KB;
-        else                          config->mode = EXE_MODE_UNDERSPECIFIED;
+        if (config->mode != EXE_MODE_HELP)
+        {
+            if (arg == "inference")
+                config->mode = EXE_MODE_INFERENCE;
+            else if (arg == "compile_kb")
+                config->mode = EXE_MODE_COMPILE_KB;
+            else
+                config->mode = EXE_MODE_UNDERSPECIFIED;
+        }
 
         return (config->mode != EXE_MODE_UNDERSPECIFIED);
     }
@@ -224,6 +213,34 @@ bool _interpret_option(
             phillip->set_param(arg, "");
         
         return true;
+    }
+
+    case 't': // ---- SET THREAD NUM
+    {
+        auto spl = split(arg, "=");
+        if (spl.size() == 1)
+        {
+            phillip->set_param("kb_thread_num", spl[0]);
+            phillip->set_param("gurobi_thread_num", spl[0]);
+            return true;
+        }
+        else if (spl.size() == 2)
+        {
+            if (spl[0] == "kb")
+            {
+                phillip->set_param("kb_thread_num", spl[1]);
+                return true;
+            }
+            else if (spl[0] == "grb")
+            {
+                phillip->set_param("gurobi_thread_num", spl[1]);
+                return true;
+            }
+            else
+                return false;
+        }
+        else
+            return false;
     }
     
     case 'v': // ---- SET VERBOSITY
@@ -396,6 +413,48 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
     default:
         return false;
     }
+}
+
+
+void print_usage()
+{
+    /** String for usage printing. */
+    const std::vector<std::string> USAGE = {
+        "Usage:",
+        "  $phil -m [MODE] [OPTIONS] [INPUTS]",
+        "",
+        "  Mode:",
+        "    -m inference : Inference mode.",
+        "    -m compile_kb : Compiling knowledge-base mode.",
+        "",
+        "  Common Options:",
+        "    -l <NAME> : Load a config-file.",
+        "    -p <NAME>=<VALUE> : set a parameter.",
+        "    -f <NAME> : Set a flag.",
+        "    -t <INT> : Set the number of threads for parallelization.",
+        "    -v <INT> : Set verbosity (0 ~ 5).",
+        "    -h : Print this usage.",
+        "",
+        "  Options in inference-mode:",
+        "    -c lhs=<NAME> : Set component for making latent hypotheses sets.",
+        "    -c ilp=<NAME> : Set component for making ILP problems.",
+        "    -c sol=<NAME> : Set component for making solution hypotheses.",
+        "    -k <NAME> : Set the prefix of the path of the compiled knowledge base.",
+        "    -o <NAME> : Solve only the observation of corresponding name.",
+        "    -e <NAME> : Exclude the observation of corresponding name from inference.",
+        "    -T <INT>  : Set timeout of the whole inference in seconds.",
+        "    -T lhs=<INT> : Set timeout of the creation of latent hypotheses sets in seconds.",
+        "    -T ilp=<INT> : Set timeout of the conversion into ILP problem in seconds.",
+        "    -T sol=<INT> : Set timeout of the optimization of ILP problem in seconds.",
+        "",
+        "  Options in compile_kb mode:",
+        "    -c dist=<NAME> : Set component to define relatedness between predicates.",
+        "    -k <NAME> : Set the prefix of the path of the compiled knowledge base.",
+        "",
+        "  Wiki: https://github.com/kazeto/phillip/wiki"};
+
+    for (auto s : USAGE)
+        print_console(s);
 }
 
 

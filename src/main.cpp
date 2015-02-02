@@ -20,7 +20,13 @@ int main(int argc, char* argv[])
     print_console("  version: " + phillip_main_t::VERSION);
     
     bin::parse_options(argc, argv, &phillip, &config, &inputs);
-    print_console("Phillip has completed parsing comand options.");
+    IF_VERBOSE_1("Phillip has completed parsing comand options.");
+
+    if (config.mode == bin::EXE_MODE_HELP)
+    {
+        bin::print_usage();
+        return 0;
+    }
 
     bin::preprocess(config, &phillip);
 
