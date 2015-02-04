@@ -35,7 +35,6 @@ extern const std::string OPR_STR_PARAPHRASE;
 extern const std::string OPR_STR_INCONSISTENT;
 extern const std::string OPR_STR_REQUIREMENT;
 extern const std::string OPR_STR_UNIPP;
-extern const std::string OPR_STR_STOPWORD; /// Stop word in reachability-matrix.
 extern const std::string OPR_STR_EXARGSET; /// Exclusive argument set.
 
 
@@ -68,7 +67,6 @@ public:
     bool is_valid_as_paraphrase() const;
     bool is_valid_as_inconsistency() const;
     bool is_valid_as_unification_postponement() const;
-    bool is_valid_as_stop_word() const;
     bool is_valid_as_argument_set() const;
     
     /** Return literals included in this. */

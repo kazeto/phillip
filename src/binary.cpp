@@ -374,6 +374,7 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
     kb::distance_provider_type_e dist_type(kb::DISTANCE_PROVIDER_BASIC);
     float max_dist = phillip->param_float("kb_max_distance", -1.0);
     int thread_num = phillip->param_int("kb_thread_num", 1);
+    bool disable_stop_word = phillip->flag("disable_stop_word");
 
     if (not config.dist_key.empty())
     {
@@ -399,7 +400,7 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
     ilp_solver_t *sol = _new_ilp_solver(phillip, config.sol_key);
 
     kb::knowledge_base_t::setup(
-        config.kb_name, dist_type, max_dist, thread_num);
+        config.kb_name, dist_type, max_dist, thread_num, disable_stop_word);
 
     switch (config.mode)
     {

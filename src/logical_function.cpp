@@ -22,7 +22,6 @@ const std::string OPR_STR_PARAPHRASE = "<=>";
 const std::string OPR_STR_INCONSISTENT = "xor";
 const std::string OPR_STR_REQUIREMENT = "req";
 const std::string OPR_STR_UNIPP = "unipp";
-const std::string OPR_STR_STOPWORD = "ignore";
 const std::string OPR_STR_EXARGSET = "argset";
 
 
@@ -231,32 +230,6 @@ bool logical_function_t::is_valid_as_unification_postponement() const
     }
 
     return true;
-}
-
-
-bool logical_function_t::is_valid_as_stop_word() const
-{
-    if (not is_operator(OPR_LITERAL))
-        return false;
-    else
-    {
-        const std::vector<term_t> &terms(m_literal.terms);
-
-        for (auto it_term = terms.begin(); it_term != terms.end(); ++it_term)
-        {
-            const std::string &str = it_term->string();
-
-            for (auto c = str.rbegin(); c != str.rend(); ++c)
-            {
-                if (*c == '/')
-                    break;
-                else if (not std::isdigit(*c))
-                    return false;
-            }
-        }
-
-        return true;
-    }
 }
 
 

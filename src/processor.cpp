@@ -75,12 +75,11 @@ void compile_kb_t::process( const sexp::reader_t *reader )
     index_t idx_para = stack->find_functor(lf::OPR_STR_PARAPHRASE);
     index_t idx_inc = stack->find_functor(lf::OPR_STR_INCONSISTENT);
     index_t idx_pp = stack->find_functor(lf::OPR_STR_UNIPP);
-    index_t idx_sw = stack->find_functor(lf::OPR_STR_STOPWORD);
     index_t idx_as = stack->find_functor(lf::OPR_STR_EXARGSET);
     index_t idx_name = stack->find_functor(lf::OPR_STR_NAME);
         
     _assert_syntax(
-        (idx_lf >= 0 or idx_para >= 0 or idx_inc >= 0 or idx_pp >= 0 or idx_sw >= 0 or idx_as >= 0),
+        (idx_lf >= 0 or idx_para >= 0 or idx_inc >= 0 or idx_pp >= 0 or idx_as >= 0),
         (*reader), "no logical connectors found." );
 
     std::string name;
@@ -116,19 +115,6 @@ void compile_kb_t::process( const sexp::reader_t *reader )
             "function 'unipp' takes one argument.");
         IF_VERBOSE_FULL("Added unification-postponement: " + stack->to_string());
         _kb->insert_unification_postponement(func, name);
-    }
-    else if (idx_sw >= 0)
-    {
-        lf::logical_function_t func(*stack->children[idx_sw]);
-        if (phillip_main_t::verbose() == FULL_VERBOSE)
-        {
-            const std::vector<term_t> &terms = func.literal().terms;
-            std::string disp;
-            for (auto it = terms.begin(); it != terms.end(); ++it)
-                disp += (it != terms.begin() ? ", " : "") + it->string();
-            print_console("Added stop-words: {" + disp + "}");
-        }
-        _kb->insert_stop_word_arity(func);
     }
     else if (idx_as >= 0)
     {

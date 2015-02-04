@@ -80,6 +80,7 @@ std::string knowledge_base_t::ms_filename = "kb";
 distance_provider_type_e knowledge_base_t::ms_distance_provider_type = DISTANCE_PROVIDER_BASIC;
 float knowledge_base_t::ms_max_distance = -1.0f;
 int knowledge_base_t::ms_thread_num_for_rm = 1;
+bool knowledge_base_t::ms_do_disable_stop_word = false;
 std::mutex knowledge_base_t::ms_mutex_for_cache;
 std::mutex knowledge_base_t::ms_mutex_for_rm;
 
@@ -97,7 +98,7 @@ knowledge_base_t* knowledge_base_t::instance()
 
 void knowledge_base_t::setup(
     std::string filename, distance_provider_type_e dist_type,
-    float max_distance, int thread_num_for_rm)
+    float max_distance, int thread_num_for_rm, bool do_disable_stop_word)
 {
     if (not ms_instance)
     {
@@ -105,6 +106,7 @@ void knowledge_base_t::setup(
         ms_distance_provider_type = dist_type;
         ms_max_distance = max_distance;
         ms_thread_num_for_rm = thread_num_for_rm;
+        ms_do_disable_stop_word = do_disable_stop_word;
 
         if (ms_thread_num_for_rm < 0) ms_thread_num_for_rm = 1;
     }
@@ -476,26 +478,6 @@ axiom_id_t knowledge_base_t::insert_unification_postponement(
 }
 
 
-void knowledge_base_t::insert_stop_word_arity(const lf::logical_function_t &f)
-{
-    if (m_state == STATE_COMPILE)
-    {
-        if (not f.is_valid_as_stop_word())
-        {
-            print_warning_fmt(
-                "Stop-words \"%s\" is invalid and skipped.",
-                f.to_string().c_str());
-        }
-        else
-        {
-            const std::vector<term_t> &terms = f.literal().terms;
-            for (auto it = terms.begin(); it != terms.end(); ++it)
-                m_stop_words.insert(it->string());
-        }
-    }
-}
-
-
 void knowledge_base_t::insert_argument_set(const lf::logical_function_t &f)
 {
     if (m_state != STATE_COMPILE) return;
@@ -804,7 +786,9 @@ void knowledge_base_t::set_stop_words()
 #ifdef USE_GUROBI
     can_use_gurobi = true;
 #endif
+
     if (not can_use_lpsolve and not can_use_lpsolve) return;
+    if (ms_do_disable_stop_word) return;
 
     print_console("Setting stop-words...");
     m_axioms.prepare_query();
@@ -861,12 +845,19 @@ void knowledge_base_t::set_stop_words()
     for (axiom_id_t id = 0; id < m_axioms.num_axioms(); ++id)
     {
         lf::axiom_t ax = m_axioms.get(id);
+
         if (ax.func.is_operator(lf::OPR_IMPLICATION))
             proc(ax, true);
         else if (ax.func.is_operator(lf::OPR_PARAPHRASE))
         {
             proc(ax, true);
             proc(ax, false);
+        }
+
+        if (id % 10 == 0)
+        {
+            float progress = (float)(id)* 100.0f / (float)m_axioms.num_axioms();
+            std::cerr << format("processed %d axioms [%.4f%%]\r", id, progress);
         }
     }
 

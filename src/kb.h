@@ -96,7 +96,7 @@ public:
     static knowledge_base_t* instance();
     static void setup(
         std::string filename, distance_provider_type_e dist_type,
-        float max_distance, int thread_num_for_rm);
+        float max_distance, int thread_num_for_rm, bool do_disable_stop_word);
     static inline float get_max_distance();
 
     ~knowledge_base_t();
@@ -114,7 +114,6 @@ public:
     axiom_id_t insert_implication(const lf::logical_function_t &f, const std::string &name);
     axiom_id_t insert_inconsistency(const lf::logical_function_t &f, const std::string &name);
     axiom_id_t insert_unification_postponement(const lf::logical_function_t &f, const std::string &name);
-    void insert_stop_word_arity(const lf::logical_function_t &f);
     void insert_argument_set(const lf::logical_function_t &f);
 
     inline lf::axiom_t get_axiom(axiom_id_t id) const;
@@ -252,6 +251,7 @@ private:
     static distance_provider_type_e ms_distance_provider_type;
     static float ms_max_distance;
     static int ms_thread_num_for_rm;
+    static bool ms_do_disable_stop_word;
     static std::mutex ms_mutex_for_cache;
     static std::mutex ms_mutex_for_rm;
 
