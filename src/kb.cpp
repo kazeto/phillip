@@ -869,6 +869,8 @@ void knowledge_base_t::set_stop_words()
         else ++it;
     }
 
+    if (candidates.empty()) return;
+
     hash_map<std::string, ilp::variable_idx_t> a2v;
     for (auto c : candidates)
         a2v[c.first] = -1;
