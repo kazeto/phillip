@@ -12,7 +12,7 @@
 (B (unipp (nsubj . * .)))
 (B (unipp (dobj . * .)))
 
-(B (ignore nsubj/3 dobj/3))
+;; (B (ignore nsubj/3 dobj/3))
 
 ;; (B (argset have-vb/1/0))
 ;; (B (argset kill-vb/1/0))

@@ -216,10 +216,8 @@ private:
     void insert_axiom_group_to_cdb();
     void insert_argument_set_to_cdb();
 
+    void set_stop_words();
     void create_query_map();
-
-    /** Creates reachable matrix.
-     *  This is a sub-routine of finalize. */
     void create_reachable_matrix();
     
     void _create_reachable_matrix_direct(

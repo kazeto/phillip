@@ -37,44 +37,62 @@ ilp_solver_t* gurobi_t::duplicate(phillip_main_t *ptr) const
 void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
 {
 #ifdef USE_GUROBI
+    const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
+    solve(prob, out);
+#endif
+}
+
+
+void gurobi_t::solve(
+    const ilp::ilp_problem_t *prob,
+    std::vector<ilp::ilp_solution_t> *out) const
+{
+#ifdef USE_GUROBI
     auto get_timeout = [this](int passed) -> double
     {
         double t_o_sol(-1), t_o_all(-1);
-        if (phillip()->timeout_sol() > 0)
-            t_o_sol = std::max<double>(0.01, phillip()->timeout_sol() - passed);
-        if (phillip()->timeout_all() > 0)
-            t_o_all = std::max<double>(
+
+        if (phillip() != NULL)
+        {
+            if (phillip()->timeout_sol() > 0)
+                t_o_sol = std::max<double>(0.01, phillip()->timeout_sol() - passed);
+            if (phillip()->timeout_all() > 0)
+                t_o_all = std::max<double>(
                 0.01,
                 phillip()->timeout_all()
                 - phillip()->get_time_for_lhs() - phillip()->get_time_for_ilp()
                 - passed);
+        }
 
         double timeout(-1);
         if (t_o_sol > t_o_all)
             timeout = (t_o_all > 0.0) ? t_o_all : t_o_sol;
         else
             timeout = (t_o_sol > 0.0) ? t_o_sol : t_o_all;
-        
+
         return (timeout > 0.0) ? timeout : -1.0;
     };
-    
+
     g_mutex_gurobi.lock();
-    const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
-    GRBEnv env;
-    GRBModel model(env);
+    GRBEnv env = GRBEnv();
+    GRBModel model = GRBModel(env);
     hash_map<ilp::variable_idx_t, GRBVar> vars;
     hash_set<ilp::constraint_idx_t>
         lazy_cons(prob->get_lazy_constraints());
-    bool do_cpi(not lazy_cons.empty() and not phillip()->flag("disable_cpi"));
     std::time_t begin, now;
     g_mutex_gurobi.unlock();
 
+    bool do_cpi(not lazy_cons.empty());
+    if (phillip() != NULL)
+    if (phillip()->flag("disable_cpi"))
+        do_cpi = false;
+
     std::time(&begin);
-    add_variables(&model, &vars);
-    
+    add_variables(prob, &model, &vars);
+
     for (int i = 0; i < prob->constraints().size(); ++i)
     if (lazy_cons.count(i) == 0 or not do_cpi)
-        add_constraint(&model, i, vars);
+        add_constraint(prob, &model, i, vars);
 
     double timeout = get_timeout(0);
 
@@ -88,7 +106,7 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
             model.getEnv().set(GRB_IntParam_Threads, m_thread_num);
         if (timeout > 0)
             model.getEnv().set(GRB_DoubleParam_TimeLimit, timeout););
-    
+
     size_t num_loop(0);
     while (true)
     {
@@ -113,7 +131,7 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
 
                 delete[] cons;
             }
-            
+
             ilp::ilp_solution_t sol(
                 prob, ilp::SOLUTION_NOT_AVAILABLE,
                 std::vector<double>(prob->variables().size(), 0.0),
@@ -123,33 +141,33 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
         }
         else
         {
-            ilp::ilp_solution_t sol = convert(&model, vars, prob->name());
+            ilp::ilp_solution_t sol = convert(prob, &model, vars, prob->name());
             bool do_break(false);
 
             if (not lazy_cons.empty() and do_cpi)
             {
                 hash_set<ilp::constraint_idx_t> filtered;
                 sol.filter_unsatisfied_constraints(&lazy_cons, &filtered);
-            
+
                 if (not filtered.empty())
                 {
                     // ADD VIOLATED CONSTRAINTS
                     for (auto it = filtered.begin(); it != filtered.end(); ++it)
-                        add_constraint(&model, *it, vars);
+                        add_constraint(prob, &model, *it, vars);
                     model.update();
                 }
                 else do_break = true;
             }
             else do_break = true;
 
-            if (not do_break)
+            if (not do_break and phillip() != NULL)
             {
                 std::time(&now);
                 int passed(now - begin);
                 int passed_all(
                     phillip()->get_time_for_lhs() +
                     phillip()->get_time_for_ilp() + passed);
-                
+
                 if (phillip()->is_timeout_sol(passed)
                     or phillip()->is_timeout_all(passed_all))
                 {
@@ -170,7 +188,7 @@ void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
                 break;
             }
         }
-    }    
+    }
 #endif
 }
 
@@ -194,10 +212,9 @@ std::string gurobi_t::repr() const
 #ifdef USE_GUROBI
 
 void gurobi_t::add_variables(
+    const ilp::ilp_problem_t *prob,
     GRBModel *model, hash_map<ilp::variable_idx_t, GRBVar> *vars) const
 {
-    const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
-
     for (int i = 0; i < prob->variables().size(); ++i)
     {
         const ilp::variable_t &v = prob->variable(i);
@@ -217,11 +234,10 @@ void gurobi_t::add_variables(
 
 
 void gurobi_t::add_constraint(
+    const ilp::ilp_problem_t *prob,
     GRBModel *model, ilp::constraint_idx_t idx,
     const hash_map<ilp::variable_idx_t, GRBVar> &vars) const
 {
-    const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
-
     const ilp::constraint_t &c = prob->constraint(idx);
     std::string name = c.name().substr(0, 32);
     GRBLinExpr expr;
@@ -249,12 +265,11 @@ void gurobi_t::add_constraint(
 
 
 ilp::ilp_solution_t gurobi_t::convert(
+    const ilp::ilp_problem_t *prob,
     GRBModel *model, const hash_map<ilp::variable_idx_t, GRBVar> &vars,
     const std::string &name) const
 {
-    const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
     std::vector<double> values(prob->variables().size(), 0);
-
     GRBVar *p_vars = model->getVars();
     double *p_values = model->get(GRB_DoubleAttr_X, p_vars, values.size());
 

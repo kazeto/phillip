@@ -73,6 +73,10 @@ public:
     virtual ~ilp_solver_t() {}
     virtual ilp_solver_t* duplicate(phillip_main_t *ptr) const = 0;
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const = 0;
+
+    virtual void solve(
+        const ilp::ilp_problem_t *prob,
+        std::vector<ilp::ilp_solution_t> *out) const = 0;
 };
 
 

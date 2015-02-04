@@ -12,6 +12,7 @@
 
 #include "./kb.h"
 #include "./phillip.h"
+#include "./sol/ilp_solver.h"
 
 
 namespace phil
@@ -238,6 +239,7 @@ void knowledge_base_t::finalize()
         m_arity_to_postponement.clear();
         m_argument_sets.clear();
 
+        set_stop_words();
         create_query_map();
         create_reachable_matrix();
         write_config();
@@ -790,6 +792,144 @@ void knowledge_base_t::insert_argument_set_to_cdb()
     }
 
     print_console("completed writing " + m_cdb_arg_set.filename() + ".");
+}
+
+
+void knowledge_base_t::set_stop_words()
+{
+    bool can_use_lpsolve(false), can_use_gurobi(false);
+#ifdef USE_LP_SOLVE
+    can_use_lpsolve = true;
+#endif
+#ifdef USE_GUROBI
+    can_use_gurobi = true;
+#endif
+    if (not can_use_lpsolve and not can_use_lpsolve) return;
+
+    print_console("Setting stop-words...");
+    m_axioms.prepare_query();
+
+    typedef std::pair <std::string, char> term_pos_t;
+    std::set<term_pos_t> candidates, excluded;
+    hash_map<std::string, size_t> counts; // ARITY FREQUENCY IN EVIDENCE
+    std::set<std::list<std::string> > arities_set; // ARITY SET IN EVIDENCE
+
+    auto proc = [&](const lf::axiom_t &ax, bool is_backward)
+    {
+        auto evd = is_backward ? ax.func.get_rhs() : ax.func.get_lhs();
+        auto hyp = is_backward ? ax.func.get_lhs() : ax.func.get_rhs();
+        hash_set<term_t> terms_evd;
+        hash_map<term_t, std::list<term_pos_t> > hard_terms;
+        std::set<std::string> arities;
+
+        for (auto l : evd)
+        if (not l->is_equality())
+        {
+            std::string arity(l->get_arity());
+
+            arities.insert(arity);
+            (counts.count(arity) > 0) ? ++counts[arity] : (counts[arity] = 1);
+
+            for (char i = 0; i < l->terms.size(); ++i)
+            {
+                term_t t(l->terms.at(i));
+                terms_evd.insert(t);
+                if (t.is_hard_term())
+                    hard_terms[t].push_back(std::make_pair(arity, i));
+                else
+                    excluded.insert(std::make_pair(arity, i));
+            }
+        }
+
+        std::list<std::string> arity_list(arities.begin(), arities.end());
+        arity_list.sort();
+        arities_set.insert(arity_list);
+
+        for (auto e : hard_terms)
+        if (e.second.size() > 1)
+            candidates.insert(e.second.begin(), e.second.end());
+
+        for (auto l : hyp)
+        if (not l->is_equality())
+        {
+            for (char i = 0; i < l->terms.size(); ++i)
+            if (terms_evd.count(l->terms.at(i)) > 0)
+                excluded.insert(std::make_pair(l->get_arity(), i));
+        }
+    };
+
+    for (axiom_id_t id = 0; id < m_axioms.num_axioms(); ++id)
+    {
+        lf::axiom_t ax = m_axioms.get(id);
+        if (ax.func.is_operator(lf::OPR_IMPLICATION))
+            proc(ax, true);
+        else if (ax.func.is_operator(lf::OPR_PARAPHRASE))
+        {
+            proc(ax, true);
+            proc(ax, false);
+        }
+    }
+
+    // EXCLUDED ELEMENTS IN excluded FROM candidate
+    for (auto it = candidates.begin(); it != candidates.end();)
+    {
+        if (excluded.count(*it) > 0)
+            it = candidates.erase(it);
+        else ++it;
+    }
+
+    hash_map<std::string, ilp::variable_idx_t> a2v;
+    for (auto c : candidates)
+        a2v[c.first] = -1;
+
+    ilp::ilp_problem_t prob(NULL, new ilp::basic_solution_interpreter_t(), true);
+
+    for (auto it = a2v.begin(); it != a2v.end(); ++it)
+    {
+        double coef = 100.0 * counts.at(it->first) / m_axioms.num_axioms();
+        ilp::variable_t var(it->first, coef);
+        it->second = prob.add_variable(var);
+    }
+
+    for (auto arities : arities_set)
+    {
+        bool do_add_constraint(true);
+
+        for (auto a : arities)
+        if (a2v.count(a) == 0)
+            do_add_constraint = false;
+
+        if (do_add_constraint)
+        {
+            ilp::constraint_t con("", ilp::OPR_LESS_EQ, 1.0 * (arities.size() - 1));
+            for (auto a : arities)
+                con.add_term(a2v.at(a), 1.0);
+            prob.add_constraint(con);
+        }
+    }
+
+    ilp_solver_t *solver = NULL;
+    if (can_use_gurobi) solver = new sol::gurobi_t(NULL, ms_thread_num_for_rm, false);
+    else solver = new sol::lp_solve_t(NULL);
+
+    std::vector<ilp::ilp_solution_t> solutions;
+    solver->solve(&prob, &solutions);
+
+    if (not solutions.empty())
+    if (solutions.front().type() == ilp::SOLUTION_OPTIMAL)
+    {
+        for (auto it : a2v)
+        {
+            if (solutions.front().variable_is_active(it.second))
+                m_stop_words.insert(it.first);
+        }
+    }
+
+    delete solver;
+
+    IF_VERBOSE_3(
+        "stop-words = {" +
+        join(m_stop_words.begin(), m_stop_words.end(), ", ") + "}");
 }
 
 

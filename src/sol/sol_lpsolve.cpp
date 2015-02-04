@@ -20,81 +20,61 @@ void lp_solve_t::execute(
     std::vector<ilp::ilp_solution_t> *out ) const
 {
 #ifdef USE_LP_SOLVE
-    /* CURRENTLY, CUTTING-PLANE-INFERENCE ON LP-SOLVE IS PROHIBITED. */
-    bool do_cpi = false;
-    
     const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
+    solve(prob, out);
+#endif
+}
+
+
+void lp_solve_t::solve(
+    const ilp::ilp_problem_t *prob, std::vector<ilp::ilp_solution_t> *out) const
+{
+#ifdef USE_LP_SOLVE
     std::vector<double> vars(prob->variables().size(), 0);
     ::lprec *rec(NULL);
-    hash_set<ilp::constraint_idx_t> lazy_cons = do_cpi ?
-        prob->get_lazy_constraints() : hash_set<ilp::constraint_idx_t>();
     std::time_t begin, now;
 
     std::time(&begin);
-    initialize(prob, &rec, do_cpi);
+    initialize(prob, &rec);
     
-    size_t num_loop(0);
-    while (true)
+    int ret = ::solve(rec);
+    ilp::ilp_solution_t *sol = NULL;
+    bool do_break(false), is_timeout(false);
+
+    if (ret == OPTIMAL or ret == SUBOPTIMAL)
     {
-        if (do_cpi)
-            print_console_fmt("begin: cutting-plane loop #", (num_loop++));
+        ::get_variables(rec, &vars[0]);
+        ilp::solution_type_e type = (ret == OPTIMAL) ?
+            ilp::SOLUTION_OPTIMAL : ilp::SOLUTION_SUB_OPTIMAL;
+        sol = new ilp::ilp_solution_t(prob, type, vars);
+    }
 
-        int ret = ::solve(rec);
-        ilp::ilp_solution_t *sol = NULL;
-        bool do_break(false), is_timeout(false);
-
-        if (ret == OPTIMAL or ret == SUBOPTIMAL)
-        {
-            ::get_variables(rec, &vars[0]);
-            ilp::solution_type_e type = (ret == OPTIMAL) ?
-                ilp::SOLUTION_OPTIMAL : ilp::SOLUTION_SUB_OPTIMAL;
-            sol = new ilp::ilp_solution_t(prob, type, vars);
-
-            if (not lazy_cons.empty() and do_cpi)
-            {
-                hash_set<ilp::constraint_idx_t> filtered;
-                sol->filter_unsatisfied_constraints(&lazy_cons, &filtered);
-            
-                if (not filtered.empty())
-                {
-                    // ADD VIOLATED CONSTRAINTS
-                    for (auto it = filtered.begin(); it != filtered.end(); ++it)
-                        add_constraint(prob, *it, &rec);
-                }
-                else do_break = true;
-            }
-            else do_break = true;
-        }
-        else do_break = true;
-
+    if (phillip() != NULL)
+    {
         std::time(&now);
         int t_sol(now - begin);
         int t_all(
             phillip()->get_time_for_lhs() +
             phillip()->get_time_for_ilp() + t_sol);
-        
-        if (phillip()->is_timeout_sol(t_sol)
-            or phillip()->is_timeout_all(t_all))
-            do_break = is_timeout = true;
 
-        if (do_break)
-        {
-            ::delete_lp(rec);
-
-            if (sol == NULL)
-                sol = new ilp::ilp_solution_t(
-                    prob, ilp::SOLUTION_NOT_AVAILABLE,
-                    std::vector<double>(0.0, prob->variables().size()));
-
-            sol->timeout(is_timeout);
-            out->push_back(*sol);
-
-            delete sol;
-            break;
-        }
+        if (phillip()->is_timeout_sol(t_sol) or phillip()->is_timeout_all(t_all))
+            is_timeout = true;
     }
+
+    ::delete_lp(rec);
+
+    if (sol == NULL)
+        sol = new ilp::ilp_solution_t(
+        prob, ilp::SOLUTION_NOT_AVAILABLE,
+        std::vector<double>(0.0, prob->variables().size()));
+
+    sol->timeout(is_timeout);
+    out->push_back(*sol);
+
+    delete sol;
 #endif
 }
+
 
 
 bool lp_solve_t::is_available(std::list<std::string> *messages) const
@@ -138,8 +118,7 @@ void lp_handler(::lprec *lp, void *userhandle, char *buf)
 }
 
 
-void lp_solve_t::initialize(
-    const ilp::ilp_problem_t *prob, ::lprec **rec, bool do_cpi) const
+void lp_solve_t::initialize(const ilp::ilp_problem_t *prob, ::lprec **rec) const
 {
     const std::vector<ilp::variable_t> &variables = prob->variables();
     const std::vector<ilp::constraint_t> &constraints = prob->constraints();
@@ -155,6 +134,8 @@ void lp_solve_t::initialize(
     ::set_obj_fn(*rec, &vars[0]);
     prob->do_maximize() ?
         ::set_maxim(*rec) : ::set_minim(*rec);
+
+    if (phillip() != NULL)
     if (phillip()->timeout_sol() > 0)
         ::set_timeout(*rec, phillip()->timeout_sol());
     
@@ -169,9 +150,7 @@ void lp_solve_t::initialize(
     }
 
     // ADDS CONSTRAINTS.
-    // IF DOES CUTTING-PLANE-INFERENCE, LAZY CONSTRAINTS ARE NOT ADDED.
     for (size_t i = 0; i < constraints.size(); ++i)
-    if (lazy_cons.count(i) == 0 or not do_cpi)
         add_constraint(prob, i, rec);
 
     // ADDS CONSTRAINTS FOR CONSTANTS.
