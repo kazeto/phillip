@@ -879,7 +879,9 @@ void knowledge_base_t::set_stop_words()
 
     for (auto it = a2v.begin(); it != a2v.end(); ++it)
     {
-        double coef = 100.0 * counts.at(it->first) / m_axioms.num_axioms();
+        double coef =
+            100.0 * ((double)counts.at(it->first) - 0.9)
+            / m_axioms.num_axioms();
         ilp::variable_t var(it->first, coef);
         it->second = prob.add_variable(var);
     }
