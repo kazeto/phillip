@@ -8,6 +8,11 @@ def get_target():
     return target if target else 'bin/phil'
 
 
+def get_lib_target():
+    target = raw_input('--> TARGET [default=lib/libphil.so]: ')
+    return target if target else 'lib/libphil.so'
+
+
 def get_dir(path):
     idx = path.rfind('/')
     if idx > 0:
@@ -33,12 +38,16 @@ def main():
     def write(strs): fout.write('\n'.join(strs) + '\n\n');
 
     target = get_target()
+    lib_target = get_lib_target()
     write(['TARGET = %s' % target,
+           'L_TARGET = %s' % lib_target,
            'CXX = g++'])
     
     write(['SOURCE = $(shell find src -name *.cpp)',
+           'L_SOURCE = $(shell find src -name *.cpp -and ! -name main.cpp)',
            'HEDDER = $(shell find src -name *.h)',
-           'OBJS = $(SOURCE:.cpp=.o)'])
+           'OBJS = $(SOURCE:.cpp=.o)',
+           'L_OBJS = $(L_SOURCE:.cpp=.lo)'])
 
     write(['OPTS = -O2 -std=c++11 -g',
            'IDFLAGS =',
@@ -52,7 +61,7 @@ def main():
     if ask_yes_no('USE-GUROBI'):
         write(['# USE-GUROBI',
                'OPTS += -DUSE_GUROBI',
-               'LDFLAGS += -lgurobi_c++ -lgurobi56 -lpthread'])
+               'LDFLAGS += -lgurobi_c++ -lgurobi60 -lpthread'])
 
     if _disable_rm or _disable_cut_lhs:
         disp = ['# FOR DEBUG']
@@ -70,10 +79,20 @@ def main():
 
     write(['.cpp.o:',
            '\t$(CXX) $(OPTS) $(IDFLAGS) -c -o $(<:.cpp=.o) $<'])
+    
+    disp = ['lib: $(L_OBJS)']
+    if get_dir(lib_target):
+        disp.append('\tmkdir -p %s' % get_dir(lib_target))
+    disp.append('\t$(CXX) $(OPTS) $(L_OBJS) $(IDFLAGS) $(LDFLAGS) -shared -Wl,-soname,$(L_TARGET) -o $(L_TARGET)')
+    write(disp)
+    
+    write(['.cpp.lo:',
+           '\t$(CXX) $(OPTS) $(IDFLAGS) -fPIC -c -o $(<:.cpp=.lo) $<'])
 
     write(['clean:',
            '\trm -f $(TARGET)',
-           '\trm -f $(OBJS)'])
+           '\trm -f $(OBJS)',
+           '\trm -f $(L_OBJS)'])
 
     write(['tar:',
            '\ttar cvzf $(TARGET).tar.gz $(SOURCE) $(HEDDER) Makefile'])
