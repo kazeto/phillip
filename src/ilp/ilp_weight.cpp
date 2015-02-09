@@ -115,10 +115,13 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
             _check_timeout;
     }
 
-    const lf::logical_function_t *req = phillip()->get_requirement();
-    if (req != NULL)
-        prob->add_variable_for_requirement(*req, false);
-    _check_timeout;
+    if (phillip()->flag("pseudo_positive"))
+    {
+        const lf::logical_function_t *req = phillip()->get_requirement();
+        if (req != NULL)
+            prob->add_variable_for_requirement(*req, false);
+        _check_timeout;
+    }
     
     prob->add_constraints_of_mutual_exclusions();
     _check_timeout;

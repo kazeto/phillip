@@ -214,6 +214,9 @@ public:
         term_t t1, term_t t2, term_t t3);
     void add_constraints_of_transitive_unifications();
 
+    /** Returns variables to be true in order to satisfy given requirement. */
+    void enumerate_variables_for_requirement(
+        const literal_t &lit, hash_set<variable_idx_t> *out) const;
     void add_variable_for_requirement(const lf::logical_function_t &req, bool do_maximize);
 
     void add_constrains_of_conditions_for_chain(pg::edge_idx_t idx);
@@ -366,6 +369,10 @@ public:
     void filter_unsatisfied_constraints(
         hash_set<constraint_idx_t> *targets,
         hash_set<constraint_idx_t> *filtered) const;
+
+    /** Check whether this satisfy given logical function of requirement.
+     *  LITERAL or OR is applicable as the operator of req. */
+    bool do_satisfy_requirement(lf::logical_function_t &req) const;
 
     std::string to_string() const;
     void print(std::ostream *os = &std::cout) const;

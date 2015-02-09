@@ -135,8 +135,13 @@ ilp::ilp_problem_t* costed_converter_t::execute() const
     }
     if (is_timeout()) return prob;
 
-    const lf::logical_function_t *req = phillip()->get_requirement();
-    if (req != NULL) prob->add_variable_for_requirement(*req, false);
+    if (phillip()->flag("pseudo_positive"))
+    {
+        const lf::logical_function_t *req = phillip()->get_requirement();
+        if (req != NULL)
+            prob->add_variable_for_requirement(*req, false);
+        if (is_timeout()) return prob;
+    }
 
     prob->add_constrains_of_exclusive_chains();
     prob->add_constraints_of_mutual_exclusions();
