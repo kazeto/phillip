@@ -1,11 +1,13 @@
 # 2015/02/09 (Phil.2.61)
 
-- Revised `tools/configure.py` so that makefile uses Gurobi Optimizer 6.0.
+- Revised `tools/configure.py` so that a makefile uses Gurobi Optimizer 6.0.
 - Revised the objective function of setting stop-words.
 - Added the function to check whether given literals (requirements) are included in the solution hypothesis.
     - You can activate this by using `req` function in an observation:
     ```
-        (O (name foo) (req (p X Y) (= s Y)) (^ ...))
+        (O (name foo)
+           (req (p X Y) (= s Y))
+           (^ ...))
     ```
     - The result of a check is written as `requirements` element in XML output.
 - Added the option `-P` to get a pseudo positive sample.

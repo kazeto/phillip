@@ -12,7 +12,7 @@ Phillip is the first-ordered abductive reasoner for natural language processing 
 
 ## Linux, OS X
 
-1. Install ILP-solver (Gurobi 5.X ~ 6.X or LP-Solve 5.5) which you want to use.
+1. Install ILP-solver (Gurobi 6.0.X or LP-Solve 5.5) which you want to use.
 2. Move to the directory where Phillip is installed.
 2. Execute `python tools/configure.py`. Then makefile will be created.
 3. Configure environment variables:  
@@ -23,7 +23,7 @@ Phillip is the first-ordered abductive reasoner for natural language processing 
 
 ## Windows
 
-1. Install ILP-solver (Gurobi 5.X ~ 6.X or LP-Solve 5.5) which you want to use.
+1. Install ILP-solver (Gurobi 6.0.X or LP-Solve 5.5) which you want to use.
 2. Open ./vs/phillip.sln with Visual C++.
 3. Configure property of the project.  
     - Under the construction... X(
