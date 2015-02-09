@@ -214,10 +214,12 @@ public:
         term_t t1, term_t t2, term_t t3);
     void add_constraints_of_transitive_unifications();
 
-    /** Returns variables to be true in order to satisfy given requirement. */
+    /** Returns variables to be true in order to satisfy given requirement.
+     *  To satisfy, at least one of variables returned should be true. */
     void enumerate_variables_for_requirement(
-        const literal_t &lit, hash_set<variable_idx_t> *out) const;
-    void add_variable_for_requirement(const lf::logical_function_t &req, bool do_maximize);
+        const std::pair<literal_t, pg::node_idx_t> &req,
+        hash_set<variable_idx_t> *out) const;
+    void add_variables_for_requirement(bool do_maximize);
 
     void add_constrains_of_conditions_for_chain(pg::edge_idx_t idx);
     void add_constrains_of_exclusive_chains();
@@ -319,9 +321,6 @@ protected:
     hash_map<pg::hypernode_idx_t, variable_idx_t> m_map_hypernode_to_variable;
     hash_map<pg::edge_idx_t, variable_idx_t> m_map_edge_to_variable;
 
-    std::list< std::pair<
-        const lf::logical_function_t*, variable_idx_t> > m_variables_for_requirements;
-
     hash_set<std::string> m_log_of_term_triplet_for_transitive_unification;
     hash_set<std::string> m_log_of_node_tuple_for_mutual_exclusion;
 
@@ -372,7 +371,8 @@ public:
 
     /** Check whether this satisfy given logical function of requirement.
      *  LITERAL or OR is applicable as the operator of req. */
-    bool do_satisfy_requirement(lf::logical_function_t &req) const;
+    bool do_satisfy_requirement(
+        const std::pair<literal_t, pg::node_idx_t> &req) const;
 
     std::string to_string() const;
     void print(std::ostream *os = &std::cout) const;

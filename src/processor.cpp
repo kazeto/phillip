@@ -21,24 +21,24 @@ namespace proc
         return; }
 
 
-void parse_obs_t::process( const sexp::reader_t *reader )
+void parse_obs_t::process(const sexp::reader_t *reader)
 {
-    const sexp::stack_t& stack( *reader->get_stack() );
-    
-    if( not stack.is_functor("O") or m_inputs == NULL )
+    const sexp::stack_t& stack(*reader->get_stack());
+
+    if (not stack.is_functor("O") or m_inputs == NULL)
         return;
 
     /* SHOULD BE ROOT. */
-    _assert_syntax(reader->is_root(), (*reader), "Function O should be root." );
+    _assert_syntax(reader->is_root(), (*reader), "Function O should be root.");
 
     std::string name = "?";
     int i_x = stack.find_functor(lf::OPR_STR_AND);
     int i_y = stack.find_functor(lf::OPR_STR_REQUIREMENT);
     int i_name = stack.find_functor(lf::OPR_STR_NAME);
-    
-    if( i_name >= 0 )
+
+    if (i_name >= 0)
         name = stack.children.at(i_name)->children.at(1)->get_string();
-    if( i_x < 0 )
+    if (i_x < 0)
     {
         print_warning("Any input was not found:" + name);
         return;
@@ -46,12 +46,12 @@ void parse_obs_t::process( const sexp::reader_t *reader )
 
     lf::input_t data;
     data.name = reader->name() + "::" + name;
-    data.obs  = lf::logical_function_t( *stack.children.at(i_x) );
-        
-    if( i_y >= 0 )
-        data.req = lf::logical_function_t( *stack.children.at(i_y) );
-        
-    m_inputs->push_back( data );
+    data.obs = lf::logical_function_t(*stack.children.at(i_x));
+
+    if (i_y >= 0)
+        data.req = lf::logical_function_t(*stack.children.at(i_y));
+
+    m_inputs->push_back(data);
 }
 
 

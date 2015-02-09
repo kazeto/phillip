@@ -230,7 +230,10 @@ public:
     inline const std::string& name() const { return m_name; }
     
     inline node_idx_t add_observation(const literal_t &lit, int depth = 0);
-    inline node_idx_t add_label(const literal_t &lit, int depth = 0);
+
+    /** Add an element of requirements.
+     *  The operator of req must be OPR_LITERAL or OPR_OR. */
+    void add_requirement(const lf::logical_function_t &req);
 
     /** Add a new hypernode to this proof graph and update maps.
      *  If a hypernode which has same nodes already exists, return its index.
@@ -261,6 +264,9 @@ public:
 
     /** Returns a set of indices of observable nodes. */
     hash_set<node_idx_t> enumerate_observations() const;
+
+    inline const std::vector<std::list<
+        std::pair<literal_t, pg::node_idx_t> > >& requirements() const;
 
     std::list<std::tuple<node_idx_t, node_idx_t, unifier_t> >
         enumerate_mutual_exclusive_nodes() const;
@@ -549,6 +555,8 @@ protected:
     std::vector<node_t> m_nodes;
     std::vector< std::vector<node_idx_t> > m_hypernodes;
     std::vector<edge_t> m_edges;
+
+    std::vector<std::list<std::pair<literal_t, pg::node_idx_t> > > m_requirements;
 
     std::vector<kb::arity_id_t> m_arity_ids;
     

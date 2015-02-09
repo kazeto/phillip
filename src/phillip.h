@@ -87,6 +87,7 @@ public:
 
     inline const hash_set<std::string>& flags() const;
     inline bool flag(const std::string &key) const;
+    inline bool do_infer_pseudo_positive() const;
 
     inline const long& get_clock_for_lhs()  const;
     inline const long& get_clock_for_ilp()  const;

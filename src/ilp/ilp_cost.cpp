@@ -80,7 +80,8 @@ ilp::ilp_problem_t* costed_converter_t::execute() const
     for (pg::node_idx_t i = 0; i < graph->nodes().size(); ++i)
     {
         ilp::variable_idx_t var = prob->add_variable_of_node(i);
-        if (graph->node(i).type() == pg::NODE_OBSERVABLE)
+        if (graph->node(i).type() == pg::NODE_OBSERVABLE or
+            graph->node(i).type() == pg::NODE_REQUIRED)
             prob->add_constancy_of_variable(var, 1.0);
     }
     if (is_timeout()) return prob;
@@ -135,11 +136,9 @@ ilp::ilp_problem_t* costed_converter_t::execute() const
     }
     if (is_timeout()) return prob;
 
-    if (phillip()->flag("pseudo_positive"))
+    if (phillip()->do_infer_pseudo_positive())
     {
-        const lf::logical_function_t *req = phillip()->get_requirement();
-        if (req != NULL)
-            prob->add_variable_for_requirement(*req, false);
+        prob->add_variables_for_requirement(false);
         if (is_timeout()) return prob;
     }
 
@@ -196,7 +195,13 @@ double costed_converter_t::basic_cost_provider_t::edge_cost(
             break;
     }
     else if (edge.is_unify_edge())
-        cost = m_literal_unifying_cost;
+    {
+        const std::vector<pg::node_idx_t>& from =
+            graph->hypernode(graph->edge(idx).tail());
+        if (graph->node(from[0]).type() != pg::NODE_REQUIRED and
+            graph->node(from[1]).type() != pg::NODE_REQUIRED)
+            cost = m_literal_unifying_cost;
+    }
 
     return cost;
 }
@@ -205,9 +210,8 @@ double costed_converter_t::basic_cost_provider_t::edge_cost(
 double costed_converter_t::basic_cost_provider_t::node_cost(
     const pg::proof_graph_t *graph, pg::node_idx_t idx) const
 {
-    if (m_term_unifying_cost != 0.0)
     if (graph->node(idx).is_equality_node())
-        m_term_unifying_cost;
+        return m_term_unifying_cost;
 
     return 0.0;
 }

@@ -103,10 +103,6 @@ void ilp_problem_t::merge(const ilp_problem_t &prob)
         prob.m_log_of_node_tuple_for_mutual_exclusion.begin(),
         prob.m_log_of_node_tuple_for_mutual_exclusion.end());
 
-    foreach(it, prob.m_variables_for_requirements)
-        m_variables_for_requirements.push_back(
-        std::make_pair(it->first, it->second + num_v));
-
     // SKIP TO MERGE m_log_of_*
 #undef foreach
 }
@@ -541,13 +537,16 @@ void ilp_problem_t::add_constraints_of_transitive_unifications()
 }
 
 
-void enumerate_variables_for_requirement(
-    const literal_t &lit, hash_set<variable_idx_t> *out) const
+void ilp_problem_t::enumerate_variables_for_requirement(
+    const std::pair<literal_t, pg::node_idx_t> &req,
+    hash_set<variable_idx_t> *out) const
 {
-    if (lit.is_equality())
+    assert(req.first.is_equality() == (req.second < 0));
+
+    if (req.second < 0)
     {
-        pg::node_idx_t n =
-            m_graph->find_sub_node(lit.terms.at(0), lit.terms.at(1));
+        pg::node_idx_t n = m_graph->find_sub_node(
+            req.first.terms.at(0), req.first.terms.at(1));
         if (n >= 0)
         {
             variable_idx_t v = find_variable_with_node(n);
@@ -557,17 +556,12 @@ void enumerate_variables_for_requirement(
     else
     {
         const hash_set<pg::node_idx_t> *nodes =
-            m_graph->search_nodes_with_arity(lit.get_arity());
-        pg::node_idx_t n_req(-1);
+            m_graph->search_nodes_with_arity(req.first.get_arity());
 
-        for (auto idx : m_graph->enumerate_nodes_with_literal(lit))
-            if (m_graph->node(idx).type() == pg::NODE_REQUIRED)
-                n_req = *it;
-
-        if (nodes != NULL and n_req >= 0)
+        if (nodes != NULL)
         for (auto n_idx : (*nodes))
         {
-            pg::edge_idx_t e = m_graph->find_unifying_edge(n_req, n_idx);
+            pg::edge_idx_t e = m_graph->find_unifying_edge(req.second, n_idx);
             
             if (e >= 0)
             {
@@ -579,63 +573,40 @@ void enumerate_variables_for_requirement(
 }
 
 
-void ilp_problem_t::add_variable_for_requirement(
-    const lf::logical_function_t &req, bool do_maximize)
+void ilp_problem_t::add_variables_for_requirement(bool do_maximize)
 {
-    if (not req.is_operator(lf::OPR_REQUIREMENT)) return;
-
+    auto reqs = m_graph->requirements();
     const double PENALTY = do_maximize ? -10000.0 : 10000.0;
-    typedef std::pair<const lf::logical_function_t*, hash_set<variable_idx_t> > _requirement_t;
-    std::list<_requirement_t> requirements;
-
-    auto add_requirement_lit = [&](
-        const lf::logical_function_t &_lf, _requirement_t *out)
-    {
-        hash_set<variable_idx_t> _vars;
-        enumerate_variables_for_requirement(_lf.literal(), &_vars);
-        if (not _vars.empty())
-            out->second.insert(_vars.begin(), _vars.end());
-    };
-
-    auto add_requirement_or = [&](const lf::logical_function_t &_lf)
-    {
-        _requirement_t _or = std::make_pair(&_lf, hash_set<variable_idx_t>());
-        for (auto it_br = _lf.branches().begin(); it_br != _lf.branches().end(); ++it_br)
-        {
-            if (it_br->is_operator(lf::OPR_LITERAL))
-                add_requirement_lit(it_br->literal(), &_or);
-        }
-        if (not _or.second.empty())
-            requirements.push_back(_or);
-    };
-
-    for (auto it = req.branches().begin(); it != req.branches().end(); ++it)
-    {
-        if (it->is_operator(lf::OPR_LITERAL))
-        {
-            _requirement_t _req = std::make_pair(&(*it), hash_set<variable_idx_t>());
-            add_requirement_lit(*it, &_req);
-            if (not _req.second.empty()) requirements.push_back(_req);
-        }
-        else if (it->is_operator(lf::OPR_OR))
-            add_requirement_or(*it);
-    }
 
     // ADDING VARIABLES & CONSTRAINTS.
-    for (auto it = requirements.begin(); it != requirements.end(); ++it)
+    for (auto req : m_graph->requirements())
     {
-        std::string str = it->first->to_string();
+        std::string str;
+        if (req.size() > 1)
+        {
+            str += "(v";
+            for (auto p : req)
+                str += " " + p.first.to_string();
+            str += ")";
+        }
+        else
+            str += req.front().first.to_string();
+
         variable_idx_t var = add_variable(
             variable_t(format("violation:%s", str.c_str()), PENALTY));
         constraint_t con(
             format("for_requirement:%s", str.c_str()), OPR_GREATER_EQ, 1.0);
 
-        for (auto v = it->second.begin(); v != it->second.end(); ++v)
-            con.add_term(*v, 1.0);
+        for (auto p : req)
+        {
+            hash_set<variable_idx_t> vars;
+            enumerate_variables_for_requirement(p, &vars);
+            for (auto v : vars)
+                con.add_term(v, 1.0);
+        }
         con.add_term(var, 1.0);
 
         add_constraint(con);
-        m_variables_for_requirements.push_back(std::make_pair(it->first, var));
     }
 }
 
@@ -871,24 +842,38 @@ void ilp_problem_t::print_solution(
 void ilp_problem_t::_print_requirements_in_solution(
     const ilp_solution_t *sol, std::ostream *os) const
 {
-    if (m_variables_for_requirements.empty())
-    {
-    }
-    else
-    {
-        const std::list< std::pair<const lf::logical_function_t*, variable_idx_t> >
-            &vars = m_variables_for_requirements;
+    auto reqs = m_graph->requirements();
 
-        (*os) << "<requirements num=\"" << vars.size() << "\">" << std::endl;
+    (*os) << "<requirements num=\"" << reqs.size() << "\">" << std::endl;
 
-        for (auto it = vars.begin(); it != vars.end(); ++it)
+    for (auto req : reqs)
+    {
+        std::vector<std::pair<literal_t, bool> > sat;
+
+        for (auto p : req)
+            sat.push_back(std::make_pair(
+            p.first, sol->do_satisfy_requirement(p)));
+
+        bool is_satisfied(false);
+
+        for (auto s : sat)
+        if (s.second)
+            is_satisfied = true;
+
+        (*os)
+            << "<requirement num=\"" << req.size()
+            << "\" satisfied=\"" << (is_satisfied ? "yes" : "no")
+            << "\">" << std::endl;
+
+        for (auto s : sat)
         {
-            std::string lf_str = it->first->to_string();
-            bool is_satisfied = not sol->variable_is_active(it->second);
             (*os)
-                << "<requirement satisfied=\"" << (is_satisfied ? "yes" : "no")
-                << "\">" << lf_str << "</requirement>" << std::endl;
+                << "<or satisfied=\"" << (s.second ? "yes" : "no")
+                << "\">" << s.first.to_string()
+                << "</or>" << std::endl;
         }
+
+        (*os) << "</requirement>" << std::endl;
     }
 
     (*os) << "</requirements>" << std::endl;
@@ -1099,23 +1084,17 @@ void ilp_solution_t::filter_unsatisfied_constraints(
 }
 
 
-void ilp_solution_t::do_satisfy_requirement(lf::logical_function_t &req) const
+bool ilp_solution_t::do_satisfy_requirement(
+    const std::pair<literal_t, pg::node_idx_t> &req) const
 {
-    assert(req.is_operator(OPR_LITERAL) or req.is_operator(OPR_OR));
+    hash_set<variable_idx_t> vars;
+    m_ilp->enumerate_variables_for_requirement(req, &vars);
 
-    auto funcs = get_all_literals();
-    for (auto f : funcs)
-    {
-        bool do_satisfy(true);
-        hash_set<variable_idx_t> vars;
-        enumerate_variables_for_requirement(*f, &vars);
-        
-        for (auto v : vars)
-        {
-            if (not variable_is_active(v))
-                do_satisfy = false;
-        }
-    }
+    for (auto v : vars)
+    if (variable_is_active(v))
+        return true;
+
+    return false;
 }
 
 

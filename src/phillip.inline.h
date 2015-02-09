@@ -202,6 +202,12 @@ inline bool phillip_main_t::flag(const std::string &key) const
 { return m_flags.find(key) != m_flags.end(); }
 
 
+inline bool phillip_main_t::do_infer_pseudo_positive() const
+{
+    return flag("get_pseudo_positive");
+}
+
+
 inline const long& phillip_main_t::get_clock_for_lhs() const
 { return m_clock_for_enumerate; }
 

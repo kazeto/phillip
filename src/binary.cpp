@@ -9,7 +9,7 @@ namespace bin
 {
 
 
-char ACCEPTABLE_OPTIONS[] = "hc:e:f:k:l:m:o:p:t:v:T:";
+char ACCEPTABLE_OPTIONS[] = "c:e:f:hk:l:m:o:p:t:v:PT:";
 
 
 bool _load_config_file(
@@ -256,6 +256,10 @@ bool _interpret_option(
         else
             return false;
     }
+
+    case 'P':
+        phillip->set_flag("get_pseudo_positive");
+        return true;
         
     case 'T': // ---- SET TIMEOUT [SECOND]
     {                  

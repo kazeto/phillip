@@ -180,13 +180,6 @@ inline node_idx_t proof_graph_t::
 }
 
 
-inline node_idx_t proof_graph_t::add_label(const literal_t &lit, int depth)
-{
-    node_idx_t idx = add_node(lit, NODE_REQUIRED, depth, hash_set<node_idx_t>());
-    return idx;
-}
-
-
 inline hypernode_idx_t proof_graph_t::backward_chain(
     const std::vector<node_idx_t> &target, const lf::axiom_t &axiom)
 {
@@ -210,21 +203,36 @@ inline const node_t& proof_graph_t::node( node_idx_t i ) const
 
 
 inline const std::vector<edge_t>& proof_graph_t::edges() const
-{ return m_edges; }
+{
+    return m_edges;
+}
 
 
 inline const edge_t& proof_graph_t::edge( edge_idx_t i ) const
-{ return m_edges.at(i); }
+{
+    return m_edges.at(i);
+}
 
 
 inline const std::vector< std::vector<node_idx_t> >&
     proof_graph_t::hypernodes() const
-{ return m_hypernodes; }
+{
+        return m_hypernodes;
+}
 
 
 inline const std::vector<node_idx_t>&
 proof_graph_t::hypernode( hypernode_idx_t i ) const
-{ return m_hypernodes.at(i); }
+{
+    return m_hypernodes.at(i);
+}
+
+
+inline const std::vector<std::list<std::pair<literal_t, pg::node_idx_t> > >&
+proof_graph_t::requirements() const
+{
+    return m_requirements;
+}
 
 
 inline const unifier_t* proof_graph_t::search_mutual_exclusion_of_node(

@@ -70,7 +70,8 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
     for (pg::node_idx_t i = 0; i < graph->nodes().size(); ++i)
     {
         ilp::variable_idx_t var = prob->add_variable_of_node(i);
-        if (graph->node(i).type() == pg::NODE_OBSERVABLE)
+        if (graph->node(i).type() == pg::NODE_OBSERVABLE or
+            graph->node(i).type() == pg::NODE_REQUIRED)
             prob->add_constancy_of_variable(var, 1.0);
         if (i % 100 == 0)
             _check_timeout;
@@ -115,11 +116,9 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
             _check_timeout;
     }
 
-    if (phillip()->flag("pseudo_positive"))
+    if (phillip()->do_infer_pseudo_positive())
     {
-        const lf::logical_function_t *req = phillip()->get_requirement();
-        if (req != NULL)
-            prob->add_variable_for_requirement(*req, false);
+        prob->add_variables_for_requirement(false);
         _check_timeout;
     }
     
@@ -260,7 +259,7 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
                 {
                     const pg::edge_t edge = graph->edge(e);
 
-                    // TARGETS ONLY EDGES WHOSE HEAD INCLUDES n_idx
+                    // ONLY EDGES WHOSE HEAD INCLUDES n_idx ARE APPLICABLE.
                     if (edge.tail() != hn) continue;
 
                     if (edge.is_chain_edge())
@@ -268,6 +267,11 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
                     else if (edge.is_unify_edge())
                     {
                         auto from = graph->hypernode(edge.tail());
+
+                        if (graph->node(from[0]).type() == pg::NODE_REQUIRED or
+                            graph->node(from[1]).type() == pg::NODE_REQUIRED)
+                            continue;
+
                         double cost1 = get_cost_of_node(from[0]);
                         double cost2 = get_cost_of_node(from[1]);
                         if ((n_idx == from[0]) == (cost1 > cost2))
