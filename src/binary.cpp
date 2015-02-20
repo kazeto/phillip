@@ -1,5 +1,6 @@
 #include "./lib/getopt_win.h"
 #include "./binary.h"
+#include "./processor.h"
 
 
 namespace phil
@@ -12,20 +13,249 @@ namespace bin
 char ACCEPTABLE_OPTIONS[] = "c:e:f:hk:l:m:o:p:t:v:PT:";
 
 
+
+class _depth_based_enumerator_generater_t :
+    public component_generater_t<lhs_enumerator_t>
+{
+public:
+    virtual lhs_enumerator_t* operator()(phillip_main_t *ph) const override
+    {
+        return new lhs::depth_based_enumerator_t(
+            ph,
+            ph->param_int("max_depth"),
+            ph->param_float("max_distance"),
+            ph->param_float("max_redundancy"),
+            ph->flag("disable_reachable_matrix"));
+    }
+};
+
+
+class _a_star_based_enumerator_generater_t :
+    public component_generater_t<lhs_enumerator_t>
+{
+public:
+    virtual lhs_enumerator_t* operator()(phillip_main_t *ph) const override
+    {
+        return new lhs::a_star_based_enumerator_t(
+            ph,
+            ph->param_float("max_distance"),
+            ph->param_int("max_depth"));
+    }
+};
+
+
+class _null_converter_generater_t :
+    public component_generater_t<ilp_converter_t>
+{
+public:
+    virtual ilp_converter_t* operator()(phillip_main_t *ph) const override
+    {
+        return new ilp::null_converter_t(ph);
+    }
+};
+
+
+class _weighted_converter_generater_t :
+    public component_generater_t<ilp_converter_t>
+{
+public:
+    virtual ilp_converter_t* operator()(phillip_main_t *ph) const override
+    {
+        return new ilp::weighted_converter_t(
+            ph,
+            ph->param_float("default_obs_cost", 10.0),
+            ilp::weighted_converter_t::parse_string_to_weight_provider(
+            ph->param("weight_provider")));
+    }
+};
+
+
+class _costed_converter_generater_t :
+    public component_generater_t<ilp_converter_t>
+{
+public:
+    virtual ilp_converter_t* operator()(phillip_main_t *ph) const override
+    {
+        const std::string &param = ph->param("cost_provider");
+        ilp::costed_converter_t::cost_provider_t *ptr =
+            ilp::costed_converter_t::parse_string_to_cost_provider(param);
+
+        return new ilp::costed_converter_t(ph, ptr);
+    }
+};
+
+
+class _null_solver_generater_t :
+    public component_generater_t<ilp_solver_t>
+{
+public:
+    virtual ilp_solver_t* operator()(phillip_main_t *ph) const override
+    {
+        return new sol::null_solver_t(ph);
+    }
+};
+
+
+class _lp_solve_generater_t :
+    public component_generater_t<ilp_solver_t>
+{
+public:
+    virtual ilp_solver_t* operator()(phillip_main_t *ph) const override
+    {
+        return new sol::lp_solve_t(ph);
+    }
+};
+
+
+class _gurobi_generater_t :
+    public component_generater_t<ilp_solver_t>
+{
+public:
+    virtual ilp_solver_t* operator()(phillip_main_t *ph) const override
+    {
+        return new sol::gurobi_t(
+            ph,
+            ph->param_int("gurobi_thread_num"),
+            ph->flag("activate_gurobi_log"));
+    }
+};
+
+
+std::unique_ptr<lhs_enumerator_library_t, lhs_enumerator_library_t::deleter>
+lhs_enumerator_library_t::ms_instance;
+
+
+lhs_enumerator_library_t* lhs_enumerator_library_t::instance()
+{
+    if (not ms_instance)
+        ms_instance.reset(new lhs_enumerator_library_t());
+    return ms_instance.get();
+}
+
+
+lhs_enumerator_library_t::lhs_enumerator_library_t()
+{
+    add("depth", new _depth_based_enumerator_generater_t());
+    add("a*", new _a_star_based_enumerator_generater_t());
+}
+
+
+lhs_enumerator_library_t::~lhs_enumerator_library_t()
+{
+    for (auto it = begin(); it != end(); ++it)
+        delete it->second;
+}
+
+
+void lhs_enumerator_library_t::add(
+    const std::string &key, component_generater_t<lhs_enumerator_t> *ptr)
+{
+    insert(std::make_pair(key, ptr));
+}
+
+
+lhs_enumerator_t* lhs_enumerator_library_t::generate(
+    const std::string &key, phillip_main_t *phillip)
+{
+    auto found = find(key);
+    return (found != end()) ? (*found->second)(phillip) : NULL;     
+}
+
+
+std::unique_ptr<ilp_converter_library_t, ilp_converter_library_t::deleter>
+ilp_converter_library_t::ms_instance;
+
+
+ilp_converter_library_t* ilp_converter_library_t::instance()
+{
+    if (not ms_instance)
+        ms_instance.reset(new ilp_converter_library_t());
+    return ms_instance.get();
+}
+
+
+ilp_converter_library_t::ilp_converter_library_t()
+{
+    add("null", new _null_converter_generater_t());
+    add("weighted", new _weighted_converter_generater_t());
+    add("costed", new _costed_converter_generater_t());
+}
+
+
+ilp_converter_library_t::~ilp_converter_library_t()
+{
+    for (auto it = begin(); it != end(); ++it)
+        delete it->second;
+}
+
+
+void ilp_converter_library_t::add(
+    const std::string &key, component_generater_t<ilp_converter_t> *ptr)
+{
+    insert(std::make_pair(key, ptr));
+}
+
+
+ilp_converter_t* ilp_converter_library_t::generate(
+    const std::string &key, phillip_main_t *phillip)
+{
+    auto found = find(key);
+    return (found != end()) ? (*found->second)(phillip) : NULL;
+}
+
+
+std::unique_ptr<ilp_solver_library_t, ilp_solver_library_t::deleter>
+ilp_solver_library_t::ms_instance;
+
+
+ilp_solver_library_t* ilp_solver_library_t::instance()
+{
+    if (not ms_instance)
+        ms_instance.reset(new ilp_solver_library_t());
+    return ms_instance.get();
+}
+
+
+ilp_solver_library_t::ilp_solver_library_t()
+{
+    add("null", new _null_solver_generater_t());
+    add("lpsolve", new _lp_solve_generater_t());
+    add("gurobi", new _gurobi_generater_t());
+}
+
+
+ilp_solver_library_t::~ilp_solver_library_t()
+{
+    for (auto it = begin(); it != end(); ++it)
+        delete it->second;
+}
+
+
+void ilp_solver_library_t::add(
+    const std::string &key, component_generater_t<ilp_solver_t> *ptr)
+{
+    insert(std::make_pair(key, ptr));
+}
+
+
+ilp_solver_t* ilp_solver_library_t::generate(
+    const std::string &key, phillip_main_t *phillip)
+{
+    auto found = find(key);
+    return (found != end()) ? (*found->second)(phillip) : NULL;
+}
+
+
 bool _load_config_file(
     const char *filename, phillip_main_t *phillip,
-    execution_configure_t *option, std::vector<std::string> *inputs);
+    execution_configure_t *option, inputs_t *inputs);
 
 /** @return Validity of input. */
 bool _interpret_option(
     int opt, const std::string &arg, phillip_main_t *phillip,
-    execution_configure_t *option, std::vector<std::string> *inputs);
+    execution_configure_t *option, inputs_t *inputs);
 
 kb::distance_provider_type_e _get_distance_provider_type(const std::string &arg);
-lhs_enumerator_t* _new_lhs_enumerator(phillip_main_t *phillip, const std::string &key);
-ilp_converter_t* _new_ilp_converter(phillip_main_t *phillip, const std::string &key);
-ilp_solver_t* _new_ilp_solver(phillip_main_t *phillip, const std::string &key);
-
 
 
 execution_configure_t::execution_configure_t()
@@ -33,11 +263,110 @@ execution_configure_t::execution_configure_t()
 {}
 
 
-/** Parse command line options.
- * @return False if any error occured. */
+void prepare(
+    int argc, char* argv[], phillip_main_t *phillip,
+    execution_configure_t *config, inputs_t *inputs)
+{
+    initialize();
+
+    print_console("Phillip starts...");
+    print_console("  version: " + phillip_main_t::VERSION);
+
+    parse_options(argc, argv, phillip, config, inputs);
+    IF_VERBOSE_1("Phillip has completed parsing comand options.");
+
+    if (config->mode != bin::EXE_MODE_HELP)
+        preprocess(*config, phillip);
+}
+
+
+void execute(
+    phillip_main_t *phillip,
+    const execution_configure_t &config, const inputs_t &inputs)
+{
+    if (config.mode == bin::EXE_MODE_HELP)
+    {
+        bin::print_usage();
+        return;
+    }
+
+    bool do_compile =
+        (config.mode == bin::EXE_MODE_COMPILE_KB) or
+        phillip->flag("do_compile_kb");
+
+    /* COMPILING KNOWLEDGE-BASE */
+    if (do_compile)
+    {
+        kb::knowledge_base_t *kb = kb::knowledge_base_t::instance();
+        proc::processor_t processor;
+        print_console("Compiling knowledge-base ...");
+
+        kb->prepare_compile();
+
+        processor.add_component(new proc::compile_kb_t());
+        processor.process(inputs);
+
+        kb->finalize();
+
+        print_console("Completed to compile knowledge-base.");
+    }
+
+    /* INFERENCE */
+    if (config.mode == bin::EXE_MODE_INFERENCE)
+    {
+        std::vector<lf::input_t> parsed_inputs;
+        proc::processor_t processor;
+        bool flag_printing(false);
+
+        print_console("Loading observations ...");
+
+        processor.add_component(new proc::parse_obs_t(&parsed_inputs));
+        processor.process(inputs);
+
+        print_console("Completed to load observations.");
+        print_console_fmt("    # of observations: %d", parsed_inputs.size());
+
+        kb::knowledge_base_t::instance()->prepare_query();
+
+        if (phillip->check_validity())
+        if (kb::knowledge_base_t::instance()->is_valid_version())
+        for (int i = 0; i < parsed_inputs.size(); ++i)
+        {
+            const lf::input_t &ipt = parsed_inputs.at(i);
+
+            std::string obs_name = ipt.name;
+            if (obs_name.rfind("::") != std::string::npos)
+                obs_name = obs_name.substr(obs_name.rfind("::") + 2);
+
+            if (phillip->is_target(obs_name) and
+                not phillip->is_excluded(obs_name))
+            {
+                if (not flag_printing)
+                {
+                    phillip->write_header();
+                    flag_printing = true;
+                }
+
+                print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
+                kb::knowledge_base_t::instance()->clear_distance_cache();
+                phillip->infer(ipt);
+
+
+                auto sols = phillip->get_solutions();
+                for (auto sol = sols.begin(); sol != sols.end(); ++sol)
+                    sol->print_graph();
+            }
+        }
+
+        if (flag_printing)
+            phillip->write_footer();
+    }
+}
+
+
 bool parse_options(
     int argc, char* argv[], phillip_main_t *phillip,
-    execution_configure_t *config, std::vector<std::string> *inputs)
+    execution_configure_t *config, inputs_t *inputs)
 {
     int opt;
     
@@ -65,7 +394,7 @@ bool parse_options(
 /** Load the setting file. */
 bool _load_config_file(
     const char* filename, phillip_main_t *phillip,
-    execution_configure_t *config, std::vector<std::string> *inputs )
+    execution_configure_t *config, inputs_t *inputs )
 {
     char line[2048];
     std::ifstream fin( filename );
@@ -113,7 +442,7 @@ bool _load_config_file(
 
 bool _interpret_option(
     int opt, const std::string &arg, phillip_main_t *phillip,
-    execution_configure_t *config, std::vector<std::string> *inputs)
+    execution_configure_t *config, inputs_t *inputs)
 {
     switch(opt)
     {
@@ -308,65 +637,6 @@ kb::distance_provider_type_e _get_distance_provider_type(const std::string &arg)
 }
 
 
-lhs_enumerator_t* _new_lhs_enumerator(phillip_main_t *phillip, const std::string &key)
-{
-    if (key == "a*")
-        return new lhs::a_star_based_enumerator_t(
-            phillip,
-            phillip->param_float("max_distance"),
-            phillip->param_int("max_depth"));
-    
-    if (key == "depth")
-        return new lhs::depth_based_enumerator_t(
-        phillip,
-        phillip->param_int("max_depth"),
-        phillip->param_float("max_distance"),
-        phillip->param_float("max_redundancy"),
-        phillip->flag("disable_reachable_matrix"));
-
-    return NULL;
-}
-
-
-ilp_converter_t* _new_ilp_converter(phillip_main_t *phillip, const std::string &key)
-{
-    if (key == "null")
-        return new ilp::null_converter_t(phillip);
-    if (key == "weighted")
-    {
-        double obs = phillip->param_float("default_obs_cost", 10.0);
-        const std::string &param = phillip->param("weight_provider");
-        ilp::weighted_converter_t::weight_provider_t *ptr =
-            ilp::weighted_converter_t::parse_string_to_weight_provider(param);
-
-        return new ilp::weighted_converter_t(phillip, obs, ptr);
-    }
-    if (key == "costed")
-    {
-        const std::string &param = phillip->param("cost_provider");
-        ilp::costed_converter_t::cost_provider_t *ptr =
-            ilp::costed_converter_t::parse_string_to_cost_provider(param);
-        return new ilp::costed_converter_t(phillip, ptr);
-    }
-    return NULL;
-}
-
-
-ilp_solver_t* _new_ilp_solver(phillip_main_t *phillip, const std::string &key)
-{
-    if (key == "null")
-        return new sol::null_solver_t(phillip);
-    if (key == "lpsolve")
-        return new sol::lp_solve_t(phillip);
-    if (key == "gurobi")
-        return new sol::gurobi_t(
-        phillip,
-        phillip->param_int("gurobi_thread_num"),
-        phillip->flag("activate_gurobi_log"));
-    return NULL;
-}
-
-
 bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
 {
     if (config.mode == EXE_MODE_UNDERSPECIFIED)
@@ -399,9 +669,15 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
     for (auto n : config.excluded_obs_names)
         phillip->add_exclusion(n);
 
-    lhs_enumerator_t *lhs = _new_lhs_enumerator(phillip, config.lhs_key);
-    ilp_converter_t *ilp = _new_ilp_converter(phillip, config.ilp_key);
-    ilp_solver_t *sol = _new_ilp_solver(phillip, config.sol_key);
+    lhs_enumerator_t *lhs =
+        lhs_enumerator_library_t::instance()->
+        generate(config.lhs_key, phillip);
+    ilp_converter_t *ilp =
+        ilp_converter_library_t::instance()->
+        generate(config.ilp_key, phillip);
+    ilp_solver_t *sol =
+        ilp_solver_library_t::instance()->
+        generate(config.sol_key, phillip);
 
     kb::knowledge_base_t::setup(
         config.kb_name, dist_type, max_dist, thread_num, disable_stop_word);
