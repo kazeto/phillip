@@ -81,8 +81,6 @@ public:
         const pg::proof_graph_t*, pg::edge_idx_t) const;
 
 protected:
-    bool is_timeout(std::time_t begin) const;
-    
     double m_default_observation_cost;
     weight_provider_t *m_weight_provider;
 };

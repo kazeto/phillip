@@ -3,6 +3,8 @@
 #pragma once
 
 #include <vector>
+#include <ctime>
+
 #include "./define.h"
 
 
@@ -61,6 +63,11 @@ public:
      *  This is called by lhs_enumerator_t. */
     virtual enumeration_stopper_t* enumeration_stopper() const
     { return new enumeration_stopper_t(); }
+
+protected:
+    /** Converts proof-graph's structure into ILP problem. */
+    void convert_proof_graph(ilp::ilp_problem_t *prob) const;
+    bool is_timeout(std::time_t begin) const;
 };
 
 

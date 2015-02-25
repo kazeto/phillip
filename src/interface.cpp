@@ -33,4 +33,92 @@ bool lhs_enumerator_t::do_include_requirement(
 }
 
 
+void ilp_converter_t::convert_proof_graph(ilp::ilp_problem_t *prob) const
+{
+    const pg::proof_graph_t *graph = prob->proof_graph();
+    std::time_t begin;
+    std::time(&begin);
+
+#define _check_timeout if(is_timeout(begin)) { prob->timeout(true); return; }
+
+    // ADD VARIABLES FOR NODES
+    for (pg::node_idx_t i = 0; i < graph->nodes().size(); ++i)
+    {
+        ilp::variable_idx_t var = prob->add_variable_of_node(i);
+        if (graph->node(i).type() == pg::NODE_OBSERVABLE or
+            graph->node(i).type() == pg::NODE_REQUIRED)
+            prob->add_constancy_of_variable(var, 1.0);
+        if (i % 100 == 0)
+            _check_timeout;
+    }
+
+    // ADD VARIABLES FOR HYPERNODES
+    for (pg::hypernode_idx_t i = 0; i < graph->hypernodes().size(); ++i)
+    {
+        prob->add_variable_of_hypernode(i);
+        if (i % 100 == 0)
+            _check_timeout;
+    }
+
+    for (pg::edge_idx_t i = 0; i < graph->edges().size(); ++i)
+    {
+        prob->add_variable_of_edge(i);
+        if (i % 100 == 0)
+            _check_timeout;
+    }
+
+    // ADD CONSTRAINTS FOR NODES
+    for (pg::node_idx_t i = 0; i < graph->nodes().size(); ++i)
+    {
+        prob->add_constraint_of_dependence_of_node_on_hypernode(i);
+        if (i % 100 == 0)
+            _check_timeout;
+    }
+
+    // ADD CONSTRAINTS FOR HYPERNODES
+    for (pg::hypernode_idx_t i = 0; i < graph->hypernodes().size(); ++i)
+    {
+        prob->add_constraint_of_dependence_of_hypernode_on_parents(i);
+        if (i % 100 == 0)
+            _check_timeout;
+    }
+
+    // ADD CONSTRAINTS FOR CHAINING EDGES
+    for (pg::edge_idx_t i = 0; i < graph->edges().size(); ++i)
+    {
+        prob->add_constrains_of_conditions_for_chain(i);
+        if (i % 100 == 0)
+            _check_timeout;
+    }
+
+    if (phillip()->do_infer_pseudo_positive())
+    {
+        prob->add_variables_for_requirement(false);
+        _check_timeout;
+    }
+
+    prob->add_constraints_of_mutual_exclusions();
+    _check_timeout;
+
+    prob->add_constrains_of_exclusive_chains();
+    _check_timeout;
+
+    prob->add_constraints_of_transitive_unifications();
+    _check_timeout;
+}
+
+
+bool ilp_converter_t::is_timeout(std::time_t begin) const
+{
+    std::time_t now;
+    std::time(&now);
+    int t_ilp(now - begin);
+    int t_all(phillip()->get_time_for_lhs() + t_ilp);
+
+    return
+        phillip()->is_timeout_ilp(t_ilp) or
+        phillip()->is_timeout_all(t_all);
+}
+
+
 }
