@@ -14,7 +14,9 @@ lpsolve55/*
 
 ; FOR UNIX
 *.o
+*.lo
 bin/*
+lib/*
 
 ; FOR WINDOWS
 Thumbs.db
