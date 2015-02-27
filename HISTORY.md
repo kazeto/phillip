@@ -1,3 +1,11 @@
+# 2015/02/27 (Phil.2.62)
+
+- Added an example of user-defined ilp-converter.
+    - Look `examples/my_ilp/main.cpp`
+- Revised `tools/configure.py` so that it generates a makefile for examples.
+- Refactored some source codes.
+
+
 # 2015/02/09 (Phil.2.61)
 
 - Revised `tools/configure.py` so that a makefile uses Gurobi Optimizer 6.0.
