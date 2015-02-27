@@ -14,8 +14,8 @@ char ACCEPTABLE_OPTIONS[] = "c:e:f:hk:l:m:o:p:t:v:PT:";
 
 
 
-class _depth_based_enumerator_generater_t :
-    public component_generater_t<lhs_enumerator_t>
+class _depth_based_enumerator_generator_t :
+    public component_generator_t<lhs_enumerator_t>
 {
 public:
     virtual lhs_enumerator_t* operator()(phillip_main_t *ph) const override
@@ -30,8 +30,8 @@ public:
 };
 
 
-class _a_star_based_enumerator_generater_t :
-    public component_generater_t<lhs_enumerator_t>
+class _a_star_based_enumerator_generator_t :
+    public component_generator_t<lhs_enumerator_t>
 {
 public:
     virtual lhs_enumerator_t* operator()(phillip_main_t *ph) const override
@@ -44,8 +44,8 @@ public:
 };
 
 
-class _null_converter_generater_t :
-    public component_generater_t<ilp_converter_t>
+class _null_converter_generator_t :
+    public component_generator_t<ilp_converter_t>
 {
 public:
     virtual ilp_converter_t* operator()(phillip_main_t *ph) const override
@@ -55,8 +55,8 @@ public:
 };
 
 
-class _weighted_converter_generater_t :
-    public component_generater_t<ilp_converter_t>
+class _weighted_converter_generator_t :
+    public component_generator_t<ilp_converter_t>
 {
 public:
     virtual ilp_converter_t* operator()(phillip_main_t *ph) const override
@@ -70,8 +70,8 @@ public:
 };
 
 
-class _costed_converter_generater_t :
-    public component_generater_t<ilp_converter_t>
+class _costed_converter_generator_t :
+    public component_generator_t<ilp_converter_t>
 {
 public:
     virtual ilp_converter_t* operator()(phillip_main_t *ph) const override
@@ -85,8 +85,8 @@ public:
 };
 
 
-class _null_solver_generater_t :
-    public component_generater_t<ilp_solver_t>
+class _null_solver_generator_t :
+    public component_generator_t<ilp_solver_t>
 {
 public:
     virtual ilp_solver_t* operator()(phillip_main_t *ph) const override
@@ -96,8 +96,8 @@ public:
 };
 
 
-class _lp_solve_generater_t :
-    public component_generater_t<ilp_solver_t>
+class _lp_solve_generator_t :
+    public component_generator_t<ilp_solver_t>
 {
 public:
     virtual ilp_solver_t* operator()(phillip_main_t *ph) const override
@@ -107,8 +107,8 @@ public:
 };
 
 
-class _gurobi_generater_t :
-    public component_generater_t<ilp_solver_t>
+class _gurobi_generator_t :
+    public component_generator_t<ilp_solver_t>
 {
 public:
     virtual ilp_solver_t* operator()(phillip_main_t *ph) const override
@@ -135,8 +135,8 @@ lhs_enumerator_library_t* lhs_enumerator_library_t::instance()
 
 lhs_enumerator_library_t::lhs_enumerator_library_t()
 {
-    add("depth", new _depth_based_enumerator_generater_t());
-    add("a*", new _a_star_based_enumerator_generater_t());
+    add("depth", new _depth_based_enumerator_generator_t());
+    add("a*", new _a_star_based_enumerator_generator_t());
 }
 
 
@@ -148,7 +148,7 @@ lhs_enumerator_library_t::~lhs_enumerator_library_t()
 
 
 void lhs_enumerator_library_t::add(
-    const std::string &key, component_generater_t<lhs_enumerator_t> *ptr)
+    const std::string &key, component_generator_t<lhs_enumerator_t> *ptr)
 {
     insert(std::make_pair(key, ptr));
 }
@@ -176,9 +176,9 @@ ilp_converter_library_t* ilp_converter_library_t::instance()
 
 ilp_converter_library_t::ilp_converter_library_t()
 {
-    add("null", new _null_converter_generater_t());
-    add("weighted", new _weighted_converter_generater_t());
-    add("costed", new _costed_converter_generater_t());
+    add("null", new _null_converter_generator_t());
+    add("weighted", new _weighted_converter_generator_t());
+    add("costed", new _costed_converter_generator_t());
 }
 
 
@@ -190,7 +190,7 @@ ilp_converter_library_t::~ilp_converter_library_t()
 
 
 void ilp_converter_library_t::add(
-    const std::string &key, component_generater_t<ilp_converter_t> *ptr)
+    const std::string &key, component_generator_t<ilp_converter_t> *ptr)
 {
     insert(std::make_pair(key, ptr));
 }
@@ -218,9 +218,9 @@ ilp_solver_library_t* ilp_solver_library_t::instance()
 
 ilp_solver_library_t::ilp_solver_library_t()
 {
-    add("null", new _null_solver_generater_t());
-    add("lpsolve", new _lp_solve_generater_t());
-    add("gurobi", new _gurobi_generater_t());
+    add("null", new _null_solver_generator_t());
+    add("lpsolve", new _lp_solve_generator_t());
+    add("gurobi", new _gurobi_generator_t());
 }
 
 
@@ -232,7 +232,7 @@ ilp_solver_library_t::~ilp_solver_library_t()
 
 
 void ilp_solver_library_t::add(
-    const std::string &key, component_generater_t<ilp_solver_t> *ptr)
+    const std::string &key, component_generator_t<ilp_solver_t> *ptr)
 {
     insert(std::make_pair(key, ptr));
 }

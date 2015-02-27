@@ -46,7 +46,7 @@ struct execution_configure_t
 
 
 template <class T>
-class component_generater_t
+class component_generator_t
 {
 public:
     virtual T* operator()(phillip_main_t*) const { return NULL; }
@@ -55,7 +55,7 @@ public:
 
 /** A class to generate lhs-enumerator from string key. */
 class lhs_enumerator_library_t :
-    protected hash_map<std::string, component_generater_t<lhs_enumerator_t>*>
+    protected hash_map<std::string, component_generator_t<lhs_enumerator_t>*>
 {
 public:
     struct deleter
@@ -68,7 +68,7 @@ public:
 
     void add(
         const std::string &key,
-        component_generater_t<lhs_enumerator_t> *ptr);
+        component_generator_t<lhs_enumerator_t> *ptr);
     lhs_enumerator_t* generate(
         const std::string &key, phillip_main_t *phillip);
 
@@ -81,7 +81,7 @@ private:
 
 /** A class to generate ilp-converter from string key. */
 class ilp_converter_library_t :
-    protected hash_map<std::string, component_generater_t<ilp_converter_t>*>
+    protected hash_map<std::string, component_generator_t<ilp_converter_t>*>
 {
 public:
     struct deleter
@@ -94,7 +94,7 @@ public:
 
     void add(
         const std::string &key,
-        component_generater_t<ilp_converter_t> *ptr);
+        component_generator_t<ilp_converter_t> *ptr);
     ilp_converter_t* generate(
         const std::string &key, phillip_main_t *phillip);
 
@@ -107,7 +107,7 @@ private:
 
 /** A class to generate ilp-solver from string key. */
 class ilp_solver_library_t :
-    protected hash_map<std::string, component_generater_t<ilp_solver_t>*>
+    protected hash_map<std::string, component_generator_t<ilp_solver_t>*>
 {
 public:
     struct deleter
@@ -120,7 +120,7 @@ public:
 
     void add(
         const std::string &key,
-        component_generater_t<ilp_solver_t> *ptr);
+        component_generator_t<ilp_solver_t> *ptr);
     ilp_solver_t* generate(
         const std::string &key, phillip_main_t *phillip);
 
