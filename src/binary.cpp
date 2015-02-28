@@ -121,7 +121,29 @@ public:
 };
 
 
-std::unique_ptr<lhs_enumerator_library_t, lhs_enumerator_library_t::deleter>
+class _basic_distance_provider_generator_t :
+    public component_generator_t<kb::distance_provider_t>
+{
+public:
+    virtual kb::distance_provider_t* operator()(phillip_main_t *ph) const override
+    {
+        return new kb::dist::basic_distance_provider_t();
+    }
+};
+
+
+class _cost_based_distance_provider_generator_t :
+    public component_generator_t<kb::distance_provider_t>
+{
+public:
+    virtual kb::distance_provider_t* operator()(phillip_main_t *ph) const override
+    {
+        return new kb::dist::cost_based_distance_provider_t();
+    }
+};
+
+
+std::unique_ptr<lhs_enumerator_library_t, deleter_t<lhs_enumerator_library_t> >
 lhs_enumerator_library_t::ms_instance;
 
 
@@ -140,29 +162,7 @@ lhs_enumerator_library_t::lhs_enumerator_library_t()
 }
 
 
-lhs_enumerator_library_t::~lhs_enumerator_library_t()
-{
-    for (auto it = begin(); it != end(); ++it)
-        delete it->second;
-}
-
-
-void lhs_enumerator_library_t::add(
-    const std::string &key, component_generator_t<lhs_enumerator_t> *ptr)
-{
-    insert(std::make_pair(key, ptr));
-}
-
-
-lhs_enumerator_t* lhs_enumerator_library_t::generate(
-    const std::string &key, phillip_main_t *phillip)
-{
-    auto found = find(key);
-    return (found != end()) ? (*found->second)(phillip) : NULL;     
-}
-
-
-std::unique_ptr<ilp_converter_library_t, ilp_converter_library_t::deleter>
+std::unique_ptr<ilp_converter_library_t, deleter_t<ilp_converter_library_t> >
 ilp_converter_library_t::ms_instance;
 
 
@@ -182,29 +182,7 @@ ilp_converter_library_t::ilp_converter_library_t()
 }
 
 
-ilp_converter_library_t::~ilp_converter_library_t()
-{
-    for (auto it = begin(); it != end(); ++it)
-        delete it->second;
-}
-
-
-void ilp_converter_library_t::add(
-    const std::string &key, component_generator_t<ilp_converter_t> *ptr)
-{
-    insert(std::make_pair(key, ptr));
-}
-
-
-ilp_converter_t* ilp_converter_library_t::generate(
-    const std::string &key, phillip_main_t *phillip)
-{
-    auto found = find(key);
-    return (found != end()) ? (*found->second)(phillip) : NULL;
-}
-
-
-std::unique_ptr<ilp_solver_library_t, ilp_solver_library_t::deleter>
+std::unique_ptr<ilp_solver_library_t, deleter_t<ilp_solver_library_t> >
 ilp_solver_library_t::ms_instance;
 
 
@@ -224,26 +202,24 @@ ilp_solver_library_t::ilp_solver_library_t()
 }
 
 
-ilp_solver_library_t::~ilp_solver_library_t()
+std::unique_ptr<distance_provider_library_t, deleter_t<distance_provider_library_t> >
+distance_provider_library_t::ms_instance;
+
+
+distance_provider_library_t* distance_provider_library_t::instance()
 {
-    for (auto it = begin(); it != end(); ++it)
-        delete it->second;
+    if (not ms_instance)
+        ms_instance.reset(new distance_provider_library_t());
+    return ms_instance.get();
 }
 
 
-void ilp_solver_library_t::add(
-    const std::string &key, component_generator_t<ilp_solver_t> *ptr)
+distance_provider_library_t::distance_provider_library_t()
 {
-    insert(std::make_pair(key, ptr));
+    add("basic", new _basic_distance_provider_generator_t());
+    add("cost", new _cost_based_distance_provider_generator_t());
 }
 
-
-ilp_solver_t* ilp_solver_library_t::generate(
-    const std::string &key, phillip_main_t *phillip)
-{
-    auto found = find(key);
-    return (found != end()) ? (*found->second)(phillip) : NULL;
-}
 
 
 bool _load_config_file(
@@ -254,8 +230,6 @@ bool _load_config_file(
 bool _interpret_option(
     int opt, const std::string &arg, phillip_main_t *phillip,
     execution_configure_t *option, inputs_t *inputs);
-
-kb::distance_provider_type_e _get_distance_provider_type(const std::string &arg);
 
 
 execution_configure_t::execution_configure_t()
@@ -626,17 +600,6 @@ bool _interpret_option(
 }
 
 
-kb::distance_provider_type_e _get_distance_provider_type(const std::string &arg)
-{
-    if (arg == "basic")
-        return kb::DISTANCE_PROVIDER_BASIC;
-    if (arg == "cost")
-        return kb::DISTANCE_PROVIDER_COST_BASED;
-
-    return kb::DISTANCE_PROVIDER_UNDERSPECIFIED;
-}
-
-
 bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
 {
     if (config.mode == EXE_MODE_UNDERSPECIFIED)
@@ -645,24 +608,10 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
         return false;
     }
 
-    kb::distance_provider_type_e dist_type(kb::DISTANCE_PROVIDER_BASIC);
     float max_dist = phillip->param_float("kb_max_distance", -1.0);
     int thread_num = phillip->param_int("kb_thread_num", 1);
     bool disable_stop_word = phillip->flag("disable_stop_word");
-
-    if (not config.dist_key.empty())
-    {
-        kb::distance_provider_type_e _type =
-            _get_distance_provider_type(config.dist_key);
-        if (_type != kb::DISTANCE_PROVIDER_UNDERSPECIFIED)
-            dist_type = _type;
-        else
-        {
-            print_warning_fmt(
-                "The key of distance-provider is invalid: %s",
-                config.dist_key.c_str());
-        }
-    }
+    std::string dist_key = config.dist_key.empty() ? "basic" : config.dist_key;
 
     for (auto n : config.target_obs_names)
         phillip->add_target(n);
@@ -680,7 +629,8 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
         generate(config.sol_key, phillip);
 
     kb::knowledge_base_t::setup(
-        config.kb_name, dist_type, max_dist, thread_num, disable_stop_word);
+        config.kb_name, max_dist, thread_num, disable_stop_word);
+    kb::knowledge_base_t::instance()->set_distance_provider(dist_key);
 
     switch (config.mode)
     {

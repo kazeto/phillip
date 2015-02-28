@@ -47,7 +47,7 @@ search_inconsistencies(const std::string &arity) const
 
 inline float knowledge_base_t::get_distance(const lf::axiom_t &axiom) const
 {
-    return (*m_rm_dist)(axiom);
+    return (*m_distance_provider.instance)(axiom);
 }
 
 
@@ -65,7 +65,7 @@ inline version_e knowledge_base_t::version() const
 
 inline bool knowledge_base_t::is_valid_version() const
 {
-    return m_version == KB_VERSION_5;
+    return m_version == KB_VERSION_6;
 }
 
 

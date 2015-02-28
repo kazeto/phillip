@@ -13,6 +13,7 @@
 #include "./kb.h"
 #include "./phillip.h"
 #include "./sol/ilp_solver.h"
+#include "./binary.h"
 
 
 namespace phil
@@ -75,9 +76,8 @@ bool unification_postponement_t::do_postpone(
 
 
 const int BUFFER_SIZE = 512 * 512;
-std::unique_ptr<knowledge_base_t, knowledge_base_t::deleter> knowledge_base_t::ms_instance;
+std::unique_ptr<knowledge_base_t, deleter_t<knowledge_base_t> > knowledge_base_t::ms_instance;
 std::string knowledge_base_t::ms_filename = "kb";
-distance_provider_type_e knowledge_base_t::ms_distance_provider_type = DISTANCE_PROVIDER_BASIC;
 float knowledge_base_t::ms_max_distance = -1.0f;
 int knowledge_base_t::ms_thread_num_for_rm = 1;
 bool knowledge_base_t::ms_do_disable_stop_word = false;
@@ -90,20 +90,19 @@ knowledge_base_t* knowledge_base_t::instance()
     if (not ms_instance)
     {
         mkdir(get_directory_name(ms_filename));
-        ms_instance.reset(new knowledge_base_t(ms_filename, ms_distance_provider_type));
+        ms_instance.reset(new knowledge_base_t(ms_filename));
     }
     return ms_instance.get();
 }
 
 
 void knowledge_base_t::setup(
-    std::string filename, distance_provider_type_e dist_type,
-    float max_distance, int thread_num_for_rm, bool do_disable_stop_word)
+    std::string filename, float max_distance,
+    int thread_num_for_rm, bool do_disable_stop_word)
 {
     if (not ms_instance)
     {
         ms_filename = filename;
-        ms_distance_provider_type = dist_type;
         ms_max_distance = max_distance;
         ms_thread_num_for_rm = thread_num_for_rm;
         ms_do_disable_stop_word = do_disable_stop_word;
@@ -115,8 +114,7 @@ void knowledge_base_t::setup(
 }
 
 
-knowledge_base_t::knowledge_base_t(
-    const std::string &filename, distance_provider_type_e dist)
+knowledge_base_t::knowledge_base_t(const std::string &filename)
     : m_state(STATE_NULL),
       m_filename(filename), m_version(KB_VERSION_1), 
       m_cdb_name(filename +".name.cdb"),
@@ -129,22 +127,31 @@ knowledge_base_t::knowledge_base_t(
       m_cdb_arity_to_queries(filename + ".a2qs.cdb"),
       m_cdb_query_to_ids(filename + ".q2ids.cdb"),
       m_cdb_rm_idx(filename + ".rm.cdb"),
-      m_axioms(filename), m_rm(filename + ".rm.dat"),
-      m_rm_dist(new basic_distance_provider_t())
+      m_axioms(filename), m_rm(filename + ".rm.dat")
 {
-    set_distance_provider(dist);
+    m_distance_provider = { NULL, "" };
 }
 
 
 knowledge_base_t::~knowledge_base_t()
 {
     finalize();
-    delete m_rm_dist;
+
+    if (m_distance_provider.instance != NULL)
+        delete m_distance_provider.instance;
 }
 
 
 void knowledge_base_t::prepare_compile()
 {
+    if (m_distance_provider.instance == NULL)
+    {
+        print_error(
+            "Preparing KB was canceled, "
+            "because distance provider has not been set.");
+        return;
+    }
+
     if (m_state == STATE_QUERY)
         finalize();
 
@@ -169,6 +176,14 @@ void knowledge_base_t::prepare_compile()
 
 void knowledge_base_t::prepare_query()
 {
+    if (m_distance_provider.instance == NULL)
+    {
+        print_error(
+            "Preparing KB was canceled, "
+            "because distance provider has not been set.");
+        return;
+    }
+
     if (m_state == STATE_COMPILE)
         finalize();
 
@@ -307,12 +322,13 @@ void knowledge_base_t::write_config() const
     std::string filename(m_filename + ".conf");
     std::ofstream fo(
         filename.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);
-    char dist_type(m_rm_dist->type());
     char version(NUM_OF_KB_VERSION_TYPES - 1); // LATEST VERSION
+    char num = m_distance_provider.key.length();
 
     fo.write(&version, sizeof(char));
     fo.write((char*)&ms_max_distance, sizeof(float));
-    fo.write(&dist_type, sizeof(char));
+    fo.write(&num, sizeof(char));
+    fo.write(m_distance_provider.key.c_str(), m_distance_provider.key.length());
 
     fo.close();
 }
@@ -322,7 +338,8 @@ void knowledge_base_t::read_config()
 {
     std::string filename(m_filename + ".conf");
     std::ifstream fi(filename.c_str(), std::ios::in | std::ios::binary);
-    char dist_type, version;
+    char version, num;
+    char key[256];
 
     fi.read(&version, sizeof(char));
 
@@ -344,12 +361,12 @@ void knowledge_base_t::read_config()
     }
 
     fi.read((char*)&ms_max_distance, sizeof(float));
-    fi.read(&dist_type, sizeof(char));
+    fi.read(&num, sizeof(char));
+    fi.read(key, num);
 
     fi.close();
 
-    ms_distance_provider_type = static_cast<distance_provider_type_e>(dist_type);
-    set_distance_provider(ms_distance_provider_type);
+    set_distance_provider(key);
 }
 
 
@@ -671,6 +688,21 @@ void knowledge_base_t::search_axioms_with_query(
             it->second = (flag != 0x00);
         }
     }
+}
+
+
+void knowledge_base_t::set_distance_provider(const std::string &key)
+{
+    if (m_distance_provider.instance != NULL)
+        delete m_distance_provider.instance;
+
+    m_distance_provider = {
+        bin::distance_provider_library_t::instance()->generate(key, NULL),
+        key };
+
+    if (m_distance_provider.instance == NULL)
+        print_error_fmt(
+        "The key of distance-provider is invalid: \"%s\"", key.c_str());
 }
 
 
@@ -1186,7 +1218,7 @@ void knowledge_base_t::_create_reachable_matrix_direct(
         if (axiom.func.is_operator(lf::OPR_IMPLICATION) or
             axiom.func.is_operator(lf::OPR_PARAPHRASE))
         {
-            float dist = (*m_rm_dist)(axiom);
+            float dist = (*m_distance_provider.instance)(axiom);
 
             if (dist >= 0.0f)
             {
@@ -1368,25 +1400,6 @@ void knowledge_base_t::extend_inconsistency()
 void knowledge_base_t::_enumerate_deducible_literals(
     const literal_t &target, hash_set<literal_t> *out) const
 {
-}
-
-
-void knowledge_base_t::set_distance_provider(distance_provider_type_e t)
-{
-    distance_provider_t *ptr = NULL;
-    switch (t)
-    {
-    case DISTANCE_PROVIDER_BASIC:
-        ptr = new basic_distance_provider_t(); break;
-    case DISTANCE_PROVIDER_COST_BASED:
-        ptr = new cost_based_distance_provider_t(); break;
-    }
-
-    if (ptr != NULL)
-    {
-        delete m_rm_dist;
-        m_rm_dist = ptr;
-    }
 }
 
 
@@ -1732,6 +1745,9 @@ hash_set<float> knowledge_base_t::reachable_matrix_t::get(size_t idx) const
 }
 
 
+namespace dist
+{
+
 float basic_distance_provider_t::operator()(const lf::axiom_t &ax) const
 {
     auto splitted = split(ax.func.param(), ":");
@@ -1753,6 +1769,8 @@ float cost_based_distance_provider_t::operator()(const lf::axiom_t &ax) const
     float out(-1.0f);
     _sscanf(param.substr(1).c_str(), "%f", &out);
     return out;
+}
+
 }
 
 

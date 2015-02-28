@@ -29,14 +29,6 @@ static const argument_set_id_t INVALID_ARGUMENT_SET_ID = 0;
 static const arity_id_t INVALID_ARITY_ID = 0;
 
 
-enum distance_provider_type_e
-{
-    DISTANCE_PROVIDER_UNDERSPECIFIED,
-    DISTANCE_PROVIDER_BASIC,
-    DISTANCE_PROVIDER_COST_BASED
-};
-
-
 enum unification_postpone_argument_type_e
 {
     UNI_PP_INDISPENSABLE,           /// Is expressed as '*'.
@@ -49,11 +41,12 @@ enum version_e
 {
     KB_VERSION_UNDERSPECIFIED,
     KB_VERSION_1, KB_VERSION_2, KB_VERSION_3, KB_VERSION_4, KB_VERSION_5,
+    KB_VERSION_6,
     NUM_OF_KB_VERSION_TYPES
 };
 
 
-/** This class define distance between predicates
+/** A virtual class to define distance between predicates
  *  on creation of reachable-matrix. */
 class distance_provider_t
 {
@@ -61,8 +54,23 @@ public:
     virtual ~distance_provider_t() {}
     virtual float operator() (const lf::axiom_t &ax) const = 0;
 
-    virtual distance_provider_type_e type() const
-    { return DISTANCE_PROVIDER_UNDERSPECIFIED; }
+    virtual std::string repr() const = 0;
+};
+
+
+/** A virtual class of table which has semantic gaps between predicates. */
+class category_table_t
+{
+public:
+    virtual ~category_table_t();
+
+    /** Returns the semantic gap between p1 & p2, which is a positive value.
+     *  If p1 cannot be p2, returns -1. */
+    virtual float operator() (
+        const predicate_t &p1, const predicate_t &p2) const = 0;
+
+    virtual void compile(const kb::knowledge_base_t*) = 0;
+    virtual void load(const kb::knowledge_base_t*) = 0;
 };
 
 
@@ -88,15 +96,10 @@ private:
 class knowledge_base_t
 {
 public:
-    struct deleter
-    {
-        void operator()(knowledge_base_t const* const p) const { delete p; }
-    };
-
     static knowledge_base_t* instance();
     static void setup(
-        std::string filename, distance_provider_type_e dist_type,
-        float max_distance, int thread_num_for_rm, bool do_disable_stop_word);
+        std::string filename, float max_distance,
+        int thread_num_for_rm, bool do_disable_stop_word);
     static inline float get_max_distance();
 
     ~knowledge_base_t();
@@ -128,6 +131,8 @@ public:
     void search_axioms_with_query(
         const search_query_t &query,
         std::list<std::pair<axiom_id_t, bool> > *out) const;
+
+    void set_distance_provider(const std::string &key);
 
     /** Returns ditance between arity1 and arity2
      *  in a reachable-matrix in the current knowledge-base.
@@ -203,8 +208,7 @@ private:
 
     enum kb_state_e { STATE_NULL, STATE_COMPILE, STATE_QUERY };
 
-    knowledge_base_t(
-        const std::string &filename, distance_provider_type_e dist);
+    knowledge_base_t(const std::string &filename);
 
     void write_config() const;
     void read_config();
@@ -242,13 +246,8 @@ private:
     std::list<axiom_id_t> search_id_list(
         const std::string &query, const cdb_data_t *dat) const;
 
-    /** Sets new distance-provider.
-     *  This object is used in making reachable-matrix. */
-    void set_distance_provider(distance_provider_type_e);
-
-    static std::unique_ptr<knowledge_base_t, deleter> ms_instance;
+    static std::unique_ptr<knowledge_base_t, deleter_t<knowledge_base_t> > ms_instance;
     static std::string ms_filename;
-    static distance_provider_type_e ms_distance_provider_type;
     static float ms_max_distance;
     static int ms_thread_num_for_rm;
     static bool ms_do_disable_stop_word;
@@ -283,7 +282,11 @@ private:
         m_inc_to_axioms, m_group_to_axioms, m_arity_to_postponement;
 
     /** Function object to provide distance between predicates. */
-    distance_provider_t *m_rm_dist;
+    struct
+    {
+        distance_provider_t *instance;
+        std::string key;
+    } m_distance_provider;
 
     bool m_do_create_local_reachability_matrix;
     
@@ -291,11 +294,15 @@ private:
 };
 
 
+/** The namespace for super-classes of distance_provider_t. */
+namespace dist
+{
+
 class basic_distance_provider_t : public distance_provider_t
 {
 public:
     virtual float operator() (const lf::axiom_t&) const;
-    virtual distance_provider_type_e type() const { return DISTANCE_PROVIDER_BASIC; }
+    virtual std::string repr() const { return "Basic"; };
 };
 
 
@@ -303,8 +310,22 @@ class cost_based_distance_provider_t : public distance_provider_t
 {
 public:
     virtual float operator()(const lf::axiom_t&) const;
-    virtual distance_provider_type_e type() const { return DISTANCE_PROVIDER_COST_BASED; }
+    virtual std::string repr() const { return "CostBased"; }
 };
+
+}
+
+
+/** The namespace for super-classes of category_table_t. */
+namespace ct
+{
+
+class basic_category_table_t : public category_table_t
+{
+};
+
+}
+
 
 
 void query_to_binary(const search_query_t &q, std::vector<char> *bin);

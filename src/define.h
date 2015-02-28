@@ -260,6 +260,14 @@ public:
 };
 
 
+/** This class is used to define a singleton class. */
+template <class T> class deleter_t
+{
+public:
+    void operator()(T const* const p) const { delete p; }
+};
+
+
 /* -------- Functions -------- */
 
 /** Call this function on starting phillip. */
