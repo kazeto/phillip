@@ -130,6 +130,7 @@ knowledge_base_t::knowledge_base_t(const std::string &filename)
       m_axioms(filename), m_rm(filename + ".rm.dat")
 {
     m_distance_provider = { NULL, "" };
+    m_category_table = { NULL, "" };
 }
 
 
@@ -152,6 +153,14 @@ void knowledge_base_t::prepare_compile()
         return;
     }
 
+    if (m_category_table.instance == NULL)
+    {
+        print_error(
+            "Preparing KB was canceled, "
+            "because category table has not been set.");
+        return;
+    }
+
     if (m_state == STATE_QUERY)
         finalize();
 
@@ -168,6 +177,7 @@ void knowledge_base_t::prepare_compile()
         m_cdb_arity_to_queries.prepare_compile();
         m_cdb_query_to_ids.prepare_compile();
         m_cdb_rm_idx.prepare_compile();
+        m_category_table.instance->prepare_compile(this);
 
         m_state = STATE_COMPILE;
     }
@@ -181,6 +191,14 @@ void knowledge_base_t::prepare_query()
         print_error(
             "Preparing KB was canceled, "
             "because distance provider has not been set.");
+        return;
+    }
+
+    if (m_category_table.instance == NULL)
+    {
+        print_error(
+            "Preparing KB was canceled, "
+            "because category table has not been set.");
         return;
     }
 
@@ -203,6 +221,7 @@ void knowledge_base_t::prepare_query()
         m_cdb_query_to_ids.prepare_query();
         m_cdb_rm_idx.prepare_query();
         m_rm.prepare_query();
+        m_category_table.instance->prepare_query(this);
 
         m_state = STATE_QUERY;
     }
@@ -312,6 +331,7 @@ void knowledge_base_t::finalize()
     m_cdb_query_to_ids.finalize();
     m_cdb_rm_idx.finalize();
     m_rm.finalize();
+    m_category_table.instance->finalize();
 
     m_state = STATE_NULL;
 }
@@ -377,11 +397,17 @@ axiom_id_t knowledge_base_t::insert_implication(
     {
         bool is_implication = func.is_valid_as_implication();
         bool is_paraphrase = func.is_valid_as_paraphrase();
+        bool is_categorical = func.is_categorical_knowledge();
 
         if (not is_implication and not is_paraphrase)
         {
             print_warning_fmt(
                 "Axiom \"%s\" is invalid and skipped.", func.to_string().c_str());
+            return INVALID_AXIOM_ID;
+        }
+
+        if (is_categorical)
+        {
             return INVALID_AXIOM_ID;
         }
 
@@ -407,7 +433,6 @@ axiom_id_t knowledge_base_t::insert_implication(
             insert_arity(arity);
             m_rhs_to_axioms[arity].insert(id);
         }
-
 
         for (auto it = lhs.begin(); it != lhs.end(); ++it)
         if (not(*it)->is_equality())
@@ -706,6 +731,21 @@ void knowledge_base_t::set_distance_provider(const std::string &key)
 }
 
 
+void knowledge_base_t::set_category_table(const std::string &key)
+{
+    if (m_category_table.instance != NULL)
+        delete m_category_table.instance;
+
+    m_category_table = {
+        bin::category_table_library_t::instance()->generate(key, NULL),
+        key };
+
+    if (m_category_table.instance == NULL)
+        print_error_fmt(
+        "The key of category table is invalid: \"%s\"", key.c_str());
+}
+
+
 float knowledge_base_t::get_distance(
     const std::string &arity1, const std::string &arity2 ) const
 {
@@ -973,39 +1013,47 @@ void knowledge_base_t::create_query_map()
     std::map<arity_id_t, std::set<search_query_t> > arity_to_queries;
     std::map<search_query_t, std::set< std::pair<axiom_id_t, bool> > > query_to_ids;
 
-    auto proc = [this, &query_to_ids, &arity_to_queries](const lf::axiom_t &ax, bool is_backward)
+    auto proc = [this, &query_to_ids, &arity_to_queries](
+        const lf::axiom_t &ax, bool is_backward)
     {
-        auto lits = is_backward ? ax.func.get_rhs() : ax.func.get_lhs();
+        std::vector<const lf::logical_function_t*> branches;
         std::list<std::string> arities;
         hash_map<string_hash_t, std::set<std::pair<arity_id_t, char> > > term2arity;
 
-        for (auto lit : lits)
+        ax.func.branch(is_backward ? 1 : 0).enumerate_literal_branches(&branches);
+
+        for (auto br : branches)
         {
-            std::string arity = lit->get_arity();
+            const literal_t &lit = br->literal();
+            std::string arity = lit.get_arity();
             arity_id_t idx = search_arity_id(arity);
             assert(idx != INVALID_ARITY_ID);
             arities.push_back(arity);
 
-            for (int i_t = 0; i_t < lit->terms.size(); ++i_t)
-            if (lit->terms.at(i_t).is_hard_term())
-                term2arity[lit->terms.at(i_t)].insert(std::make_pair(idx, (char)i_t));
+            for (int i_t = 0; i_t < lit.terms.size(); ++i_t)
+            if (lit.terms.at(i_t).is_hard_term())
+                term2arity[lit.terms.at(i_t)].insert(std::make_pair(idx, (char)i_t));
         }
 
         search_query_t query;
         for (auto a : arities)
         {
             arity_id_t idx = search_arity_id(a);
-            query.first.push_back(idx);
+            std::get<0>(query).push_back(idx);
         }
-        query.first.sort();
+        std::get<0>(query).sort();
 
         for (auto e : term2arity)
         {
             for (auto it1 = e.second.begin(); it1 != e.second.end(); ++it1)
             for (auto it2 = e.second.begin(); it2 != it1; ++it2)
-                query.second.push_back(make_sorted_pair(*it1, *it2));
+                std::get<1>(query).push_back(make_sorted_pair(*it1, *it2));
         }
-        query.second.sort();
+        std::get<1>(query).sort();
+
+        for (char i = 0; i < branches.size(); ++i)
+        if (branches[i]->is_optional_literal())
+            std::get<2>(query).push_back(i);
 
         query_to_ids[query].insert(std::make_pair(ax.id, is_backward));
 
@@ -1114,6 +1162,7 @@ void knowledge_base_t::create_reachable_matrix()
     m_cdb_lhs.prepare_query();
     m_cdb_inc_pred.prepare_query();
     m_cdb_rm_idx.prepare_query();
+    m_category_table.instance->prepare_query(this);
 
     m_rm.prepare_compile();
 
@@ -1774,27 +1823,172 @@ float cost_based_distance_provider_t::operator()(const lf::axiom_t &ax) const
 }
 
 
+namespace ct
+{
+
+void basic_category_table_t::prepare_compile(const knowledge_base_t *base)
+{
+    if (m_state != STATE_NULL)
+        finalize();
+
+    m_prefix = base->filename();
+    m_state = STATE_COMPILE;
+}
+
+
+void basic_category_table_t::add(const lf::axiom_t &ax)
+{
+    assert(m_state == STATE_COMPILE);
+
+    std::vector<const lf::logical_function_t*> lhs, rhs;
+    ax.func.branch(0).enumerate_literal_branches(&lhs);
+    ax.func.branch(1).enumerate_literal_branches(&rhs);
+
+    arity_id_t i = kb::knowledge_base_t::instance()->
+        search_arity_id(lhs.front()->literal().get_arity());
+    arity_id_t j = kb::knowledge_base_t::instance()->
+        search_arity_id(lhs.front()->literal().get_arity());
+
+    if (i != INVALID_ARITY_ID and j != INVALID_ARITY_ID)
+    {
+        m_table[i][j] = 0; // DEDUCTIVE
+        m_table[j][i] = 1; // ABDUCTIVE
+    }
+}
+
+
+void basic_category_table_t::prepare_query(const kb::knowledge_base_t *base)
+{
+    if (m_state != STATE_NULL)
+        finalize();
+
+    m_prefix = base->filename();
+    m_state = STATE_QUERY;
+
+    read(filename());
+}
+
+
+float basic_category_table_t::get(const arity_t &a1, const arity_t &a2) const
+{
+    assert(m_state == STATE_QUERY);
+
+    arity_id_t i = kb::knowledge_base_t::instance()->search_arity_id(a1);
+    arity_id_t j = kb::knowledge_base_t::instance()->search_arity_id(a2);
+
+    auto found1 = m_table.find(i);
+    if (found1 != m_table.end())
+    {
+        auto found2 = found1->second.find(j);
+        if (found2 != found1->second.end())
+            return found2->second;
+    }
+
+    return -1.0f;
+}
+
+
+void basic_category_table_t::finalize()
+{
+    if (m_state == STATE_COMPILE)
+        write(filename());
+
+    if (m_state == STATE_QUERY)
+        m_table.clear();
+
+    m_state = STATE_NULL;
+}
+
+
+void basic_category_table_t::write(const std::string &filename) const
+{
+    std::ofstream fout(
+        filename, std::ios::out | std::ios::trunc | std::ios::binary);
+
+    if (fout.bad())
+    {
+        print_error_fmt("Cannot open %s.", filename.c_str());
+        return;
+    }
+
+    size_t num1 = m_table.size();
+    fout.write((char*)&num1, sizeof(size_t));
+
+    for (auto p1 : m_table)
+    {
+        size_t num2 = p1.second.size();
+        fout.write((char*)&p1.first, sizeof(arity_id_t));
+        fout.write((char*)&num2, sizeof(size_t));
+
+        for (auto p2 : p1.second)
+        {
+            fout.write((char*)&p2.first, sizeof(arity_id_t));
+            fout.write((char*)&p2.second, sizeof(float));
+        }
+    }
+}
+
+
+void basic_category_table_t::read(const std::string &filename)
+{
+    std::ifstream fin(filename, std::ios::in | std::ios::binary);
+    size_t num1, num2;
+    arity_id_t id1, id2;
+    m_table.clear();
+
+    if (fin.bad())
+    {
+        print_error_fmt("Cannot open %s.", filename.c_str());
+        return;
+    }
+
+    fin.read((char*)&num1, sizeof(size_t));
+
+    for (int i = 0; i < num1; ++i)
+    {
+        fin.read((char*)&id1, sizeof(arity_id_t));
+        fin.read((char*)&num2, sizeof(size_t));
+
+        for (int j = 0; j < num2; ++j)
+        {
+            float d;
+            fin.read((char*)&id2, sizeof(arity_id_t));
+            fin.read((char*)&d, sizeof(float));
+            m_table[id1][id2] = d;
+        }
+    }
+}
+
+
+}
+
+
 void query_to_binary(const search_query_t &q, std::vector<char> *bin)
 {
     size_t size_expected =
-        sizeof(unsigned char)* 2 +
-        sizeof(arity_id_t)* q.first.size() +
-        (sizeof(arity_id_t)+sizeof(char)) * 2 * q.second.size();
+        sizeof(unsigned char) * 3 +
+        sizeof(arity_id_t) * std::get<0>(q).size() +
+        (sizeof(arity_id_t) + sizeof(char)) * 2 * std::get<1>(q).size() +
+        sizeof(char) * std::get<2>(q).size();
     size_t size = 0;
     bin->assign(size_expected, '\0');
 
-    size += num_to_binary(q.first.size(), &(*bin)[0]);
-    for (auto id : q.first)
+    size += num_to_binary(std::get<0>(q).size(), &(*bin)[0]);
+    for (auto id : std::get<0>(q))
         size += to_binary<arity_id_t>(id, &(*bin)[0] + size);
 
-    size += num_to_binary(q.second.size(), &(*bin)[0] + size);
-    for (auto ht : q.second)
+    size += num_to_binary(std::get<1>(q).size(), &(*bin)[0] + size);
+    for (auto ht : std::get<1>(q))
     {
         size += to_binary<arity_id_t>(ht.first.first, &(*bin)[0] + size);
         size += to_binary<char>(ht.first.second, &(*bin)[0] + size);
         size += to_binary<arity_id_t>(ht.second.first, &(*bin)[0] + size);
         size += to_binary<char>(ht.second.second, &(*bin)[0] + size);
     }
+
+    size += num_to_binary(std::get<2>(q).size(), &(*bin)[0] + size);
+    for (auto i : std::get<2>(q))
+        (*bin)[size++] = i;
 
     assert(size == size_expected);
 };
@@ -1803,17 +1997,18 @@ void query_to_binary(const search_query_t &q, std::vector<char> *bin)
 size_t binary_to_query(const char *bin, search_query_t *out)
 {
     size_t size(0);
-    int num_arity, num_hardterm;
+    int num_arity, num_hardterm, num_option;
 
-    out->first.clear();
-    out->second.clear();
+    std::get<0>(*out).clear();
+    std::get<1>(*out).clear();
+    std::get<2>(*out).clear();
 
     size += binary_to_num(bin + size, &num_arity);
     for (int i = 0; i < num_arity; ++i)
     {
         arity_id_t id;
         size += binary_to<arity_id_t>(bin + size, &id);
-        out->first.push_back(id);
+        std::get<0>(*out).push_back(id);
     }
 
     size += binary_to_num(bin + size, &num_hardterm);
@@ -1825,9 +2020,13 @@ size_t binary_to_query(const char *bin, search_query_t *out)
         size += binary_to<char>(bin + size, &idx1);
         size += binary_to<arity_id_t>(bin + size, &id2);
         size += binary_to<char>(bin + size, &idx2);
-        out->second.push_back(std::make_pair(
+        std::get<1>(*out).push_back(std::make_pair(
             std::make_pair(id1, idx1), std::make_pair(id2, idx2)));
     }
+
+    size += binary_to_num(bin + size, &num_option);
+    for (int i = 0; i < num_option; ++i)
+        std::get<2>(*out).push_back(bin[size++]);
 
     return size;
 }

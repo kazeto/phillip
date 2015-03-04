@@ -202,7 +202,8 @@ ilp_solver_library_t::ilp_solver_library_t()
 }
 
 
-std::unique_ptr<distance_provider_library_t, deleter_t<distance_provider_library_t> >
+std::unique_ptr<
+    distance_provider_library_t, deleter_t<distance_provider_library_t> >
 distance_provider_library_t::ms_instance;
 
 
@@ -218,6 +219,23 @@ distance_provider_library_t::distance_provider_library_t()
 {
     add("basic", new _basic_distance_provider_generator_t());
     add("cost", new _cost_based_distance_provider_generator_t());
+}
+
+
+std::unique_ptr<category_table_library_t, deleter_t<category_table_library_t> >
+category_table_library_t::ms_instance;
+
+
+category_table_library_t* category_table_library_t::instance()
+{
+    if (not ms_instance)
+        ms_instance.reset(new category_table_library_t());
+    return ms_instance.get();
+}
+
+
+category_table_library_t::category_table_library_t()
+{
 }
 
 

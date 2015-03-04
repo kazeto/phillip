@@ -1539,7 +1539,7 @@ void proof_graph_t::enumerate_queries_for_knowledge_base(
 
     for (auto q : queries)
     {
-        const std::list<kb::arity_id_t> &arities(q.first);
+        const std::list<kb::arity_id_t> &arities(std::get<0>(q));
         hash_map<kb::arity_id_t, int> arity_count;
         hash_map<kb::arity_id_t, hash_set<node_idx_t> > a2ns;
 
@@ -1567,7 +1567,7 @@ void proof_graph_t::enumerate_queries_for_knowledge_base(
 
         bool is_valid_query(true);
 
-        for (auto p : q.second)
+        for (auto p : std::get<1>(q))
         {
             kb::term_pos_t &t1(p.first);
             kb::term_pos_t &t2(p.second);

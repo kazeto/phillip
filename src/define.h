@@ -26,9 +26,11 @@
 #ifdef _WIN32
 #define _sprintf sprintf_s
 #define _sscanf  sscanf_s
+#define _vsscanf vsscanf_s
 #else
 #define _sprintf sprintf
 #define _sscanf  sscanf
+#define _vsscanf vsscanf
 #endif
 
 
@@ -42,6 +44,7 @@ typedef long int index_t;
 typedef long int axiom_id_t;
 typedef index_t term_idx_t;
 typedef std::string predicate_t;
+typedef std::string arity_t;
 
 namespace kb
 {
@@ -51,9 +54,10 @@ typedef unsigned long int argument_set_id_t;
 typedef size_t arity_id_t;
 typedef std::pair<arity_id_t, char> term_pos_t;
 
-typedef std::pair<
+typedef std::tuple<
     std::list<arity_id_t>,
-    std::list<std::pair<term_pos_t, term_pos_t > > > search_query_t;
+    std::list<std::pair<term_pos_t, term_pos_t> >,
+    std::list<char> > search_query_t;
 }
 
 namespace pg
