@@ -65,14 +65,14 @@ public:
     enum table_state_e { STATE_NULL, STATE_COMPILE, STATE_QUERY };
 
     category_table_t() : m_state(STATE_NULL) {}
-    ~category_table_t() { finalize(); }
+    virtual ~category_table_t() {}
 
     virtual void prepare_compile(const knowledge_base_t *base) = 0;
     virtual void prepare_query(const knowledge_base_t *base) = 0;
 
     /** Updates the elements corresponding to given axiom in the table.
      *  This method is called by knowledge_base_t::insert_implication. */
-    virtual void add(const lf::axiom_t &ax) = 0;
+    virtual void add(const lf::logical_function_t &ax) = 0;
 
     /** Returns the semantic gap between p1 & p2, which is a positive value.
     *  If p1 cannot be p2, returns -1. */
@@ -346,7 +346,7 @@ class basic_category_table_t : public category_table_t
 {
 public:
     virtual void prepare_compile(const knowledge_base_t*) override;
-    virtual void add(const lf::axiom_t &ax) override;
+    virtual void add(const lf::logical_function_t &ax) override;
 
     virtual void prepare_query(const knowledge_base_t*) override;
     virtual float get(const arity_t &a1, const arity_t &a2) const override;
@@ -359,7 +359,8 @@ protected:
 
     std::string filename() const { return m_prefix + ".category.dat"; }
 
-    hash_map<arity_id_t, hash_map<arity_id_t, float> > m_table;
+    hash_map<arity_t, hash_map<arity_t, float> > m_table_for_compile;
+    hash_map<arity_id_t, hash_map<arity_id_t, float> > m_table_for_query;
 };
 
 }

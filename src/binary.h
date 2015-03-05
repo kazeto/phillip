@@ -41,7 +41,7 @@ struct execution_configure_t
     hash_set<std::string> target_obs_names; /// Name of observation to solve.
     hash_set<std::string> excluded_obs_names; /// Name of observation to solve.
 
-    std::string lhs_key, ilp_key, sol_key, dist_key;
+    std::string lhs_key, ilp_key, sol_key, dist_key, tab_key;
 };
 
 

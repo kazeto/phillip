@@ -143,6 +143,17 @@ public:
 };
 
 
+class _basic_category_table_generator_t :
+    public component_generator_t<kb::category_table_t>
+{
+public:
+    virtual kb::category_table_t* operator() (phillip_main_t *ph) const override
+    {
+        return new kb::ct::basic_category_table_t();
+    }
+};
+
+
 std::unique_ptr<lhs_enumerator_library_t, deleter_t<lhs_enumerator_library_t> >
 lhs_enumerator_library_t::ms_instance;
 
@@ -236,6 +247,7 @@ category_table_library_t* category_table_library_t::instance()
 
 category_table_library_t::category_table_library_t()
 {
+    add("basic", new _basic_category_table_generator_t());
 }
 
 
@@ -466,6 +478,11 @@ bool _interpret_option(
                 config->dist_key = key;
                 return true;
             }
+            if (type == "tab")
+            {
+                config->tab_key = key;
+                return true;
+            }
         }
         return false;
     }
@@ -630,6 +647,7 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
     int thread_num = phillip->param_int("kb_thread_num", 1);
     bool disable_stop_word = phillip->flag("disable_stop_word");
     std::string dist_key = config.dist_key.empty() ? "basic" : config.dist_key;
+    std::string tab_key = config.tab_key.empty() ? "basic" : config.tab_key;
 
     for (auto n : config.target_obs_names)
         phillip->add_target(n);
@@ -649,6 +667,7 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
     kb::knowledge_base_t::setup(
         config.kb_name, max_dist, thread_num, disable_stop_word);
     kb::knowledge_base_t::instance()->set_distance_provider(dist_key);
+    kb::knowledge_base_t::instance()->set_category_table(tab_key);
 
     switch (config.mode)
     {

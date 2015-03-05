@@ -408,6 +408,7 @@ axiom_id_t knowledge_base_t::insert_implication(
 
         if (is_categorical)
         {
+            m_category_table.instance->add(func);
             return INVALID_AXIOM_ID;
         }
 
@@ -1248,6 +1249,20 @@ void knowledge_base_t::_create_reachable_matrix_direct(
 {
     size_t num_processed(0);
 
+    // SET VALUES IN CATEGORY-TABLE TO REACHABLE-MATRIX
+    for (auto ar1 : arities)
+    for (auto ar2 : arities)
+    {
+        float d = m_category_table.instance->get(ar1, ar2);
+        if (d >= 0.0f)
+        {
+            arity_id_t idx1 = search_arity_id(ar1);
+            arity_id_t idx2 = search_arity_id(ar2);
+            (*out_lhs)[idx1][idx2] = d;
+            (*out_rhs)[idx1][idx2] = d;
+        }
+    }
+
     for (auto ar = arities.begin(); ar != arities.end(); ++ar)
     {
         arity_id_t idx1 = search_arity_id(*ar);
@@ -1836,24 +1851,19 @@ void basic_category_table_t::prepare_compile(const knowledge_base_t *base)
 }
 
 
-void basic_category_table_t::add(const lf::axiom_t &ax)
+void basic_category_table_t::add(const lf::logical_function_t &ax)
 {
     assert(m_state == STATE_COMPILE);
 
     std::vector<const lf::logical_function_t*> lhs, rhs;
-    ax.func.branch(0).enumerate_literal_branches(&lhs);
-    ax.func.branch(1).enumerate_literal_branches(&rhs);
+    ax.branch(0).enumerate_literal_branches(&lhs);
+    ax.branch(1).enumerate_literal_branches(&rhs);
 
-    arity_id_t i = kb::knowledge_base_t::instance()->
-        search_arity_id(lhs.front()->literal().get_arity());
-    arity_id_t j = kb::knowledge_base_t::instance()->
-        search_arity_id(lhs.front()->literal().get_arity());
+    arity_t a1 = lhs.front()->literal().get_arity();
+    arity_t a2 = rhs.front()->literal().get_arity();
 
-    if (i != INVALID_ARITY_ID and j != INVALID_ARITY_ID)
-    {
-        m_table[i][j] = 0; // DEDUCTIVE
-        m_table[j][i] = 1; // ABDUCTIVE
-    }
+    m_table_for_compile[a1][a2] = 0; // DEDUCTIVE
+    m_table_for_compile[a2][a1] = 1; // ABDUCTIVE
 }
 
 
@@ -1876,8 +1886,8 @@ float basic_category_table_t::get(const arity_t &a1, const arity_t &a2) const
     arity_id_t i = kb::knowledge_base_t::instance()->search_arity_id(a1);
     arity_id_t j = kb::knowledge_base_t::instance()->search_arity_id(a2);
 
-    auto found1 = m_table.find(i);
-    if (found1 != m_table.end())
+    auto found1 = m_table_for_query.find(i);
+    if (found1 != m_table_for_query.end())
     {
         auto found2 = found1->second.find(j);
         if (found2 != found1->second.end())
@@ -1891,10 +1901,13 @@ float basic_category_table_t::get(const arity_t &a1, const arity_t &a2) const
 void basic_category_table_t::finalize()
 {
     if (m_state == STATE_COMPILE)
+    {
         write(filename());
+        m_table_for_compile.clear();
+    }
 
     if (m_state == STATE_QUERY)
-        m_table.clear();
+        m_table_for_query.clear();
 
     m_state = STATE_NULL;
 }
@@ -1911,18 +1924,20 @@ void basic_category_table_t::write(const std::string &filename) const
         return;
     }
 
-    size_t num1 = m_table.size();
+    size_t num1 = m_table_for_compile.size();
     fout.write((char*)&num1, sizeof(size_t));
 
-    for (auto p1 : m_table)
+    for (auto p1 : m_table_for_compile)
     {
+        arity_id_t i = kb::knowledge_base_t::instance()->search_arity_id(p1.first);
         size_t num2 = p1.second.size();
-        fout.write((char*)&p1.first, sizeof(arity_id_t));
+        fout.write((char*)&i, sizeof(arity_id_t));
         fout.write((char*)&num2, sizeof(size_t));
 
         for (auto p2 : p1.second)
         {
-            fout.write((char*)&p2.first, sizeof(arity_id_t));
+            arity_id_t j = kb::knowledge_base_t::instance()->search_arity_id(p2.first);
+            fout.write((char*)&j, sizeof(arity_id_t));
             fout.write((char*)&p2.second, sizeof(float));
         }
     }
@@ -1934,7 +1949,7 @@ void basic_category_table_t::read(const std::string &filename)
     std::ifstream fin(filename, std::ios::in | std::ios::binary);
     size_t num1, num2;
     arity_id_t id1, id2;
-    m_table.clear();
+    m_table_for_query.clear();
 
     if (fin.bad())
     {
@@ -1954,7 +1969,7 @@ void basic_category_table_t::read(const std::string &filename)
             float d;
             fin.read((char*)&id2, sizeof(arity_id_t));
             fin.read((char*)&d, sizeof(float));
-            m_table[id1][id2] = d;
+            m_table_for_query[id1][id2] = d;
         }
     }
 }
