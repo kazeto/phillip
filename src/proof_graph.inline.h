@@ -270,14 +270,14 @@ inline const hash_set<node_idx_t>* proof_graph_t::search_nodes_with_predicate(
 }
 
 
-inline const hash_set<node_idx_t>* proof_graph_t::search_nodes_with_arity(
-    std::string arity ) const
+inline const hash_set<node_idx_t>*
+proof_graph_t::search_nodes_with_arity(const arity_t &arity) const
 {
     int idx(arity.rfind('/')), num;
     assert( idx > 0 );
     _sscanf( arity.substr(idx+1).c_str(), "%d", &num );
 
-    return search_nodes_with_predicate( arity.substr(0, idx), num );
+    return search_nodes_with_predicate(arity.substr(0, idx), num);
 }
 
 

@@ -57,6 +57,12 @@ inline float knowledge_base_t::get_distance(axiom_id_t id) const
 }
 
 
+inline float knowledge_base_t::get_soft_unifying_cost(
+    const std::string &arity1, const std::string &arity2) const
+{
+    return m_category_table.instance->get(arity1, arity2);
+}
+
 inline version_e knowledge_base_t::version() const
 {
     return m_version;

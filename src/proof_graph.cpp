@@ -548,6 +548,32 @@ std::string proof_graph_t::edge_to_string( edge_idx_t i ) const
 }
 
 
+void proof_graph_t::enumerate_nodes_softly_unifiable(
+const arity_t &arity, hash_set<node_idx_t> *out) const
+{
+    const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
+    float threshold = phillip()->param_float(
+        "threshold_soft_unify", kb::knowledge_base_t::get_max_distance());
+
+    const hash_set<node_idx_t> *ns1 = search_nodes_with_arity(arity);
+    if (ns1 != NULL)
+        out->insert(ns1->begin(), ns1->end());
+
+    for (auto p1 : m_maps.predicate_to_nodes)
+    for (auto p2 : p1.second)
+    if (p2.first == 1)
+    {
+        arity_t arity2 = literal_t::get_arity(p1.first, p2.first, false);
+        if (arity2 != arity)
+        {
+            float cost = base->get_soft_unifying_cost(arity, arity2);
+            if (cost >= 0.0 and cost < threshold)
+                out->insert(p2.second.begin(), p2.second.end());
+        }
+    }
+}
+
+
 hash_set<node_idx_t>
     proof_graph_t::enumerate_nodes_with_literal( const literal_t &lit ) const
 {
@@ -1705,17 +1731,18 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
     auto enumerate_unifiable_nodes = [this](node_idx_t target) -> std::list<node_idx_t>
     {
         const literal_t &lit = node(target).literal();
-        auto candidates =
-            search_nodes_with_predicate(lit.predicate, lit.terms.size());
+        hash_set<node_idx_t> candidates;
         std::list<node_idx_t> unifiables;
         unifier_t unifier;
 
-        for (auto it = candidates->begin(); it != candidates->end(); ++it)
+        enumerate_nodes_softly_unifiable(lit.get_arity(), &candidates);
+
+        for (auto n : candidates)
         {
-            if (target == (*it)) continue;
+            if (target == n) continue;
 
             node_idx_t n1 = target;
-            node_idx_t n2 = (*it);
+            node_idx_t n2 = n;
             if (n1 > n2) std::swap(n1, n2);
 
             // IGNORE THE PAIR WHICH HAS BEEN CONSIDERED ALREADY.
@@ -1735,7 +1762,7 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
                 unifiable = _check_nodes_coexistency(n1, n2, &unifier);
 
             if (unifiable and can_unify_nodes(n1, n2))
-                unifiables.push_back(*it);
+                unifiables.push_back(n);
         }
 
         return unifiables;
@@ -1930,8 +1957,8 @@ bool proof_graph_t::check_unifiability(
     if (out != NULL) out->clear();
 
     if (not do_ignore_truthment and p1.truth != p2.truth) return false;
-    if (p1.predicate != p2.predicate) return false;
     if (p1.terms.size() != p2.terms.size()) return false;
+    // if (p1.predicate != p2.predicate) return false;
 
     for (int i = 0; i < p1.terms.size(); i++)
     {

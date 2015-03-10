@@ -160,6 +160,9 @@ public:
     inline float get_distance(const lf::axiom_t &axiom) const;
     inline float get_distance(axiom_id_t id) const;
 
+    inline float get_soft_unifying_cost(
+        const arity_t &arity1, const arity_t &arity2) const;
+
     inline version_e version() const;
     inline bool is_valid_version() const;
     inline const std::string& filename() const;

@@ -161,6 +161,15 @@ inline void string_hash_t::set_flags(const std::string &str)
 }
 
 
+inline std::string literal_t::get_arity(
+    const predicate_t &pred, int term_num, bool do_negate)
+{
+    return 
+        (do_negate ? "!" : "") +
+        phil::format("%s/%d", pred.c_str(), term_num);
+}
+
+
 inline literal_t::literal_t( const std::string &_pred, bool _truth )
     : predicate(_pred), truth(_truth) {}
     
@@ -213,13 +222,9 @@ inline std::string literal_t::to_string( bool f_colored ) const
 }
 
 
-inline std::string literal_t::get_arity(
-    bool do_distinguish_negation) const
+inline std::string literal_t::get_arity() const
 {
-    std::string out = phil::format(
-        "%s/%d", predicate.c_str(), (int)terms.size());
-    if (do_distinguish_negation and not truth) out = "!" + out;
-    return std::string(out);
+    return get_arity(predicate, terms.size(), not truth);
 }
 
 

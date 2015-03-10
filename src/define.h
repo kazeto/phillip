@@ -136,6 +136,9 @@ typedef std::pair<term_t, term_t> substitution_t;
 class literal_t
 {
 public:
+    static inline std::string get_arity(
+        const predicate_t &pred, int term_num, bool do_distinguish_negation);
+
     inline literal_t() {}
     inline literal_t(const std::string &_pred, bool _truth = true);
     inline literal_t(
@@ -160,7 +163,7 @@ public:
     bool operator != (const literal_t &x) const;
 
     inline std::string to_string(bool f_colored = false) const;
-    inline std::string get_arity(bool do_distinguish_negation = true) const;
+    inline std::string get_arity() const;
 
     inline bool is_equality() const { return predicate == "="; }
     
