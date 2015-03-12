@@ -378,6 +378,10 @@ public:
     /** Returns a list of nodes which are needed to hypothesize given node. */
     void enumerate_dependent_nodes(node_idx_t, hash_set<node_idx_t>*) const;
 
+    /** Returns gaps of predicate on given edge.
+     *  The first is expected arity and the second is actual arity. */
+    std::list<std::pair<arity_t, arity_t> > get_gaps_on_edge(edge_idx_t) const;
+
     inline bool do_disregard_hypernode(hypernode_idx_t idx) const;
 
     /** Enumerates unification nodes
@@ -477,7 +481,7 @@ protected:
     /** Get mutual exclusions around the literal 'target'. */
     void get_mutual_exclusions(
         const literal_t &target,
-        std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *muexs) const;
+        std::list<std::tuple<node_idx_t, unifier_t> > *muexs) const;
 
     /** Is a sub-routine of add_node.
      *  Generates unification assumptions between target node
@@ -490,23 +494,23 @@ protected:
      *               If NULL, enumerate them in this method. */
     void _generate_mutual_exclusions(
         node_idx_t target,
-        const std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > &muexs);
+        const std::list<std::tuple<node_idx_t, unifier_t> > &muexs);
 
     /** Is a sub-routine of _get_mutual_exclusion.
      *  Adds mutual-exclusions for target and nodes being inconsistent with it. */
     void _enumerate_mutual_exclusion_for_inconsistent_nodes(
         const literal_t &target,
-        std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *out) const;
+        std::list<std::tuple<node_idx_t, unifier_t> > *out) const;
 
     /** Is a sub-routine of _get_mutual_exclusion.
      *  Adds mutual-exclusions between target and its counter nodes. */
     void _enumerate_mutual_exclusion_for_counter_nodes(
         const literal_t &target,
-        std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *out) const;
+        std::list<std::tuple<node_idx_t, unifier_t> > *out) const;
 
     void _enumerate_mutual_exclusion_for_argument_set(
         const literal_t &target,
-        std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *out) const;
+        std::list<std::tuple<node_idx_t, unifier_t> > *out) const;
 
     /** Is a sub-routine of chain.
      *  @param is_node_base Gives the mode of enumerating candidate edges.
@@ -544,12 +548,12 @@ protected:
      *  you can override this method. */
     virtual bool can_unify_nodes(node_idx_t, node_idx_t) const { return true; }
 
-    virtual void print_nodes(std::ostream *os) const;
-    virtual void print_axioms(std::ostream *os) const;
-    virtual void print_edges(std::ostream *os) const;
-    virtual void print_subs(std::ostream *os) const;
-    virtual void print_mutual_exclusive_nodes(std::ostream *os) const;
-    virtual void print_mutual_exclusive_edges(std::ostream *os) const;
+    void print_nodes(std::ostream *os) const;
+    void print_axioms(std::ostream *os) const;
+    void print_edges(std::ostream *os) const;
+    void print_subs(std::ostream *os) const;
+    void print_mutual_exclusive_nodes(std::ostream *os) const;
+    void print_mutual_exclusive_edges(std::ostream *os) const;
 
     // ---- VARIABLES
 
@@ -619,10 +623,6 @@ protected:
          *   - KEY1, KEY2 : Terms. KEY1 is less than KEY2.
          *   - VALUE : Index of node of "KEY1 != KEY2". */
         hash_map<term_t, hash_map<term_t, node_idx_t> > terms_to_negsub_node;
-
-        /** Map from a node index
-         *  to the set of inconsistency axioms related to it. */
-        hash_map<node_idx_t, hash_set<axiom_id_t> > node_to_inconsistency;
 
         /** Map from depth to indices of nodes assigned the depth. */
         hash_map<int, hash_set<node_idx_t> > depth_to_nodes;

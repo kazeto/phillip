@@ -171,10 +171,11 @@ inline const hash_map<std::string, std::string>& phillip_main_t::params() const
 { return m_params; }
 
 
-inline const std::string& phillip_main_t::param( const std::string &key ) const
+inline const std::string& phillip_main_t::param(const std::string &key) const
 {
     static const std::string empty_str("");
-    return has_key(m_params, key) ? m_params.at(key) : empty_str;
+    auto found = m_params.find(key);
+    return (found != m_params.end()) ? found->second : empty_str;
 }
 
 

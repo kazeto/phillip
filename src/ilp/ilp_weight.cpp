@@ -61,8 +61,7 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
     
     const pg::proof_graph_t *graph = phillip()->get_latent_hypotheses_set();
     ilp::ilp_problem_t *prob = new ilp::ilp_problem_t(
-        graph, new ilp::basic_solution_interpreter_t(), false,
-        graph->name());
+        graph, new ilp::basic_solution_interpreter_t(), false);
 
     convert_proof_graph(prob);
     if (prob->is_timeout()) return prob;

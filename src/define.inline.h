@@ -505,11 +505,13 @@ template <class It> std::string join(
 }
 
 
-
-template <class Map, class Key>
-inline bool has_key(const Map& map, const Key& key)
+template <class Container, class Function> std::string join_functional(
+    const Container &container, Function func, const std::string &delim)
 {
-    return map.find(key) != map.end();
+    std::string out;
+    for (auto e : container)
+        out += (out.empty() ? "" : delim) + func(e);
+    return out;
 }
 
 

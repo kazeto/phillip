@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <mutex>
+#include <functional>
 
 #include "./lib/cdbpp.h"
 #include "./s_expression.h"
@@ -40,9 +41,10 @@ namespace phil
 
 class phillip_main_t;
 
+typedef unsigned char small_size_t;
 typedef long int index_t;
 typedef long int axiom_id_t;
-typedef index_t term_idx_t;
+typedef small_size_t term_idx_t;
 typedef std::string predicate_t;
 typedef std::string arity_t;
 
@@ -350,10 +352,8 @@ template <class It, bool USE_STREAM = false> std::string join(
 template <class It> std::string join(
     const It &s_begin, const It &s_end,
     const std::string &fmt, const std::string &delim);
-
-/** Returns whether given map's keys includes given key. */
-template <class Map, class Key>
-inline bool has_key(const Map& map, const Key& key);
+template <class Container, class Function> std::string join_functional(
+    const Container &container, Function func, const std::string &delim);
 
 /** Returns whether set1 and set2 have any intersection. */
 template <class It> bool has_intersection(

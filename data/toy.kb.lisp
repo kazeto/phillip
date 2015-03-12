@@ -10,6 +10,8 @@
    (=> (chimp-nn x1)
        (^ (eat-vb e) (banana-nn x2) (nsubj e x1) (dobj e x2))))
 
-(B (unipp (nsubj . * .)))
-(B (unipp (dobj . * .)))
+(B (unipp (nsubj * .)))
+(B (unipp (dobj * .)))
+
+(B (xor (nsubj e x) (dobj e x)))
 

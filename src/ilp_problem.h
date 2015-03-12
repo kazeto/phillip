@@ -127,8 +127,7 @@ public:
     static void disable_economization() { ms_do_economize = false; }
 
     inline ilp_problem_t(
-        const pg::proof_graph_t* lhs, solution_interpreter_t *si,
-        bool do_maximize, const std::string &name = "");
+        const pg::proof_graph_t* lhs, solution_interpreter_t *si, bool do_maximize);
     virtual ~ilp_problem_t();
 
     /** Merges with another ilp-problem. */
@@ -142,7 +141,7 @@ public:
      *  You can use this method to customize output. */
     inline void add_xml_decorator(solution_xml_decorator_t *p_dec);
 
-    inline const std::string& name() const { return m_name; }
+    inline const std::string& name() const;
     inline bool do_maximize() const { return m_do_maximize; }
 
     /** Add new variable to the objective-function.
@@ -301,7 +300,6 @@ protected:
 
     static bool ms_do_economize;
 
-    std::string m_name;
     bool m_do_maximize;
     bool m_is_timeout; /// Whether conversion into ILP was timeout.
 
@@ -345,7 +343,7 @@ public:
     /** Make an instance from current state of given lpp. */
     ilp_solution_t(
         const ilp_problem_t *prob, solution_type_e sol_type,
-        const std::vector<double> &values, const std::string &name = "");
+        const std::vector<double> &values);
 
     void merge(const ilp_solution_t &sol);
 
@@ -353,7 +351,7 @@ public:
     inline void timeout(bool flag) { m_is_timeout = flag; }
     inline bool is_timeout() const { return m_is_timeout; }
 
-    inline const std::string& name() const { return m_name; }
+    inline const std::string& name() const;
     inline const ilp::ilp_problem_t* problem() const { return m_ilp; }
     inline void set_solution_type(solution_type_e t) { m_solution_type = t; }
     inline solution_type_e type() const;
@@ -379,7 +377,6 @@ public:
     void print_graph(std::ostream *os = &std::cout) const; 
    
 private:
-    std::string m_name;
     const ilp_problem_t* const m_ilp;
     solution_type_e m_solution_type;
     

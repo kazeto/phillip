@@ -91,16 +91,20 @@ class unification_postponement_t
 public:
     unification_postponement_t() {}
     unification_postponement_t(
-        const std::string &arity, const std::vector<char> &args,
-        int num_for_partial_indispensability);
+        arity_id_t arity, const std::vector<char> &args,
+        small_size_t num_for_partial_indispensability);
+    unification_postponement_t(std::ifstream *fi);
 
+    void write(std::ofstream *fo) const;
+
+    arity_id_t arity_id() const { return m_arity; }
     bool do_postpone(const pg::proof_graph_t*, index_t n1, index_t n2) const;
     inline bool empty() const { return m_args.empty(); }
 
 private:
-    std::string m_arity;
+    arity_id_t m_arity;
     std::vector<char> m_args;
-    int m_num_for_partial_indispensability;
+    small_size_t m_num_for_partial_indispensability;
 };
 
 
@@ -128,19 +132,20 @@ public:
 
     axiom_id_t insert_implication(
         const lf::logical_function_t &f, const std::string &name);
-    axiom_id_t insert_inconsistency(
-        const lf::logical_function_t &f, const std::string &name);
-    axiom_id_t insert_unification_postponement(
-        const lf::logical_function_t &f, const std::string &name);
+    void insert_inconsistency(const lf::logical_function_t &f);
+    void insert_unification_postponement(const lf::logical_function_t &f);
     void insert_argument_set(const lf::logical_function_t &f);
 
     inline lf::axiom_t get_axiom(axiom_id_t id) const;
     inline std::list<axiom_id_t> search_axioms_with_rhs(const std::string &arity) const;
     inline std::list<axiom_id_t> search_axioms_with_lhs(const std::string &arity) const;
-    inline std::list<axiom_id_t> search_inconsistencies(const std::string &arity) const;
-    inline arity_id_t search_arity_id(const std::string &arity) const;
+    inline const std::list<std::pair<term_idx_t, term_idx_t> >*
+        search_inconsistent_terms(arity_id_t a1, arity_id_t a2) const;
+    inline arity_id_t search_arity_id(const arity_t &arity) const;
+    inline const arity_t& search_arity(arity_id_t id) const;
     hash_set<axiom_id_t> search_axiom_group(axiom_id_t id) const;
-    unification_postponement_t get_unification_postponement(const std::string &arity) const;
+    inline const unification_postponement_t* find_unification_postponement(arity_id_t arity) const;
+    inline const unification_postponement_t* find_unification_postponement(const arity_t &arity) const;
     argument_set_id_t search_argument_set_id(const std::string &arity, int term_idx) const;
     void search_queries(arity_id_t arity, std::list<search_query_t> *out) const;
     void search_axioms_with_query(
@@ -176,9 +181,11 @@ private:
     public:
         axioms_database_t(const std::string &filename);
         ~axioms_database_t();
+
         void prepare_compile();
         void prepare_query();
         void finalize();
+
         void put(const std::string &name, const lf::logical_function_t &func);
         lf::axiom_t get(axiom_id_t id) const;
         inline bool is_writable() const;
@@ -197,6 +204,38 @@ private:
         std::ifstream *m_fi_idx, *m_fi_dat;
         int m_num_compiled_axioms, m_num_unnamed_axioms;
         axiom_pos_t m_writing_pos;
+    };
+
+    class arity_database_t
+    {
+    public:
+        arity_database_t(const std::string &filename);
+
+        void clear();
+        void read();
+        void write() const;
+
+        inline arity_id_t add(const arity_t&);
+        inline void add_unification_postponement(const unification_postponement_t &unipp);
+        void add_mutual_exclusion(const literal_t &l1, const literal_t &l2);
+
+        inline const std::vector<arity_t>& arities() const;
+        inline arity_id_t arity2id(const arity_t&) const;
+        inline const arity_t& id2arity(arity_id_t) const;
+        inline const unification_postponement_t*
+            find_unification_postponement(arity_id_t) const;
+        inline const std::list<std::pair<term_idx_t, term_idx_t> >*
+            find_inconsistent_terms(arity_id_t, arity_id_t) const;
+
+    private:
+        std::string m_filename;
+
+        std::vector<arity_t> m_arities;
+        hash_map<arity_t, arity_id_t> m_arity2id;
+
+        hash_map<arity_id_t, unification_postponement_t> m_unification_postponements;
+        hash_map<arity_id_t, hash_map<arity_id_t,
+            std::list<std::pair<term_idx_t, term_idx_t> > > > m_mutual_exclusions;
     };
 
     /** A class of reachable-matrix for all predicate pairs. */
@@ -232,8 +271,6 @@ private:
     void write_config() const;
     void read_config();
 
-    void insert_arity(const std::string &arity);
-
     /** Outputs m_group_to_axioms to m_cdb_axiom_group. */
     void insert_axiom_group_to_cdb();
     void insert_argument_set_to_cdb();
@@ -243,7 +280,6 @@ private:
     void create_reachable_matrix();
     
     void _create_reachable_matrix_direct(
-        const hash_set<std::string> &arities,
         const hash_set<arity_id_t> &ignored,
         hash_map<arity_id_t, hash_map<arity_id_t, float> > *out_lhs,
         hash_map<arity_id_t, hash_map<arity_id_t, float> > *out_rhs,
@@ -264,6 +300,8 @@ private:
      *  @param tmp A map of temporal axioms related with dat. */
     std::list<axiom_id_t> search_id_list(
         const std::string &query, const cdb_data_t *dat) const;
+    std::list<axiom_id_t> search_id_list(
+        arity_id_t arity_id, const cdb_data_t *dat) const;
 
     static std::unique_ptr<knowledge_base_t, deleter_t<knowledge_base_t> > ms_instance;
     static std::string ms_filename;
@@ -277,18 +315,14 @@ private:
     std::string m_filename;
     version_e m_version;
 
-    cdb_data_t m_cdb_name, m_cdb_rhs, m_cdb_lhs;
-    cdb_data_t m_cdb_inc_pred, m_cdb_axiom_group, m_cdb_uni_pp, m_cdb_arg_set;
+    cdb_data_t m_cdb_rhs, m_cdb_lhs;
+    cdb_data_t m_cdb_axiom_group, m_cdb_arg_set;
     cdb_data_t m_cdb_arity_to_queries, m_cdb_query_to_ids;
-    cdb_data_t m_cdb_rm_idx;
     axioms_database_t m_axioms;
+    arity_database_t m_arity_db;
     reachable_matrix_t m_rm;
 
     hash_map<size_t, hash_map<size_t, float> > m_partial_reachable_matrix;
-
-    /** All arities in this knowledge-base.
-     *  This variable is used on constructing a reachable-matrix. */
-    hash_set<std::string> m_arity_set;
 
     /** A set of arities of stop-words.
      *  These arities are ignored in constructing a reachable-matrix. */
@@ -296,9 +330,8 @@ private:
 
     std::list<hash_set<std::string> > m_argument_sets;
 
-    hash_map<std::string, hash_set<axiom_id_t> >
-        m_name_to_axioms, m_lhs_to_axioms, m_rhs_to_axioms,
-        m_inc_to_axioms, m_group_to_axioms, m_arity_to_postponement;
+    hash_map<std::string, hash_set<axiom_id_t> > m_group_to_axioms;
+    hash_map<arity_id_t, hash_set<axiom_id_t> > m_lhs_to_axioms, m_rhs_to_axioms;
 
     /** Function object to provide distance between predicates. */
     struct
@@ -313,8 +346,6 @@ private:
         std::string key;
     } m_category_table;
 
-    bool m_do_create_local_reachability_matrix;
-    
     mutable hash_map<size_t, hash_map<size_t, float> > m_cache_distance;
 };
 
@@ -371,6 +402,8 @@ protected:
 
 void query_to_binary(const search_query_t &q, std::vector<char> *bin);
 size_t binary_to_query(const char *bin, search_query_t *out);
+
+inline knowledge_base_t* kb() { return knowledge_base_t::instance(); }
 
 }
 

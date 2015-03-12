@@ -24,8 +24,8 @@ namespace kb
 
 
 unification_postponement_t::unification_postponement_t(
-    const std::string &arity, const std::vector<char> &args,
-    int num_for_partial_indispensability)
+    arity_id_t arity, const std::vector<char> &args,
+    small_size_t num_for_partial_indispensability)
     : m_arity(arity), m_args(args),
       m_num_for_partial_indispensability(num_for_partial_indispensability)
 {
@@ -36,6 +36,35 @@ unification_postponement_t::unification_postponement_t(
         m_num_for_partial_indispensability = 0;
     if (m_num_for_partial_indispensability > n)
         m_num_for_partial_indispensability = n;
+}
+
+
+unification_postponement_t::unification_postponement_t(std::ifstream *fi)
+{
+    small_size_t num_args;
+
+    fi->read((char*)&m_arity, sizeof(arity_id_t));
+    fi->read((char*)&num_args, sizeof(small_size_t));
+
+    m_args.assign(num_args, 0);
+    for (unsigned char i = 0; i < num_args; ++i)
+        fi->read(&m_args[i], sizeof(char));
+
+    fi->read((char*)&m_num_for_partial_indispensability, sizeof(small_size_t));
+}
+
+
+void unification_postponement_t::write(std::ofstream *fo) const
+{
+    small_size_t num_args = m_args.size();
+
+    fo->write((char*)&m_arity, sizeof(arity_id_t));
+    fo->write((char*)&num_args, sizeof(small_size_t));
+
+    for (auto arg : m_args)
+        fo->write(&arg, sizeof(char));
+
+    fo->write((char*)&m_num_for_partial_indispensability, sizeof(small_size_t));
 }
 
 
@@ -117,17 +146,15 @@ void knowledge_base_t::setup(
 knowledge_base_t::knowledge_base_t(const std::string &filename)
     : m_state(STATE_NULL),
       m_filename(filename), m_version(KB_VERSION_1), 
-      m_cdb_name(filename +".name.cdb"),
       m_cdb_rhs(filename + ".rhs.cdb"),
       m_cdb_lhs(filename + ".lhs.cdb"),
-      m_cdb_inc_pred(filename + ".inc.pred.cdb"),
       m_cdb_axiom_group(filename + ".group.cdb"),
-      m_cdb_uni_pp(filename + ".unipp.cdb"),
       m_cdb_arg_set(filename + ".args.cdb"),
-      m_cdb_arity_to_queries(filename + ".a2qs.cdb"),
-      m_cdb_query_to_ids(filename + ".q2ids.cdb"),
-      m_cdb_rm_idx(filename + ".rm.cdb"),
-      m_axioms(filename), m_rm(filename + ".rm.dat")
+      m_cdb_arity_to_queries(filename + ".pattern.cdb"),
+      m_cdb_query_to_ids(filename + ".search.cdb"),
+      m_axioms(filename),
+      m_arity_db(filename + ".arity.dat"),
+      m_rm(filename + ".rm.dat")
 {
     m_distance_provider = { NULL, "" };
     m_category_table = { NULL, "" };
@@ -167,16 +194,12 @@ void knowledge_base_t::prepare_compile()
     if (m_state == STATE_NULL)
     {
         m_axioms.prepare_compile();
-        m_cdb_name.prepare_compile();
         m_cdb_rhs.prepare_compile();
         m_cdb_lhs.prepare_compile();
-        m_cdb_inc_pred.prepare_compile();
-        m_cdb_uni_pp.prepare_compile();
         m_cdb_axiom_group.prepare_compile();
         m_cdb_arg_set.prepare_compile();
         m_cdb_arity_to_queries.prepare_compile();
         m_cdb_query_to_ids.prepare_compile();
-        m_cdb_rm_idx.prepare_compile();
         m_category_table.instance->prepare_compile(this);
 
         m_state = STATE_COMPILE;
@@ -208,18 +231,15 @@ void knowledge_base_t::prepare_query()
     if (m_state == STATE_NULL)
     {
         read_config();
+        m_arity_db.read();
 
         m_axioms.prepare_query();
-        m_cdb_name.prepare_query();
         m_cdb_rhs.prepare_query();
         m_cdb_lhs.prepare_query();
-        m_cdb_inc_pred.prepare_query();
-        m_cdb_uni_pp.prepare_query();
         m_cdb_axiom_group.prepare_query();
         m_cdb_arg_set.prepare_query();
         m_cdb_arity_to_queries.prepare_query();
         m_cdb_query_to_ids.prepare_query();
-        m_cdb_rm_idx.prepare_query();
         m_rm.prepare_query();
         m_category_table.instance->prepare_query(this);
 
@@ -235,7 +255,7 @@ void knowledge_base_t::finalize()
     if (m_state == STATE_COMPILE)
     {
         auto insert_cdb = [](
-            const hash_map<std::string, hash_set<axiom_id_t> > &ids,
+            const hash_map<arity_id_t, hash_set<axiom_id_t> > &ids,
             cdb_data_t *dat)
         {
             print_console("starts writing " + dat->filename() + "...");
@@ -250,7 +270,7 @@ void knowledge_base_t::finalize()
                     size += to_binary<axiom_id_t>(*id, buffer + size);
 
                 assert(read_size == size);
-                dat->put(it->first.c_str(), it->first.length(), buffer, size);
+                dat->put((char*)&it->first, sizeof(arity_id_t), buffer, size);
                 delete[] buffer;
             }
 
@@ -259,26 +279,21 @@ void knowledge_base_t::finalize()
 
         extend_inconsistency();
 
-        insert_cdb(m_name_to_axioms, &m_cdb_name);
         insert_cdb(m_rhs_to_axioms, &m_cdb_rhs);
         insert_cdb(m_lhs_to_axioms, &m_cdb_lhs);
-        insert_cdb(m_inc_to_axioms, &m_cdb_inc_pred);
-        insert_cdb(m_arity_to_postponement, &m_cdb_uni_pp);
         insert_axiom_group_to_cdb();
         insert_argument_set_to_cdb();
 
-        m_name_to_axioms.clear();
         m_rhs_to_axioms.clear();
         m_lhs_to_axioms.clear();
-        m_inc_to_axioms.clear();
         m_group_to_axioms.clear();
-        m_arity_to_postponement.clear();
         m_argument_sets.clear();
 
         set_stop_words();
         create_query_map();
         create_reachable_matrix();
         write_config();
+        m_arity_db.write();
 
         if (phillip_main_t::verbose() == FULL_VERBOSE)
         {
@@ -286,50 +301,35 @@ void knowledge_base_t::finalize()
             m_rm.prepare_query();
 
             std::cerr << std::setw(30) << std::right << "" << " | ";
-            for (auto it = m_arity_set.begin(); it != m_arity_set.end(); ++it)
-                std::cerr << (*it) << " | ";
+            for (auto arity : m_arity_db.arities())
+                std::cerr << arity << " | ";
             std::cerr << std::endl;
 
-            for (auto it1 = m_arity_set.begin(); it1 != m_arity_set.end(); ++it1)
+            for (auto a1 : m_arity_db.arities())
             {
-                arity_id_t idx1 = search_arity_id(*it1);
-                std::cerr << std::setw(30) << std::right << (*it1) << " | ";
+                arity_id_t idx1 = search_arity_id(a1);
+                std::cerr << std::setw(30) << std::right << a1 << " | ";
 
-                if (idx1 == INVALID_ARITY_ID)
+                for (auto a2 : m_arity_db.arities())
                 {
-                    std::cerr << std::endl;
-                    continue;
+                    arity_id_t idx2 = search_arity_id(a2);
+                    float dist = m_rm.get(idx1, idx2);
+                    std::cerr << std::setw(a2.length()) << (int)dist << " | ";
                 }
-                else
-                {
-                    for (auto it2 = m_arity_set.begin(); it2 != m_arity_set.end(); ++it2)
-                    {
-                        arity_id_t idx2 = search_arity_id(*it2);
-                        if (idx2 != INVALID_ARITY_ID)
-                        {
-                            float dist = m_rm.get(idx1, idx2);
-                            std::cerr << std::setw(it2->length()) << (int)dist << " | ";
-                        }
-                    }
-                    std::cerr << std::endl;
-                }
+                std::cerr << std::endl;
             }
         }
 
-        m_arity_set.clear();
+        m_arity_db.clear();
     }
 
     m_axioms.finalize();
-    m_cdb_name.finalize();
     m_cdb_rhs.finalize();
     m_cdb_lhs.finalize();
-    m_cdb_inc_pred.finalize();
-    m_cdb_uni_pp.finalize();
     m_cdb_axiom_group.finalize();
     m_cdb_arg_set.finalize();
     m_cdb_arity_to_queries.finalize();
     m_cdb_query_to_ids.finalize();
-    m_cdb_rm_idx.finalize();
     m_rm.finalize();
     m_category_table.instance->finalize();
 
@@ -386,6 +386,7 @@ void knowledge_base_t::read_config()
 
     fi.close();
 
+    key[num] = '\0';
     set_distance_provider(key);
 }
 
@@ -414,7 +415,6 @@ axiom_id_t knowledge_base_t::insert_implication(
 
         axiom_id_t id = m_axioms.num_axioms();
         m_axioms.put(name, func);
-        m_name_to_axioms[name].insert(id);
 
         // REGISTER AXIOMS'S GROUPS
         auto spl = split(name, "#");
@@ -430,18 +430,16 @@ axiom_id_t knowledge_base_t::insert_implication(
         for (auto it = rhs.begin(); it != rhs.end(); ++it)
         if (not (*it)->is_equality())
         {
-            std::string arity((*it)->get_arity());
-            insert_arity(arity);
-            m_rhs_to_axioms[arity].insert(id);
+            arity_id_t arity_id = m_arity_db.add((*it)->get_arity());
+            m_rhs_to_axioms[arity_id].insert(id);
         }
 
         for (auto it = lhs.begin(); it != lhs.end(); ++it)
         if (not(*it)->is_equality())
         {
-            std::string arity = (*it)->get_arity();
-            insert_arity(arity);
+            arity_id_t arity_id = m_arity_db.add((*it)->get_arity());
             if (is_paraphrase)
-                m_lhs_to_axioms[arity].insert(id);
+                m_lhs_to_axioms[arity_id].insert(id);
         }
 
         return id;
@@ -451,8 +449,7 @@ axiom_id_t knowledge_base_t::insert_implication(
 }
 
 
-axiom_id_t knowledge_base_t::insert_inconsistency(
-    const lf::logical_function_t &func, const std::string &name)
+void knowledge_base_t::insert_inconsistency(const lf::logical_function_t &func)
 {
     if (m_state == STATE_COMPILE)
     {
@@ -461,31 +458,22 @@ axiom_id_t knowledge_base_t::insert_inconsistency(
             print_warning_fmt(
                 "Inconsistency \"%s\" is invalid and skipped.",
                 func.to_string().c_str());
-            return INVALID_AXIOM_ID;
+            return;
         }
         else
         {
-            axiom_id_t id = m_axioms.num_axioms();
-            m_axioms.put(name, func);
+            std::vector<const lf::logical_function_t*> lits;
+            func.enumerate_literal_branches(&lits);
 
-            /* REGISTER AXIOM-ID TO MAP FOR INC */
-            std::vector<const literal_t*> literals = func.get_all_literals();
-            for (auto it = literals.begin(); it != literals.end(); ++it)
-            {
-                std::string arity = (*it)->get_arity();
-                m_inc_to_axioms[arity].insert(id);
-            }
-
-            return id;
+            literal_t l1 = lits.at(0)->literal();
+            literal_t l2 = lits.at(1)->literal();
+            m_arity_db.add_mutual_exclusion(l1, l2);
         }
     }
-    else
-        return INVALID_AXIOM_ID;
 }
 
 
-axiom_id_t knowledge_base_t::insert_unification_postponement(
-    const lf::logical_function_t &func, const std::string &name)
+void knowledge_base_t::insert_unification_postponement(const lf::logical_function_t &func)
 {
     if (m_state == STATE_COMPILE)
     {
@@ -494,30 +482,40 @@ axiom_id_t knowledge_base_t::insert_unification_postponement(
             print_warning_fmt(
                 "Unification postponement \"%s\" is invalid and skipped.",
                 func.to_string().c_str());
-            return INVALID_AXIOM_ID;
+            return;
         }
         else
         {
-            axiom_id_t id = m_axioms.num_axioms();
-            m_axioms.put(name, func);
+            const term_t INDISPENSABLE("*"), PARTIAL("+"), DISPENSABLE(".");
+            const literal_t &lit = func.branch(0).literal();
 
-            /* REGISTER AXIOM-ID TO MAP FOR UNI-PP */
-            std::string arity = func.branch(0).literal().get_arity();
-            if (m_arity_to_postponement.count(arity) > 0)
+            arity_id_t arity = m_arity_db.add(lit.get_arity());
+            std::vector<char> args(lit.terms.size(), 0);
+
+            for (size_t i = 0; i < args.size(); ++i)
             {
-                print_warning_fmt(
-                    "The unification postponement "
-                    "for the arity \"%s\" inserted redundantly!",
-                    arity.c_str());
-            }
-            else
-                m_arity_to_postponement[arity].insert(id);
+                if (lit.terms.at(i) == INDISPENSABLE)
+                    args[i] = UNI_PP_INDISPENSABLE;
+                else if (lit.terms.at(i) == PARTIAL)
+                    args[i] = UNI_PP_INDISPENSABLE_PARTIALLY;
+                else if (lit.terms.at(i) == DISPENSABLE)
+                    args[i] = UNI_PP_DISPENSABLE;
+                else
+                {
+                    print_warning_fmt(
+                        "The unification postponement for the arity \"%s\" is invalid.",
+                        lit.get_arity().c_str());
+                    return;
+                }
 
-            return id;
+            }
+
+            int num(1);
+            func.param2int(&num);
+
+            m_arity_db.add_unification_postponement(unification_postponement_t(arity, args, num));
         }
     }
-    else
-        return INVALID_AXIOM_ID;
 }
 
 
@@ -599,47 +597,6 @@ hash_set<axiom_id_t> knowledge_base_t::search_axiom_group(axiom_id_t id) const
 
     return out;
 }
-
-
-unification_postponement_t knowledge_base_t::
-get_unification_postponement(const std::string &arity) const
-{
-    std::list<axiom_id_t> ids = search_id_list(arity, &m_cdb_uni_pp);
-    if (not ids.empty())
-    {
-        const term_t INDISPENSABLE("*"), PARTIAL("+"), DISPENSABLE(".");
-        lf::axiom_t ax = get_axiom(ids.front());
-        const literal_t &lit = ax.func.branch(0).literal();
-        std::string arity = lit.get_arity();
-        std::vector<char> args(lit.terms.size(), 0);
-
-        for (size_t i = 0; i < args.size(); ++i)
-        {
-            if (lit.terms.at(i) == INDISPENSABLE)
-                args[i] = UNI_PP_INDISPENSABLE;
-            else if (lit.terms.at(i) == PARTIAL)
-                args[i] = UNI_PP_INDISPENSABLE_PARTIALLY;
-            else if (lit.terms.at(i) == DISPENSABLE)
-                args[i] = UNI_PP_DISPENSABLE;
-            else
-            {
-                print_warning_fmt(
-                    "The unification postponement for the arity \"%s\" is invalid.",
-                    arity.c_str());
-                return unification_postponement_t();
-            }
-
-        }
-
-        int num(1);
-        ax.func.param2int(&num);
-
-        return unification_postponement_t(arity, args, num);
-    }
-    else
-        return unification_postponement_t();
-}
-
 
 argument_set_id_t knowledge_base_t::
 search_argument_set_id(const std::string &arity, int term_idx) const
@@ -750,13 +707,6 @@ void knowledge_base_t::set_category_table(const std::string &key)
 float knowledge_base_t::get_distance(
     const std::string &arity1, const std::string &arity2 ) const
 {
-    if (not m_cdb_rm_idx.is_readable() or not m_rm.is_readable())
-    {
-        print_warning(
-            "get-distance: KB is currently not readable.");
-        return -1;
-    }
-
     arity_id_t get1 = search_arity_id(arity1);
     arity_id_t get2 = search_arity_id(arity2);
     if (get1 == INVALID_ARITY_ID or get2 == INVALID_ARITY_ID) return -1.0f;
@@ -773,18 +723,6 @@ float knowledge_base_t::get_distance(
     float dist(m_rm.get(get1, get2));
     m_cache_distance[get1][get2] = dist;
     return dist;
-}
-
-
-void knowledge_base_t::insert_arity(const std::string &arity)
-{
-    if (m_arity_set.count(arity) == 0)
-    {
-        m_arity_set.insert(arity);
-
-        size_t idx = m_arity_set.size();
-        m_cdb_rm_idx.put(arity.c_str(), arity.length(), &idx, sizeof(size_t));
-    }
 }
 
 
@@ -1008,8 +946,6 @@ void knowledge_base_t::create_query_map()
     m_axioms.prepare_query();
     m_cdb_rhs.prepare_query();
     m_cdb_lhs.prepare_query();
-    m_cdb_inc_pred.prepare_query();
-    m_cdb_rm_idx.prepare_query();
 
     std::map<arity_id_t, std::set<search_query_t> > arity_to_queries;
     std::map<search_query_t, std::set< std::pair<axiom_id_t, bool> > > query_to_ids;
@@ -1161,18 +1097,17 @@ void knowledge_base_t::create_reachable_matrix()
     m_axioms.prepare_query();
     m_cdb_rhs.prepare_query();
     m_cdb_lhs.prepare_query();
-    m_cdb_inc_pred.prepare_query();
-    m_cdb_rm_idx.prepare_query();
     m_category_table.instance->prepare_query(this);
 
     m_rm.prepare_compile();
 
     print_console_fmt("  num of axioms = %d", m_axioms.num_axioms());
-    print_console_fmt("  num of arities = %d", m_arity_set.size());
+    print_console_fmt("  num of arities = %d", m_arity_db.arities().size());
     print_console_fmt("  max distance = %.2f", get_max_distance());
     print_console_fmt("  num of parallel threads = %d", ms_thread_num_for_rm);
     print_console("  computing distance of direct edges...");
 
+    const std::vector<arity_t> &arities = m_arity_db.arities();
     hash_map<arity_id_t, hash_map<arity_id_t, float> > base_lhs, base_rhs;
     hash_set<arity_id_t> ignored;
     std::set<std::pair<arity_id_t, arity_id_t> > base_para;
@@ -1184,13 +1119,12 @@ void knowledge_base_t::create_reachable_matrix()
     }
     ignored.insert(INVALID_ARITY_ID);
     
-    _create_reachable_matrix_direct(
-        m_arity_set, ignored, &base_lhs, &base_rhs, &base_para);
+    _create_reachable_matrix_direct(ignored, &base_lhs, &base_rhs, &base_para);
 
     print_console("  writing reachable matrix...");
     std::vector<std::thread> worker;
     int num_thread =
-        std::min<int>(m_arity_set.size(),
+        std::min<int>(arities.size(),
         std::min<int>(ms_thread_num_for_rm, std::thread::hardware_concurrency()));
     
     for (int th_id = 0; th_id < num_thread; ++th_id)
@@ -1198,7 +1132,7 @@ void knowledge_base_t::create_reachable_matrix()
         worker.emplace_back(
             [&](int th_id)
             {
-                for(arity_id_t idx = th_id; idx < m_arity_set.size(); idx += num_thread)
+                for(arity_id_t idx = th_id; idx < arities.size(); idx += num_thread)
                 {
                     if (ignored.count(idx) != 0) continue;
                     
@@ -1215,7 +1149,7 @@ void knowledge_base_t::create_reachable_matrix()
                     clock_t c = clock();
                     if (c - clock_past > CLOCKS_PER_SEC)
                     {
-                        float progress = (float)(processed)* 100.0f / (float)m_arity_set.size();
+                        float progress = (float)(processed)* 100.0f / (float)arities.size();
                         std::cerr << format(
                             "processed %d tokens [%.4f%%]\r", processed, progress);
                         std::cerr.flush();
@@ -1232,7 +1166,7 @@ void knowledge_base_t::create_reachable_matrix()
     int proc_time(time_end - time_start); 
     double coverage(
         num_inserted * 100.0 /
-        (double)(m_arity_set.size() * m_arity_set.size()));
+        (double)(arities.size() * arities.size()));
     
     print_console("completed computation.");
     print_console_fmt("  process-time = %d", proc_time);
@@ -1241,37 +1175,36 @@ void knowledge_base_t::create_reachable_matrix()
 
 
 void knowledge_base_t::_create_reachable_matrix_direct(
-    const hash_set<std::string> &arities,
     const hash_set<arity_id_t> &ignored,
     hash_map<arity_id_t, hash_map<arity_id_t, float> > *out_lhs,
     hash_map<arity_id_t, hash_map<arity_id_t, float> > *out_rhs,
     std::set<std::pair<arity_id_t, arity_id_t> > *out_para)
 {
     size_t num_processed(0);
+    const std::vector<arity_t> &arities = m_arity_db.arities();
 
     // SET VALUES IN CATEGORY-TABLE TO REACHABLE-MATRIX
-    for (auto ar1 : arities)
-    for (auto ar2 : arities)
+    for (arity_id_t i = 1; i < arities.size(); ++i)
     {
-        float d = m_category_table.instance->get(ar1, ar2);
-        if (d >= 0.0f)
+        const arity_t &ar1 = arities.at(i);
+        for (arity_id_t j = 1; j < arities.size(); ++j)
         {
-            arity_id_t idx1 = search_arity_id(ar1);
-            arity_id_t idx2 = search_arity_id(ar2);
-            (*out_lhs)[idx1][idx2] = d;
-            (*out_rhs)[idx1][idx2] = d;
+            const arity_t &ar2 = arities.at(j);
+            float d = m_category_table.instance->get(ar1, ar2);
+            if (d >= 0.0f)
+            {
+                (*out_lhs)[i][j] = d;
+                (*out_rhs)[i][j] = d;
+            }
         }
     }
 
-    for (auto ar = arities.begin(); ar != arities.end(); ++ar)
+    for (arity_id_t i = 1; i < arities.size(); ++i)
     {
-        arity_id_t idx1 = search_arity_id(*ar);
-        assert(idx1 != INVALID_ARITY_ID);
-
-        if (ignored.count(idx1) == 0)
+        if (ignored.count(i) == 0)
         {
-            (*out_lhs)[idx1][idx1] = 0.0f;
-            (*out_rhs)[idx1][idx1] = 0.0f;
+            (*out_lhs)[i][i] = 0.0f;
+            (*out_rhs)[i][i] = 0.0f;
         }
     }
 
@@ -1501,6 +1434,40 @@ std::list<axiom_id_t> knowledge_base_t::search_id_list(
 }
 
 
+std::list<axiom_id_t> knowledge_base_t::search_id_list(
+    arity_id_t arity_id, const cdb_data_t *dat) const
+{
+    std::list<axiom_id_t> out;
+
+    if (arity_id != INVALID_ARITY_ID and dat != NULL)
+    {
+        if (not dat->is_readable())
+            print_warning("kb-search: Kb-state is invalid.");
+        else
+        {
+            size_t value_size;
+            const char *value = (const char*)
+                dat->get((char*)&arity_id, sizeof(arity_id_t), &value_size);
+
+            if (value != NULL)
+            {
+                size_t size(0), num_id(0);
+                size += binary_to<size_t>(value + size, &num_id);
+
+                for (int j = 0; j<num_id; ++j)
+                {
+                    axiom_id_t id;
+                    size += binary_to<axiom_id_t>(value + size, &id);
+                    out.push_back(id);
+                }
+            }
+        }
+    }
+
+    return out;
+}
+
+
 
 std::mutex knowledge_base_t::axioms_database_t::ms_mutex;
 
@@ -1641,6 +1608,166 @@ lf::axiom_t knowledge_base_t::axioms_database_t::get(axiom_id_t id) const
     _size += binary_to_string(buffer + _size, &out.name);
 
     return out;
+}
+
+
+
+knowledge_base_t::arity_database_t::arity_database_t(const std::string &filename)
+: m_filename(filename)
+{
+    m_arities.push_back("");
+    m_arity2id[""] = INVALID_ARITY_ID;
+}
+
+
+void knowledge_base_t::arity_database_t::clear()
+{
+    m_arities.assign(1, "");
+
+    m_arity2id.clear();
+    m_arity2id[""] = INVALID_ARITY_ID;
+
+    m_unification_postponements.clear();
+    m_mutual_exclusions.clear();
+}
+
+
+void knowledge_base_t::arity_database_t::read()
+{
+    std::ifstream fi(m_filename.c_str(), std::ios::in | std::ios::binary);
+    char line[256];
+
+    clear();
+
+    if (fi.bad())
+    {
+        print_error("Failed to open " + m_filename);
+        return;
+    }
+
+    size_t arity_num;
+    fi.read((char*)&arity_num, sizeof(size_t));
+
+    for (size_t i = 0; i < arity_num; ++i)
+    {
+        unsigned char num_char;
+        fi.read((char*)&num_char, sizeof(unsigned char));
+        fi.read(line, sizeof(char) * num_char);
+        line[num_char] = '\0';
+
+        add(arity_t(line));
+    }
+
+    size_t unipp_num;
+    fi.read((char*)&unipp_num, sizeof(size_t));
+
+    for (size_t i = 0; i < unipp_num; ++i)
+        add_unification_postponement(unification_postponement_t(&fi));
+
+    size_t muex_num_1;
+    fi.read((char*)&muex_num_1, sizeof(size_t));
+
+    for (size_t i = 0; i < muex_num_1; ++i)
+    {
+        size_t muex_num_2;
+        arity_id_t id1;
+        fi.read((char*)&id1, sizeof(arity_id_t));
+        fi.read((char*)&muex_num_2, sizeof(size_t));
+
+        for (size_t j = 0; j < muex_num_2; ++j)
+        {
+            arity_id_t id2;
+            small_size_t pairs_num;
+            std::list<std::pair<term_idx_t, term_idx_t> > pairs;
+
+            fi.read((char*)&id2, sizeof(arity_id_t));
+            fi.read((char*)&pairs_num, sizeof(small_size_t));
+
+            for (small_size_t k = 0; k < pairs_num; ++k)
+            {
+                term_idx_t terms[2];
+                fi.read((char*)terms, sizeof(term_idx_t) * 2);
+
+                pairs.push_back(std::make_pair(terms[0], terms[1]));
+            }
+
+            m_mutual_exclusions[id1][id2] = pairs;
+        }
+    }
+}
+
+
+void knowledge_base_t::arity_database_t::write() const
+{
+    std::ofstream fo(m_filename.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);
+    char line[256];
+
+    if (fo.bad())
+    {
+        print_error("Failed to open " + m_filename);
+        return;
+    }
+
+    size_t arity_num = m_arities.size();
+    fo.write((char*)&arity_num, sizeof(size_t));
+
+    for (auto arity : m_arities)
+    {
+        small_size_t num_char = arity.length();
+        fo.write((char*)&num_char, sizeof(small_size_t));
+        fo.write(arity.c_str(), sizeof(char)* num_char);
+    }
+
+    size_t unipp_num = m_unification_postponements.size();
+    fo.write((char*)&unipp_num, sizeof(size_t));
+
+    for (auto p : m_unification_postponements)
+        p.second.write(&fo);
+
+    size_t muex_num_1 = m_mutual_exclusions.size();
+    fo.write((char*)&muex_num_1, sizeof(size_t));
+
+    for (auto p1 : m_mutual_exclusions)
+    {
+        size_t muex_num_2 = p1.second.size();
+        fo.write((char*)&p1.first, sizeof(arity_id_t));
+        fo.write((char*)&muex_num_2, sizeof(size_t));
+
+        for (auto p2 : p1.second)
+        {
+            small_size_t pairs_num = p2.second.size();
+            fo.write((char*)&p2.first, sizeof(arity_id_t));
+            fo.write((char*)&pairs_num, sizeof(small_size_t));
+
+            for (auto p3 : p2.second)
+            {
+                term_idx_t terms[2] = { p3.first, p3.second };
+                fo.write((char*)terms, sizeof(term_idx_t)* 2);
+            }
+        }
+    }
+}
+
+
+void knowledge_base_t::arity_database_t::add_mutual_exclusion(const literal_t &l1, const literal_t &l2)
+{
+    std::list< std::pair<term_idx_t, term_idx_t> > pairs;
+
+    for (term_idx_t t1 = 0; t1 < l1.terms.size(); ++t1)
+    for (term_idx_t t2 = 0; t2 < l2.terms.size(); ++t2)
+    {
+        if (l1.terms.at(t1) == l2.terms.at(t2))
+            pairs.push_back(std::make_pair(t1, t2));
+    }
+
+    if (not pairs.empty())
+    {
+        arity_id_t a1 = add(l1.get_arity());
+        arity_id_t a2 = add(l2.get_arity());
+        if (a1 > a2) std::swap(a1, a2);
+
+        m_mutual_exclusions[a1][a2] = pairs;
+    }
 }
 
 

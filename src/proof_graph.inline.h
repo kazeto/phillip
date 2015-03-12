@@ -170,7 +170,7 @@ inline node_idx_t proof_graph_t::
     add_observation(const literal_t &lit, int depth)
 {
     int idx = add_node(lit, NODE_OBSERVABLE, depth, hash_set<node_idx_t>());
-    std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > muex;
+    std::list<std::tuple<node_idx_t, unifier_t> > muex;
 
     get_mutual_exclusions(lit, &muex);
     _generate_mutual_exclusions(idx, muex);

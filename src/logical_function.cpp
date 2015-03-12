@@ -141,14 +141,14 @@ bool logical_function_t::do_include(const literal_t& lit) const
 
 bool logical_function_t::find_parameter(const std::string &query) const
 {
-    if (m_param.empty()) return "";
+    if (m_param.empty()) return false;
 
     int idx(0);
     while ((idx = m_param.find(query, idx)) >= 0)
     {
         if (m_param.at(idx - 1) != ':')
             continue;
-        if (m_param.size() >= idx + query.size())
+        if (idx + query.size() <= m_param.size())
             return true;
         else if (m_param.at(idx + query.size()) == ':')
             return true;
