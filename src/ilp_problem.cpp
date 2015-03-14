@@ -765,7 +765,7 @@ void ilp_problem_t::print(std::ostream *os) const
               << "\" coefficient=\"" << var.objective_coefficient() << "\"";
         if (is_constant_variable(i))
             (*os) << " fixed=\"" << const_variable_values().at(i) << "\"";
-        (*os) << " />" << std::endl;
+        (*os) << "></variable>" << std::endl;
     }
     
     (*os)

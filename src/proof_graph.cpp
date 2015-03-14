@@ -498,8 +498,6 @@ std::string proof_graph_t::edge_to_string( edge_idx_t i ) const
     std::ostringstream str_edge;
     const edge_t &_edge = edge(i);
 
-    str_edge << i << "(" << _edge.tail() << "=>" << _edge.head() << "): ";
-
     if (_edge.tail() >= 0)
     {
         const std::vector<node_idx_t>& tail = hypernode(_edge.tail());
@@ -548,24 +546,26 @@ std::string proof_graph_t::edge_to_string( edge_idx_t i ) const
 void proof_graph_t::enumerate_nodes_softly_unifiable(
 const arity_t &arity, hash_set<node_idx_t> *out) const
 {
-    const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
-    float threshold = phillip()->param_float(
-        "threshold_soft_unify", kb::knowledge_base_t::get_max_distance());
-
     const hash_set<node_idx_t> *ns1 = search_nodes_with_arity(arity);
     if (ns1 != NULL)
         out->insert(ns1->begin(), ns1->end());
 
-    for (auto p1 : m_maps.predicate_to_nodes)
-    for (auto p2 : p1.second)
-    if (p2.first == 1)
+    if (kb::kb()->do_target_on_category_table(arity))
     {
-        arity_t arity2 = literal_t::get_arity(p1.first, p2.first, false);
-        if (arity2 != arity)
+        float threshold = phillip()->param_float(
+            "threshold_soft_unify", kb::knowledge_base_t::get_max_distance());
+
+        for (auto p1 : m_maps.predicate_to_nodes)
+        for (auto p2 : p1.second)
+        if (p2.first == 1)
         {
-            float cost = base->get_soft_unifying_cost(arity, arity2);
-            if (cost >= 0.0 and cost < threshold)
-                out->insert(p2.second.begin(), p2.second.end());
+            arity_t arity2 = literal_t::get_arity(p1.first, p2.first, false);
+            if (arity2 != arity)
+            {
+                float cost = kb::kb()->get_soft_unifying_cost(arity, arity2);
+                if (cost >= 0.0 and cost < threshold)
+                    out->insert(p2.second.begin(), p2.second.end());
+            }
         }
     }
 }

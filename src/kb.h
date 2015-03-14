@@ -78,6 +78,10 @@ public:
     *  If p1 cannot be p2, returns -1. */
     virtual float get(const arity_t &p1, const arity_t &p2) const = 0;
 
+    virtual bool do_regard_as_categorical_knowledge(
+        const lf::logical_function_t &func) const = 0;
+    virtual bool do_target(const arity_t &a) const = 0;
+
     virtual void finalize() = 0;
 
 protected:
@@ -167,6 +171,7 @@ public:
 
     inline float get_soft_unifying_cost(
         const arity_t &arity1, const arity_t &arity2) const;
+    inline bool do_target_on_category_table(const arity_t &arity) const;
 
     inline version_e version() const;
     inline bool is_valid_version() const;
@@ -384,6 +389,10 @@ public:
 
     virtual void prepare_query(const knowledge_base_t*) override;
     virtual float get(const arity_t &a1, const arity_t &a2) const override;
+
+    virtual bool do_regard_as_categorical_knowledge(
+        const lf::logical_function_t &func) const override;
+    virtual bool do_target(const arity_t &a) const override;
 
     virtual void finalize() override;
 

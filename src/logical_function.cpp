@@ -301,27 +301,6 @@ bool logical_function_t::is_valid_as_argument_set() const
 }
 
 
-bool logical_function_t::is_categorical_knowledge() const
-{
-    if (is_valid_as_implication())
-    {
-        auto lhs = get_lhs();
-        auto rhs = get_rhs();
-
-        if (lhs.size() == 1 and rhs.size() == 1)
-        {
-            term_t t1 = lhs.front()->terms.front();
-            term_t t2 = rhs.front()->terms.front();
-            return t1 == t2;
-        }
-        else
-            return false;
-    }
-    else
-        return false;
-}
-
-
 void logical_function_t::get_all_literals( std::list<literal_t> *out ) const
 {
     auto literals = get_all_literals();

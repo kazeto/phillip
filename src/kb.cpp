@@ -398,7 +398,8 @@ axiom_id_t knowledge_base_t::insert_implication(
     {
         bool is_implication = func.is_valid_as_implication();
         bool is_paraphrase = func.is_valid_as_paraphrase();
-        bool is_categorical = func.is_categorical_knowledge();
+        bool is_categorical =
+            m_category_table.instance->do_regard_as_categorical_knowledge(func);
 
         if (not is_implication and not is_paraphrase)
         {
@@ -989,7 +990,7 @@ void knowledge_base_t::create_query_map()
         std::get<1>(query).sort();
 
         for (char i = 0; i < branches.size(); ++i)
-        if (branches[i]->is_optional_literal())
+        if (do_target_on_category_table(branches[i]->literal().get_arity()))
             std::get<2>(query).push_back(i);
 
         query_to_ids[query].insert(std::make_pair(ax.id, is_backward));
@@ -1989,8 +1990,8 @@ void basic_category_table_t::add(const lf::logical_function_t &ax)
     arity_t a1 = lhs.front()->literal().get_arity();
     arity_t a2 = rhs.front()->literal().get_arity();
 
-    m_table_for_compile[a1][a2] = 0; // DEDUCTIVE
-    m_table_for_compile[a2][a1] = 1; // ABDUCTIVE
+    m_table_for_compile[a1][a2] = 1;
+    m_table_for_compile[a2][a1] = 1;
 }
 
 
@@ -2022,6 +2023,38 @@ float basic_category_table_t::get(const arity_t &a1, const arity_t &a2) const
     }
 
     return -1.0f;
+}
+
+
+bool basic_category_table_t::do_regard_as_categorical_knowledge(
+    const lf::logical_function_t &func) const
+{
+    if (func.is_valid_as_implication())
+    {
+        auto lhs = func.get_lhs();
+        auto rhs = func.get_rhs();
+
+        if (lhs.size() == 1 and rhs.size() == 1)
+        {
+            term_t t1 = lhs.front()->terms.front();
+            term_t t2 = rhs.front()->terms.front();
+            return t1 == t2;
+        }
+        else
+            return false;
+    }
+    else
+        return false;
+}
+
+
+bool basic_category_table_t::do_target(const arity_t &a) const
+{
+    int num;
+    if (parse_arity(a, NULL, &num))
+        return (num == 1);
+    else
+        return false;
 }
 
 

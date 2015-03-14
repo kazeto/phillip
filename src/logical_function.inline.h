@@ -73,12 +73,6 @@ inline std::string logical_function_t::to_string( bool f_colored ) const
 }
 
 
-inline bool logical_function_t::is_optional_literal() const
-{
-    return find_parameter("opt");
-}
-
-
 inline std::vector<const literal_t*>
 logical_function_t::get_all_literals() const
 {

@@ -333,6 +333,8 @@ bool parse_string_as_function_call(
     const std::string &str,
     std::string *pred, std::vector<std::string> *terms);
 
+bool parse_arity(const arity_t &arity, predicate_t *pred, int *num_term);
+
 /** Convert string into binary and return size of binary.
  *  The size of string must be less than 255. */
 inline size_t string_to_binary(const std::string &str, char *out);

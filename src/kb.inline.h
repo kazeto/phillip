@@ -65,6 +65,13 @@ inline float knowledge_base_t::get_soft_unifying_cost(
     return m_category_table.instance->get(arity1, arity2);
 }
 
+
+inline bool knowledge_base_t::do_target_on_category_table(const arity_t &arity) const
+{
+    return m_category_table.instance->do_target(arity);
+}
+
+
 inline version_e knowledge_base_t::version() const
 {
     return m_version;

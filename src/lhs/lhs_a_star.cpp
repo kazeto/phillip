@@ -130,25 +130,18 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
     {
         auto enumerate_nodes_array_with_arities = [this](
             const pg::proof_graph_t *graph,
-            const std::vector<std::pair<arity_t, bool> > &arities, pg::node_idx_t target)
+            const std::vector<arity_t> &arities, pg::node_idx_t target)
         {
             std::vector< std::vector<pg::node_idx_t> > candidates;
             std::list< std::vector<pg::node_idx_t> > out;
             std::string arity_target = graph->node(target).arity();
 
-            for (auto p : arities)
+            for (auto a : arities)
             {
-                bool is_target_arity = (p.first == arity_target);
+                bool is_target_arity = (a == arity_target);
                 hash_set<pg::node_idx_t> indices;
 
-                if (p.second)
-                    graph->enumerate_nodes_softly_unifiable(p.first, &indices);
-                else
-                {
-                    auto _indices = graph->search_nodes_with_arity(p.first);
-                    if (_indices != NULL)
-                        indices.insert(_indices->begin(), _indices->end());
-                }
+                graph->enumerate_nodes_softly_unifiable(a, &indices);
 
                 if (indices.empty()) return out;
 
@@ -195,14 +188,13 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
         };
 
         std::vector<const lf::logical_function_t*> branches;
-        std::vector<std::pair<arity_t, bool> > arities;
+        std::vector<arity_t> arities;
 
         ax.func.branch(is_backward ? 1 : 0).enumerate_literal_branches(&branches);
 
         for (auto br : branches)
         if (not br->literal().is_equality())
-            arities.push_back(std::make_pair(
-            br->literal().get_arity(), br->is_optional_literal()));
+            arities.push_back(br->literal().get_arity());
 
         if (not arities.empty())
         {
