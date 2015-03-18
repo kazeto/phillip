@@ -114,6 +114,10 @@ protected:
     inline void reset_for_inference();
     inline void set_input(const lf::input_t&);
 
+    inline void execute_enumerator();
+    inline void execute_convertor();
+    inline void execute_solver();
+    
     void execute_enumerator(
         pg::proof_graph_t **out_lhs, long *out_clock,
         const std::string &path_out_xml);
