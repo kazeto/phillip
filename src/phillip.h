@@ -114,9 +114,15 @@ protected:
     inline void reset_for_inference();
     inline void set_input(const lf::input_t&);
 
-    void execute_enumerator();
-    void execute_convertor();
-    void execute_solver();
+    void execute_enumerator(
+        pg::proof_graph_t **out_lhs, long *out_clock,
+        const std::string &path_out_xml);
+    void execute_convertor(
+        ilp::ilp_problem_t **out_ilp, long *out_clock,
+        const std::string &path_out_xml);
+    void execute_solver(
+        std::vector<ilp::ilp_solution_t> *out_sols, long *out_clock,
+        const std::string &path_out_xml);
 
 private:
     static int ms_verboseness;
