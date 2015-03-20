@@ -74,15 +74,16 @@ class Vis(ProofGraph):
     def __init__(self, root):
         ProofGraph.__init__(self, root)
         self.node2id = dict()
+        self.relay_id_offset = math.pow(10, math.ceil(math.log10(max(self.nodes.keys()))))
     
         self.str_nodes = []
         self.str_edges = []
 
         for i in sorted(self.chains.iterkeys()):
             chain = self.chains[i]
-            for i in (chain.tail + chain.head):
-                if not i in self.node2id:
-                    self.node2id[i] = len(self.node2id)
+            for j in (chain.tail + chain.head):
+                if not j in self.node2id:
+                    self.node2id[j] = len(self.node2id)
 
         for u in self.unifs:
             for i in u.unified:
@@ -92,7 +93,7 @@ class Vis(ProofGraph):
         for i in self.nodes.iterkeys():
             if not i in self.node2id:
                 self.node2id[i] = len(self.node2id)
-                
+        
         for chain in self.chains.itervalues():
             c, r = self.__chain2str(chain)
             self.str_edges += c
@@ -158,7 +159,7 @@ class Vis(ProofGraph):
             params.update(params_edge)
             chains.append(self.__join_parameters(params))
         else:
-            relay_id = math.pow(10, math.ceil(math.log10(len(self.nodes)))) + c.id
+            relay_id = self.relay_id_offset + c.id
             params_relay = {
                 'id' : relay_id,
                 'label' : "\'%s\'" % c.axiom(),
