@@ -87,9 +87,9 @@ void phillip_main_t::infer(const lf::input_t &input)
 
     clock_t begin_infer(clock());
     
-    execute_enumerator(&m_lhs, &m_clock_for_enumerate, param("path_lhs_out"));
-    execute_convertor(&m_ilp, &m_clock_for_convert, param("path_ilp_out"));
-    execute_solver(&m_sol, &m_clock_for_solve, param("path_sol_out"));
+    execute_enumerator();
+    execute_convertor();
+    execute_solver();
 
     clock_t end_infer(clock());
     m_clock_for_infer = end_infer - begin_infer;
