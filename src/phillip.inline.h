@@ -329,27 +329,6 @@ inline void phillip_main_t::reset_for_inference()
 }
 
 
-inline void phillip_main_t::execute_enumerator()
-{
-    execute_enumerator(
-        &m_lhs, &m_clock_for_enumerate, param("path_lhs_out"));
-}
-
-
-inline void phillip_main_t::execute_convertor()
-{
-    execute_convertor(
-        &m_ilp, &m_clock_for_convert, param("path_ilp_out"));
-}
-
-
-inline void phillip_main_t::execute_solver()
-{
-    execute_solver(
-        &m_sol, &m_clock_for_solve, param("path_sol_out"));
-}
-
-
 }
 
 #endif
