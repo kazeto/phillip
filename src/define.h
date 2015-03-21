@@ -203,6 +203,13 @@ protected:
 };
 
 
+template <class T> class component_generator_t
+{
+public:
+    virtual T* operator()(phillip_main_t*) const { return NULL; }
+};
+
+
 /** A wrapper class of cdb++. */
 class cdb_data_t
 {

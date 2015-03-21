@@ -362,6 +362,12 @@ namespace dist
 class basic_distance_provider_t : public distance_provider_t
 {
 public:
+    struct generator_t : public component_generator_t<distance_provider_t>
+    {
+        virtual distance_provider_t* operator()(phillip_main_t*) const override
+            { return new basic_distance_provider_t(); }
+    };
+    
     virtual float operator() (const lf::axiom_t&) const;
     virtual std::string repr() const { return "Basic"; };
 };
@@ -370,6 +376,12 @@ public:
 class cost_based_distance_provider_t : public distance_provider_t
 {
 public:
+    struct generator_t : public component_generator_t<distance_provider_t>
+    {
+        virtual distance_provider_t* operator()(phillip_main_t*) const override
+            { return new cost_based_distance_provider_t(); }
+    };
+    
     virtual float operator()(const lf::axiom_t&) const;
     virtual std::string repr() const { return "CostBased"; }
 };
@@ -381,18 +393,50 @@ public:
 namespace ct
 {
 
+/** A class of category-table which do nothing. */
+class null_category_table_t : public category_table_t
+{
+public:
+    class generator_t : public component_generator_t<category_table_t>
+    {
+    public:
+        virtual category_table_t* operator() (phillip_main_t*) const override
+            { return new null_category_table_t(); }
+    };
+    
+    virtual void prepare_compile(const knowledge_base_t*) override {}
+    virtual void add(const lf::logical_function_t &ax) override {}
+
+    virtual void prepare_query(const knowledge_base_t*) override {}
+    virtual float get(const arity_t &a1, const arity_t &a2) const override;
+
+    virtual bool do_regard_as_categorical_knowledge(
+        const lf::logical_function_t &func) const override { return false; }
+    virtual bool do_target(const arity_t &a) const override { return false; }
+
+    virtual void finalize() override {}
+};
+
+
+/** A class of basic category-table. */
 class basic_category_table_t : public category_table_t
 {
 public:
+    class generator_t : public component_generator_t<category_table_t>
+    {
+    public:
+        virtual category_table_t* operator() (phillip_main_t*) const override
+            { return new basic_category_table_t(); }
+    };
+    
     virtual void prepare_compile(const knowledge_base_t*) override;
     virtual void add(const lf::logical_function_t &ax) override;
 
     virtual void prepare_query(const knowledge_base_t*) override;
     virtual float get(const arity_t &a1, const arity_t &a2) const override;
 
-    virtual bool do_regard_as_categorical_knowledge(
-        const lf::logical_function_t &func) const override;
-    virtual bool do_target(const arity_t &a) const override;
+    virtual bool do_regard_as_categorical_knowledge(const lf::logical_function_t&) const override;
+    virtual bool do_target(const arity_t&) const override;
 
     virtual void finalize() override;
 
@@ -402,9 +446,9 @@ protected:
 
     std::string filename() const { return m_prefix + ".category.dat"; }
 
-    hash_map<arity_t, hash_map<arity_t, float> > m_table_for_compile;
-    hash_map<arity_id_t, hash_map<arity_id_t, float> > m_table_for_query;
+    hash_map<arity_id_t, hash_map<arity_id_t, float> > m_table;
 };
+
 
 }
 

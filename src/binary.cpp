@@ -121,39 +121,6 @@ public:
 };
 
 
-class _basic_distance_provider_generator_t :
-    public component_generator_t<kb::distance_provider_t>
-{
-public:
-    virtual kb::distance_provider_t* operator()(phillip_main_t *ph) const override
-    {
-        return new kb::dist::basic_distance_provider_t();
-    }
-};
-
-
-class _cost_based_distance_provider_generator_t :
-    public component_generator_t<kb::distance_provider_t>
-{
-public:
-    virtual kb::distance_provider_t* operator()(phillip_main_t *ph) const override
-    {
-        return new kb::dist::cost_based_distance_provider_t();
-    }
-};
-
-
-class _basic_category_table_generator_t :
-    public component_generator_t<kb::category_table_t>
-{
-public:
-    virtual kb::category_table_t* operator() (phillip_main_t *ph) const override
-    {
-        return new kb::ct::basic_category_table_t();
-    }
-};
-
-
 std::unique_ptr<lhs_enumerator_library_t, deleter_t<lhs_enumerator_library_t> >
 lhs_enumerator_library_t::ms_instance;
 
@@ -213,8 +180,7 @@ ilp_solver_library_t::ilp_solver_library_t()
 }
 
 
-std::unique_ptr<
-    distance_provider_library_t, deleter_t<distance_provider_library_t> >
+std::unique_ptr<distance_provider_library_t, deleter_t<distance_provider_library_t> >
 distance_provider_library_t::ms_instance;
 
 
@@ -228,8 +194,8 @@ distance_provider_library_t* distance_provider_library_t::instance()
 
 distance_provider_library_t::distance_provider_library_t()
 {
-    add("basic", new _basic_distance_provider_generator_t());
-    add("cost", new _cost_based_distance_provider_generator_t());
+    add("basic", new kb::dist::basic_distance_provider_t::generator_t());
+    add("cost", new kb::dist::cost_based_distance_provider_t::generator_t());
 }
 
 
@@ -247,7 +213,8 @@ category_table_library_t* category_table_library_t::instance()
 
 category_table_library_t::category_table_library_t()
 {
-    add("basic", new _basic_category_table_generator_t());
+    add("null", new kb::ct::null_category_table_t::generator_t());
+    add("basic", new kb::ct::basic_category_table_t::generator_t());
 }
 
 

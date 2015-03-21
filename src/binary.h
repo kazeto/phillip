@@ -45,13 +45,6 @@ struct execution_configure_t
 };
 
 
-template <class T> class component_generator_t
-{
-public:
-    virtual T* operator()(phillip_main_t*) const { return NULL; }
-};
-
-
 template <class T> class component_library_t
 : protected hash_map<std::string, component_generator_t<T>*>
 {
