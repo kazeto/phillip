@@ -196,6 +196,12 @@ void lp_solve_t::add_constraint(
 #endif
 
 
+ilp_solver_t* lp_solve_t::generator_t::operator()(phillip_main_t *ph) const
+{
+    return new sol::lp_solve_t(ph);
+}
+
+
 }
 
 }

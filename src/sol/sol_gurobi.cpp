@@ -281,9 +281,17 @@ ilp::ilp_solution_t gurobi_t::convert(
     return ilp::ilp_solution_t(prob, ilp::SOLUTION_OPTIMAL, values);
 }
 
-
-
 #endif
+
+
+ilp_solver_t* gurobi_t::generator_t::operator()(phillip_main_t *ph) const
+{
+    return new sol::gurobi_t(
+        ph,
+        ph->param_int("gurobi_thread_num"),
+        ph->flag("activate_gurobi_log"));
+}
+
 
 }
 

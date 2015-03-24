@@ -71,15 +71,14 @@ public:
     virtual void prepare_query(const knowledge_base_t *base) = 0;
 
     /** Updates the elements corresponding to given axiom in the table.
-     *  This method is called by knowledge_base_t::insert_implication. */
-    virtual void add(const lf::logical_function_t &ax) = 0;
+     *  Returns whether the axiom had been inserted to this.
+     *  This method is called in knowledge_base_t::insert_implication. */
+    virtual bool insert(const lf::logical_function_t &ax) = 0;
 
     /** Returns the semantic gap between p1 & p2, which is a positive value.
     *  If p1 cannot be p2, returns -1. */
     virtual float get(const arity_t &p1, const arity_t &p2) const = 0;
 
-    virtual bool do_regard_as_categorical_knowledge(
-        const lf::logical_function_t &func) const = 0;
     virtual bool do_target(const arity_t &a) const = 0;
 
     virtual void finalize() = 0;
@@ -405,14 +404,12 @@ public:
     };
     
     virtual void prepare_compile(const knowledge_base_t*) override {}
-    virtual void add(const lf::logical_function_t &ax) override {}
+    virtual bool insert(const lf::logical_function_t&) override;
 
     virtual void prepare_query(const knowledge_base_t*) override {}
     virtual float get(const arity_t &a1, const arity_t &a2) const override;
 
-    virtual bool do_regard_as_categorical_knowledge(
-        const lf::logical_function_t &func) const override { return false; }
-    virtual bool do_target(const arity_t &a) const override { return false; }
+    virtual bool do_target(const arity_t&) const override;
 
     virtual void finalize() override {}
 };
@@ -430,20 +427,21 @@ public:
     };
     
     virtual void prepare_compile(const knowledge_base_t*) override;
-    virtual void add(const lf::logical_function_t &ax) override;
+    virtual bool insert(const lf::logical_function_t &ax) override;
 
     virtual void prepare_query(const knowledge_base_t*) override;
     virtual float get(const arity_t &a1, const arity_t &a2) const override;
 
-    virtual bool do_regard_as_categorical_knowledge(const lf::logical_function_t&) const override;
     virtual bool do_target(const arity_t&) const override;
 
     virtual void finalize() override;
 
 protected:
+    void combinate();
     void write(const std::string &filename) const;
     void read(const std::string &filename);
 
+    bool do_insert(const lf::logical_function_t&) const;
     std::string filename() const { return m_prefix + ".category.dat"; }
 
     hash_map<arity_id_t, hash_map<arity_id_t, float> > m_table;

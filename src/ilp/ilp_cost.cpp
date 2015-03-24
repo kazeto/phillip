@@ -110,6 +110,17 @@ std::string costed_converter_t::repr() const
 }
 
 
+ilp_converter_t* costed_converter_t::
+generator_t::operator()(phillip_main_t *ph) const
+{
+    const std::string &param = ph->param("cost_provider");
+    ilp::costed_converter_t::cost_provider_t *ptr =
+        ilp::costed_converter_t::parse_string_to_cost_provider(param);
+
+    return new ilp::costed_converter_t(ph, ptr);
+}
+
+
 costed_converter_t::basic_cost_provider_t::basic_cost_provider_t(
     double default_cost, double literal_unify_cost, double term_unify_cost)
     : m_default_axiom_cost(default_cost),

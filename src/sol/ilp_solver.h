@@ -27,9 +27,15 @@ namespace sol
 {
 
 
+/** A class of ilp-solver which does nothing. */
 class null_solver_t : public ilp_solver_t
 {
 public:
+    struct generator_t : public component_generator_t<ilp_solver_t>
+    {
+        virtual ilp_solver_t* operator()(phillip_main_t*) const override;
+    };
+
     null_solver_t(phillip_main_t *ptr) : ilp_solver_t(ptr) {}
     virtual ilp_solver_t* duplicate(phillip_main_t *ptr) const;
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const;
@@ -46,6 +52,11 @@ public:
 class lp_solve_t : public ilp_solver_t
 {
 public:
+    struct generator_t : public component_generator_t<ilp_solver_t>
+    {
+        virtual ilp_solver_t* operator()(phillip_main_t*) const override;
+    };
+
     lp_solve_t(phillip_main_t *ptr) : ilp_solver_t(ptr) {}
     virtual ilp_solver_t* duplicate(phillip_main_t *ptr) const;
 
@@ -72,6 +83,11 @@ private:
 class gurobi_t : public ilp_solver_t
 {
 public:
+    struct generator_t : public component_generator_t<ilp_solver_t>
+    {
+        virtual ilp_solver_t* operator()(phillip_main_t*) const override;
+    };
+
     gurobi_t(phillip_main_t *ptr, int thread_num, bool do_output_log);
     virtual ilp_solver_t* duplicate(phillip_main_t *ptr) const;
 

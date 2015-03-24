@@ -13,6 +13,11 @@ namespace ilp
 class null_converter_t : public ilp_converter_t
 {
 public:
+    struct generator_t : public component_generator_t<ilp_converter_t>
+    {
+        virtual ilp_converter_t* operator()(phillip_main_t*) const override;
+    };
+
     null_converter_t(phillip_main_t *ptr) : ilp_converter_t(ptr) {}
     virtual ilp_converter_t* duplicate(phillip_main_t *ptr) const;
     virtual ilp::ilp_problem_t* execute() const;
@@ -25,6 +30,11 @@ public:
 class weighted_converter_t : public ilp_converter_t
 {
 public:
+    struct generator_t : public component_generator_t<ilp_converter_t>
+    {
+        virtual ilp_converter_t* operator()(phillip_main_t*) const override;
+    };
+
     class weight_provider_t {
     public:
         virtual ~weight_provider_t() {}
@@ -90,14 +100,17 @@ protected:
 class costed_converter_t : public ilp_converter_t
 {
 public:
+    struct generator_t : public component_generator_t<ilp_converter_t>
+    {
+        virtual ilp_converter_t* operator()(phillip_main_t*) const override;
+    };
+
     class cost_provider_t {
     public:
         virtual ~cost_provider_t() {}
         virtual cost_provider_t* duplicate() const = 0;
-        virtual double edge_cost(
-            const pg::proof_graph_t*, pg::edge_idx_t) const = 0;
-        virtual double node_cost(
-            const pg::proof_graph_t*, pg::node_idx_t) const = 0;
+        virtual double edge_cost(const pg::proof_graph_t*, pg::edge_idx_t) const = 0;
+        virtual double node_cost(const pg::proof_graph_t*, pg::node_idx_t) const = 0;
     };
 
     class basic_cost_provider_t : public cost_provider_t {

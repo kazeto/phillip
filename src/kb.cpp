@@ -398,8 +398,6 @@ axiom_id_t knowledge_base_t::insert_implication(
     {
         bool is_implication = func.is_valid_as_implication();
         bool is_paraphrase = func.is_valid_as_paraphrase();
-        bool is_categorical =
-            m_category_table.instance->do_regard_as_categorical_knowledge(func);
 
         if (not is_implication and not is_paraphrase)
         {
@@ -408,18 +406,15 @@ axiom_id_t knowledge_base_t::insert_implication(
             return INVALID_AXIOM_ID;
         }
 
+        // ASSIGN ARITIES IN func TO ARITY-DATABASE.
+        std::vector<const lf::logical_function_t*> branches;
+        func.enumerate_literal_branches(&branches);
+        for (auto br : branches)
+            m_arity_db.add(br->literal().get_arity());
+
         // IF func IS CATEGORICAL KNOWLEDGE, IT IS INSERTED TO CATEGORY-TABLE.
-        if (is_categorical)
-        {
-            std::vector<const lf::logical_function_t*> branches;
-            
-            func.enumerate_literal_branches(&branches);
-            for (auto br : branches)
-                m_arity_db.add(br->literal().get_arity());
-            
-            m_category_table.instance->add(func);
+        if (m_category_table.instance->insert(func))
             return INVALID_AXIOM_ID;
-        }
 
         axiom_id_t id = m_axioms.num_axioms();
         m_axioms.put(name, func);
@@ -1976,19 +1971,19 @@ float cost_based_distance_provider_t::operator()(const lf::axiom_t &ax) const
 namespace ct
 {
 
+bool null_category_table_t::insert(const lf::logical_function_t&)
+{
+    return false;
+}
+
+
 float null_category_table_t::get(const arity_t &a1, const arity_t &a2) const
 {
     return (a1 == a2) ? 0.0 : -1.0;
 }
 
 
-bool null_category_table_t::do_regard_as_categorical_knowledge(const lf::logical_function_t&) const
-{
-    return false;
-}
-
-
-bool null_category_table_t::do_target(const arity_t&) const override
+bool null_category_table_t::do_target(const arity_t&) const
 {
     return false;
 }
@@ -2004,21 +1999,28 @@ void basic_category_table_t::prepare_compile(const knowledge_base_t *base)
 }
 
 
-void basic_category_table_t::add(const lf::logical_function_t &ax)
+bool basic_category_table_t::insert(const lf::logical_function_t &ax)
 {
     assert(m_state == STATE_COMPILE);
 
-    std::vector<const lf::logical_function_t*> lhs, rhs;
-    ax.branch(0).enumerate_literal_branches(&lhs);
-    ax.branch(1).enumerate_literal_branches(&rhs);
+    if (do_insert(ax))
+    {
+        std::vector<const lf::logical_function_t*> lhs, rhs;
+        ax.branch(0).enumerate_literal_branches(&lhs);
+        ax.branch(1).enumerate_literal_branches(&rhs);
 
-    arity_id_t a1 = kb()->search_arity_id(lhs.front()->literal().get_arity());
-    arity_id_t a2 = kb()->search_arity_id(rhs.front()->literal().get_arity());
+        arity_id_t a1 = kb()->search_arity_id(lhs.front()->literal().get_arity());
+        arity_id_t a2 = kb()->search_arity_id(rhs.front()->literal().get_arity());
 
-    assert(a1 != INVALID_ARITY_ID and a2 != INVALID_ARITY_ID);
+        assert(a1 != INVALID_ARITY_ID and a2 != INVALID_ARITY_ID);
 
-    m_table_for_compile[a1][a2] = 1;
-    m_table_for_compile[a2][a1] = 1;
+        m_table[a1][a2] = 1;
+        m_table[a2][a1] = 1;
+
+        return true;
+    }
+    else
+        return false;
 }
 
 
@@ -2055,7 +2057,7 @@ float basic_category_table_t::get(const arity_t &a1, const arity_t &a2) const
 }
 
 
-bool basic_category_table_t::do_regard_as_categorical_knowledge(
+bool basic_category_table_t::do_insert(
     const lf::logical_function_t &func) const
 {
     if (func.is_valid_as_implication())
@@ -2097,6 +2099,41 @@ void basic_category_table_t::finalize()
 }
 
 
+void basic_category_table_t::combinate()
+{
+    auto search = [this](arity_id_t a1, arity_id_t a2) -> float
+    {
+        auto found1 = m_table.find(a1);
+        if (found1 != m_table.end())
+        {
+            auto found2 = found1->second.find(a2);
+            if (found2 != found1->second.end())
+                return found2->second;
+        }
+        return -1.0f;
+    };
+
+    while (true)
+    {
+        for (auto p1 : m_table)
+        for (auto p2 : p1.second)
+        {
+            for (auto q1 : m_table.at(p1.first))
+            for (auto q2 : m_table.at(p2.first))
+            {
+                float d_old = search(p1.first, p2.first);
+                float d_new = p2.second + q1.second + q2.second;
+
+                if (d_old < 0.0f or(d_old >= 0.0f and d_new < d_old))
+                {
+                    // TODO
+                }
+            }
+        }
+    }
+}
+
+
 void basic_category_table_t::write(const std::string &filename) const
 {
     std::ofstream fout(
@@ -2113,15 +2150,13 @@ void basic_category_table_t::write(const std::string &filename) const
 
     for (auto p1 : m_table)
     {
-        arity_id_t i = kb::knowledge_base_t::instance()->search_arity_id(p1.first);
         size_t num2 = p1.second.size();
-        fout.write((char*)&i, sizeof(arity_id_t));
+        fout.write((char*)&p1.first, sizeof(arity_id_t));
         fout.write((char*)&num2, sizeof(size_t));
 
         for (auto p2 : p1.second)
         {
-            arity_id_t j = kb::knowledge_base_t::instance()->search_arity_id(p2.first);
-            fout.write((char*)&j, sizeof(arity_id_t));
+            fout.write((char*)&p2.first, sizeof(arity_id_t));
             fout.write((char*)&p2.second, sizeof(float));
         }
     }

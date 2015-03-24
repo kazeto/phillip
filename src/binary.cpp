@@ -13,114 +13,6 @@ namespace bin
 char ACCEPTABLE_OPTIONS[] = "c:e:f:hk:l:m:o:p:t:v:PT:";
 
 
-
-class _depth_based_enumerator_generator_t :
-    public component_generator_t<lhs_enumerator_t>
-{
-public:
-    virtual lhs_enumerator_t* operator()(phillip_main_t *ph) const override
-    {
-        return new lhs::depth_based_enumerator_t(
-            ph,
-            ph->param_int("max_depth"),
-            ph->param_float("max_distance"),
-            ph->param_float("max_redundancy"),
-            ph->flag("disable_reachable_matrix"));
-    }
-};
-
-
-class _a_star_based_enumerator_generator_t :
-    public component_generator_t<lhs_enumerator_t>
-{
-public:
-    virtual lhs_enumerator_t* operator()(phillip_main_t *ph) const override
-    {
-        return new lhs::a_star_based_enumerator_t(
-            ph,
-            ph->param_float("max_distance"),
-            ph->param_int("max_depth"));
-    }
-};
-
-
-class _null_converter_generator_t :
-    public component_generator_t<ilp_converter_t>
-{
-public:
-    virtual ilp_converter_t* operator()(phillip_main_t *ph) const override
-    {
-        return new ilp::null_converter_t(ph);
-    }
-};
-
-
-class _weighted_converter_generator_t :
-    public component_generator_t<ilp_converter_t>
-{
-public:
-    virtual ilp_converter_t* operator()(phillip_main_t *ph) const override
-    {
-        return new ilp::weighted_converter_t(
-            ph,
-            ph->param_float("default_obs_cost", 10.0),
-            ilp::weighted_converter_t::parse_string_to_weight_provider(
-            ph->param("weight_provider")));
-    }
-};
-
-
-class _costed_converter_generator_t :
-    public component_generator_t<ilp_converter_t>
-{
-public:
-    virtual ilp_converter_t* operator()(phillip_main_t *ph) const override
-    {
-        const std::string &param = ph->param("cost_provider");
-        ilp::costed_converter_t::cost_provider_t *ptr =
-            ilp::costed_converter_t::parse_string_to_cost_provider(param);
-
-        return new ilp::costed_converter_t(ph, ptr);
-    }
-};
-
-
-class _null_solver_generator_t :
-    public component_generator_t<ilp_solver_t>
-{
-public:
-    virtual ilp_solver_t* operator()(phillip_main_t *ph) const override
-    {
-        return new sol::null_solver_t(ph);
-    }
-};
-
-
-class _lp_solve_generator_t :
-    public component_generator_t<ilp_solver_t>
-{
-public:
-    virtual ilp_solver_t* operator()(phillip_main_t *ph) const override
-    {
-        return new sol::lp_solve_t(ph);
-    }
-};
-
-
-class _gurobi_generator_t :
-    public component_generator_t<ilp_solver_t>
-{
-public:
-    virtual ilp_solver_t* operator()(phillip_main_t *ph) const override
-    {
-        return new sol::gurobi_t(
-            ph,
-            ph->param_int("gurobi_thread_num"),
-            ph->flag("activate_gurobi_log"));
-    }
-};
-
-
 std::unique_ptr<lhs_enumerator_library_t, deleter_t<lhs_enumerator_library_t> >
 lhs_enumerator_library_t::ms_instance;
 
@@ -135,8 +27,8 @@ lhs_enumerator_library_t* lhs_enumerator_library_t::instance()
 
 lhs_enumerator_library_t::lhs_enumerator_library_t()
 {
-    add("depth", new _depth_based_enumerator_generator_t());
-    add("a*", new _a_star_based_enumerator_generator_t());
+    add("depth", new lhs::depth_based_enumerator_t::generator_t());
+    add("a*", new lhs::a_star_based_enumerator_t::generator_t());
 }
 
 
@@ -154,9 +46,9 @@ ilp_converter_library_t* ilp_converter_library_t::instance()
 
 ilp_converter_library_t::ilp_converter_library_t()
 {
-    add("null", new _null_converter_generator_t());
-    add("weighted", new _weighted_converter_generator_t());
-    add("costed", new _costed_converter_generator_t());
+    add("null", new ilp::null_converter_t::generator_t());
+    add("weighted", new ilp::weighted_converter_t::generator_t());
+    add("costed", new ilp::costed_converter_t::generator_t());
 }
 
 
@@ -174,9 +66,9 @@ ilp_solver_library_t* ilp_solver_library_t::instance()
 
 ilp_solver_library_t::ilp_solver_library_t()
 {
-    add("null", new _null_solver_generator_t());
-    add("lpsolve", new _lp_solve_generator_t());
-    add("gurobi", new _gurobi_generator_t());
+    add("null", new sol::null_solver_t::generator_t());
+    add("lpsolve", new sol::lp_solve_t::generator_t());
+    add("gurobi", new sol::gurobi_t::generator_t());
 }
 
 
@@ -614,7 +506,7 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
     int thread_num = phillip->param_int("kb_thread_num", 1);
     bool disable_stop_word = phillip->flag("disable_stop_word");
     std::string dist_key = config.dist_key.empty() ? "basic" : config.dist_key;
-    std::string tab_key = config.tab_key.empty() ? "basic" : config.tab_key;
+    std::string tab_key = config.tab_key.empty() ? "null" : config.tab_key;
 
     for (auto n : config.target_obs_names)
         phillip->add_target(n);

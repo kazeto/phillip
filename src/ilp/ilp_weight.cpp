@@ -287,6 +287,17 @@ std::string weighted_converter_t::repr() const
 }
 
 
+ilp_converter_t* weighted_converter_t::
+generator_t::operator()(phillip_main_t *ph) const
+{
+    return new ilp::weighted_converter_t(
+        ph,
+        ph->param_float("default_obs_cost", 10.0),
+        ilp::weighted_converter_t::parse_string_to_weight_provider(
+        ph->param("weight_provider")));
+}
+
+
 ilp_converter_t::enumeration_stopper_t*
 weighted_converter_t::enumeration_stopper() const
 {

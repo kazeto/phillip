@@ -37,6 +37,13 @@ std::string null_converter_t::repr() const
 }
 
 
+ilp_converter_t* null_converter_t::
+generator_t::operator()(phillip_main_t *ph) const
+{
+    return new ilp::null_converter_t(ph);
+}
+
+
 }
 
 }

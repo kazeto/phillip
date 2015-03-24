@@ -310,6 +310,16 @@ std::string a_star_based_enumerator_t::repr() const
 }
 
 
+lhs_enumerator_t* a_star_based_enumerator_t::
+generator_t::operator()(phillip_main_t *ph) const
+{
+    return new lhs::a_star_based_enumerator_t(
+        ph,
+        ph->param_float("max_distance"),
+        ph->param_int("max_depth"));
+}
+
+
 std::string a_star_based_enumerator_t::reachability_t::to_string() const
 {
     std::string from = join(nodes.begin(), nodes.end(), "%d", ", ");

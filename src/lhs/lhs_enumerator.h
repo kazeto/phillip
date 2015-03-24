@@ -20,9 +20,13 @@ namespace lhs
 class a_star_based_enumerator_t : public lhs_enumerator_t
 {
 public:
+    struct generator_t : public component_generator_t<lhs_enumerator_t>
+    {
+        virtual lhs_enumerator_t* operator()(phillip_main_t*) const override;
+    };
+
     a_star_based_enumerator_t(
-        phillip_main_t *ptr,
-        float max_dist, int max_depth = -1);
+        phillip_main_t *ptr, float max_dist, int max_depth = -1);
     virtual lhs_enumerator_t* duplicate(phillip_main_t *ptr) const;
     virtual pg::proof_graph_t* execute() const;
     virtual bool is_available(std::list<std::string>*) const;
@@ -74,6 +78,11 @@ private:
 class depth_based_enumerator_t : public lhs_enumerator_t
 {
 public:
+    struct generator_t : public component_generator_t<lhs_enumerator_t>
+    {
+        virtual lhs_enumerator_t* operator()(phillip_main_t*) const override;
+    };
+
     depth_based_enumerator_t(
         phillip_main_t *ptr,
         int max_depth, float max_distance, float max_redundancy,

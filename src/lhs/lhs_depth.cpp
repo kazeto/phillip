@@ -399,6 +399,18 @@ std::string depth_based_enumerator_t::repr() const
 }
 
 
+lhs_enumerator_t* depth_based_enumerator_t::
+generator_t::operator()(phillip_main_t *ph) const
+{
+    return new lhs::depth_based_enumerator_t(
+        ph,
+        ph->param_int("max_depth"),
+        ph->param_float("max_distance"),
+        ph->param_float("max_redundancy"),
+        ph->flag("disable_reachable_matrix"));
+}
+
+
 }
 
 }

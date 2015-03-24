@@ -31,6 +31,12 @@ std::string null_solver_t::repr() const
 }
 
 
+ilp_solver_t* null_solver_t::generator_t::operator()(phillip_main_t *ph) const
+{
+    return new sol::null_solver_t(ph);
+}
+
+
 }
 
 }
