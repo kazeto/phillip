@@ -12,7 +12,7 @@ namespace phil
 
 
 int phillip_main_t::ms_verboseness = 0;
-const std::string phillip_main_t::VERSION = "phil.2.62";
+const std::string phillip_main_t::VERSION = "phil.3.00";
 
 
 phillip_main_t::phillip_main_t()
@@ -103,74 +103,89 @@ void phillip_main_t::infer(const lf::input_t &input)
 }
 
 
-void phillip_main_t::execute_enumerator()
+void phillip_main_t::execute_enumerator(
+    pg::proof_graph_t **out_lhs, long *out_clock,
+    const std::string &path_out_xml)
 {
     IF_VERBOSE_2("Generating latent-hypotheses-set...");
 
-    if (m_lhs != NULL) delete m_lhs;
+    if ((*out_lhs) != NULL) delete m_lhs;
 
     clock_t begin_flhs(clock());
-    m_lhs = m_lhs_enumerator->execute();
+    (*out_lhs) = m_lhs_enumerator->execute();
     clock_t end_flhs(clock());
-    m_clock_for_enumerate = end_flhs - begin_flhs;
+    (*out_clock) = end_flhs - begin_flhs;
 
     IF_VERBOSE_2(
         m_lhs->is_timeout() ?
         "Interrupted generating latent-hypotheses-set." :
         "Completed generating latent-hypotheses-set.");
 
-    std::ios::openmode mode = std::ios::out | std::ios::app;
-    std::ofstream *fo(NULL);
-    if ((fo = _open_file(param("path_lhs_out"), mode)) != NULL)
-    {
-        m_lhs->print(fo);
-        delete fo;
+    if (not path_out_xml.empty())
+    {       
+        std::ios::openmode mode = std::ios::out | std::ios::app;
+        std::ofstream *fo = _open_file(path_out_xml, mode);
+        if (fo != NULL)
+        {
+            m_lhs->print(fo);
+            delete fo;
+        }
     }
 }
 
 
-void phillip_main_t::execute_convertor()
+void phillip_main_t::execute_convertor(
+    ilp::ilp_problem_t **out_ilp, long *out_clock,
+    const std::string &path_out_xml)
 {
     IF_VERBOSE_2("Converting LHS into linear-programming-problems...");
 
     clock_t begin_flpp(clock());
-    m_ilp = m_ilp_convertor->execute();
+    (*out_ilp) = m_ilp_convertor->execute();
     clock_t end_flpp(clock());
-    m_clock_for_convert = end_flpp - begin_flpp;
+    (*out_clock) = end_flpp - begin_flpp;
 
     IF_VERBOSE_2(
         m_ilp->is_timeout() ?
         "Interrupted convertion into linear-programming-problems." :
         "Completed convertion into linear-programming-problems.");
 
-    std::ios::openmode mode = std::ios::out | std::ios::app;
-    std::ofstream *fo(NULL);
-    if ((fo = _open_file(param("path_ilp_out"), mode)) != NULL)
+    if (not path_out_xml.empty())
     {
-        m_ilp->print(fo);
-        delete fo;
+        std::ios::openmode mode = std::ios::out | std::ios::app;
+        std::ofstream *fo = _open_file(path_out_xml, mode);
+        if (fo != NULL)
+        {
+            m_ilp->print(fo);
+            delete fo;
+        }
     }
 }
 
 
-void phillip_main_t::execute_solver()
+void phillip_main_t::execute_solver(
+    std::vector<ilp::ilp_solution_t> *out_sols, long *out_clock,
+    const std::string &path_out_xml)
 {
     IF_VERBOSE_2("Solving...");
 
     clock_t begin_fsol(clock());
-    m_ilp_solver->execute(&m_sol);
+    m_ilp_solver->execute(out_sols);
     clock_t end_fsol(clock());
-    m_clock_for_solve = end_fsol - begin_fsol;
+    (*out_clock) = end_fsol - begin_fsol;
 
     IF_VERBOSE_2("Completed inference.");
 
-    std::ios::openmode mode = std::ios::out | std::ios::app;
-    std::ofstream *fo(NULL);
-    if ((fo = _open_file(param("path_sol_out"), mode)) != NULL)
+    if (not path_out_xml.empty())
     {
-        for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
-            sol->print(fo);
-        delete fo;
+        std::ios::openmode mode = std::ios::out | std::ios::app;
+        std::ofstream *fo = _open_file(path_out_xml, mode);
+        if (fo != NULL)
+        {
+            for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
+                sol->print(fo);
+            delete fo;
+        }
     }
 }
 

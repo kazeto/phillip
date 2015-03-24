@@ -134,8 +134,7 @@ void gurobi_t::solve(
 
             ilp::ilp_solution_t sol(
                 prob, ilp::SOLUTION_NOT_AVAILABLE,
-                std::vector<double>(prob->variables().size(), 0.0),
-                prob->name());
+                std::vector<double>(prob->variables().size(), 0.0));
             out->push_back(sol);
             break;
         }
@@ -279,7 +278,7 @@ ilp::ilp_solution_t gurobi_t::convert(
     delete p_vars;
     delete p_values;
 
-    return ilp::ilp_solution_t(prob, ilp::SOLUTION_OPTIMAL, values, name);
+    return ilp::ilp_solution_t(prob, ilp::SOLUTION_OPTIMAL, values);
 }
 
 

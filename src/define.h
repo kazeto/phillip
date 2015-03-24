@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <mutex>
+#include <functional>
 
 #include "./lib/cdbpp.h"
 #include "./s_expression.h"
@@ -26,9 +27,11 @@
 #ifdef _WIN32
 #define _sprintf sprintf_s
 #define _sscanf  sscanf_s
+#define _vsscanf vsscanf_s
 #else
 #define _sprintf sprintf
 #define _sscanf  sscanf
+#define _vsscanf vsscanf
 #endif
 
 
@@ -38,10 +41,12 @@ namespace phil
 
 class phillip_main_t;
 
+typedef unsigned char small_size_t;
 typedef long int index_t;
 typedef long int axiom_id_t;
-typedef index_t term_idx_t;
+typedef small_size_t term_idx_t;
 typedef std::string predicate_t;
+typedef std::string arity_t;
 
 namespace kb
 {
@@ -51,9 +56,10 @@ typedef unsigned long int argument_set_id_t;
 typedef size_t arity_id_t;
 typedef std::pair<arity_id_t, char> term_pos_t;
 
-typedef std::pair<
+typedef std::tuple<
     std::list<arity_id_t>,
-    std::list<std::pair<term_pos_t, term_pos_t > > > search_query_t;
+    std::list<std::pair<term_pos_t, term_pos_t> >,
+    std::list<char> > search_query_t;
 }
 
 namespace pg
@@ -132,6 +138,9 @@ typedef std::pair<term_t, term_t> substitution_t;
 class literal_t
 {
 public:
+    static inline std::string get_arity(
+        const predicate_t &pred, int term_num, bool do_distinguish_negation);
+
     inline literal_t() {}
     inline literal_t(const std::string &_pred, bool _truth = true);
     inline literal_t(
@@ -156,7 +165,7 @@ public:
     bool operator != (const literal_t &x) const;
 
     inline std::string to_string(bool f_colored = false) const;
-    inline std::string get_arity(bool do_distinguish_negation = true) const;
+    inline std::string get_arity() const;
 
     inline bool is_equality() const { return predicate == "="; }
     
@@ -191,6 +200,13 @@ public:
 
 protected:
     phillip_main_t *m_phillip;
+};
+
+
+template <class T> class component_generator_t
+{
+public:
+    virtual T* operator()(phillip_main_t*) const { return NULL; }
 };
 
 
@@ -260,6 +276,14 @@ public:
 };
 
 
+/** This class is used to define a singleton class. */
+template <class T> class deleter_t
+{
+public:
+    void operator()(T const* const p) const { delete p; }
+};
+
+
 /* -------- Functions -------- */
 
 /** Call this function on starting phillip. */
@@ -316,6 +340,8 @@ bool parse_string_as_function_call(
     const std::string &str,
     std::string *pred, std::vector<std::string> *terms);
 
+bool parse_arity(const arity_t &arity, predicate_t *pred, int *num_term);
+
 /** Convert string into binary and return size of binary.
  *  The size of string must be less than 255. */
 inline size_t string_to_binary(const std::string &str, char *out);
@@ -335,10 +361,8 @@ template <class It, bool USE_STREAM = false> std::string join(
 template <class It> std::string join(
     const It &s_begin, const It &s_end,
     const std::string &fmt, const std::string &delim);
-
-/** Returns whether given map's keys includes given key. */
-template <class Map, class Key>
-inline bool has_key(const Map& map, const Key& key);
+template <class Container, class Function> std::string join_functional(
+    const Container &container, Function func, const std::string &delim);
 
 /** Returns whether set1 and set2 have any intersection. */
 template <class It> bool has_intersection(

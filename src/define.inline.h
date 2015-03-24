@@ -161,6 +161,15 @@ inline void string_hash_t::set_flags(const std::string &str)
 }
 
 
+inline std::string literal_t::get_arity(
+    const predicate_t &pred, int term_num, bool do_negate)
+{
+    return 
+        (do_negate ? "!" : "") +
+        phil::format("%s/%d", pred.c_str(), term_num);
+}
+
+
 inline literal_t::literal_t( const std::string &_pred, bool _truth )
     : predicate(_pred), truth(_truth) {}
     
@@ -213,13 +222,9 @@ inline std::string literal_t::to_string( bool f_colored ) const
 }
 
 
-inline std::string literal_t::get_arity(
-    bool do_distinguish_negation) const
+inline std::string literal_t::get_arity() const
 {
-    std::string out = phil::format(
-        "%s/%d", predicate.c_str(), (int)terms.size());
-    if (do_distinguish_negation and not truth) out = "!" + out;
-    return std::string(out);
+    return get_arity(predicate, terms.size(), not truth);
 }
 
 
@@ -384,6 +389,22 @@ inline size_t get_file_size(std::istream &ifs)
 }
 
 
+inline bool parse_arity(const arity_t &arity, predicate_t *pred, int *num_term)
+{
+    int idx = arity.rfind('/');
+    if (idx != std::string::npos)
+    {
+        if (pred != NULL)
+            (*pred) = arity.substr(0, idx);
+        if (num_term != NULL)
+            _sscanf(arity.substr(idx + 1).c_str(), "%d", num_term);
+        return true;
+    }
+    else
+        return false;
+}
+
+
 inline size_t string_to_binary(const std::string &str, char *out)
 {
     size_t n(0);
@@ -500,11 +521,13 @@ template <class It> std::string join(
 }
 
 
-
-template <class Map, class Key>
-inline bool has_key(const Map& map, const Key& key)
+template <class Container, class Function> std::string join_functional(
+    const Container &container, Function func, const std::string &delim)
 {
-    return map.find(key) != map.end();
+    std::string out;
+    for (auto e : container)
+        out += (out.empty() ? "" : delim) + func(e);
+    return out;
 }
 
 

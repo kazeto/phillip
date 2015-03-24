@@ -289,9 +289,6 @@ void proof_graph_t::merge(const proof_graph_t &graph)
     _merge1(m_maps.terms_to_sub_node, graph.m_maps.terms_to_sub_node);
     _merge1(m_maps.terms_to_negsub_node, graph.m_maps.terms_to_negsub_node);
 
-    foreach (it, graph.m_maps.node_to_inconsistency)
-        m_maps.node_to_inconsistency[it->first + num_n] = it->second;
-
     const hash_map<int, hash_set<node_idx_t> >& d2n(graph.m_maps.depth_to_nodes);
     foreach (it1, graph.m_maps.depth_to_nodes)
     foreach (it2, it1->second)
@@ -501,8 +498,6 @@ std::string proof_graph_t::edge_to_string( edge_idx_t i ) const
     std::ostringstream str_edge;
     const edge_t &_edge = edge(i);
 
-    str_edge << i << "(" << _edge.tail() << "=>" << _edge.head() << "): ";
-
     if (_edge.tail() >= 0)
     {
         const std::vector<node_idx_t>& tail = hypernode(_edge.tail());
@@ -545,6 +540,34 @@ std::string proof_graph_t::edge_to_string( edge_idx_t i ) const
         str_edge << "none";
     
     return str_edge.str();
+}
+
+
+void proof_graph_t::enumerate_nodes_softly_unifiable(
+const arity_t &arity, hash_set<node_idx_t> *out) const
+{
+    const hash_set<node_idx_t> *ns1 = search_nodes_with_arity(arity);
+    if (ns1 != NULL)
+        out->insert(ns1->begin(), ns1->end());
+
+    if (kb::kb()->do_target_on_category_table(arity))
+    {
+        float threshold = phillip()->param_float(
+            "threshold_soft_unify", kb::knowledge_base_t::get_max_distance());
+
+        for (auto p1 : m_maps.predicate_to_nodes)
+        for (auto p2 : p1.second)
+        if (p2.first == 1)
+        {
+            arity_t arity2 = literal_t::get_arity(p1.first, p2.first, false);
+            if (arity2 != arity)
+            {
+                float cost = kb::kb()->get_soft_unifying_cost(arity, arity2);
+                if (cost >= 0.0 and cost < threshold)
+                    out->insert(p2.second.begin(), p2.second.end());
+            }
+        }
+    }
 }
 
 
@@ -895,10 +918,15 @@ void proof_graph_t::print_edges(std::ostream *os) const
         }
         else type = format("user-defined(%d)", e.type());
 
+        std::string gaps = join_functional(
+            get_gaps_on_edge(i),
+            [](const std::pair<arity_t, arity_t> &p){return p.first + ":" + p.second; }, ",");
+
         (*os) << "<edge id=\"" << i << "\" type=\"" << type
               << "\" tail=\"" << hypernode2str(e.tail())
               << "\" head=\"" << hypernode2str(e.head())
-              << "\" axiom=\"" << e.axiom_id();
+              << "\" axiom=\"" << e.axiom_id()
+              << "\" gap=\"" << gaps;
 
         auto conds = m_subs_of_conditions_for_chain.find(i);
         if (conds != m_subs_of_conditions_for_chain.end())
@@ -1285,7 +1313,7 @@ hypernode_idx_t proof_graph_t::chain(
     /* If given mutual exclusions cannot be satisfied, return true. */
     auto check_validity_of_mutual_exclusiveness = [this](
         const std::vector<node_idx_t> &from, const std::set<std::pair<term_t, term_t> > &cond,
-        const std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > &muexs) -> bool
+        const std::vector<std::list<std::tuple<node_idx_t, unifier_t> > > &muexs) -> bool
     {
         hash_set<edge_idx_t> dep_edges;
         hash_set<node_idx_t> evidences(from.begin(), from.end());
@@ -1367,8 +1395,8 @@ hypernode_idx_t proof_graph_t::chain(
         return -1;
 
     /* CHECK VARIDITY OF CHAINING ABOUT MUTUAL-EXCLUSIVENESS */
-    std::vector<std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > > muexs(
-        added.size(), std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> >());
+    std::vector<std::list<std::tuple<node_idx_t, unifier_t> > > muexs(
+        added.size(), std::list<std::tuple<node_idx_t, unifier_t> >());
     for (int i = 0; i < added.size(); ++i)
         get_mutual_exclusions(added.at(i), &(muexs[i]));
 
@@ -1460,7 +1488,7 @@ hypernode_idx_t proof_graph_t::chain(
 
 void proof_graph_t::get_mutual_exclusions(
     const literal_t &target,
-    std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *muex) const
+    std::list<std::tuple<node_idx_t, unifier_t> > *muex) const
 {
     _enumerate_mutual_exclusion_for_counter_nodes(target, muex);
     _enumerate_mutual_exclusion_for_inconsistent_nodes(target, muex);
@@ -1477,6 +1505,36 @@ int proof_graph_t::get_depth_of_deepest_node(
         int depth = node(*it).depth();
         if (depth > out) out = depth;
     }
+    return out;
+}
+
+
+std::list<std::pair<arity_t, arity_t> > proof_graph_t::get_gaps_on_edge(edge_idx_t idx) const
+{
+    const edge_t &e = edge(idx);
+    std::list<std::pair<arity_t, arity_t> > out;
+
+    if (e.axiom_id() < 0) return out;
+
+    lf::axiom_t ax = kb::knowledge_base_t::instance()->get_axiom(e.axiom_id());
+    std::vector<const lf::logical_function_t*> branches_tail;
+
+    if (e.type() == EDGE_IMPLICATION)
+        ax.func.branch(0).enumerate_literal_branches(&branches_tail);
+    else if (e.type() == EDGE_HYPOTHESIZE)
+        ax.func.branch(1).enumerate_literal_branches(&branches_tail);
+
+    auto hypernode_tail = hypernode(e.tail());
+
+    for (index_t i = 0; i < branches_tail.size(); ++i)
+    {
+        arity_t a1 = branches_tail.at(i)->literal().get_arity();
+        arity_t a2 = node(hypernode_tail.at(i)).arity();
+
+        if (a1 != a2)
+            out.push_back(std::make_pair(a1, a2));
+    }
+
     return out;
 }
 
@@ -1539,7 +1597,7 @@ void proof_graph_t::enumerate_queries_for_knowledge_base(
 
     for (auto q : queries)
     {
-        const std::list<kb::arity_id_t> &arities(q.first);
+        std::vector<kb::arity_id_t> arities(std::get<0>(q).begin(), std::get<0>(q).end());
         hash_map<kb::arity_id_t, int> arity_count;
         hash_map<kb::arity_id_t, hash_set<node_idx_t> > a2ns;
 
@@ -1563,11 +1621,24 @@ void proof_graph_t::enumerate_queries_for_knowledge_base(
             }
         }
 
+        // ADD NODES WHICH ARE SOFT-UNIFIABLE TO a2ns
+        for (auto i : std::get<2>(q))
+        {
+            kb::arity_id_t a = arities.at(i);
+            hash_set<node_idx_t> ns;
+
+            enumerate_nodes_softly_unifiable(kb::kb()->search_arity(a), &ns);
+            if (not ns.empty())
+                a2ns[a].insert(ns.begin(), ns.end());
+        }
+
+        // q INCLUDING AN ARITY WHICH DOES NOT EXIST IN PROOF-GRAPH IS INVALID.
         if (a2ns.size() != arity_count.size()) continue;
 
         bool is_valid_query(true);
 
-        for (auto p : q.second)
+        // CHECK WHETHER ANY OF TERM PAIR SATISFIES HARD TERM CONSTRAINTS BY q.
+        for (auto p : std::get<1>(q))
         {
             kb::term_pos_t &t1(p.first);
             kb::term_pos_t &t2(p.second);
@@ -1601,7 +1672,7 @@ void proof_graph_t::enumerate_queries_for_knowledge_base(
 
 void proof_graph_t::_generate_mutual_exclusions(
     node_idx_t target,
-    const std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > &muexs)
+    const std::list<std::tuple<node_idx_t, unifier_t> > &muexs)
 {
     const literal_t &lit = node(target).literal();
 
@@ -1610,17 +1681,10 @@ void proof_graph_t::_generate_mutual_exclusions(
     {
         node_idx_t idx2 = std::get<0>(*it);
         const unifier_t uni = std::get<1>(*it);
-        axiom_id_t axiom_id = std::get<2>(*it);
 
         IF_VERBOSE_FULL(
             "Inconsistent: " + node(target).to_string() + ", "
             + node(idx2).to_string() + uni.to_string());
-
-        if (axiom_id >= 0)
-        {
-            m_maps.node_to_inconsistency[target].insert(axiom_id);
-            m_maps.node_to_inconsistency[idx2].insert(axiom_id);
-        }
 
         node_idx_t
             n1((target >= idx2) ? idx2 : target),
@@ -1632,65 +1696,48 @@ void proof_graph_t::_generate_mutual_exclusions(
 
 void proof_graph_t::_enumerate_mutual_exclusion_for_inconsistent_nodes(
     const literal_t &target1,
-    std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *out) const
+    std::list<std::tuple<node_idx_t, unifier_t> > *out) const
 {
     if (target1.is_equality()) return;
 
     const kb::knowledge_base_t *kb = kb::knowledge_base_t::instance();
     std::string arity = target1.get_arity();
-    std::list<axiom_id_t> axioms = kb->search_inconsistencies(arity);
+    kb::arity_id_t id1 = kb->search_arity_id(arity);
 
-    auto check_constant = [](
-        const literal_t &tgt, const literal_t &inc, unifier_t *uni) -> bool
+    for (auto p1 : m_maps.arity_to_nodes)
     {
-        for (unsigned i = 0; i < tgt.terms.size(); i++)
-        if (inc.terms.at(i).is_constant())
-        {
-            if (tgt.terms.at(i).is_constant())
-            {
-                if (tgt.terms.at(i) != inc.terms.at(i))
-                    return false;
-            }
-            else
-                uni->add(tgt.terms.at(i), inc.terms.at(i));
-        }
-        return true;
-    };
+        kb::arity_id_t id2 = p1.first;
+        bool do_reverse = (id1 > id2);
+        const std::list<std::pair<term_idx_t, term_idx_t> >* terms =
+            do_reverse ?
+            kb->search_inconsistent_terms(id2, id1) :
+            kb->search_inconsistent_terms(id1, id2);
+        if (terms == NULL) continue;
 
-    for (auto ax = axioms.begin(); ax != axioms.end(); ++ax)
-    {
-        lf::axiom_t axiom = kb->get_axiom(*ax);
-        bool do_rev = (axiom.func.branch(0).literal().get_arity() != arity);
-
-        const literal_t &inc1 = axiom.func.branch(do_rev ? 1 : 0).literal();
-        const literal_t &inc2 = axiom.func.branch(do_rev ? 0 : 1).literal();
-        const hash_set<node_idx_t> *idx_nodes =
-            search_nodes_with_predicate(inc2.predicate, inc2.terms.size());
-
-        if (idx_nodes != NULL)
-        for (auto idx : (*idx_nodes))
+        for (auto idx : p1.second)
         {
             const literal_t &target2 = node(idx).literal();
             bool is_valid(true);
             unifier_t uni;
 
-            if (not check_constant(target1, inc1, &uni)) continue;
-            if (not check_constant(target2, inc2, &uni)) continue;
-
-            for (unsigned t1 = 0; t1 < target1.terms.size(); t1++)
-            for (unsigned t2 = 0; t2 < target2.terms.size(); t2++)
+            for (auto t : (*terms))
             {
-                if (inc1.terms.at(t1) == inc2.terms.at(t2))
-                if (not inc1.terms.at(t1).is_constant())
-                if (not inc2.terms.at(t2).is_constant())
+                const term_t &t1 = target1.terms.at(do_reverse ? t.second : t.first);
+                const term_t &t2 = target2.terms.at(do_reverse ? t.first : t.second);
+                if (t1 != t2)
                 {
-                    const term_t &term1 = target1.terms.at(t1);
-                    const term_t &term2 = target2.terms.at(t2);
-                    if (term1 != term2) uni.add(term1, term2);
+                    if (t1.is_constant() and t2.is_constant())
+                    {
+                        is_valid = false;
+                        break;
+                    }
+                    else
+                        uni.add(t1, t2);
                 }
             }
 
-            out->push_back(std::make_tuple(idx, uni, *ax));
+            if (is_valid)
+                out->push_back(std::make_tuple(idx, uni));
         }
     }
 }
@@ -1705,17 +1752,18 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
     auto enumerate_unifiable_nodes = [this](node_idx_t target) -> std::list<node_idx_t>
     {
         const literal_t &lit = node(target).literal();
-        auto candidates =
-            search_nodes_with_predicate(lit.predicate, lit.terms.size());
+        hash_set<node_idx_t> candidates;
         std::list<node_idx_t> unifiables;
         unifier_t unifier;
 
-        for (auto it = candidates->begin(); it != candidates->end(); ++it)
+        enumerate_nodes_softly_unifiable(lit.get_arity(), &candidates);
+
+        for (auto n : candidates)
         {
-            if (target == (*it)) continue;
+            if (target == n) continue;
 
             node_idx_t n1 = target;
-            node_idx_t n2 = (*it);
+            node_idx_t n2 = n;
             if (n1 > n2) std::swap(n1, n2);
 
             // IGNORE THE PAIR WHICH HAS BEEN CONSIDERED ALREADY.
@@ -1735,31 +1783,29 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
                 unifiable = _check_nodes_coexistency(n1, n2, &unifier);
 
             if (unifiable and can_unify_nodes(n1, n2))
-                unifiables.push_back(*it);
+                unifiables.push_back(n);
         }
 
         return unifiables;
     };
 
     std::list<node_idx_t> unifiables = enumerate_unifiable_nodes(target);
-    kb::unification_postponement_t pp =
-        kb::knowledge_base_t::instance()->get_unification_postponement(node(target).arity());
+    const kb::unification_postponement_t* pp =
+        kb::knowledge_base_t::instance()->find_unification_postponement(node(target).arity());
 
     /* UNIFY EACH UNIFIABLE NODE PAIR. */
+    if (pp != NULL)
     for (auto it = unifiables.begin(); it != unifiables.end(); ++it)
     {
-        if (not pp.empty())
+        if (pp->do_postpone(this, target, *it))
         {
-            if (pp.do_postpone(this, target, *it))
-            {
-                node_idx_t n1(target), n2(*it);
-                if (n1 > n2) std::swap(n1, n2);
-                m_temporal.postponed_unifications[n1].insert(n2);
+            node_idx_t n1(target), n2(*it);
+            if (n1 > n2) std::swap(n1, n2);
+            m_temporal.postponed_unifications[n1].insert(n2);
 
-                IF_VERBOSE_FULL(
-                    format("Postponed unification: node[%d] - node[%d]", n1, n2));
-                continue;
-            }
+            IF_VERBOSE_FULL(
+                format("Postponed unification: node[%d] - node[%d]", n1, n2));
+            continue;
         }
 
         _chain_for_unification(target, *it);
@@ -1787,7 +1833,7 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
                 node_idx_t idx = add_node(sub, NODE_HYPOTHESIS, -1, hash_set<node_idx_t>());
                 m_maps.terms_to_sub_node[ts.first][ts.second] = idx;
 
-                std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > muex;
+                std::list<std::tuple<node_idx_t, unifier_t> > muex;
                 get_mutual_exclusions(sub, &muex);
                 _generate_mutual_exclusions(idx, muex);
             }
@@ -1825,7 +1871,7 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
             m_maps.terms_to_sub_node[t1][t2] = sub_node_idx;
             m_vc_unifiable.add(t1, t2);
 
-            std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > muex;
+            std::list<std::tuple<node_idx_t, unifier_t> > muex;
             get_mutual_exclusions(*sub, &muex);
             _generate_mutual_exclusions(sub_node_idx, muex);
             add_nodes_of_transitive_unification(t1);
@@ -1930,8 +1976,8 @@ bool proof_graph_t::check_unifiability(
     if (out != NULL) out->clear();
 
     if (not do_ignore_truthment and p1.truth != p2.truth) return false;
-    if (p1.predicate != p2.predicate) return false;
     if (p1.terms.size() != p2.terms.size()) return false;
+    // if (p1.predicate != p2.predicate) return false;
 
     for (int i = 0; i < p1.terms.size(); i++)
     {
@@ -1974,12 +2020,12 @@ void proof_graph_t::post_process()
                 for (auto it2 = it1->second.begin(); it2 != it1->second.end();)
                 {
                     const node_idx_t n1(it1->first), n2(*it2);
-                    kb::unification_postponement_t pp =
+                    const kb::unification_postponement_t *pp =
                         kb::knowledge_base_t::instance()
-                        ->get_unification_postponement(node(n1).arity());
-                    assert(not pp.empty());
+                        ->find_unification_postponement(node(n1).arity());
+                    assert(pp != NULL);
 
-                    if (not pp.do_postpone(this, n1, n2))
+                    if (not pp->do_postpone(this, n1, n2))
                     {
                         _chain_for_unification(n1, n2);
                         do_break = false;
@@ -2104,7 +2150,7 @@ hypernode_idx_t proof_graph_t::add_hypernode(
 
 void proof_graph_t::_enumerate_mutual_exclusion_for_counter_nodes(
     const literal_t &target,
-    std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *out) const
+    std::list<std::tuple<node_idx_t, unifier_t> > *out) const
 {
     const hash_set<node_idx_t>* indices =
         search_nodes_with_predicate(target.predicate, target.terms.size());
@@ -2120,7 +2166,7 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_counter_nodes(
             unifier_t uni;
 
             if (check_unifiability(target, l2, true, &uni))
-                out->push_back(std::make_tuple(*it, uni, -1));
+                out->push_back(std::make_tuple(*it, uni));
         }
     }
 }
@@ -2128,7 +2174,7 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_counter_nodes(
 
 void proof_graph_t::_enumerate_mutual_exclusion_for_argument_set(
     const literal_t &target,
-    std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > *out) const
+    std::list<std::tuple<node_idx_t, unifier_t> > *out) const
 {
     if (target.is_equality()) return;
 
@@ -2167,7 +2213,7 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_argument_set(
                 uni.add(t1, t2);
         }
 
-        out->push_back(std::make_tuple(it->first, uni, -1));
+        out->push_back(std::make_tuple(it->first, uni));
     }
 }
 

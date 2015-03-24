@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <cstdarg>
 
 #include "logical_function.h"
 #include "kb.h"
@@ -26,7 +27,7 @@ const std::string OPR_STR_EXARGSET = "argset";
 
 
 logical_function_t::logical_function_t(
-    logical_operator_t opr, const std::vector<literal_t> &literals )
+    logical_operator_t opr, const std::vector<literal_t> &literals)
     : m_operator(opr)
 {
     for (int i = 0; i < literals.size(); i++)
@@ -96,7 +97,7 @@ logical_function_t::logical_function_t(const sexp::stack_t &s)
     if( not s.children.empty() )
     {
         const sexp::stack_t &child = *(s.children.back());
-        if( child.is_parameter() )
+        if (child.is_parameter())
             m_param = child.get_string();
     }
 }
@@ -133,6 +134,46 @@ bool logical_function_t::do_include(const literal_t& lit) const
     {
         if (*my_literals[i] == lit)
             return true;
+    }
+    return false;
+}
+
+
+bool logical_function_t::find_parameter(const std::string &query) const
+{
+    if (m_param.empty()) return false;
+
+    int idx(0);
+    while ((idx = m_param.find(query, idx)) >= 0)
+    {
+        if (m_param.at(idx - 1) != ':')
+            continue;
+        if (idx + query.size() <= m_param.size())
+            return true;
+        else if (m_param.at(idx + query.size()) == ':')
+            return true;
+    }
+    return false;
+}
+
+
+bool logical_function_t::scan_parameter(const std::string &format, ...) const
+{
+    if (m_param.empty()) return "";
+
+    int idx1(1), idx2;
+    while (idx1 > 0)
+    {
+        va_list arg;
+        idx2 = m_param.find(':');
+
+        va_start(arg, format);
+        int ret = _vsscanf(
+            m_param.substr(idx1, idx2 - idx1).c_str(), format.c_str(), arg);
+        va_end(arg);
+
+        if (ret != EOF) return true;
+        idx1 = idx2 + 1;
     }
     return false;
 }
@@ -269,25 +310,50 @@ void logical_function_t::get_all_literals( std::list<literal_t> *out ) const
 
 
 void logical_function_t::get_all_literals_sub(
-    std::vector<const literal_t*> *p_out_list ) const
+    std::vector<const literal_t*> *p_out_list) const
 {
-    switch( m_operator )
+    switch (m_operator)
     {
     case OPR_LITERAL:
-        p_out_list->push_back( &m_literal );
+        p_out_list->push_back(&m_literal);
         break;
     case OPR_IMPLICATION:
     case OPR_PARAPHRASE:
     case OPR_INCONSISTENT:
-        m_branches[0].get_all_literals_sub( p_out_list );
-        m_branches[1].get_all_literals_sub( p_out_list );
+        m_branches[0].get_all_literals_sub(p_out_list);
+        m_branches[1].get_all_literals_sub(p_out_list);
         break;
     case OPR_OR:
     case OPR_AND:
     case OPR_REQUIREMENT:
     case OPR_UNIPP:
-        for( int i=0; i<m_branches.size(); i++ )
-            m_branches[i].get_all_literals_sub( p_out_list );
+        for (int i = 0; i<m_branches.size(); i++)
+            m_branches[i].get_all_literals_sub(p_out_list);
+        break;
+    }
+}
+
+
+void logical_function_t::enumerate_literal_branches(
+    std::vector<const logical_function_t*> *out) const
+{
+    switch (m_operator)
+    {
+    case OPR_LITERAL:
+        out->push_back(this);
+        break;
+    case OPR_IMPLICATION:
+    case OPR_PARAPHRASE:
+    case OPR_INCONSISTENT:
+        m_branches[0].enumerate_literal_branches(out);
+        m_branches[1].enumerate_literal_branches(out);
+        break;
+    case OPR_OR:
+    case OPR_AND:
+    case OPR_REQUIREMENT:
+    case OPR_UNIPP:
+        for (int i = 0; i<m_branches.size(); i++)
+            m_branches[i].enumerate_literal_branches(out);
         break;
     }
 }

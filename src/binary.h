@@ -41,93 +41,107 @@ struct execution_configure_t
     hash_set<std::string> target_obs_names; /// Name of observation to solve.
     hash_set<std::string> excluded_obs_names; /// Name of observation to solve.
 
-    std::string lhs_key, ilp_key, sol_key, dist_key;
+    std::string lhs_key, ilp_key, sol_key, dist_key, tab_key;
 };
 
 
-template <class T>
-class component_generator_t
+template <class T> class component_library_t
+: protected hash_map<std::string, component_generator_t<T>*>
 {
 public:
-    virtual T* operator()(phillip_main_t*) const { return NULL; }
+    virtual ~component_library_t()
+    {
+        for (auto it = begin(); it != end(); ++it)
+            delete it->second;
+    }
+
+    void add(const std::string &key, component_generator_t<T> *ptr)
+    {
+        insert(std::make_pair(key, ptr));
+    }
+
+    T* generate(const std::string &key, phillip_main_t *ph) const
+    {
+        auto found = find(key);
+        return (found != end()) ? (*found->second)(ph) : NULL;
+    }
 };
 
 
 /** A class to generate lhs-enumerator from string key. */
-class lhs_enumerator_library_t :
-    protected hash_map<std::string, component_generator_t<lhs_enumerator_t>*>
+class lhs_enumerator_library_t : public component_library_t<lhs_enumerator_t>
 {
 public:
-    struct deleter
-    {
-        void operator()(lhs_enumerator_library_t const* const p) const { delete p; }
-    };
-
     static lhs_enumerator_library_t* instance();
-    ~lhs_enumerator_library_t();
-
-    void add(
-        const std::string &key,
-        component_generator_t<lhs_enumerator_t> *ptr);
-    lhs_enumerator_t* generate(
-        const std::string &key, phillip_main_t *phillip);
 
 private:
     lhs_enumerator_library_t();
 
-    static std::unique_ptr<lhs_enumerator_library_t, deleter> ms_instance;
+    static std::unique_ptr<
+        lhs_enumerator_library_t,
+        deleter_t<lhs_enumerator_library_t> > ms_instance;
 };
 
 
 /** A class to generate ilp-converter from string key. */
-class ilp_converter_library_t :
-    protected hash_map<std::string, component_generator_t<ilp_converter_t>*>
+class ilp_converter_library_t : public component_library_t<ilp_converter_t>
 {
 public:
-    struct deleter
-    {
-        void operator()(ilp_converter_library_t const* const p) const { delete p; }
-    };
-
     static ilp_converter_library_t* instance();
-    ~ilp_converter_library_t();
-
-    void add(
-        const std::string &key,
-        component_generator_t<ilp_converter_t> *ptr);
-    ilp_converter_t* generate(
-        const std::string &key, phillip_main_t *phillip);
 
 private:
     ilp_converter_library_t();
 
-    static std::unique_ptr<ilp_converter_library_t, deleter> ms_instance;
+    static std::unique_ptr<
+        ilp_converter_library_t,
+        deleter_t<ilp_converter_library_t> > ms_instance;
 };
 
 
 /** A class to generate ilp-solver from string key. */
-class ilp_solver_library_t :
-    protected hash_map<std::string, component_generator_t<ilp_solver_t>*>
+class ilp_solver_library_t : public component_library_t<ilp_solver_t>
 {
 public:
-    struct deleter
-    {
-        void operator()(ilp_solver_library_t const* const p) const { delete p; }
-    };
-
     static ilp_solver_library_t* instance();
-    ~ilp_solver_library_t();
-
-    void add(
-        const std::string &key,
-        component_generator_t<ilp_solver_t> *ptr);
-    ilp_solver_t* generate(
-        const std::string &key, phillip_main_t *phillip);
 
 private:
     ilp_solver_library_t();
 
-    static std::unique_ptr<ilp_solver_library_t, deleter> ms_instance;
+    static std::unique_ptr<
+        ilp_solver_library_t,
+        deleter_t<ilp_solver_library_t> > ms_instance;
+};
+
+
+/** A class to generate distance-provider from string key. */
+class distance_provider_library_t :
+    public component_library_t<kb::distance_provider_t>
+{
+public:
+    static distance_provider_library_t* instance();
+
+private:
+    distance_provider_library_t();
+
+    static std::unique_ptr<
+        distance_provider_library_t,
+        deleter_t<distance_provider_library_t> > ms_instance;
+};
+
+
+/** A class to generate distance-provider from string key. */
+class category_table_library_t :
+    public component_library_t<kb::category_table_t>
+{
+public:
+    static category_table_library_t* instance();
+
+private:
+    category_table_library_t();
+
+    static std::unique_ptr<
+        category_table_library_t,
+        deleter_t<category_table_library_t> > ms_instance;
 };
 
 

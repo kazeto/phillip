@@ -63,6 +63,9 @@ public:
     /** Return true if lit is included in this. */
     bool do_include(const literal_t& lit) const;
 
+    bool find_parameter(const std::string &query) const;
+    bool scan_parameter(const std::string &format, ...) const;
+
     bool is_valid_as_implication() const;
     bool is_valid_as_paraphrase() const;
     bool is_valid_as_inconsistency() const;
@@ -72,6 +75,9 @@ public:
     /** Return literals included in this. */
     inline std::vector<const literal_t*> get_all_literals() const;
     void get_all_literals(std::list<literal_t> *out) const;
+
+    void enumerate_literal_branches(
+        std::vector<const logical_function_t*> *out) const;
 
     inline std::vector<const literal_t*> get_lhs() const;
     inline std::vector<const literal_t*> get_rhs() const;
@@ -83,7 +89,7 @@ public:
 
     void add_branch(const logical_function_t &lf);
 
-private:    
+private:
     void get_all_literals_sub(
         std::vector<const literal_t*> *p_out_list) const;
     

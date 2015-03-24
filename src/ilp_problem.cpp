@@ -765,7 +765,7 @@ void ilp_problem_t::print(std::ostream *os) const
               << "\" coefficient=\"" << var.objective_coefficient() << "\"";
         if (is_constant_variable(i))
             (*os) << " fixed=\"" << const_variable_values().at(i) << "\"";
-        (*os) << " />" << std::endl;
+        (*os) << "></variable>" << std::endl;
     }
     
     (*os)
@@ -950,10 +950,16 @@ void ilp_problem_t::_print_explanations_in_solution(
         std::string
             s_from(join(hn_from.begin(), hn_from.end(), "%d", ",")),
             s_to(join(hn_to.begin(), hn_to.end(), "%d", ",")),
-            axiom_name = "_blank";
+            axiom_name = "_blank",
+            gaps;
 
         if (edge.axiom_id() >= 0)
+        {
+            gaps = join_functional(
+                m_graph->get_gaps_on_edge(*it),
+                [](const std::pair<arity_t, arity_t> &p){return p.first + ":" + p.second; }, ",");
             axiom_name = base->get_axiom(edge.axiom_id()).name;
+        }
 
         (*os)
             << "<explanation id=\"" << (*it)
@@ -961,7 +967,8 @@ void ilp_problem_t::_print_explanations_in_solution(
             << "\" head=\"" << m_graph->hypernode2str(edge.head())
             << "\" active=\"" << (edge_is_active(*sol, *it) ? "yes" : "no")
             << "\" backward=\"" << (is_backward ? "yes" : "no")
-            << "\" axiom=\"" << axiom_name;
+            << "\" axiom=\"" << axiom_name
+            << "\" gap=\"" << gaps;
 
         hash_map<std::string, std::string> attributes;
         for (auto dec = m_xml_decorators.begin(); dec != m_xml_decorators.end(); ++dec)
@@ -1032,8 +1039,8 @@ void ilp_problem_t::_print_unifications_in_solution(
 
 ilp_solution_t::ilp_solution_t(
     const ilp_problem_t *prob, solution_type_e sol_type,
-    const std::vector<double> &values, const std::string &name)
-    : m_name(name), m_ilp(prob), m_solution_type(sol_type),
+    const std::vector<double> &values)
+    : m_ilp(prob), m_solution_type(sol_type),
       m_optimized_values(values),
       m_constraints_sufficiency(prob->constraints().size(), false),
       m_value_of_objective_function(prob->get_value_of_objective_function(values)),

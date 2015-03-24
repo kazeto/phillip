@@ -105,7 +105,7 @@ void compile_kb_t::process( const sexp::reader_t *reader )
             (stack->children.at(idx_inc)->children.size() >= 3), (*reader),
             "function 'xor' takes two arguments.");
         IF_VERBOSE_FULL("Added inconsistency: " + stack->to_string());
-        _kb->insert_inconsistency(func, name);
+        _kb->insert_inconsistency(func);
     }
     else if (idx_pp >= 0)
     {
@@ -114,7 +114,7 @@ void compile_kb_t::process( const sexp::reader_t *reader )
             (stack->children.at(idx_pp)->children.size() >= 2), (*reader),
             "function 'unipp' takes one argument.");
         IF_VERBOSE_FULL("Added unification-postponement: " + stack->to_string());
-        _kb->insert_unification_postponement(func, name);
+        _kb->insert_unification_postponement(func);
     }
     else if (idx_as >= 0)
     {

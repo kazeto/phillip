@@ -170,7 +170,7 @@ inline node_idx_t proof_graph_t::
     add_observation(const literal_t &lit, int depth)
 {
     int idx = add_node(lit, NODE_OBSERVABLE, depth, hash_set<node_idx_t>());
-    std::list<std::tuple<node_idx_t, unifier_t, axiom_id_t> > muex;
+    std::list<std::tuple<node_idx_t, unifier_t> > muex;
 
     get_mutual_exclusions(lit, &muex);
     _generate_mutual_exclusions(idx, muex);
@@ -270,14 +270,14 @@ inline const hash_set<node_idx_t>* proof_graph_t::search_nodes_with_predicate(
 }
 
 
-inline const hash_set<node_idx_t>* proof_graph_t::search_nodes_with_arity(
-    std::string arity ) const
+inline const hash_set<node_idx_t>*
+proof_graph_t::search_nodes_with_arity(const arity_t &arity) const
 {
     int idx(arity.rfind('/')), num;
     assert( idx > 0 );
     _sscanf( arity.substr(idx+1).c_str(), "%d", &num );
 
-    return search_nodes_with_predicate( arity.substr(0, idx), num );
+    return search_nodes_with_predicate(arity.substr(0, idx), num);
 }
 
 

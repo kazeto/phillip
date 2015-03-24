@@ -124,7 +124,6 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
 std::set<pg::chain_candidate_t> depth_based_enumerator_t::
 enumerate_chain_candidates(const pg::proof_graph_t *graph, int depth) const
 {
-    const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
     std::set<pg::chain_candidate_t> out;
 
     std::set<std::tuple<axiom_id_t, bool> > axioms;
@@ -139,11 +138,11 @@ enumerate_chain_candidates(const pg::proof_graph_t *graph, int depth) const
             const pg::node_t &n = graph->node(*it);
             std::string arity = n.literal().get_arity();
 
-            std::list<axiom_id_t> ax_deductive = base->search_axioms_with_lhs(arity);
+            std::list<axiom_id_t> ax_deductive = kb::kb()->search_axioms_with_lhs(arity);
             for (auto ax = ax_deductive.begin(); ax != ax_deductive.end(); ++ax)
                 axioms.insert(std::make_tuple(*ax, true));
 
-            std::list<axiom_id_t> ax_abductive = base->search_axioms_with_rhs(arity);
+            std::list<axiom_id_t> ax_abductive = kb::kb()->search_axioms_with_rhs(arity);
             for (auto ax = ax_abductive.begin(); ax != ax_abductive.end(); ++ax)
                 axioms.insert(std::make_tuple(*ax, false));
         }
@@ -151,7 +150,7 @@ enumerate_chain_candidates(const pg::proof_graph_t *graph, int depth) const
 
     for (auto it = axioms.begin(); it != axioms.end(); ++it)
     {
-        lf::axiom_t axiom = base->get_axiom(std::get<0>(*it));
+        lf::axiom_t axiom = kb::kb()->get_axiom(std::get<0>(*it));
         enumerate_chain_candidates_sub(
             graph, axiom, not std::get<1>(*it), depth, &out);
     }

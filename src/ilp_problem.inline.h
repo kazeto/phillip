@@ -182,9 +182,8 @@ inline std::string constraint_t::to_string(
 
 
 inline ilp_problem_t::ilp_problem_t(
-    const pg::proof_graph_t* lhs, solution_interpreter_t *si,
-    bool do_maximize, const std::string &name)
-    : m_name(name), m_do_maximize(do_maximize), m_is_timeout(false),
+    const pg::proof_graph_t* lhs, solution_interpreter_t *si, bool do_maximize)
+    : m_do_maximize(do_maximize), m_is_timeout(false),
       m_graph(lhs), m_cutoff(INVALID_CUT_OFF), m_solution_interpreter(si)
 {}
 
@@ -194,6 +193,12 @@ inline void ilp_problem_t::add_xml_decorator(solution_xml_decorator_t *p_dec)
     m_xml_decorators.push_back(p_dec);
 }
   
+
+inline const std::string& ilp_problem_t::name() const
+{
+    return m_graph->name();
+}
+
 
 inline variable_idx_t ilp_problem_t::add_variable( const variable_t &var )
 {
@@ -356,6 +361,12 @@ inline bool ilp_problem_t::edge_is_active(
     const ilp_solution_t &sol, pg::edge_idx_t idx) const
 {
     return m_solution_interpreter->edge_is_active(sol, idx);
+}
+
+
+inline const std::string& ilp_solution_t::name() const
+{
+    return m_ilp->name();
 }
 
 
