@@ -51,19 +51,19 @@ template <class T> class component_library_t
 public:
     virtual ~component_library_t()
     {
-        for (auto it = begin(); it != end(); ++it)
+        for (auto it = this->begin(); it != this->end(); ++it)
             delete it->second;
     }
 
     void add(const std::string &key, component_generator_t<T> *ptr)
     {
-        insert(std::make_pair(key, ptr));
+        this->insert(std::make_pair(key, ptr));
     }
 
     T* generate(const std::string &key, phillip_main_t *ph) const
     {
-        auto found = find(key);
-        return (found != end()) ? (*found->second)(ph) : NULL;
+        auto found = this->find(key);
+        return (found != this->end()) ? (*found->second)(ph) : NULL;
     }
 };
 
