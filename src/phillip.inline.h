@@ -292,13 +292,15 @@ inline bool phillip_main_t::check_validity() const
 
     if (not can_infer)
     {
-        print_error("Henry cannot infer!!");
         if (lhs_enumerator() == NULL)
-            print_error("    - No lhs_enumerator!");
+            throw phillip_exception_t(
+            "Cannot infer, because of lack of lhs_enumerator.");
         if (ilp_convertor() == NULL)
-            print_error("    - No ilp_convertor!");
+            throw phillip_exception_t(
+            "Cannot infer, because of lack of ilp_convertor.");
         if (ilp_solver() == NULL)
-            print_error("    - No ilp_solver!");
+            throw phillip_exception_t(
+            "Cannot infer, because of lack of ilp_solver.");
     }
 
     return can_infer;

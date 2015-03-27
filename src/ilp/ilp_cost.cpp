@@ -26,8 +26,9 @@ parse_string_to_cost_provider(const std::string &str)
             return new basic_cost_provider_t(
                 def_cost, lit_unif_cost, term_unif_cost);
         }
-
-        print_error("The parameter for cost-provider is invalid: " + str);
+        else
+            throw phillip_exception_t(
+            "The parameter for cost-provider is invalid: " + str);
     }
 
     return NULL;

@@ -139,7 +139,7 @@ void knowledge_base_t::setup(
         if (ms_thread_num_for_rm < 0) ms_thread_num_for_rm = 1;
     }
     else
-        print_error("Failed to setup. The instance of KB has been created.");
+        print_warning("Failed to setup. The instance of KB has been created.");
 }
 
 
@@ -173,20 +173,14 @@ knowledge_base_t::~knowledge_base_t()
 void knowledge_base_t::prepare_compile()
 {
     if (m_distance_provider.instance == NULL)
-    {
-        print_error(
-            "Preparing KB was canceled, "
-            "because distance provider has not been set.");
-        return;
-    }
+        throw phillip_exception_t(
+        "Preparing KB had failed, "
+        "because distance provider has not been set.");
 
     if (m_category_table.instance == NULL)
-    {
-        print_error(
-            "Preparing KB was canceled, "
-            "because category table has not been set.");
-        return;
-    }
+        throw phillip_exception_t(
+        "Preparing KB had failed, "
+        "because category table has not been set.");
 
     if (m_state == STATE_QUERY)
         finalize();
@@ -210,20 +204,14 @@ void knowledge_base_t::prepare_compile()
 void knowledge_base_t::prepare_query()
 {
     if (m_distance_provider.instance == NULL)
-    {
-        print_error(
-            "Preparing KB was canceled, "
-            "because distance provider has not been set.");
-        return;
-    }
+        throw phillip_exception_t(
+        "Preparing KB had failed, "
+        "because distance provider has not been set.");
 
     if (m_category_table.instance == NULL)
-    {
-        print_error(
-            "Preparing KB was canceled, "
-            "because category table has not been set.");
-        return;
-    }
+        throw phillip_exception_t(
+        "Preparing KB had failed, "
+        "because category table has not been set.");
 
     if (m_state == STATE_COMPILE)
         finalize();
@@ -368,17 +356,13 @@ void knowledge_base_t::read_config()
     else
     {
         m_version = KB_VERSION_UNDERSPECIFIED;
-        print_error(
+        throw phillip_exception_t(
             "This compiled knowledge base is invalid. Please re-compile it.");
-        return;
     }
 
     if (not is_valid_version())
-    {
-        print_error(
-            "This compiled knowledge base is too old. Please re-compile it.");
-        return;
-    }
+        throw phillip_exception_t(
+        "This compiled knowledge base is too old. Please re-compile it.");
 
     fi.read((char*)&ms_max_distance, sizeof(float));
     fi.read(&num, sizeof(char));
@@ -1643,10 +1627,7 @@ void knowledge_base_t::arity_database_t::read()
     clear();
 
     if (fi.bad())
-    {
-        print_error("Failed to open " + m_filename);
-        return;
-    }
+        throw phillip_exception_t("Failed to open " + m_filename);
 
     size_t arity_num;
     fi.read((char*)&arity_num, sizeof(size_t));
@@ -1706,10 +1687,7 @@ void knowledge_base_t::arity_database_t::write() const
     char line[256];
 
     if (fo.bad())
-    {
-        print_error("Failed to open " + m_filename);
-        return;
-    }
+        throw phillip_exception_t("Failed to open " + m_filename);
 
     size_t arity_num = m_arities.size();
     fo.write((char*)&arity_num, sizeof(size_t));

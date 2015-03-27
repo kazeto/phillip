@@ -17,6 +17,7 @@
 #include <unordered_set>
 #include <mutex>
 #include <functional>
+#include <exception>
 
 #include "./lib/cdbpp.h"
 #include "./s_expression.h"
@@ -200,6 +201,17 @@ public:
 
 protected:
     phillip_main_t *m_phillip;
+};
+
+
+class phillip_exception_t : public std::runtime_error
+{
+public:
+    phillip_exception_t(const std::string &what, bool do_print_usage = false)
+        : std::runtime_error(what), m_do_print_usage(do_print_usage) {}
+    bool do_print_usage() const { return m_do_print_usage; }
+private:
+    bool m_do_print_usage;
 };
 
 

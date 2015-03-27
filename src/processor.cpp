@@ -9,16 +9,14 @@
 namespace phil
 {
 
-namespace proc
-{
+    namespace proc
+    {
 
 
 #define _assert_syntax(x, s, e) \
-    if( not x ){ \
-        print_error( \
-            format("Syntax error at line %d:", s.get_line_num()) \
-            + e + "\n" + s.get_stack()->to_string()); \
-        return; }
+        if (not x) throw phillip_exception_t( \
+        format("Syntax error at line %d:", s.get_line_num()) \
+        + e + "\n" + s.get_stack()->to_string()); \
 
 
 void parse_obs_t::process(const sexp::reader_t *reader)
@@ -168,11 +166,10 @@ void processor_t::process( std::vector<std::string> inputs )
         {
             file.open( input_path.c_str() );
             p_is = &file;
-            if( file.fail() )
-            {
-                print_error( "File not found: " + input_path );
-                break;
-            }
+
+            if (file.fail())
+                throw phillip_exception_t("File not found: " + input_path);
+
             file_size = get_file_size(*p_is);
             filename  = input_path.substr( input_path.rfind('/')+1 );
         }
@@ -211,10 +208,10 @@ void processor_t::process( std::vector<std::string> inputs )
         {
             std::string out = format(
                 "Syntax error: too few parentheses. Around here, or line %d"
-                " (typically the expression followed by this):\n%s",
+                " (typically the expression followed by this): %s",
                 reader.get_line_num(),
                 reader.get_stack()->to_string().c_str() );
-            print_error( out );
+            throw phillip_exception_t(out);
         }
     }
     

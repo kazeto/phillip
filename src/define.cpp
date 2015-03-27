@@ -218,10 +218,8 @@ void cdb_data_t::prepare_compile()
             m_filename.c_str(),
             std::ios::binary | std::ios::trunc);
         if (m_fout->fail())
-        {
-            print_error(
-                "Failed to open a database file: " + m_filename);
-        }
+            throw phillip_exception_t(
+            "Failed to open a database file: " + m_filename);
         else
             m_builder = new cdbpp::builder(*m_fout);
     }
@@ -237,17 +235,15 @@ void cdb_data_t::prepare_query()
         m_fin = new std::ifstream(
             m_filename.c_str(), std::ios_base::binary);
         if (m_fin->fail())
-        {
-            print_error(
-                "Failed to open a database file: " + m_filename);
-        }
+            throw phillip_exception_t(
+            "Failed to open a database file: " + m_filename);
         else
         {
             m_finder = new cdbpp::cdbpp(*m_fin);
-            if (not m_finder->is_open())
-                print_error(
-                "Failed to read a database file: " + m_filename);
 
+            if (not m_finder->is_open())
+                throw phillip_exception_t(
+                "Failed to read a database file: " + m_filename);
         }
     }
 }

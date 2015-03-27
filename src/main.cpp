@@ -15,6 +15,15 @@ int main(int argc, char* argv[])
     bin::execution_configure_t config;
     bin::inputs_t inputs;
 
-    bin::prepare(argc, argv, &phillip, &config, &inputs);
-    bin::execute(&phillip, config, inputs);
+    try
+    {
+        bin::prepare(argc, argv, &phillip, &config, &inputs);
+        bin::execute(&phillip, config, inputs);
+    }
+    catch (const phillip_exception_t &exception)
+    {
+        print_error(exception.what());
+        if (exception.do_print_usage()) bin::print_usage();
+    }
+
 }

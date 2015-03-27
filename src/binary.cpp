@@ -239,12 +239,9 @@ bool parse_options(
         int ret = _interpret_option( opt, arg, phillip, config, inputs );
         
         if (not ret)
-        {
-            print_error(
-                "Any error occured during parsing command line options:"
-                + format("-%c %s", opt, arg.c_str()));
-            print_usage();
-        }
+            throw phillip_exception_t(
+            "Any error occured during parsing command line options:"
+            + format("-%c %s", opt, arg.c_str()), true);
     }
 
     for (int i = optind; i < argc; i++)
@@ -263,10 +260,8 @@ bool _load_config_file(
     std::ifstream fin( filename );
 
     if (not fin)
-    {
-        print_error_fmt("Cannot open setting file \"%s\"", filename);
-        return false;
-    }
+        throw phillip_exception_t(format(
+        "Cannot open setting file \"%s\"", filename));
 
     print_console_fmt("Loading setting file \"%s\"", filename);
     
@@ -287,12 +282,9 @@ bool _load_config_file(
             int ret = _interpret_option( opt, arg, phillip, config, inputs );
             
             if (not ret)
-            {
-                print_error(
-                    "Any error occured during parsing command line options:"
-                    + std::string(line));
-                print_usage();
-            }
+                throw phillip_exception_t(
+                "Any error occured during parsing command line options:"
+                + std::string(line), true);
         }
         if (spl.at(0).at(0) != '-' and spl.size() == 1)
             inputs->push_back(normalize_path(spl.at(0)));
@@ -497,10 +489,7 @@ bool _interpret_option(
 bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
 {
     if (config.mode == EXE_MODE_UNDERSPECIFIED)
-    {
-        print_error("Execution mode is underspecified!!");
-        return false;
-    }
+        throw phillip_exception_t("Execution mode is underspecified.", true);
 
     float max_dist = phillip->param_float("kb_max_distance", -1.0);
     int thread_num = phillip->param_int("kb_thread_num", 1);
@@ -563,9 +552,9 @@ void print_usage()
         "    -h : Print this usage.",
         "",
         "  Options in inference-mode:",
-        "    -c lhs=<NAME> : Set component for making latent hypotheses sets.",
-        "    -c ilp=<NAME> : Set component for making ILP problems.",
-        "    -c sol=<NAME> : Set component for making solution hypotheses.",
+        "    -c lhs=<NAME> : Set a component for making latent hypotheses sets.",
+        "    -c ilp=<NAME> : Set a component for making ILP problems.",
+        "    -c sol=<NAME> : Set a component for making solution hypotheses.",
         "    -k <NAME> : Set the prefix of the path of the compiled knowledge base.",
         "    -o <NAME> : Solve only the observation of corresponding name.",
         "    -e <NAME> : Exclude the observation of corresponding name from inference.",
@@ -575,7 +564,8 @@ void print_usage()
         "    -T sol=<INT> : Set timeout of the optimization of ILP problem in seconds.",
         "",
         "  Options in compile_kb mode:",
-        "    -c dist=<NAME> : Set component to define relatedness between predicates.",
+        "    -c dist=<NAME> : Set a component to define relatedness between predicates.",
+        "    -c tab=<NAME> : Set a component for making category-table.",
         "    -k <NAME> : Set the prefix of the path of the compiled knowledge base.",
         "",
         "  Wiki: https://github.com/kazeto/phillip/wiki"};
