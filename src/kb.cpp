@@ -1116,7 +1116,7 @@ void knowledge_base_t::create_reachable_matrix()
         worker.emplace_back(
             [&](int th_id)
             {
-                for(arity_id_t idx = th_id; idx < m_arity_set.size(); idx += num_thread)
+                for(arity_id_t idx = th_id; idx <= m_arity_set.size(); idx += num_thread)
                 {
                     if (ignored.count(idx) != 0) continue;
                     
