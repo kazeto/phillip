@@ -23,8 +23,9 @@ parse_string_to_weight_provider(const std::string &str)
                 _sscanf(terms.at(0).c_str(), "%lf", &weight);
             return new basic_weight_provider_t(weight);
         }
-
-        print_error("The parameter for weight-provider is invalid: " + str);
+        else
+            throw phillip_exception_t(
+            "The parameter for weight-provider is invalid: " + str);
     }
 
     return NULL;
