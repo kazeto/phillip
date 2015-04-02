@@ -70,8 +70,8 @@ def write_main(target_bin, do_use_lpsolve, do_use_gurobi):
             '\trm -f $(OBJS_LIB)',
             '',
             'test:',
-            '\t$(TARGET) -l conf/toy.compile.conf',
-            '\t$(TARGET) -l conf/toy.inference.conf']))
+            '\t$(TARGET_BIN) -l conf/toy.compile.conf',
+            '\t$(TARGET_BIN) -l conf/toy.inference.conf']))
 
 
 def write_example(dir, do_use_lpsolve, do_use_gurobi):
