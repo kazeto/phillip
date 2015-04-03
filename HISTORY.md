@@ -1,3 +1,20 @@
+# 2015/04/03 (Phil.3.00)
+
+- Added the function of Category-Table.
+    - This function enables soft unification and soft backchaining.
+    - You can activate this by `-c tab=<NAME>` option.
+    - We will add the detail to Phillip's wiki later.
+- Updated the version of compiled knowledge base.
+    - So please recompile your knowledge base.
+- Added an option to use Logarithmic Weighted Abduction, "-f logarithmic_weighted_abduction".
+    - This option must be used together with "-c ilp=weighted".
+    - We will add the detail to Phillip's wiki later.
+    - (But, We need to discuss more the appropriacy of this evaluation function.)
+- Added options to print human readable output, "-f human_readable_output" and "-H".
+    - Thanks for Katya's feedback.
+- Performed refactoring for some source codes.
+
+
 # 2015/02/27 (Phil.2.62)
 
 - Added an example of user-defined ilp-converter.

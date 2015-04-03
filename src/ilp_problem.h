@@ -360,6 +360,11 @@ public:
     inline bool variable_is_active(variable_idx_t) const;
     inline bool constraint_is_satisfied(constraint_idx_t idx) const;
 
+    void enumerate_unified_terms_sets(std::list<hash_set<term_t> > *out) const;
+
+    /** Prints the solution hypothesis in human readable format to os. */
+    void print_human_readable_hypothesis(std::ostream *os) const;
+
     /** Exclude unsatisfied constraints from targets
      *  and insert them into filtered.
      *  This method is to be used in Cutting Plane algorithm. */

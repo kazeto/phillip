@@ -10,7 +10,7 @@ namespace bin
 {
 
 
-char ACCEPTABLE_OPTIONS[] = "c:e:f:hk:l:m:o:p:t:v:PT:";
+char ACCEPTABLE_OPTIONS[] = "c:e:f:hk:l:m:o:p:t:v:HPT:";
 
 
 std::unique_ptr<lhs_enumerator_library_t, deleter_t<lhs_enumerator_library_t> >
@@ -446,6 +446,10 @@ bool _interpret_option(
             return false;
     }
 
+    case 'H':
+        phillip->set_flag("human_readable_output");
+        return true;
+
     case 'P':
         phillip->set_flag("get_pseudo_positive");
         return true;
@@ -558,6 +562,8 @@ void print_usage()
         "    -k <NAME> : Set the prefix of the path of the compiled knowledge base.",
         "    -o <NAME> : Solve only the observation of corresponding name.",
         "    -e <NAME> : Exclude the observation of corresponding name from inference.",
+        "    -H : Activate human readable output.",
+        "    -P : Infer pseudo positive hypothesis.",
         "    -T <INT>  : Set timeout of the whole inference in seconds.",
         "    -T lhs=<INT> : Set timeout of the creation of latent hypotheses sets in seconds.",
         "    -T ilp=<INT> : Set timeout of the conversion into ILP problem in seconds.",

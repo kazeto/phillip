@@ -827,6 +827,9 @@ void ilp_problem_t::print_solution(
         << "\" all=\"" << (is_time_out_all ? "yes" : "no")
         << "\"></timeout>" << std::endl;
 
+    if (phillip()->flag("human_readable_output"))
+        sol->print_human_readable_hypothesis(os);
+
     _print_requirements_in_solution(sol, os);
     _print_literals_in_solution(sol, os);
     _print_explanations_in_solution(sol, os);
@@ -1071,6 +1074,112 @@ void ilp_solution_t::merge(const ilp_solution_t &sol)
     m_value_of_objective_function += sol.m_value_of_objective_function;
 
     m_is_timeout = (m_is_timeout or sol.m_is_timeout);
+}
+
+
+void ilp_solution_t::enumerate_unified_terms_sets(std::list<hash_set<term_t> > *out) const
+{
+    const ilp_problem_t *prob = problem();
+    const pg::proof_graph_t *graph = prob->proof_graph();
+
+    assert(out->empty()); // ON BEGINNING, OUT MUST BE EMPTY.
+
+    for (auto n : graph->nodes())
+    if (n.is_equality_node())
+    {
+        variable_idx_t v = problem()->find_variable_with_node(n.index());
+
+        if (v >= 0)
+        if (variable_is_active(v))
+        {
+            const std::vector<term_t> &unified = n.literal().terms;
+            auto it_set = out->begin();
+
+            for (; it_set != out->end(); ++it_set)
+            if (it_set->count(unified.at(0)) > 0 or it_set->count(unified.at(1)) > 0)
+                break;
+
+            if (it_set == out->end())
+                out->push_back(hash_set<term_t>(unified.begin(), unified.end()));
+            else
+                it_set->insert(unified.begin(), unified.end());
+        }
+    }
+
+    while (true)
+    {
+        bool has_merged(false);
+
+        for (auto it1 = out->begin(); it1 != out->end() and not has_merged; ++it1)
+        for (auto it2 = out->begin(); it2 != it1 and not has_merged; ++it2)
+        if (it1 != it2)
+        if (has_intersection(it1->begin(), it1->end(), it2->begin(), it2->end()))
+        {
+            it1->insert(it2->begin(), it2->end());
+            out->erase(it2);
+            has_merged = true;
+        }
+
+        if (not has_merged) break;
+    }
+}
+
+
+void ilp_solution_t::print_human_readable_hypothesis(std::ostream *os) const
+{
+    const ilp_problem_t *prob = problem();
+    const pg::proof_graph_t *graph = prob->proof_graph();
+    std::set<literal_t> literals;
+    std::set<literal_t> non_eqs;
+    std::list< hash_set<term_t> > terms;
+
+    auto reguralized =
+        [](const std::list<hash_set<term_t> > &terms, const literal_t &lit) -> literal_t
+    {
+        literal_t out(lit);
+        for (term_idx_t i = 0; i < out.terms.size(); ++i)
+        {
+            for (auto set : terms)
+            if (set.count(out.terms.at(i)) > 0)
+            {
+                out.terms[i] = *set.begin();
+                break;
+            }
+        }
+        return out;
+    };
+
+    enumerate_unified_terms_sets(&terms);
+
+    // ENUMERATE ELEMENTS OF literals AND non_eqs
+    for (auto n : graph->nodes())
+    if (not n.is_equality_node())
+    {
+        variable_idx_t v = problem()->find_variable_with_node(n.index());
+
+        if (v >= 0)
+        if (variable_is_active(v))
+        {
+            if (n.is_non_equality_node())
+                literals.insert(reguralized(terms, n.literal()));
+            else
+                non_eqs.insert(reguralized(terms, n.literal()));
+        }
+    }
+
+    (*os) << "<hypothesis>" << std::endl;
+    (*os)
+        << "(^ "
+        << join_functional(literals, [](const literal_t &l){ return l.to_string(); }, " ")
+        << (non_eqs.empty() ? "" : " ")
+        << join_functional(non_eqs, [](const literal_t &l){ return l.to_string(); }, " ");
+
+    auto term2str = [](const term_t &t){ return t.string(); };
+    for (auto set : terms)
+        (*os) << " (= " << join_functional(set, term2str, " ") << ")";
+
+    (*os) << ")" << std::endl;
+    (*os) << "</hypothesis>" << std::endl;
 }
 
 
