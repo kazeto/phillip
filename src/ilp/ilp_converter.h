@@ -6,7 +6,7 @@ namespace phil
 {
 
 /** A namespace about factories of linear-programming-problems. */
-namespace ilp
+namespace cnv
 {
 
 
@@ -58,7 +58,7 @@ public:
         my_xml_decorator_t(
             const hash_map<pg::node_idx_t, ilp::variable_idx_t> &node2costvar);
         virtual void get_literal_attributes(
-            const ilp_solution_t *sol, pg::node_idx_t idx,
+            const ilp::ilp_solution_t *sol, pg::node_idx_t idx,
             hash_map<std::string, std::string> *out) const;
     private:
         hash_map<pg::node_idx_t, ilp::variable_idx_t> m_node2costvar;
@@ -77,7 +77,8 @@ public:
 
     weighted_converter_t(
         phillip_main_t *main,
-        double default_obs_cost = 10.0, weight_provider_t *ptr = NULL);
+        double default_obs_cost = 10.0, weight_provider_t *ptr = NULL,
+        bool is_logarithmic = false);
     ~weighted_converter_t();
 
     virtual ilp_converter_t* duplicate(phillip_main_t *ptr) const;
@@ -92,6 +93,7 @@ public:
 
 protected:
     double m_default_observation_cost;
+    bool m_is_logarithmic;
     weight_provider_t *m_weight_provider;
 };
 

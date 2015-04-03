@@ -3,7 +3,7 @@
 namespace phil
 {
 
-namespace ilp
+namespace cnv
 {
 
 
@@ -115,10 +115,10 @@ ilp_converter_t* costed_converter_t::
 generator_t::operator()(phillip_main_t *ph) const
 {
     const std::string &param = ph->param("cost_provider");
-    ilp::costed_converter_t::cost_provider_t *ptr =
-        ilp::costed_converter_t::parse_string_to_cost_provider(param);
+    costed_converter_t::cost_provider_t *ptr =
+        costed_converter_t::parse_string_to_cost_provider(param);
 
-    return new ilp::costed_converter_t(ph, ptr);
+    return new costed_converter_t(ph, ptr);
 }
 
 

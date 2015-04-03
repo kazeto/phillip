@@ -3,7 +3,7 @@
 namespace phil
 {
 
-namespace ilp
+namespace cnv
 {
 
 
@@ -33,8 +33,11 @@ parse_string_to_weight_provider(const std::string &str)
 
 
 weighted_converter_t::weighted_converter_t(
-    phillip_main_t *main, double default_obs_cost, weight_provider_t *ptr)
-    : ilp_converter_t(main), m_default_observation_cost(default_obs_cost),
+    phillip_main_t *main, double default_obs_cost,
+    weight_provider_t *ptr, bool is_logarithmic)
+    : ilp_converter_t(main),
+      m_default_observation_cost(default_obs_cost),
+      m_is_logarithmic(is_logarithmic),
       m_weight_provider(ptr)
 {
     if (ptr == NULL)
@@ -145,7 +148,11 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
 
                 // ASSIGN COSTS TO HEAD NODES
                 for (int i = 0; i < hn_to.size(); ++i)
-                    add_variable_for_cost(hn_to[i], weights[i] * cost_from);
+                {
+                    double cost = m_is_logarithmic ?
+                        (cost_from + weights[i]) : (cost_from * weights[i]);
+                    add_variable_for_cost(hn_to[i], cost);
+                }
 
                 if (is_timeout(begin)) break;
             }            
@@ -284,18 +291,22 @@ bool weighted_converter_t::is_available(std::list<std::string> *message) const
 
 std::string weighted_converter_t::repr() const
 {
-    return "WeightedConverter";
+    if (m_is_logarithmic)
+        return "logarithmic-weighted-convereter";
+    else
+        return "weighted-converter";
 }
 
 
 ilp_converter_t* weighted_converter_t::
 generator_t::operator()(phillip_main_t *ph) const
 {
-    return new ilp::weighted_converter_t(
+    const std::string &key = ph->param("weight_provider");
+    return new weighted_converter_t(
         ph,
         ph->param_float("default_obs_cost", 10.0),
-        ilp::weighted_converter_t::parse_string_to_weight_provider(
-        ph->param("weight_provider")));
+        weighted_converter_t::parse_string_to_weight_provider(key),
+        ph->flag("logarithmic_weighted_abduction"));
 }
 
 
@@ -361,13 +372,13 @@ const hash_map<pg::node_idx_t, ilp::variable_idx_t> &node2costvar)
 
 void weighted_converter_t::my_xml_decorator_t::
 get_literal_attributes(
-const ilp_solution_t *sol, pg::node_idx_t idx,
+const ilp::ilp_solution_t *sol, pg::node_idx_t idx,
 hash_map<std::string, std::string> *out) const
 {
     auto find = m_node2costvar.find(idx);
     if (find != m_node2costvar.end())
     {
-        variable_idx_t costvar = find->second;
+        ilp::variable_idx_t costvar = find->second;
         double cost(sol->problem()->variable(costvar).objective_coefficient());
         (*out)["cost"] = format("%lf", cost);
         (*out)["paid-cost"] = sol->variable_is_active(costvar) ? "yes" : "no";

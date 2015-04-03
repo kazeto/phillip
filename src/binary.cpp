@@ -46,9 +46,9 @@ ilp_converter_library_t* ilp_converter_library_t::instance()
 
 ilp_converter_library_t::ilp_converter_library_t()
 {
-    add("null", new ilp::null_converter_t::generator_t());
-    add("weighted", new ilp::weighted_converter_t::generator_t());
-    add("costed", new ilp::costed_converter_t::generator_t());
+    add("null", new cnv::null_converter_t::generator_t());
+    add("weighted", new cnv::weighted_converter_t::generator_t());
+    add("costed", new cnv::costed_converter_t::generator_t());
 }
 
 
