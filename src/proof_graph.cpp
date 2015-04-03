@@ -1794,9 +1794,9 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
         kb::knowledge_base_t::instance()->find_unification_postponement(node(target).arity());
 
     /* UNIFY EACH UNIFIABLE NODE PAIR. */
-    if (pp != NULL)
     for (auto it = unifiables.begin(); it != unifiables.end(); ++it)
     {
+        if (pp != NULL)
         if (pp->do_postpone(this, target, *it))
         {
             node_idx_t n1(target), n2(*it);
