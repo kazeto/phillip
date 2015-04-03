@@ -12,6 +12,8 @@
     - (But, We need to discuss more the appropriacy of this evaluation function.)
 - Added options to print human readable output, "-f human_readable_output" and "-H".
     - Thanks for Katya's feedback.
+- Implemented exception handling.
+    - If there is any error, an exception of phillip_exception_t is thrown.
 - Performed refactoring for some source codes.
 
 
