@@ -1154,6 +1154,7 @@ void ilp_solution_t::print_human_readable_hypothesis(std::ostream *os) const
     // ENUMERATE ELEMENTS OF literals AND non_eqs
     for (auto n : graph->nodes())
     if (not n.is_equality_node())
+    if (n.type() == pg::NODE_HYPOTHESIS or n.type() == pg::NODE_OBSERVABLE)
     {
         variable_idx_t v = problem()->find_variable_with_node(n.index());
 
