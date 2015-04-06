@@ -3,76 +3,18 @@
 
 ## @author Kazeto Yamamoto
 ## A program to convert Phillip's output into HTML file.
-## Usage: $ out2html.py -o out.html out1.xml out2.xml ...
 
-import sys, math
+import sys, math, argparse
 import xml.etree.ElementTree as et
 from collections import defaultdict
 
-DEFAULT_NODE_ATTRIBUTES = set(['id', 'type', 'depth', 'active'])
-
-def splitHypernode2Node(s):
-    idx1 = s.find('{') + 1
-    idx2 = s.find('}')
-    return [int(x) for x in s[idx1:idx2].split(',')]
+import phil
 
 
-class Node:
-    def __init__(self, elem):
-        self.attr = dict(elem.items())
-        self.id = int(self.attr['id'])
-        self.depth = int(self.attr['depth'])
-        self.active = (self.attr['active'] == 'yes')
-        self.type = self.attr['type']
-        self.literal = elem.text[:elem.text.rfind(':')]
-
-
-class Chain:
-    def __init__(self, elem):
-        self.__attr = dict(elem.items())
-        self.id = int(self.__attr['id'])
-        self.tail = splitHypernode2Node(self.__attr['tail'])
-        self.head = splitHypernode2Node(self.__attr['head'])
-        self.active = (self.__attr['active'] == 'yes')
-        self.backward = (self.__attr['backward'] == 'yes')
-        self.text = elem.text
-
-    def axiom(self):
-        return self.__attr['axiom']
-
-
-class Unify:
-    def __init__(self, elem):
-        self.__attr = dict(elem.items())
-        self.unified = (int(self.__attr['l1']), int(self.__attr['l2']))
-        self.unifier = [x.strip() for x in self.__attr['unifier'].split(',')]
-        self.active = (self.__attr['active'] == 'yes')
-
-
-class ProofGraph:
-    def __init__(self, root):
-        conf = root.find('configure')
-        self.components = dict(conf.find('components').items())
-        self.params = dict(conf.find('params').items())
-
-        pg = root.find('proofgraph')
-        nodes = [Node(n) for n in pg.getiterator('literal')]
-        chains = [Chain(e) for e in pg.getiterator('explanation')]
-
-        self.name = pg.get('name')
-        self.state = pg.get('state')
-        self.objective = float(pg.get('objective'))
-        self.time = dict(pg.find('time').items())
-        self.timeout = dict(pg.find('timeout').items())
-        
-        self.nodes = dict([(n.id, n) for n in nodes])
-        self.chains = dict([(c.id, c) for c in chains])
-        self.unifs = [Unify(u) for u in pg.getiterator('unification')]
-
-
-class Vis(ProofGraph):
-    def __init__(self, root):
-        ProofGraph.__init__(self, root)
+class ProofGraph(phil.ProofGraph):
+    
+    def __init__(self, pg):
+        phil.ProofGraph.__init__(self, pg)
         self.node2id = dict()
         self.relay_id_offset = math.pow(10, math.ceil(math.log10(max(self.nodes.keys()))))
     
@@ -102,8 +44,92 @@ class Vis(ProofGraph):
         self.str_nodes += [self.__node2str(n) for i, n in self.nodes.iteritems()]
         self.str_edges += [self.__unify2str(u) for u in self.unifs]
 
-    def write(self):
-        self.__print_html(self.str_nodes, self.str_edges)
+
+    def html(self, suffix=''):
+        return ('''
+  <style type=\"text/css\">
+    #visualization@SUF {
+      width: 1200px;
+      height: 1000px;
+      margin: 40p;
+      border: 1px solid lightgray;
+    }
+  </style>
+  
+<h1>%s</h1>
+<ul>
+  <li>state = <b>%s</b></li>
+  <li>objective = <b>%f</b></li>
+  <li>time: lhs = <b>%s</b>, ilp = <b>%s</b>, sol = <b>%s</b>, all = <b>%s</b></li>
+  <li>timeout: lhs = <b>%s</b>, ilp = <b>%s</b>, sol = <b>%s</b>, all = <b>%s</b></li>
+</ul>
+
+<form name=\"configVis@SUF\">
+  <input type=\"checkbox\" value=\"NonActiveEntities\">Non active entities
+  <input type=\"checkbox\" value=\"Hierarchical layout\" checked=\"checked\">Hierarchical layout
+  <input type=\"button\" value=\"Reload\" onclick=\"updateNetwork@SUF()\">
+</form>
+<div id=\"visualization@SUF\"></div>
+
+<script type=\"text/javascript\">
+  // create an array with nodes
+  var nodes@SUF = [
+    %s
+  ];
+
+  // create an array with edges
+  var edges@SUF = [
+    %s
+  ];
+
+  function updateNetwork@SUF(){
+    var data = {
+      nodes: nodes@SUF.concat(),
+      edges: edges@SUF.concat(),
+    };
+    var options = {
+      stabilize: false,
+      repulsion: {
+        springLengh: 300,
+        nodeDistance: 300
+      }
+    };
+
+    if (!document.configVis@SUF.elements[0].checked)
+    {
+      for (var i = data.nodes.length - 1; i >= 0; --i)
+        if (!data.nodes[i].isActive)
+          data.nodes.splice(i, 1);
+      for (var i = data.edges.length - 1; i >= 0; --i)
+        if (!data.edges[i].isActive)
+          data.edges.splice(i, 1);
+    }
+
+    if (document.configVis@SUF.elements[1].checked)
+    {
+      for (var i = 0; i < data.nodes.length; ++i)
+        data.nodes[i].level = data.nodes[i].depth;
+      options.hierarchicalLayout = {
+        levelSeparation: 300,
+        nodeSpacing: 10,
+        direction: \"LR\",
+      };
+    }
+    
+    var container = document.getElementById('visualization@SUF');
+    var network = new vis.Network(container, data, options);
+  }
+
+  updateNetwork@SUF();
+</script>
+''' % (
+self.name, self.state, self.objective,
+self.time['lhs'], self.time['ilp'],
+self.time['sol'], self.time['all'],
+self.timeout['lhs'], self.timeout['ilp'],
+self.timeout['sol'], self.timeout['all'],
+",\n    ".join(self.str_nodes),
+",\n    ".join(self.str_edges))).replace('@SUF', suffix)
 
     def __node2str(self, n):
         params = {
@@ -118,11 +144,12 @@ class Vis(ProofGraph):
                       (n.id, n.type,
                        '<br>'.join(['%s = <b>%s</b>' % (k, v)
                                     for k, v in n.attr.iteritems()
-                                    if not k in DEFAULT_NODE_ATTRIBUTES]))),
+                                    if not k in phil.DEFAULT_NODE_ATTRIBUTES]))),
             'isActive': 'true' if n.active else 'false',
             'depth' : (n.depth * 2),
             }
         return self.__join_parameters(params)
+
 
     def __chain2str(self, c):
         do_relay = lambda c: (len(c.tail) > 1 or len(c.head) > 1)
@@ -236,10 +263,11 @@ class Vis(ProofGraph):
             b = (360 - h) * (MAX - MIN) / 60 + MIN
 
         return "#%02x%02x%02x" % (r, g, b)
+
         
 
-    def __print_html(self, nodes, edges):
-        print """
+def convert_to_html(conf, graphs):
+    return """
 <!doctype html>
 <html>
 <head>
@@ -248,104 +276,50 @@ class Vis(ProofGraph):
 
   <script type=\"text/javascript\" src=\"./visjs/dist/vis.min.js\"></script>
 
-  <style type=\"text/css\">
-    #visualization {
-      width: 1200px;
-      height: 1200px;
-      margin: 20p;
-      border: 1px solid lightgray;
-    }
-  </style>
 </head>
 
 <body>
 
-<h1>%s</h1>
-<ul>
-  <li>state = <b>%s</b></li>
-  <li>objective = <b>%f</b></li>
-  <li>time: lhs = <b>%s</b>, ilp = <b>%s</b>, sol = <b>%s</b>, all = <b>%s</b></li>
-  <li>timeout: lhs = <b>%s</b>, ilp = <b>%s</b>, sol = <b>%s</b>, all = <b>%s</b></li>
-</ul>
-
-<form name=\"configVis\">
-  <input type=\"checkbox\" value=\"NonActiveEntities\">Non active entities
-  <input type=\"checkbox\" value=\"Hierarchical layout\" checked=\"checked\">Hierarchical layout
-  <input type=\"button\" value=\"Reload\" onclick=\"updateNetwork()\">
-</form>
-<div id=\"visualization\"></div>
-
-<script type=\"text/javascript\">
-  // create an array with nodes
-  var nodes = [
-    %s
-  ];
-
-  // create an array with edges
-  var edges = [
-    %s
-  ];
-
-  function updateNetwork(){
-    var data = {
-      nodes: nodes.concat(),
-      edges: edges.concat(),
-    };
-    var options = {
-      stabilize: false,
-      repulsion: {
-        springLengh: 300,
-        nodeDistance: 300
-      }
-    };
-
-    if (!document.configVis.elements[0].checked)
-    {
-      for (var i = data.nodes.length - 1; i >= 0; --i)
-        if (!data.nodes[i].isActive)
-          data.nodes.splice(i, 1);
-      for (var i = data.edges.length - 1; i >= 0; --i)
-        if (!data.edges[i].isActive)
-          data.edges.splice(i, 1);
-    }
-
-    if (document.configVis.elements[1].checked)
-    {
-      for (var i = 0; i < data.nodes.length; ++i)
-        data.nodes[i].level = data.nodes[i].depth;
-      options.hierarchicalLayout = {
-        levelSeparation: 300,
-        nodeSpacing: 10,
-        direction: \"LR\",
-      };
-    }
-    
-    var container = document.getElementById('visualization');
-    var network = new vis.Network(container, data, options);
-  }
-
-  updateNetwork();
-</script>
+%s
 
 </body>
 </html>
 """ % (
-self.name, self.name, self.state, self.objective,
-self.time['lhs'], self.time['ilp'], self.time['sol'], self.time['all'],
-self.timeout['lhs'], self.timeout['ilp'],
-self.timeout['sol'], self.timeout['all'],
-",\n    ".join(nodes), ",\n    ".join(edges))
+(graphs[0].name if len(graphs) == 1 else "Phillip"),
+'\n<hr>\n'.join([g.html('_%d' % i) for i, g in enumerate(graphs)]))
 
 
 def main():
-    if len(sys.argv) > 1:
-        tree = et.parse(sys.argv[1])
-        vis = Vis(tree.getroot())
+    parser = argparse.ArgumentParser(description="Visualize an output of Phillip.")
+    parser.add_argument(
+        'input', nargs='?',
+        help='A file path of Phillip\'s output file in XML format. (default: reads from stdin)')
+    parser.add_argument(
+        '--split', '-s',
+        help='Generate HTMLs for each proof-graph, where SPLIT is prefix of file path')
+    
+    args = parser.parse_args()
+    
+    if args.input:
+        root = et.parse(args.input).getroot()
     else:
         root = et.fromstring(sys.stdin.read())
-        vis = Vis(root)
-        
-    vis.write()
+
+    conf = phil.Configure(root)
+    graphs = [ProofGraph(pg) for pg in root.getiterator('proofgraph')]
+
+    if args.split:
+        prefix = args.split.strip('html')
+        if prefix:
+            if not prefix[-1] in ['.', '/']:
+                prefix += '.'
+                
+        for i, pg in enumerate(graphs):                    
+            with open('%s%d.html' % (prefix, i), 'w') as fo:
+                fo.write(convert_to_html(conf, [pg,]))
+                
+    else:        
+        print convert_to_html(conf, graphs)
 
     
 if(__name__=='__main__'):
