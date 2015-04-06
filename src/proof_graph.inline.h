@@ -297,6 +297,22 @@ inline const hash_set<edge_idx_t>*
 }
 
 
+inline const hash_set<edge_idx_t>*
+proof_graph_t::search_edges_with_node_in_head(node_idx_t idx) const
+{
+    auto found = m_maps.head_node_to_edges.find(idx);
+    return (found == m_maps.head_node_to_edges.end()) ? NULL : &found->second;
+}
+
+
+inline const hash_set<edge_idx_t>*
+proof_graph_t::search_edges_with_node_in_tail(node_idx_t idx) const
+{
+    auto found = m_maps.tail_node_to_edges.find(idx);
+    return (found == m_maps.tail_node_to_edges.end()) ? NULL : &found->second;
+}
+
+
 inline const hash_set<hypernode_idx_t>*
 proof_graph_t::search_hypernodes_with_node( node_idx_t node_idx ) const
 {
@@ -384,15 +400,6 @@ is_hypernode_for_unification(hypernode_idx_t idx) const
 inline void proof_graph_t::add_attribute(const std::string &name, const std::string &value)
 {
     m_attributes[name] = value;
-}
-
-
-inline edge_idx_t proof_graph_t::add_edge( const edge_t &edge )
-{
-    m_maps.hypernode_to_edge[edge.head()].insert(m_edges.size());
-    m_maps.hypernode_to_edge[edge.tail()].insert(m_edges.size());
-    m_edges.push_back(edge);
-    return m_edges.size() - 1;
 }
 
 

@@ -220,9 +220,6 @@ public:
     inline void timeout(bool flag) { m_is_timeout = flag; }
     inline bool is_timeout() const { return m_is_timeout; }
 
-    /** Merges with another proof graph. */
-    void merge(const proof_graph_t &graph);
-
     /** Deletes logs and enumerate hypernodes to be disregarded.
      *  Call this method after creation of proof-graph. */
     void post_process();
@@ -314,6 +311,10 @@ public:
     *  If any edge was not found, return NULL. */
     inline const hash_set<edge_idx_t>*
         search_edges_with_hypernode(hypernode_idx_t idx) const;
+    inline const hash_set<edge_idx_t>*
+        search_edges_with_node_in_tail(node_idx_t idx) const;
+    inline const hash_set<edge_idx_t>*
+        search_edges_with_node_in_head(node_idx_t idx) const;
 
     /** Return the indices of edges which are related with given node. */
     hash_set<edge_idx_t> enumerate_edges_with_node(node_idx_t idx) const;
@@ -340,14 +341,11 @@ public:
 
     void enumerate_overlapping_hypernodes(hypernode_idx_t idx, hash_set<hypernode_idx_t> *out) const;
     
-    /** Return pointer of set of indices of hypernode
-     *  which has the given node as its element.
+    /** Return pointer of set of indices of hypernode which has the given node as its element.
      *  If any set was found, return NULL. */
-    inline const hash_set<hypernode_idx_t>*
-        search_hypernodes_with_node(node_idx_t i) const;
+    inline const hash_set<hypernode_idx_t>* search_hypernodes_with_node(node_idx_t i) const;
 
-    /** Return the index of first one of hypernodes
-     *  whose elements are same as given indices.
+    /** Return the index of first one of hypernodes whose elements are same as given indices.
      *  If any hypernode was not found, return -1.  */
     template<class It> const hash_set<hypernode_idx_t>*
         find_hypernode_with_unordered_nodes(It begin, It end) const;
@@ -469,7 +467,7 @@ protected:
 
     /** Adds a new edge.
      *  @return The index of added new edge. */
-    inline edge_idx_t add_edge(const edge_t &edge);
+    edge_idx_t add_edge(const edge_t &edge);
 
     /** Performs backward-chaining or forward-chaining.
      *  Correspondence of each term is considered on chaining.
@@ -647,6 +645,8 @@ protected:
 
         /** Map to get edges connecting given node. */
         hash_map<hypernode_idx_t, hash_set<edge_idx_t> > hypernode_to_edge;
+
+        hash_map<node_idx_t, hash_set<edge_idx_t> > tail_node_to_edges, head_node_to_edges;
 
         /** Map to get nodes which have given term. */
         hash_map<term_t, hash_set<node_idx_t> > term_to_nodes;

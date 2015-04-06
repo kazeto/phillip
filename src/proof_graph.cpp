@@ -211,127 +211,6 @@ void proof_graph_t::temporal_variables_t::clear()
 }
 
 
-void proof_graph_t::merge(const proof_graph_t &graph)
-{
-#define foreach(it, con) for(auto it = con.begin(); it != con.end(); ++it)
-
-    int num_n(m_nodes.size());
-    int num_hn(m_hypernodes.size());
-    int num_e(m_edges.size());
-
-    m_is_timeout = (m_is_timeout or graph.m_is_timeout);
-
-    for (auto it = graph.m_nodes.begin(); it != graph.m_nodes.end(); ++it)
-    {
-        hash_set<node_idx_t> ev;
-        foreach (it2, it->evidences())
-            ev.insert((*it2) + num_n);
-        m_nodes.push_back(node_t(
-            it->literal(), it->type(), (it->index() + num_n),
-            it->depth(), ev));
-    }
-
-    foreach (it, graph.m_hypernodes)
-    {
-        std::vector<node_idx_t> hn(*it);
-        for (auto it2 = hn.begin(); it2 != hn.end(); ++it2)
-            (*it2) += num_n;
-        m_hypernodes.push_back(hn);
-    }
-
-    foreach (it, graph.m_edges)
-    {
-        m_edges.push_back(edge_t(
-            it->type(), it->tail() + num_hn,
-            it->head() + num_hn, it->axiom_id()));
-    }
-
-    foreach (it1, graph.m_mutual_exclusive_nodes)
-    {
-        node_idx_t n1(it1->first + num_n);
-        foreach (it2, it1->second)
-            m_mutual_exclusive_nodes[n1][it2->first + num_n] = it2->second;
-    }
-
-    foreach (it1, graph.m_mutual_exclusive_edges)
-    {
-        edge_idx_t e1(it1->first + num_e);
-        foreach (it2, it1->second)
-            m_mutual_exclusive_edges[e1].insert((*it2) + num_e);
-    }
-
-    m_vc_unifiable.merge(graph.m_vc_unifiable);
-
-    foreach (it, graph.m_indices_of_unification_hypernodes)
-        m_indices_of_unification_hypernodes.insert(*it + num_hn);
-
-    foreach (it, graph.m_subs_of_conditions_for_chain)
-        m_subs_of_conditions_for_chain[it->first + num_e] = it->second;
-
-    foreach (it, graph.m_neqs_of_conditions_for_chain)
-        m_neqs_of_conditions_for_chain[it->first + num_e] = it->second;
-
-    foreach (it, graph.m_hypernodes_disregarded)
-        m_hypernodes_disregarded.insert((*it) + num_hn);
-
-    /// m_temporal IS NOT MERGED.
-    /// MERGING m_maps STARTS.
-    
-    auto _merge1 = [&](
-        hash_map<term_t, hash_map<term_t, node_idx_t> > &dest,
-        const hash_map<term_t, hash_map<term_t, node_idx_t> > &src)
-    {
-        foreach (it1, src)
-        foreach (it2, it1->second)
-            dest[it1->first][it2->first] = it2->second + num_n;
-    };
-
-    _merge1(m_maps.terms_to_sub_node, graph.m_maps.terms_to_sub_node);
-    _merge1(m_maps.terms_to_negsub_node, graph.m_maps.terms_to_negsub_node);
-
-    const hash_map<int, hash_set<node_idx_t> >& d2n(graph.m_maps.depth_to_nodes);
-    foreach (it1, graph.m_maps.depth_to_nodes)
-    foreach (it2, it1->second)
-        m_maps.depth_to_nodes[it1->first].insert((*it2) + num_n);
-
-    foreach (it1, graph.m_maps.axiom_to_hypernodes_forward)
-    foreach (it2, it1->second)
-        m_maps.axiom_to_hypernodes_forward[it1->first].insert((*it2) + num_hn);
-
-    foreach (it1, graph.m_maps.axiom_to_hypernodes_backward)
-    foreach (it2, it1->second)
-        m_maps.axiom_to_hypernodes_backward[it1->first].insert((*it2) + num_hn);
-
-    foreach (it1, graph.m_maps.predicate_to_nodes)
-    foreach (it2, it1->second)
-    foreach (it3, it2->second)
-        m_maps.predicate_to_nodes[it1->first][it2->first].insert((*it3) + num_n);
-
-    foreach (it1, graph.m_maps.node_to_hypernode)
-    foreach (it2, it1->second)
-    {
-            hypernode_idx_t _hn((*it2) + num_hn);
-            size_t _hash =
-                get_hash_of_nodes(std::list<pg::node_idx_t>(
-                hypernode(_hn).begin(), hypernode(_hn).end()));
-            m_maps.unordered_nodes_to_hypernode[_hash].insert(_hn);
-            m_maps.node_to_hypernode[it1->first + num_n].insert(_hn);
-    }
-
-    foreach (it1, graph.m_maps.hypernode_to_edge)
-    {
-        hypernode_idx_t _hn(it1->first + num_hn);
-        foreach (it2, it1->second)
-            m_maps.hypernode_to_edge[_hn].insert((*it2) + num_e);
-    }
-
-    foreach (it1, graph.m_maps.term_to_nodes)
-    foreach (it2, it1->second)
-        m_maps.term_to_nodes[it1->first].insert((*it2) + num_n);
-#undef foreach
-}
-
-
 std::list< const hash_set<term_t>* >
     proof_graph_t::enumerate_variable_clusters() const
 {
@@ -593,19 +472,20 @@ hash_set<node_idx_t>
 hash_set<edge_idx_t> proof_graph_t::enumerate_edges_with_node(node_idx_t idx) const
 {
     hash_set<edge_idx_t> out;
-    auto hns = search_hypernodes_with_node(idx);
 
-    for (auto it = hns->begin(); it != hns->end(); ++it)
-    {
-        auto _edges = search_edges_with_hypernode(*it);
-        out.insert(_edges->begin(), _edges->end());
-    }
+    auto edges_head = search_edges_with_node_in_head(idx);
+    if (edges_head != NULL)
+        out.insert(edges_head->begin(), edges_head->end());
+
+    auto edges_tail = search_edges_with_node_in_tail(idx);
+    if (edges_tail != NULL)
+        out.insert(edges_tail->begin(), edges_tail->end());
 
     return out;
 }
 
 
-edge_idx_t proof_graph_t::find_parental_edge( hypernode_idx_t idx ) const
+edge_idx_t proof_graph_t::find_parental_edge(hypernode_idx_t idx) const
 {
     const hash_set<edge_idx_t> *_edges = search_edges_with_hypernode(idx);
 
@@ -622,8 +502,7 @@ edge_idx_t proof_graph_t::find_parental_edge( hypernode_idx_t idx ) const
 }
 
 
-void proof_graph_t::enumerate_parental_edges(
-    hypernode_idx_t idx, hash_set<edge_idx_t> *out) const
+void proof_graph_t::enumerate_parental_edges(hypernode_idx_t idx, hash_set<edge_idx_t> *out) const
 {
     const hash_set<edge_idx_t> *_edges = search_edges_with_hypernode(idx);
     if( _edges == NULL ) return;
@@ -1066,6 +945,23 @@ node_idx_t proof_graph_t::add_node(
 }
 
 
+edge_idx_t proof_graph_t::add_edge(const edge_t &edge)
+{
+    edge_idx_t idx = m_edges.size();
+
+    m_maps.hypernode_to_edge[edge.head()].insert(idx);
+    m_maps.hypernode_to_edge[edge.tail()].insert(idx);
+
+    for (auto n_idx : hypernode(edge.head()))
+        m_maps.head_node_to_edges[n_idx].insert(idx);
+    for (auto n_idx : hypernode(edge.tail()))
+        m_maps.tail_node_to_edges[n_idx].insert(idx);
+
+    m_edges.push_back(edge);
+    return idx;
+}
+
+
 hypernode_idx_t proof_graph_t::chain(
     const std::vector<node_idx_t> &from, const lf::axiom_t &axiom, bool is_backward)
 {
@@ -1251,6 +1147,17 @@ hypernode_idx_t proof_graph_t::chain(
                     if (found2 != m_mutual_exclusive_edges.end())
                         return false;
                 }
+            }
+
+            if (axiom.func.is_operator(lf::OPR_PARAPHRASE))
+            for (auto idx : from)
+            {
+                auto _edges = search_edges_with_node_in_head(idx);
+                if (_edges == NULL) continue;
+
+                for (auto e_idx : (*_edges))
+                if (edge(e_idx).axiom_id() == axiom.id)
+                    return false;
             }
 #endif
 

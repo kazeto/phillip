@@ -556,20 +556,20 @@ void knowledge_base_t::insert_argument_set(const lf::logical_function_t &f)
 hash_set<axiom_id_t> knowledge_base_t::search_axiom_group(axiom_id_t id) const
 {
     std::string key = format("#%lu", id);
-    hash_set<axiom_id_t> out;
 
     if (not m_cdb_axiom_group.is_readable())
     {
         print_warning("kb-search: Kb-state is invalid.");
-        return out;
+        return hash_set<axiom_id_t>();
     }
 
     size_t value_size;
     const char *value = (const char*)
         m_cdb_axiom_group.get(key.c_str(), key.length(), &value_size);
 
-    if (value == NULL) return out;
+    if (value == NULL) return hash_set<axiom_id_t>(id);
 
+    hash_set<axiom_id_t> out(id);
     size_t size(0), num_grp(0);
     size += binary_to<size_t>(value + size, &num_grp);
 
