@@ -16,7 +16,7 @@ class ProofGraph(phil.ProofGraph):
     def __init__(self, pg):
         phil.ProofGraph.__init__(self, pg)
         self.node2id = dict()
-        self.relay_id_offset = math.pow(10, math.ceil(math.log10(max(self.nodes.keys()))))
+        self.relay_id_offset = math.pow(10, math.ceil(math.log10(max(self.nodes.keys()) + 1)))
     
         self.str_nodes = []
         self.str_edges = []
