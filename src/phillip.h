@@ -46,6 +46,9 @@ public:
      *  @param idx    Index of an observation to infer. */
     void infer(const lf::input_t &input);
 
+    /** Do learning on given observation. */
+    void learn(const lf::input_t &input);
+
     inline const lhs_enumerator_t* lhs_enumerator() const;
     inline lhs_enumerator_t* lhs_enumerator();
     inline const ilp_converter_t* ilp_convertor() const;
@@ -61,8 +64,12 @@ public:
     inline void set_timeout_ilp(int t);
     inline void set_timeout_sol(int t);
     inline void set_timeout_all(int t);
+
     inline void set_param(const std::string &key, const std::string &param);
+    inline void erase_param(const std::string &key);
+
     inline void set_flag(const std::string &key);
+    inline void erase_flag(const std::string &key);
     
     inline const lf::input_t* get_input() const;
     inline const lf::logical_function_t* get_observation() const;
@@ -148,15 +155,15 @@ private:
     lf::input_t *m_input;
     pg::proof_graph_t *m_lhs;
     ilp::ilp_problem_t *m_ilp;
+    ilp::ilp_problem_t *m_ilp_gold;
     std::vector<ilp::ilp_solution_t> m_sol;
+    std::vector<ilp::ilp_solution_t> m_sol_gold;
 
     // ---- FOR MEASURE TIME
     long m_clock_for_enumerate;
     long m_clock_for_convert;
     long m_clock_for_solve;
     long m_clock_for_infer;
-
-    std::vector<phillip_main_t*> m_phillips_parallel;
 };
 
 

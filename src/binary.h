@@ -27,6 +27,7 @@ enum execution_mode_e
 {
     EXE_MODE_UNDERSPECIFIED,
     EXE_MODE_INFERENCE,
+    EXE_MODE_LEARNING,
     EXE_MODE_HELP,
     EXE_MODE_COMPILE_KB
 };

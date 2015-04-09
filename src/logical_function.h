@@ -71,6 +71,7 @@ public:
     bool is_valid_as_inconsistency() const;
     bool is_valid_as_unification_postponement() const;
     bool is_valid_as_argument_set() const;
+    bool is_valid_as_requirements() const;
     
     /** Return literals included in this. */
     inline std::vector<const literal_t*> get_all_literals() const;
@@ -111,6 +112,7 @@ struct input_t
     std::string name;
     lf::logical_function_t obs;
     lf::logical_function_t req;
+    lf::logical_function_t label;
 };
 
 

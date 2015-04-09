@@ -58,6 +58,9 @@ public:
     virtual ilp_converter_t* duplicate(phillip_main_t *ptr) const = 0;
     virtual ilp::ilp_problem_t* execute() const = 0;
 
+    /** Tunes its own parameters from a system output and a gold output. */
+    virtual void tune(const ilp::ilp_solution_t *sys, const ilp::ilp_solution_t *gold) {};
+
     /** Returns an instance of function class
      *  to judge whether enumeration should be discontinued.
      *  This is called by lhs_enumerator_t. */

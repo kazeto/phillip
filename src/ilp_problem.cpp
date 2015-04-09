@@ -576,7 +576,7 @@ void ilp_problem_t::enumerate_variables_for_requirement(
 void ilp_problem_t::add_variables_for_requirement(bool do_maximize)
 {
     auto reqs = m_graph->requirements();
-    const double PENALTY = do_maximize ? -10000.0 : 10000.0;
+    hash_set<variable_idx_t> vars_req;
 
     // ADDING VARIABLES & CONSTRAINTS.
     for (auto req : m_graph->requirements())
@@ -584,7 +584,7 @@ void ilp_problem_t::add_variables_for_requirement(bool do_maximize)
         std::string str;
         if (req.size() > 1)
         {
-            str += "(v";
+            str += "(^";
             for (auto p : req)
                 str += " " + p.first.to_string();
             str += ")";
@@ -593,9 +593,10 @@ void ilp_problem_t::add_variables_for_requirement(bool do_maximize)
             str += req.front().first.to_string();
 
         variable_idx_t var = add_variable(
-            variable_t(format("violation:%s", str.c_str()), PENALTY));
+            variable_t(format("satisfy:%s", str.c_str()), 0.0));
         constraint_t con(
-            format("for_requirement:%s", str.c_str()), OPR_GREATER_EQ, 1.0);
+            format("satisfy_req:%s", str.c_str()),
+            OPR_GREATER_EQ, 0.0);
 
         for (auto p : req)
         {
@@ -604,10 +605,23 @@ void ilp_problem_t::add_variables_for_requirement(bool do_maximize)
             for (auto v : vars)
                 con.add_term(v, 1.0);
         }
-        con.add_term(var, 1.0);
+
+        double b = -1.0 * con.terms().size();
+        con.set_bound(b);
+        con.add_term(var, b);
 
         add_constraint(con);
+        vars_req.insert(var);
     }
+
+    const double PENALTY = do_maximize ? -10000.0 : 10000.0;
+    constraint_t con("satisfy_reqs_or", OPR_GREATER_EQ, 1.0);
+
+    for (auto v : vars_req)
+        con.add_term(v, 1.0);
+    con.add_term(add_variable(variable_t("violation_reqs", PENALTY)), 1.0);
+
+    add_constraint(con);
 }
 
 
@@ -871,9 +885,9 @@ void ilp_problem_t::_print_requirements_in_solution(
         for (auto s : sat)
         {
             (*os)
-                << "<or satisfied=\"" << (s.second ? "yes" : "no")
+                << "<and satisfied=\"" << (s.second ? "yes" : "no")
                 << "\">" << s.first.to_string()
-                << "</or>" << std::endl;
+                << "</and>" << std::endl;
         }
 
         (*os) << "</requirement>" << std::endl;
@@ -1208,10 +1222,10 @@ bool ilp_solution_t::do_satisfy_requirement(
     m_ilp->enumerate_variables_for_requirement(req, &vars);
 
     for (auto v : vars)
-    if (variable_is_active(v))
-        return true;
+    if (not variable_is_active(v))
+        return false;
 
-    return false;
+    return true;
 }
 
 

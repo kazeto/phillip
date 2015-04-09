@@ -10,7 +10,7 @@ namespace bin
 {
 
 
-char ACCEPTABLE_OPTIONS[] = "c:e:f:hk:l:m:o:p:t:v:HPT:";
+char ACCEPTABLE_OPTIONS[] = "c:f:hk:l:m:o:p:t:v:GHP:T:";
 
 
 std::unique_ptr<lhs_enumerator_library_t, deleter_t<lhs_enumerator_library_t> >
@@ -175,7 +175,8 @@ void execute(
     }
 
     /* INFERENCE */
-    if (config.mode == bin::EXE_MODE_INFERENCE)
+    if (config.mode == bin::EXE_MODE_INFERENCE or
+        config.mode == bin::EXE_MODE_LEARNING)
     {
         std::vector<lf::input_t> parsed_inputs;
         proc::processor_t processor;
@@ -212,12 +213,23 @@ void execute(
 
                 print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
                 kb::knowledge_base_t::instance()->clear_distance_cache();
-                phillip->infer(ipt);
 
+                if (config.mode == bin::EXE_MODE_INFERENCE)
+                {
+                    phillip->infer(ipt);
 
-                auto sols = phillip->get_solutions();
-                for (auto sol = sols.begin(); sol != sols.end(); ++sol)
-                    sol->print_graph();
+                    auto sols = phillip->get_solutions();
+                    for (auto sol = sols.begin(); sol != sols.end(); ++sol)
+                        sol->print_graph();
+                }
+                else
+                {
+                    phillip->learn(ipt);
+
+                    auto sols = phillip->get_solutions();
+                    for (auto sol = sols.begin(); sol != sols.end(); ++sol)
+                        sol->print_graph();
+                }
             }
         }
 
@@ -337,12 +349,6 @@ bool _interpret_option(
         }
         return false;
     }
-
-    case 'e': // ---- SET NAME OF THE OBSERVATION TO EXCLUDE
-    {
-        config->excluded_obs_names.insert(arg);
-        return true;
-    }
     
     case 'f':
         phillip->set_flag(arg);
@@ -369,23 +375,53 @@ bool _interpret_option(
     {
         if (config->mode != EXE_MODE_HELP)
         {
-            if (arg == "inference")
+            if (arg == "inference" or arg == "infer")
                 config->mode = EXE_MODE_INFERENCE;
-            else if (arg == "compile_kb")
+            else if (arg == "compile_kb" or arg == "compile")
                 config->mode = EXE_MODE_COMPILE_KB;
+            else if (arg == "learning" or arg == "learn")
+                config->mode = EXE_MODE_LEARNING;
             else
                 config->mode = EXE_MODE_UNDERSPECIFIED;
         }
 
         return (config->mode != EXE_MODE_UNDERSPECIFIED);
     }
-        
-    case 'o': // ---- SET NAME OF THE OBSERVATION TO SOLVE
+
+    case 'o': // ---- SET OUTPUT PATH
     {
-        config->target_obs_names.insert(arg);
-        return true;
+        int idx(arg.find('='));
+
+        if (idx != std::string::npos)
+        {
+            std::string key = arg.substr(0, idx);
+            std::string val = arg.substr(idx + 1);
+
+            if (key == "lhs")
+            {
+                phillip->set_param("path_lhs_out", normalize_path(val));
+                return true;
+            }
+            else if (key == "ilp")
+            {
+                phillip->set_param("path_ilp_out", normalize_path(val));
+                return true;
+            }
+            else if (key == "sol")
+            {
+                phillip->set_param("path_sol_out", normalize_path(val));
+                return true;
+            }
+            else
+                return false;
+        }
+        else
+        {
+            phillip->set_param("path_out", normalize_path(arg));
+            return true;
+        }
     }
-        
+                
     case 'p': // ---- SET PARAMETER
     {
         int idx(arg.find('='));
@@ -404,7 +440,40 @@ bool _interpret_option(
         return true;
     }
 
-    case 't': // ---- SET THREAD NUM
+    case 't': // ---- SET NAME OF THE OBSERVATION TO SOLVE
+    {
+        if (arg.empty()) return false;
+        
+        if (arg.at(0) == '!')
+            config->excluded_obs_names.insert(arg.substr(1));
+        else
+            config->target_obs_names.insert(arg);
+        return true;
+    }
+
+    case 'v': // ---- SET VERBOSITY
+    {
+        int v(-1);
+        int ret = _sscanf( arg.c_str(), "%d", &v );
+
+        if( v >= 0 and v <= FULL_VERBOSE )
+        {
+            phillip->set_verbose(v);
+            return true;
+        }
+        else
+            return false;
+    }
+
+    case 'G':
+        phillip->set_flag("get_pseudo_positive");
+        return true;
+
+    case 'H':
+        phillip->set_flag("human_readable_output");
+        return true;
+
+    case 'P': // ---- SET PARALLEL THREAD NUM
     {
         auto spl = split(arg, "=");
         if (spl.size() == 1)
@@ -431,29 +500,7 @@ bool _interpret_option(
         else
             return false;
     }
-    
-    case 'v': // ---- SET VERBOSITY
-    {
-        int v(-1);
-        int ret = _sscanf( arg.c_str(), "%d", &v );
 
-        if( v >= 0 and v <= FULL_VERBOSE )
-        {
-            phillip->set_verbose(v);
-            return true;
-        }
-        else
-            return false;
-    }
-
-    case 'H':
-        phillip->set_flag("human_readable_output");
-        return true;
-
-    case 'P':
-        phillip->set_flag("get_pseudo_positive");
-        return true;
-        
     case 'T': // ---- SET TIMEOUT [SECOND]
     {                  
         int t;
@@ -524,6 +571,7 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
     switch (config.mode)
     {
     case EXE_MODE_INFERENCE:
+    case EXE_MODE_LEARNING:
         if (lhs != NULL) phillip->set_lhs_enumerator(lhs);
         if (ilp != NULL) phillip->set_ilp_convertor(ilp);
         if (sol != NULL) phillip->set_ilp_solver(sol);
@@ -544,35 +592,40 @@ void print_usage()
         "  $phil -m [MODE] [OPTIONS] [INPUTS]",
         "",
         "  Mode:",
-        "    -m inference : Inference mode.",
-        "    -m compile_kb : Compiling knowledge-base mode.",
+        "    -m {compile_kb|compile} : Compiling knowledge-base mode.",
+        "    -m {inference|infer} : Inference mode.",
+        "    -m {learning|learn} : Learning mode.",
         "",
         "  Common Options:",
-        "    -l <NAME> : Load a config-file.",
-        "    -p <NAME>=<VALUE> : set a parameter.",
-        "    -f <NAME> : Set a flag.",
-        "    -t <INT> : Set the number of threads for parallelization.",
-        "    -v <INT> : Set verbosity (0 ~ 5).",
-        "    -h : Print this usage.",
-        "",
-        "  Options in inference-mode:",
-        "    -c lhs=<NAME> : Set a component for making latent hypotheses sets.",
-        "    -c ilp=<NAME> : Set a component for making ILP problems.",
-        "    -c sol=<NAME> : Set a component for making solution hypotheses.",
-        "    -k <NAME> : Set the prefix of the path of the compiled knowledge base.",
-        "    -o <NAME> : Solve only the observation of corresponding name.",
-        "    -e <NAME> : Exclude the observation of corresponding name from inference.",
-        "    -H : Activate human readable output.",
-        "    -P : Infer pseudo positive hypothesis.",
-        "    -T <INT>  : Set timeout of the whole inference in seconds.",
-        "    -T lhs=<INT> : Set timeout of the creation of latent hypotheses sets in seconds.",
-        "    -T ilp=<INT> : Set timeout of the conversion into ILP problem in seconds.",
-        "    -T sol=<INT> : Set timeout of the optimization of ILP problem in seconds.",
+        "    -l <NAME> : Loads a config-file.",
+        "    -p <NAME>=<VALUE> : Sets a parameter.",
+        "    -f <NAME> : Sets a flag.",
+        "    -t <INT> : Sets the number of threads for parallelization.",
+        "    -v <INT> : Sets verbosity (0 ~ 5).",
+        "    -h : Prints simple usage.",
         "",
         "  Options in compile_kb mode:",
-        "    -c dist=<NAME> : Set a component to define relatedness between predicates.",
-        "    -c tab=<NAME> : Set a component for making category-table.",
-        "    -k <NAME> : Set the prefix of the path of the compiled knowledge base.",
+        "    -c dist=<NAME> : Sets a component to define relatedness between predicates.",
+        "    -c tab=<NAME> : Sets a component for making category-table.",
+        "    -k <NAME> : Sets the prefix of the path of the compiled knowledge base.",
+        "",
+        "  Options in inference-mode or learning-mode:",
+        "    -c lhs=<NAME> : Sets a component for making latent hypotheses sets.",
+        "    -c ilp=<NAME> : Sets a component for making ILP problems.",
+        "    -c sol=<NAME> : Sets a component for making solution hypotheses.",
+        "    -k <NAME> : Sets the prefix of the path of the compiled knowledge base.",
+        "    -o <PATH> : Prints the XML of the solution hypothesis to the given file path.",
+        "    -o lhs=<PATH> : Prints the XML of the latent hypothesis set for debug to the given file path.",
+        "    -o ilp=<PATH> : Prints the XML of the ILP problem for debug to the given file path.",
+        "    -o sol=<PATH> : Prints the XML of the ILP solution for debug to the given file path.",
+        "    -t <NAME> : Solves only the observation of corresponding name.",
+        "    -t !<NAME> : Excludes the observation which corresponds with given name.",
+        "    -G : Forces to satisfy the requirements.",
+        "    -H : Adds the human readable hypothesis to output XMLs.",
+        "    -T <INT>  : Sets timeout of the whole inference in seconds.",
+        "    -T lhs=<INT> : Sets timeout of the creation of latent hypotheses sets in seconds.",
+        "    -T ilp=<INT> : Sets timeout of the conversion into ILP problem in seconds.",
+        "    -T sol=<INT> : Sets timeout of the optimization of ILP problem in seconds.",
         "",
         "  Wiki: https://github.com/kazeto/phillip/wiki"};
 

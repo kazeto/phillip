@@ -1993,42 +1993,32 @@ void proof_graph_t::add_requirement(const lf::logical_function_t &req)
         if (not lit.is_equality())
             p.second = add_node(
             lit, NODE_REQUIRED, -1, hash_set<node_idx_t>());
-
         m_requirements.push_back(
             std::list<std::pair<literal_t, pg::node_idx_t> >(1, p));
     }
-    else if (req.is_operator(lf::OPR_OR))
+    else if (req.is_operator(lf::OPR_AND))
     {
         std::list<std::pair<literal_t, pg::node_idx_t> > add;
-        
+
         for (auto br : req.branches())
         {
-            if (br.is_operator(lf::OPR_LITERAL))
-            {
-                const literal_t &lit(br.literal());
-                std::pair<literal_t, pg::node_idx_t> p(lit, -1);
-                if (not lit.is_equality())
-                    p.second = add_node(
-                    lit, NODE_REQUIRED, -1, hash_set<node_idx_t>());
-                add.push_back(p);
-            }
-            else
-            {
-                print_warning_fmt(
-                    "%s is invalid as a requirement and skipped.",
-                    req.to_string().c_str());
-            }
+            assert(br.is_operator(lf::OPR_LITERAL));
+
+            const literal_t &lit(br.literal());
+            std::pair<literal_t, pg::node_idx_t> p(lit, -1);
+
+            if (not lit.is_equality())
+                p.second = add_node(
+                lit, NODE_REQUIRED, -1, hash_set<node_idx_t>());
+            add.push_back(p);
         }
 
         if (not add.empty())
             m_requirements.push_back(add);
     }
     else
-    {
-        print_warning_fmt(
-            "%s is invalid as a requirement and skipped.",
-            req.to_string().c_str());
-    }
+        throw phillip_exception_t(
+        format("%s is invalid as a requirement.", req.to_string().c_str()));
 }
 
 

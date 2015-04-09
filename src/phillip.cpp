@@ -33,11 +33,6 @@ phillip_main_t::~phillip_main_t()
     if (m_input != NULL) delete m_input;
     if (m_lhs != NULL)   delete m_lhs;
     if (m_ilp != NULL)   delete m_ilp;
-
-    for (auto it = m_phillips_parallel.begin();
-        it != m_phillips_parallel.end(); ++it)
-        delete (*it);
-    m_phillips_parallel.clear();
 }
 
 
@@ -79,9 +74,6 @@ std::ofstream* _open_file(const std::string &path, std::ios::openmode mode)
 
 void phillip_main_t::infer(const lf::input_t &input)
 {
-    std::ios::openmode mode = std::ios::out | std::ios::app;
-    std::ofstream *fo(NULL);
-
     reset_for_inference();
     set_input(input);
 
@@ -94,12 +86,26 @@ void phillip_main_t::infer(const lf::input_t &input)
     clock_t end_infer(clock());
     m_clock_for_infer = end_infer - begin_infer;
 
-    if ((fo = _open_file(param("path_out"), mode)) != NULL)
+    std::ofstream *fo(NULL);
+    if ((fo = _open_file(param("path_out"), std::ios::out | std::ios::app)) != NULL)
     {
         for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
             sol->print_graph(fo);
         delete fo;
     }
+}
+
+
+void phillip_main_t::learn(const lf::input_t &input)
+{
+    reset_for_inference();
+    set_input(input);
+
+    clock_t begin_infer(clock());
+
+    execute_enumerator();
+    execute_convertor();
+    execute_solver();
 }
 
 

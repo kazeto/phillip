@@ -372,8 +372,7 @@ public:
         hash_set<constraint_idx_t> *targets,
         hash_set<constraint_idx_t> *filtered) const;
 
-    /** Check whether this satisfy given logical function of requirement.
-     *  LITERAL or OR is applicable as the operator of req. */
+    /** Check whether this satisfy given requirement. */
     bool do_satisfy_requirement(
         const std::pair<literal_t, pg::node_idx_t> &req) const;
 

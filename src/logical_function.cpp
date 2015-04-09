@@ -301,6 +301,29 @@ bool logical_function_t::is_valid_as_argument_set() const
 }
 
 
+bool logical_function_t::is_valid_as_requirements() const
+{
+    if (not is_operator(OPR_REQUIREMENT))
+        return false;
+
+    for (auto br : branches())
+    {
+        if (br.is_operator(OPR_LITERAL))
+            continue;
+        else if (br.is_operator(OPR_AND))
+        {
+            for (auto _br : br.branches())
+            if (not br.is_operator(OPR_LITERAL))
+                return false;
+        }
+        else
+            return false;
+    }
+
+    return true;
+}
+
+
 void logical_function_t::get_all_literals( std::list<literal_t> *out ) const
 {
     auto literals = get_all_literals();

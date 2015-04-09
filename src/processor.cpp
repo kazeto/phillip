@@ -30,24 +30,24 @@ void parse_obs_t::process(const sexp::reader_t *reader)
     _assert_syntax(reader->is_root(), (*reader), "Function O should be root.");
 
     std::string name = "?";
-    int i_x = stack.find_functor(lf::OPR_STR_AND);
-    int i_y = stack.find_functor(lf::OPR_STR_REQUIREMENT);
+    int i_obs = stack.find_functor(lf::OPR_STR_AND);
+    int i_req = stack.find_functor(lf::OPR_STR_REQUIREMENT);
     int i_name = stack.find_functor(lf::OPR_STR_NAME);
 
     if (i_name >= 0)
         name = stack.children.at(i_name)->children.at(1)->get_string();
-    if (i_x < 0)
-    {
-        print_warning("Any input was not found:" + name);
-        return;
-    }
+
+    _assert_syntax((i_obs >= 0), (*reader), "Any input was not found:" + name);
 
     lf::input_t data;
     data.name = reader->name() + "::" + name;
-    data.obs = lf::logical_function_t(*stack.children.at(i_x));
+    data.obs = lf::logical_function_t(*stack.children.at(i_obs));
 
-    if (i_y >= 0)
-        data.req = lf::logical_function_t(*stack.children.at(i_y));
+    if (i_req >= 0)
+    {
+        data.req = lf::logical_function_t(*stack.children.at(i_req));
+        _assert_syntax(data.req.is_valid_as_requirements(), (*reader), "Arguments of req are invalid.");
+    }
 
     m_inputs->push_back(data);
 }
@@ -78,7 +78,7 @@ void compile_kb_t::process( const sexp::reader_t *reader )
         
     _assert_syntax(
         (idx_lf >= 0 or idx_para >= 0 or idx_inc >= 0 or idx_pp >= 0 or idx_as >= 0),
-        (*reader), "no logical connectors found." );
+        (*reader), "No logical connectors found." );
 
     std::string name;
     if (idx_name >= 0)
@@ -90,7 +90,7 @@ void compile_kb_t::process( const sexp::reader_t *reader )
         lf::logical_function_t func(*stack->children[idx]);
         _assert_syntax(
             (stack->children.at(idx)->children.size() >= 3), (*reader),
-            "function '=>' and '<=>' takes two arguments.");
+            "Function '=>' and '<=>' takes two arguments.");
         IF_VERBOSE_FULL(
             ((idx_lf >= 0) ? "Added implication: " : "Added paraphrase") +
             stack->to_string());
@@ -101,7 +101,7 @@ void compile_kb_t::process( const sexp::reader_t *reader )
         lf::logical_function_t func(*stack->children[idx_inc]);
         _assert_syntax(
             (stack->children.at(idx_inc)->children.size() >= 3), (*reader),
-            "function 'xor' takes two arguments.");
+            "Function 'xor' takes two arguments.");
         IF_VERBOSE_FULL("Added inconsistency: " + stack->to_string());
         _kb->insert_inconsistency(func);
     }
@@ -110,7 +110,7 @@ void compile_kb_t::process( const sexp::reader_t *reader )
         lf::logical_function_t func(*stack->children[idx_pp]);
         _assert_syntax(
             (stack->children.at(idx_pp)->children.size() >= 2), (*reader),
-            "function 'unipp' takes one argument.");
+            "Function 'unipp' takes one argument.");
         IF_VERBOSE_FULL("Added unification-postponement: " + stack->to_string());
         _kb->insert_unification_postponement(func);
     }

@@ -107,8 +107,16 @@ inline void phillip_main_t::set_param(
 { m_params[key] = param; }
 
 
+inline void phillip_main_t::erase_param(const std::string &key)
+{ m_params.erase(key); }
+
+
 inline void phillip_main_t::set_flag(const std::string &key)
 { m_flags.insert(key); }
+
+
+inline void phillip_main_t::erase_flag(const std::string &key)
+{ m_flags.erase(key); }
 
 
 inline const lf::input_t* phillip_main_t::get_input() const
@@ -323,11 +331,6 @@ inline void phillip_main_t::reset_for_inference()
     m_clock_for_infer = 0;
 
     m_sol.clear();
-
-    for (auto it = m_phillips_parallel.begin();
-        it != m_phillips_parallel.end(); ++it)
-        delete (*it);
-    m_phillips_parallel.clear();
 }
 
 
