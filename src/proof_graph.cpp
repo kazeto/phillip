@@ -952,8 +952,10 @@ edge_idx_t proof_graph_t::add_edge(const edge_t &edge)
     m_maps.hypernode_to_edge[edge.head()].insert(idx);
     m_maps.hypernode_to_edge[edge.tail()].insert(idx);
 
+    if (edge.head() >= 0)
     for (auto n_idx : hypernode(edge.head()))
         m_maps.head_node_to_edges[n_idx].insert(idx);
+    
     for (auto n_idx : hypernode(edge.tail()))
         m_maps.tail_node_to_edges[n_idx].insert(idx);
 
