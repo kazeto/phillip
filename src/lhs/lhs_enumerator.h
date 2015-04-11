@@ -58,7 +58,7 @@ private:
         const pg::proof_graph_t*, reachability_manager_t*) const;
     void add_reachability(
         const pg::proof_graph_t*,
-        pg::node_idx_t, pg::node_idx_t, pg::node_idx_t, float,
+        pg::node_idx_t, pg::node_idx_t, float, const hash_set<pg::node_idx_t>&,
         reachability_manager_t*) const;
 
     void enumerate_chain_candidates(
