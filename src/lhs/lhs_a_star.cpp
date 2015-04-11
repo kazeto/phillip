@@ -65,7 +65,6 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
             if (hn_new >= 0)
             {
                 const std::vector<pg::node_idx_t> nodes_new = graph->hypernode(hn_new);
-                hash_map<pg::node_idx_t, std::pair<pg::node_idx_t, float> > goal2dist;
                 hash_map<pg::node_idx_t,
                     std::pair<float, hash_set<pg::node_idx_t> > > from2goals;
 
@@ -81,7 +80,7 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
                         if (found == from2goals.end())
                         {
                             hash_set<pg::node_idx_t> set{ rc.node_to };
-                            goal2dist[rc.node_from] = std::make_pair(d, set);
+                            from2goals[rc.node_from] = std::make_pair(d, set);
                         }
                         else
                         {
