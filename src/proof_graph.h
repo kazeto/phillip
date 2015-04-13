@@ -52,18 +52,20 @@ enum node_type_e
 class node_t
 {
 public:
-    /** @param lit   The literal assigned to this.
-     *  @param type  The node type of this.
-     *  @param idx   The index of this in proof_graph_t::m_nodes.
-     *  @param depth Distance from observations in the proof-graph.
-     *  @param ev    Indices of nodes which are evidences for this node. */
-    inline node_t(
+    /** @param lit     The literal assigned to this.
+     *  @param type    The node type of this.
+     *  @param idx     The index of this in proof_graph_t::m_nodes.
+     *  @param depth   Distance from observations in the proof-graph.
+     *  @param parents Indices of nodes being parents of this node. */
+    node_t(
+        const proof_graph_t *graph,
         const literal_t &lit, node_type_e type, node_idx_t idx,
-        int depth, const hash_set<node_idx_t> &ev);
+        depth_t depth, const hash_set<node_idx_t> &parents);
 
     inline node_type_e type() const { return m_type; }
     inline const literal_t& literal() const { return m_literal; }
-    inline std::string arity() const { return m_literal.get_arity(); }
+    inline arity_t arity() const { return m_literal.get_arity(); }
+    inline kb::arity_id_t arity_id() const { return m_arity_id; }
 
     /** Returns the index of this node in a proof-graph. */
     inline index_t index() const { return m_index; }
@@ -71,10 +73,10 @@ public:
     /** Returns the distance from nearest-observation in proof-graph.
      *  Observation and Labels have depth of 0.
      *  Unification-nodes have depth of -1. */
-    inline int depth() const { return m_depth; }
+    inline depth_t depth() const { return m_depth; }
 
     /** Returns nodes which must be hypothesized to hypothesize this. */
-    inline const hash_set<pg::node_idx_t>& evidences() const;
+    inline const hash_set<pg::node_idx_t>& ancestors() const;
 
     /** Returns the index of hypernode
      *  which was instantiated for instantiation of this node.
@@ -101,8 +103,11 @@ private:
     literal_t   m_literal;
     node_idx_t  m_index;
     hypernode_idx_t m_master_hypernode_idx;
-    int m_depth;
-    hash_set<node_idx_t> m_evidences;
+    depth_t m_depth;
+    kb::arity_id_t m_arity_id;
+
+    hash_set<node_idx_t> m_parents;
+    hash_set<node_idx_t> m_ancestors;
 };
 
 
@@ -464,7 +469,7 @@ protected:
      *  @return The index of added new node. */
     node_idx_t add_node(
         const literal_t &lit, node_type_e type, int depth,
-        const hash_set<node_idx_t> &evidences);
+        const hash_set<node_idx_t> &parents);
 
     /** Adds a new edge.
      *  @return The index of added new edge. */
@@ -514,8 +519,7 @@ protected:
      *  @param is_node_base Gives the mode of enumerating candidate edges.
      *                      If true, enumeration is performed on node-base.
      *                      Otherwise, it is on hypernode-base. */
-    void _generate_mutual_exclusion_for_edges(
-        edge_idx_t target, bool is_node_base);
+    void _generate_mutual_exclusion_for_edges(edge_idx_t target, bool is_node_base);
 
     /** Returns whether given two nodes can coexistence in a hypothesis.
      *  @param uni The pointer of unifier between n1 and n2.
@@ -534,7 +538,6 @@ protected:
     void _enumerate_hypernodes_disregarded_sub(hypernode_idx_t idx);
 
     inline bool _is_considered_unification(node_idx_t i, node_idx_t j) const;
-    inline bool _is_considered_exclusion(node_idx_t i, node_idx_t j) const;
 
     /** Return highest depth in nodes which given hypernode includes. */
     inline int get_depth_of_deepest_node(hypernode_idx_t idx) const;
@@ -565,14 +568,12 @@ protected:
     hash_set<node_idx_t> m_observations; /// Indices of observation nodes.
     std::vector<std::list<std::pair<literal_t, pg::node_idx_t> > > m_requirements;
 
-    std::vector<kb::arity_id_t> m_arity_ids;
-    
     /** These are written in xml-file of output as attributes. */
     hash_map<std::string, std::string> m_attributes;
     
     /** Mutual exclusiveness betwen two nodes.
      *  If unifier of third value is satisfied, the node of the first key and the node of the second key cannot be hypothesized together. */
-    hash_map<node_idx_t, hash_map<node_idx_t, unifier_t> > m_mutual_exclusive_nodes;
+    triangular_matrix_t<node_idx_t, unifier_t> m_mutual_exclusive_nodes;
 
     hash_map<edge_idx_t, hash_set<edge_idx_t> > m_mutual_exclusive_edges;
     
@@ -593,17 +594,12 @@ protected:
         void clear();
 
         /** Set of pair of nodes whose unification was postponed. */
-        hash_map<node_idx_t, hash_set<node_idx_t> > postponed_unifications;
+        pair_set_t<node_idx_t> postponed_unifications;
 
         /** Set of pair of nodes
         *  whose unifiability has been already considered.
         *  KEY and VALUE express node pair, and KEY is less than VALUE. */
-        hash_map<node_idx_t, hash_set<node_idx_t> > considered_unifications;
-
-        /** Set of pair of nodes
-        *  which its mutual-exclusiveness has been already considered.
-        *  KEY and VALUE express node pair, and KEY is less than VALUE. */
-        hash_map<node_idx_t, hash_set<node_idx_t> > considered_exclusions;
+        pair_set_t<node_idx_t> considered_unifications;
 
         std::map<std::pair<pg::node_idx_t, term_idx_t>, unsigned long int> argument_set_ids;
     } m_temporal;
@@ -613,15 +609,15 @@ protected:
         /** Map from terms to the node index.
          *   - KEY1, KEY2 : Terms. KEY1 is less than KEY2.
          *   - VALUE : Index of node of "KEY1 == KEY2". */
-        hash_map<term_t, hash_map<term_t, node_idx_t> > terms_to_sub_node;
+        triangular_matrix_t<term_t, node_idx_t> terms_to_sub_node;
 
         /** Map from terms to the node index.
          *   - KEY1, KEY2 : Terms. KEY1 is less than KEY2.
          *   - VALUE : Index of node of "KEY1 != KEY2". */
-        hash_map<term_t, hash_map<term_t, node_idx_t> > terms_to_negsub_node;
+        triangular_matrix_t<term_t, node_idx_t> terms_to_negsub_node;
 
         /** Map from depth to indices of nodes assigned the depth. */
-        hash_map<int, hash_set<node_idx_t> > depth_to_nodes;
+        hash_map<depth_t, hash_set<node_idx_t> > depth_to_nodes;
 
         /** Map from axiom-id to hypernodes which have been applied the axiom. */
         hash_map< axiom_id_t, hash_set<hypernode_idx_t> >

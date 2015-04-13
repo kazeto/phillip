@@ -351,7 +351,7 @@ void ilp_problem_t::add_constraints_to_forbid_looping_unification(
 
     pg::node_idx_t idx_explains = (from[0] == idx_explained) ? from[1] : from[0];
     hash_set<pg::node_idx_t> descendants;
-    hash_set<pg::node_idx_t> ancestors(m_graph->node(idx_explained).evidences());
+    hash_set<pg::node_idx_t> ancestors(m_graph->node(idx_explained).ancestors());
 
     m_graph->enumerate_descendant_nodes(idx_explains, &descendants);
     descendants.insert(idx_explains);

@@ -69,6 +69,7 @@ typedef index_t entity_idx_t;
 typedef index_t node_idx_t;
 typedef index_t edge_idx_t;
 typedef index_t hypernode_idx_t;
+typedef int depth_t;
 }
 
 
@@ -252,18 +253,63 @@ private:
 };
 
 
-/** A class to experiment efficiency of a function. */
-class stop_watch_t
+template <class Key, class Value> class triangular_matrix_t
+: public hash_map<Key, hash_map<Key, Value> >
 {
 public:
-    static stop_watch_t* instance();
-    inline void start(int key);
-    inline void stop(int key);
-    double time(int key) const;
+    inline void insert(Key k1, Key k2, const Value &v)
+    {
+        regularize_keys(k1, k2);
+        (*this)[k1].insert(std::make_pair(k2, v));
+    }
 
-private:
-    hash_map<int, clock_t> m_clocks_ongoing;
-    hash_map<int, std::list<clock_t> > m_clocks_measured;
+    Value* find(Key k1, Key k2)
+    {
+        regularize_keys(k1, k2);
+
+        auto found1 = hash_map<Key, hash_map<Key, Value> >::find(k1);
+        if (found1 == end()) return NULL;
+
+        auto found2 = found1->second.find(k2);
+        return (found2 == found1->second.end()) ? NULL : &(found2->second);
+    }
+
+    const Value* find(Key k1, Key k2) const
+    {
+        regularize_keys(k1, k2);
+
+        auto found1 = hash_map<Key, hash_map<Key, Value> >::find(k1);
+        if (found1 == end()) return NULL;
+
+        auto found2 = found1->second.find(k2);
+        return (found2 == found1->second.end()) ? NULL : &(found2->second);
+    }
+
+protected:
+    inline void regularize_keys(Key &k1, Key &k2) const { if (k1 > k2) std::swap(k1, k2); }
+};
+
+
+template <class T> class pair_set_t : public hash_map<T, hash_set<T> >
+{
+public:
+    inline void insert(T x, T y)
+    {
+        regularize(x, y);
+        (*this)[x].insert(y);
+    }
+
+    inline int count(T x, T y) const
+    {
+        regularize(x, y);
+        auto found1 = find(x);
+        if (found1 == end()) return 0;
+        auto found2 = found1->second.find(y);
+        return (found2 == found1->second.end()) ? 0 : 1;
+    }
+
+protected:
+    inline void regularize(T &x, T &y) const { if (x > y) std::swap(x, y); }
 };
 
 

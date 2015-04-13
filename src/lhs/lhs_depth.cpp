@@ -292,7 +292,7 @@ bool depth_based_enumerator_t::compute_reachability_of_chaining(
     for (auto it = from.begin(); it != from.end(); ++it)
     {
         const pg::node_t &node = graph->node(*it);
-        evidences.insert(node.evidences().begin(), node.evidences().end());
+        evidences.insert(node.ancestors().begin(), node.ancestors().end());
     }
 
     reachable_map_t rcs_from;
@@ -376,7 +376,7 @@ void depth_based_enumerator_t::filter_unified_reachability(
     {
         const pg::node_t n = graph->node(*it);
         evidences.insert(*it);
-        evidences.insert(n.evidences().begin(), n.evidences().end());
+        evidences.insert(n.ancestors().begin(), n.ancestors().end());
     }
 
     for (auto it = out->begin(); it != out->end();)

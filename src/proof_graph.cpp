@@ -16,6 +16,26 @@ namespace pg
 {
 
 
+
+node_t::node_t(
+    const proof_graph_t *graph,
+    const literal_t &lit, node_type_e type, node_idx_t idx,
+    depth_t depth, const hash_set<node_idx_t> &parents)
+    : m_type(type), m_literal(lit), m_index(idx),
+    m_depth(depth), m_arity_id(kb::INVALID_ARITY_ID),
+    m_master_hypernode_idx(-1), m_parents(parents), m_ancestors(parents)
+{
+    for (auto idx : parents)
+    {
+        const hash_set<node_idx_t> &nodes = graph->node(idx).ancestors();
+        m_ancestors.insert(nodes.begin(), nodes.end());
+    }
+
+    if (m_literal.is_equality())
+        m_arity_id = kb::kb()->search_arity_id(m_literal.get_arity());
+}
+
+
 bool unifier_t::operator==(const unifier_t &x) const
 {
     const hash_map<term_t, term_t> &map1(m_mapping), &map2(x.m_mapping);
@@ -206,7 +226,6 @@ void proof_graph_t::temporal_variables_t::clear()
 {
     postponed_unifications.clear();
     considered_unifications.clear();
-    considered_exclusions.clear();
     argument_set_ids.clear();
 }
 
@@ -624,33 +643,15 @@ hypernode_idx_t proof_graph_t::find_hypernode_with_ordered_nodes(
 
 node_idx_t proof_graph_t::find_sub_node(term_t t1, term_t t2) const
 {
-    if (t1 > t2) std::swap(t1, t2);
-
-    auto it = m_maps.terms_to_sub_node.find(t1);
-    if (it == m_maps.terms_to_sub_node.end())
-        return -1;
-
-    auto it2 = it->second.find(t2);
-    if (it2 == it->second.end())
-        return -1;
-
-    return it2->second;
+    const node_idx_t *found = m_maps.terms_to_sub_node.find(t1, t2);
+    return (found != NULL) ? *found : -1;
 }
 
 
 node_idx_t proof_graph_t::find_neg_sub_node(term_t t1, term_t t2) const
 {
-    if (t1 > t2) std::swap(t1, t2);
-
-    auto it = m_maps.terms_to_negsub_node.find(t1);
-    if (it == m_maps.terms_to_negsub_node.end())
-        return -1;
-
-    auto it2 = it->second.find(t2);
-    if (it2 == it->second.end())
-        return -1;
-
-    return it2->second;
+    const node_idx_t *found = m_maps.terms_to_negsub_node.find(t1, t2);
+    return (found != NULL) ? *found : -1;
 }
 
 
@@ -898,9 +899,9 @@ void proof_graph_t::print_mutual_exclusive_edges(std::ostream *os) const
 
 node_idx_t proof_graph_t::add_node(
     const literal_t &lit, node_type_e type, int depth,
-    const hash_set<node_idx_t> &evidences)
+    const hash_set<node_idx_t> &parents)
 {
-    node_t add(lit, type, m_nodes.size(), depth, evidences);
+    node_t add(this, lit, type, m_nodes.size(), depth, parents);
     int n = static_cast<int>(lit.terms.size());
     node_idx_t out = m_nodes.size();
     
@@ -911,19 +912,15 @@ node_idx_t proof_graph_t::add_node(
     if(lit.is_equality())
     {
         term_t t1(lit.terms[0]), t2(lit.terms[1]);
-        if (t1 > t2) std::swap(t1, t2);
-
         if (lit.truth)
-            m_maps.terms_to_sub_node[t1][t2] = out;
+            m_maps.terms_to_sub_node.insert(t1, t2, out);
         else
-            m_maps.terms_to_negsub_node[t1][t2] = out;
-        m_arity_ids.push_back(kb::INVALID_ARITY_ID);
+            m_maps.terms_to_negsub_node.insert(t1, t2, out);
     }
     else
     {
         const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
         std::string arity = lit.get_arity();
-        kb::arity_id_t arity_id = base->search_arity_id(arity);
 
         for (int i = 0; i < lit.terms.size(); ++i)
         {
@@ -931,9 +928,8 @@ node_idx_t proof_graph_t::add_node(
             if (id != kb::INVALID_ARGUMENT_SET_ID)
                 m_temporal.argument_set_ids[std::make_pair(out, i)] = id;
         }
-        m_arity_ids.push_back(arity_id);
-        if (arity_id != kb::INVALID_ARITY_ID)
-            m_maps.arity_to_nodes[arity_id].insert(out);
+        if (add.arity_id() != kb::INVALID_ARITY_ID)
+            m_maps.arity_to_nodes[add.arity_id()].insert(out);
     }
     
     for (unsigned i = 0; i < lit.terms.size(); i++)
@@ -1170,26 +1166,16 @@ hypernode_idx_t proof_graph_t::chain(
             if (it_n1 != it_n2)
             {
                 node_idx_t n1(*it_n1), n2(*it_n2);
-                if (n1 > n2) std::swap(n1, n2);
-
-                auto found1 = m_mutual_exclusive_nodes.find(n1);
-                if (found1 != m_mutual_exclusive_nodes.end())
+                const unifier_t *uni = m_mutual_exclusive_nodes.find(n1, n2);
+                if (uni != NULL)
                 {
-                    auto found2 = found1->second.find(n2);
-                    if (found2 != found1->second.end())
-                    {
-                        const unifier_t &uni = found2->second;
-                        if (not uni.empty())
-                        {
-                            for (auto p : uni.mapping())
-                                presup_neqs.insert(make_sorted_pair(p.first, p.second));
-                        }
-#ifndef DISABLE_CANCELING
-                        else
-                            return false;
-#endif
-                    }
+                    for (auto p : uni->mapping())
+                        presup_neqs.insert(make_sorted_pair(p.first, p.second));
                 }
+#ifndef DISABLE_CANCELING
+                else
+                    return false;
+#endif
             }
         }
 
@@ -1318,14 +1304,7 @@ hypernode_idx_t proof_graph_t::chain(
     hypernode_idx_t idx_hn_from = add_hypernode(from);
     std::vector<node_idx_t> hn_to(added.size(), -1);
 
-    /* ENUMERATE ANCESTORS */
-    hash_set<node_idx_t> evidences;
-    {
-        evidences.insert(from.begin(), from.end());
-        for (auto it_n = from.begin(); it_n != from.end(); ++it_n)
-            evidences.insert(node(*it_n).evidences().begin(), node(*it_n).evidences().end());
-    }
-
+    hash_set<node_idx_t> parents(from.begin(), from.end());
     for (size_t i = 0; i < added.size(); ++i)
     {
         hash_set<node_idx_t> _ev;
@@ -1334,7 +1313,7 @@ hypernode_idx_t proof_graph_t::chain(
             _ev.insert(hn_to.at(j));
 
         int d = added[i].is_equality() ? -1 : depth + 1;
-        hn_to[i] = add_node(added[i], NODE_HYPOTHESIS, d, evidences);
+        hn_to[i] = add_node(added[i], NODE_HYPOTHESIS, d, parents);
     }
     hypernode_idx_t idx_hn_to = add_hypernode(hn_to);
 
@@ -1496,7 +1475,7 @@ void proof_graph_t::enumerate_queries_for_knowledge_base(
     const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
 
     std::list<kb::search_query_t> queries;
-    base->search_queries(m_arity_ids.at(pivot), &queries);
+    base->search_queries(node(pivot).arity_id(), &queries);
 
     for (auto q : queries)
     {
@@ -1513,7 +1492,7 @@ void proof_graph_t::enumerate_queries_for_knowledge_base(
 
         for (auto p : arity_count)
         {
-            if (p.first == m_arity_ids.at(pivot) and p.second == 1)
+            if (p.first == node(pivot).arity_id() and p.second == 1)
                 a2ns[p.first].insert(pivot);
             else
             {
@@ -1671,11 +1650,11 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
 
             // IGNORE THE PAIR WHICH HAS BEEN CONSIDERED ALREADY.
             if (_is_considered_unification(n1, n2)) continue;
-            else m_temporal.considered_unifications[n1].insert(n2); // ADD TO LOG
+            else m_temporal.considered_unifications.insert(n1, n2); // ADD TO LOG
 
             // IF ONE IS THE ANCESTOR OF ANOTHER, THE PAIR CANNOT UNIFY.
-            if (node(n1).evidences().count(n2) > 0 or
-                node(n2).evidences().count(n1) > 0)
+            if (node(n1).ancestors().count(n2) > 0 or
+                node(n2).ancestors().count(n1) > 0)
                 continue;
 
             bool unifiable = check_unifiability(
@@ -1703,8 +1682,7 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
         if (pp->do_postpone(this, target, *it))
         {
             node_idx_t n1(target), n2(*it);
-            if (n1 > n2) std::swap(n1, n2);
-            m_temporal.postponed_unifications[n1].insert(n2);
+            m_temporal.postponed_unifications.insert(n1, n2);
 
             IF_VERBOSE_FULL(
                 format("Postponed unification: node[%d] - node[%d]", n1, n2));
@@ -1734,7 +1712,7 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
                 std::pair<term_t, term_t> ts = make_sorted_pair(t, *it);
                 literal_t sub("=", ts.first, ts.second);
                 node_idx_t idx = add_node(sub, NODE_HYPOTHESIS, -1, hash_set<node_idx_t>());
-                m_maps.terms_to_sub_node[ts.first][ts.second] = idx;
+                m_maps.terms_to_sub_node.insert(ts.first, ts.second, idx);
 
                 std::list<std::tuple<node_idx_t, unifier_t> > muex;
                 get_mutual_exclusions(sub, &muex);
@@ -1754,12 +1732,11 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
     if (not check_unifiability(node(i).literal(), node(j).literal(), false, &uni))
         return;
 
-    hash_set<node_idx_t> evidences(unified_nodes.begin(), unified_nodes.end());
-    evidences.insert(node(i).evidences().begin(), node(i).evidences().end());
-    evidences.insert(node(j).evidences().begin(), node(j).evidences().end());
 
     /* CREATE UNIFICATION-NODES & UPDATE VARIABLES. */
     const std::set<literal_t> &subs = uni.substitutions();
+    hash_set<node_idx_t> parents(unified_nodes.begin(), unified_nodes.end());
+
     for (auto sub = subs.begin(); sub != subs.end(); ++sub)
     {
         term_t t1(sub->terms[0]), t2(sub->terms[1]);
@@ -1769,9 +1746,9 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
         if (sub_node_idx < 0)
         {
             if (t1 > t2) std::swap(t1, t2);
-            sub_node_idx = add_node(*sub, NODE_HYPOTHESIS, -1, evidences);
+            sub_node_idx = add_node(*sub, NODE_HYPOTHESIS, -1, parents);
 
-            m_maps.terms_to_sub_node[t1][t2] = sub_node_idx;
+            m_maps.terms_to_sub_node.insert(t1, t2, sub_node_idx);
             m_vc_unifiable.add(t1, t2);
 
             std::list<std::tuple<node_idx_t, unifier_t> > muex;

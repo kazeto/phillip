@@ -14,17 +14,10 @@ namespace pg
 {
 
 
-inline node_t::node_t(
-    const literal_t &lit, node_type_e type, node_idx_t idx,
-    int depth, const hash_set<node_idx_t> &ev)
-    : m_type(type), m_literal(lit), m_index(idx), m_depth(depth),
-    m_master_hypernode_idx(-1), m_evidences(ev)
-{}
 
-
-inline const hash_set<pg::node_idx_t>& node_t::evidences() const
+inline const hash_set<pg::node_idx_t>& node_t::ancestors() const
 {
-    return m_evidences;
+    return m_ancestors;
 }
 
 
@@ -162,8 +155,7 @@ proof_graph_t::unifiable_variable_clusters_set_t::is_in_same_cluster(
 
 inline proof_graph_t::proof_graph_t(phillip_main_t *main, const std::string &name)
 : m_phillip(main), m_name(name), m_is_timeout(false)
-{
-}
+{}
 
 
 inline node_idx_t proof_graph_t::
@@ -245,14 +237,7 @@ proof_graph_t::requirements() const
 inline const unifier_t* proof_graph_t::search_mutual_exclusion_of_node(
     node_idx_t n1, node_idx_t n2) const
 {
-    if (n1 > n2) std::swap(n1, n2);
-    auto found1 = m_mutual_exclusive_nodes.find(n1);
-    if (found1 == m_mutual_exclusive_nodes.end()) return NULL;
-
-    auto found2 = found1->second.find(n2);
-    if (found2 == found1->second.end()) return NULL;
-
-    return &found2->second;
+    return m_mutual_exclusive_nodes.find(n1, n2);
 }
 
 
@@ -416,30 +401,7 @@ inline void proof_graph_t::add_attribute(const std::string &name, const std::str
 inline bool proof_graph_t::_is_considered_unification(
     node_idx_t i, node_idx_t j ) const
 {
-    if (i > j) std::swap(i, j);
-
-    hash_map<node_idx_t, hash_set<node_idx_t> >::const_iterator
-        it1 = m_temporal.considered_unifications.find(i);
-    if( it1 == m_temporal.considered_unifications.end() )
-        return false;
-
-    hash_set<node_idx_t>::const_iterator it2 = it1->second.find(j);
-    return it2 != it1->second.end();
-}
-
-
-inline bool proof_graph_t::_is_considered_exclusion(
-    node_idx_t i, node_idx_t j) const
-{
-    if (i > j) std::swap(i, j);
-
-    hash_map<node_idx_t, hash_set<node_idx_t> >::const_iterator
-        it1 = m_temporal.considered_exclusions.find(i);
-    if (it1 == m_temporal.considered_exclusions.end())
-        return false;
-
-    hash_set<node_idx_t>::const_iterator it2 = it1->second.find(j);
-    return it2 != it1->second.end();
+    return m_temporal.considered_unifications.count(i, j) > 0;
 }
 
 

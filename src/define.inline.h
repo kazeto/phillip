@@ -257,24 +257,6 @@ inline size_t cdb_data_t::size() const
 }
 
 
-inline void stop_watch_t::start(int key)
-{
-    m_clocks_ongoing[key] = clock();
-}
-
-
-inline void stop_watch_t::stop(int key)
-{
-    clock_t end = clock();
-    auto found = m_clocks_ongoing.find(key);
-    if (found != m_clocks_ongoing.end())
-    {
-        m_clocks_measured[key].push_back(end - found->second);
-        m_clocks_ongoing.erase(found);
-    }
-}
-
-
 inline void print_console(const std::string &str)
 {
     std::lock_guard<std::mutex> lock(g_mutex_for_print);
