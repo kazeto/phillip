@@ -325,7 +325,6 @@ bool proof_graph_t::check_availability_of_chain(
 bool proof_graph_t::_check_nodes_coexistency(
     node_idx_t n1, node_idx_t n2, const unifier_t *uni) const
 {
-#ifndef DISABLE_CANCELING
     hash_set<edge_idx_t>
         e1(enumerate_dependent_edges(n1)),
         e2(enumerate_dependent_edges(n2));
@@ -354,27 +353,27 @@ bool proof_graph_t::_check_nodes_coexistency(
 
     for (auto it = ns1.begin(); it != ns1.end(); ++it)
     {
-        // NODES SHARED BY ns1 and ns2 WILL BE SKIPPED.
+        // SHARED BY BOTH OF ns1 and ns2, IT WILL BE SKIPPED.
         if (ns2.count(*it) > 0) continue;
 
         for (auto it2 = ns2.begin(); it2 != ns2.end(); ++it2)
         {
-            const unifier_t *_uni =
+            const unifier_t *uni2 =
                 search_mutual_exclusion_of_node(*it, *it2);
 
-            if (_uni != NULL)
+            if (uni2 != NULL)
             {
-                if (_uni->empty()) return false;
+                // n1 AND n2 ARE ALWAYS MUTUAL-EXCLUSIVE.
+                if (uni2->empty()) return false;
 
                 // IF uni IS GIVEN, CHECKS UNIFIABILITY BETWEEN n1 AND n2.
-                // THIS METHOD RETURNS FALSE IF THE UNIFICATION BETWEEN n1 AND n2
+                // NAMELY, RETURNS FALSE IF THE UNIFICATION BETWEEN n1 AND n2
                 // VIOLATES ANY MUTUAL-EXCLUSION.
                 if (uni != NULL)
-                if (uni->do_contain(*_uni)) return false;
+                if (uni->do_contain(*uni2)) return false;
             }
         }
     }
-#endif
 
     return true;
 }
@@ -1661,8 +1660,10 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
                 node(n1).literal(), node(n2).literal(), false, &unifier);
 
             // FILTERING WITH CO-EXISTENCY OF UNIFIED NODES
+#ifndef DISABLE_CANCELING
             if (unifiable)
                 unifiable = _check_nodes_coexistency(n1, n2, &unifier);
+#endif
 
             if (unifiable and can_unify_nodes(n1, n2))
                 unifiables.push_back(n);
@@ -1775,80 +1776,6 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
 }
 
 
-void proof_graph_t::_enumerate_hypernodes_disregarded()
-{
-    IF_VERBOSE_3(format("Enumerating of hypernodes to ignore..."));
-
-    hash_set<hypernode_idx_t> ignored;
-    
-    for (auto it_e = m_edges.begin(); it_e != m_edges.end(); ++it_e)
-    if (it_e->is_chain_edge())
-        ignored.insert(it_e->head());
-
-    for (auto it_e = m_edges.begin(); it_e != m_edges.end(); ++it_e)
-    {
-        auto tail = hypernode(it_e->tail());
-        for (auto n = tail.begin(); n != tail.end(); ++n)
-            ignored.erase(node(*n).master_hypernode());
-    }
-    
-    m_hypernodes_disregarded.clear();
-    for (auto it_hn = ignored.begin(); it_hn != ignored.end(); ++it_hn)
-        _enumerate_hypernodes_disregarded_sub(*it_hn);
-}
-
-
-void proof_graph_t::_enumerate_hypernodes_disregarded_sub(hypernode_idx_t idx)
-{
-    m_hypernodes_disregarded.insert(idx);
-
-    IF_VERBOSE_FULL(format("  Added to disregarding list: hypernode[%d]", idx));
-
-    /* NEXT TARGETS ARE MASTER-HYPERNODES OF NODES IN PARENTAL HYPERNODE. */
-    hash_set<hypernode_idx_t> targets;
-    {
-        auto _nodes_in_parent = hypernode(find_parental_hypernode(idx));
-        hypernode_idx_t _master;
-
-        for (auto it = _nodes_in_parent.begin(); it != _nodes_in_parent.end(); ++it)
-        if ((_master = node(*it).master_hypernode()) >= 0)
-            targets.insert(_master);
-    }
-
-    for (auto hn = targets.begin(); hn != targets.end(); ++hn)
-    {
-        /* ENUMERATES EDGES WHOSE TAIL INCLUDES A NODE IN hn. */
-        hash_set<edge_idx_t> children_edges;
-        {
-            auto members = hypernode(*hn);
-            hash_set<hypernode_idx_t> hns;
-
-            for (auto n_it = members.begin(); n_it != members.end(); ++n_it)
-            {
-                auto _hns = search_hypernodes_with_node(*n_it);
-                hns.insert(_hns->begin(), _hns->end());
-            }
-
-            for (auto hn_it = hns.begin(); hn_it != hns.end(); ++hn_it)
-                enumerate_children_edges(*hn_it, &children_edges);
-        }
-
-        bool do_insert(true);
-        for (auto e_it = children_edges.begin(); e_it != children_edges.end() and do_insert; ++e_it)
-        {
-            const edge_t &e = edge(*e_it);
-            if (e.is_unify_edge())
-                do_insert = false;
-            if (e.is_chain_edge() and m_hypernodes_disregarded.count(e.head()) == 0)
-                do_insert = false;
-        }
-
-        if (do_insert)
-            _enumerate_hypernodes_disregarded_sub(*hn);
-    }
-}
-
-
 bool proof_graph_t::check_unifiability(
     const literal_t &p1, const literal_t &p2, bool do_ignore_truthment,
     unifier_t *out )
@@ -1951,8 +1878,6 @@ void proof_graph_t::post_process()
 
     IF_VERBOSE_4("Cleaned logs.");
     m_temporal.clear();
-
-    // _enumerate_hypernodes_disregarded();
 }
 
 

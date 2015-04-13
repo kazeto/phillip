@@ -274,7 +274,7 @@ proof_graph_t::search_nodes_with_arity(const arity_t &arity) const
 
 
 inline const hash_set<node_idx_t>*
-proof_graph_t::search_nodes_with_depth(int depth) const
+proof_graph_t::search_nodes_with_depth(depth_t depth) const
 {
     auto it = m_maps.depth_to_nodes.find( depth );
     return (it == m_maps.depth_to_nodes.end()) ? NULL : &it->second;
@@ -335,12 +335,6 @@ inline const hash_set<term_t>*
 proof_graph_t::find_variable_cluster( term_t t ) const
 {
     return m_vc_unifiable.find_cluster(t);
-}
-
-
-inline bool proof_graph_t::do_disregard_hypernode(hypernode_idx_t idx) const
-{
-    return m_hypernodes_disregarded.count(idx) > 0;
 }
 
 

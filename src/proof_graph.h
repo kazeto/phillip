@@ -223,12 +223,11 @@ public:
     inline phillip_main_t* phillip() const { return m_phillip; }
     inline void timeout(bool flag) { m_is_timeout = flag; }
     inline bool is_timeout() const { return m_is_timeout; }
+    inline const std::string& name() const { return m_name; }
 
     /** Deletes logs and enumerate hypernodes to be disregarded.
      *  Call this method after creation of proof-graph. */
     void post_process();
-
-    inline const std::string& name() const { return m_name; }
     
     inline node_idx_t add_observation(const literal_t &lit, int depth = 0);
 
@@ -275,13 +274,11 @@ public:
     std::list<hash_set<edge_idx_t> > enumerate_mutual_exclusive_edges() const;
 
     /** Returns queries for getting axioms around pivot node. */
-    void enumerate_queries_for_knowledge_base(
-        node_idx_t pivot, std::list<kb::search_query_t> *out) const;
+    void enumerate_queries_for_knowledge_base(node_idx_t pivot, std::list<kb::search_query_t> *out) const;
 
     /** Return pointer of unifier for mutual-exclusiveness between given nodes.
      *  If not found, return NULL. */
-    inline const unifier_t* search_mutual_exclusion_of_node(
-        node_idx_t n1, node_idx_t n2) const;
+    inline const unifier_t* search_mutual_exclusion_of_node(node_idx_t n1, node_idx_t n2) const;
 
     /** Return pointer of set of nodes whose literal has given term.
      *  If any node was found, return NULL. */
@@ -289,18 +286,15 @@ public:
 
     /** Return pointer of set of nodes whose literal has given predicate.
      *  If any node was found, return NULL. */
-    inline const hash_set<node_idx_t>*
-        search_nodes_with_predicate(predicate_t predicate, int arity) const;
+    inline const hash_set<node_idx_t>* search_nodes_with_predicate(predicate_t predicate, int arity) const;
 
     /** Return pointer of set of nodes whose literal has given predicate.
      *  If any node was found, return NULL. */
-    inline const hash_set<node_idx_t>*
-        search_nodes_with_arity(const arity_t &arity) const;
+    inline const hash_set<node_idx_t>* search_nodes_with_arity(const arity_t &arity) const;
 
     /** Return pointer of set of nodes whose depth is equal to given value.
      *  If any node was found, return NULL. */
-    inline const hash_set<node_idx_t>*
-        search_nodes_with_depth(int depth) const;
+    inline const hash_set<node_idx_t>* search_nodes_with_depth(depth_t depth) const;
 
     /** Return a set of nodes which is unifiable with a literal of given arity.
      *  The threshold of category-table is given
@@ -340,8 +334,7 @@ public:
     void enumerate_children_hypernodes(hypernode_idx_t idx, hash_set<hypernode_idx_t> *out) const;
 
     /** Returns indices of nodes whose evidences include given node. */
-    void enumerate_descendant_nodes(
-        node_idx_t idx, hash_set<node_idx_t> *out) const;
+    void enumerate_descendant_nodes(node_idx_t idx, hash_set<node_idx_t> *out) const;
 
     void enumerate_overlapping_hypernodes(hypernode_idx_t idx, hash_set<hypernode_idx_t> *out) const;
     
@@ -384,8 +377,6 @@ public:
      *  The first is expected arity and the second is actual arity. */
     std::list<std::pair<arity_t, arity_t> > get_gaps_on_edge(edge_idx_t) const;
 
-    inline bool do_disregard_hypernode(hypernode_idx_t idx) const;
-
     /** Enumerates unification nodes
      *  which are needed to satisfy conditions for given chaining.
      *  @param subs1 Unifying nodes which must be true.
@@ -405,7 +396,7 @@ public:
     std::string hypernode2str(hypernode_idx_t i) const;
     std::string edge_to_string(edge_idx_t i) const;
         
-    /** Whether the hypernode of hn includes only sub-nodes. */
+    /** Returns whether the hypernode of hn includes only sub-nodes. */
     inline bool is_hypernode_for_unification(hypernode_idx_t hn) const;
 
     /** Returns whether given axioms has already applied to given hypernode. */
@@ -532,11 +523,6 @@ protected:
      *  And, update m_vc_unifiable and m_maps.terms_to_sub_node. */
     void _chain_for_unification(node_idx_t i, node_idx_t j);
 
-    /** Enumerates indices of hypernodes to be excluded
-     *  and set them to m_hypernodes_disregarded. */
-    void _enumerate_hypernodes_disregarded();
-    void _enumerate_hypernodes_disregarded_sub(hypernode_idx_t idx);
-
     inline bool _is_considered_unification(node_idx_t i, node_idx_t j) const;
 
     /** Return highest depth in nodes which given hypernode includes. */
@@ -586,7 +572,6 @@ protected:
     hash_map<edge_idx_t, std::list< std::pair<term_t, term_t> > > m_subs_of_conditions_for_chain;
     hash_map<edge_idx_t, std::list< std::pair<term_t, term_t> > > m_neqs_of_conditions_for_chain;
 
-    hash_set<hypernode_idx_t> m_hypernodes_disregarded;
     std::hash<std::string> m_hasher_for_nodes;
 
     struct temporal_variables_t
@@ -600,6 +585,8 @@ protected:
         *  whose unifiability has been already considered.
         *  KEY and VALUE express node pair, and KEY is less than VALUE. */
         pair_set_t<node_idx_t> considered_unifications;
+
+        triangular_matrix_t<node_idx_t, bool> coexistability_between_nodes; /// TODO
 
         std::map<std::pair<pg::node_idx_t, term_idx_t>, unsigned long int> argument_set_ids;
     } m_temporal;
