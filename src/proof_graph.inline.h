@@ -175,6 +175,7 @@ inline node_idx_t proof_graph_t::
     get_mutual_exclusions(lit, &muex);
     _generate_mutual_exclusions(idx, muex);
     _generate_unification_assumptions(idx);
+    m_observations.insert(idx);
 
     return idx;
 }
@@ -222,9 +223,15 @@ inline const std::vector< std::vector<node_idx_t> >&
 
 
 inline const std::vector<node_idx_t>&
-proof_graph_t::hypernode( hypernode_idx_t i ) const
+proof_graph_t::hypernode(hypernode_idx_t i) const
 {
     return m_hypernodes.at(i);
+}
+
+
+inline const hash_set<node_idx_t>& proof_graph_t::observation_indices() const
+{
+    return m_observations;
 }
 
 
@@ -354,11 +361,10 @@ inline bool proof_graph_t::do_disregard_hypernode(hypernode_idx_t idx) const
 
 template <class ContainerPtr>
 void proof_graph_t::erase_invalid_chain_candidates_with_coexistence(
-    ContainerPtr ptr_cands) const
+    ContainerPtr ptr_cands,
+    hash_map<node_idx_t, hash_map<node_idx_t, bool> > *log) const
 {
 #ifndef DISABLE_CANCELING
-    hash_map<node_idx_t, hash_map<node_idx_t, bool> > log;
-
     for (auto it = ptr_cands->begin(); it != ptr_cands->end();)
     {
         bool is_valid(true);
@@ -369,20 +375,24 @@ void proof_graph_t::erase_invalid_chain_candidates_with_coexistence(
         for (auto n1 = ns.begin(); n1 != ns.end() and is_valid; ++n1)
         for (auto n2 = ns.begin(); n2 != n1 and is_valid; ++n2)
         {
-            auto find1 = log.find(*n1);
-            if (find1 != log.end())
+            if (log != NULL)
             {
-                auto find2 = find1->second.find(*n2);
-                if (find2 != find1->second.end())
+                auto find1 = log->find(*n1);
+                if (find1 != log->end())
                 {
-                    is_valid = find2->second;
-                    continue;
+                    auto find2 = find1->second.find(*n2);
+                    if (find2 != find1->second.end())
+                    {
+                        is_valid = find2->second;
+                        continue;
+                    }
                 }
             }
 
             bool can_coexist = _check_nodes_coexistency(*n1, *n2);
-            log[*n1][*n2] = log[*n2][*n1] = can_coexist;
             is_valid = can_coexist;
+            if (log != NULL)
+                (*log)[*n1][*n2] = (*log)[*n2][*n1] = can_coexist;
         }
 
         if (is_valid) ++it;

@@ -335,13 +335,14 @@ bool proof_graph_t::_check_nodes_coexistency(
 
     for (auto it = ns1.begin(); it != ns1.end(); ++it)
     {
-        // A NODE SHARED BY ns1 and ns2 IS SKIPPED.
+        // NODES SHARED BY ns1 and ns2 WILL BE SKIPPED.
         if (ns2.count(*it) > 0) continue;
 
         for (auto it2 = ns2.begin(); it2 != ns2.end(); ++it2)
         {
             const unifier_t *_uni =
                 search_mutual_exclusion_of_node(*it, *it2);
+
             if (_uni != NULL)
             {
                 if (_uni->empty()) return false;
@@ -1130,7 +1131,7 @@ hypernode_idx_t proof_graph_t::chain(
                 dep_nodes.insert(hn_tail.begin(), hn_tail.end());
             }
 
-            auto obs = enumerate_observations();
+            auto obs = observation_indices();
             dep_nodes.insert(obs.begin(), obs.end());
 
 #ifndef DISABLE_CANCELING
@@ -1231,7 +1232,7 @@ hypernode_idx_t proof_graph_t::chain(
         for (auto it_n = from.begin(); it_n != from.end(); ++it_n)
             enumerate_dependent_edges(*it_n, &dep_edges);
 
-        // ENUMERATE EVIDENCES SUBS IN CONDITIONS OF EDGE.
+        // ENUMERATE EVIDENCES AND SUBS IN CONDITIONS OF EDGE.
         for (auto it_e = dep_edges.begin(); it_e != dep_edges.end(); ++it_e)
         {
             const std::vector<node_idx_t> &tail = hypernode(edge(*it_e).tail());
@@ -1317,10 +1318,13 @@ hypernode_idx_t proof_graph_t::chain(
     hypernode_idx_t idx_hn_from = add_hypernode(from);
     std::vector<node_idx_t> hn_to(added.size(), -1);
 
-    hash_set<node_idx_t> evidences;    
-    evidences.insert(from.begin(), from.end());
-    for (auto it_n = from.begin(); it_n != from.end(); ++it_n)
-        evidences.insert(node(*it_n).evidences().begin(), node(*it_n).evidences().end());
+    /* ENUMERATE ANCESTORS */
+    hash_set<node_idx_t> evidences;
+    {
+        evidences.insert(from.begin(), from.end());
+        for (auto it_n = from.begin(); it_n != from.end(); ++it_n)
+            evidences.insert(node(*it_n).evidences().begin(), node(*it_n).evidences().end());
+    }
 
     for (size_t i = 0; i < added.size(); ++i)
     {
@@ -1444,16 +1448,6 @@ std::list<std::pair<arity_t, arity_t> > proof_graph_t::get_gaps_on_edge(edge_idx
             out.push_back(std::make_pair(a1, a2));
     }
 
-    return out;
-}
-
-
-hash_set<node_idx_t> proof_graph_t::enumerate_observations() const
-{
-    hash_set<node_idx_t> out;
-    for (node_idx_t i = 0; i < nodes().size(); ++i)
-    if (node(i).type() == NODE_OBSERVABLE)
-        out.insert(i);
     return out;
 }
 

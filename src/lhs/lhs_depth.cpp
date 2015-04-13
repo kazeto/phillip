@@ -181,7 +181,7 @@ void depth_based_enumerator_t::enumerate_chain_candidates_sub(
         if (not do_include_requirement(graph, *it))
             _out.insert(pg::chain_candidate_t(*it, ax.id, !is_backward));
 
-        graph->erase_invalid_chain_candidates_with_coexistence(&_out);
+        graph->erase_invalid_chain_candidates_with_coexistence(&_out, NULL);
         out->insert(_out.begin(), _out.end());
     }
 }
@@ -255,7 +255,7 @@ const pg::proof_graph_t *graph) const
 {
     hash_map<pg::node_idx_t, reachable_map_t> out;
     const kb::knowledge_base_t *kb = kb::knowledge_base_t::instance();
-    hash_set<pg::node_idx_t> obs = graph->enumerate_observations();
+    hash_set<pg::node_idx_t> obs = graph->observation_indices();
 
     for (auto n1 = obs.begin(); n1 != obs.end(); ++n1)
     for (auto n2 = obs.begin(); n2 != n1; ++n2)

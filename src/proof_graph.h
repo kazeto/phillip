@@ -73,8 +73,7 @@ public:
      *  Unification-nodes have depth of -1. */
     inline int depth() const { return m_depth; }
 
-    /** Returns indices of nodes which must be hypothesized
-     *  when this node is hypothesized. */
+    /** Returns nodes which must be hypothesized to hypothesize this. */
     inline const hash_set<pg::node_idx_t>& evidences() const;
 
     /** Returns the index of hypernode
@@ -260,7 +259,7 @@ public:
     inline const std::vector<node_idx_t>& hypernode(hypernode_idx_t i) const;
 
     /** Returns a set of indices of observable nodes. */
-    hash_set<node_idx_t> enumerate_observations() const;
+    inline const hash_set<node_idx_t>& observation_indices() const;
 
     inline const std::vector<std::list<
         std::pair<literal_t, pg::node_idx_t> > >& requirements() const;
@@ -394,7 +393,9 @@ public:
     /** Excludes nodes which includes any exclusive node pair.
      *  @param ptr_cands Pointer of container of chain_candidate_t. */
     template <class ContainerPtr>
-    void erase_invalid_chain_candidates_with_coexistence(ContainerPtr ptr_cands) const;
+    void erase_invalid_chain_candidates_with_coexistence(
+        ContainerPtr ptr_cands,
+        hash_map<node_idx_t, hash_map<node_idx_t, bool> > *log) const;
 
     std::string hypernode2str(hypernode_idx_t i) const;
     std::string edge_to_string(edge_idx_t i) const;
@@ -488,8 +489,7 @@ protected:
 
     /** Is a sub-routine of add_node.
      *  Generates mutual exclusiveness between target node and other nodes.
-     *  @param muexs A pointer to the list of mutual exclusions to create.
-     *               If NULL, enumerate them in this method. */
+     *  @param muexs A list of mutual exclusions to create. They are needed to be enumerate by get_mutual_exclusions. */
     void _generate_mutual_exclusions(
         node_idx_t target,
         const std::list<std::tuple<node_idx_t, unifier_t> > &muexs);
@@ -517,9 +517,7 @@ protected:
     void _generate_mutual_exclusion_for_edges(
         edge_idx_t target, bool is_node_base);
 
-    /** This is a sub-routine of
-     *  _omit_invalid_chaining_candidates_with_coexistence
-     *  and _enumerate_unifiable_nodes.
+    /** Returns whether given two nodes can coexistence in a hypothesis.
      *  @param uni The pointer of unifier between n1 and n2.
      *  @return Whether given nodes can coexist. */
     bool _check_nodes_coexistency(
@@ -564,6 +562,7 @@ protected:
     std::vector< std::vector<node_idx_t> > m_hypernodes;
     std::vector<edge_t> m_edges;
 
+    hash_set<node_idx_t> m_observations; /// Indices of observation nodes.
     std::vector<std::list<std::pair<literal_t, pg::node_idx_t> > > m_requirements;
 
     std::vector<kb::arity_id_t> m_arity_ids;
@@ -572,8 +571,7 @@ protected:
     hash_map<std::string, std::string> m_attributes;
     
     /** Mutual exclusiveness betwen two nodes.
-     *  If unifier of third value is satisfied,
-     *  first node and second node cannot be hypothesized together. */
+     *  If unifier of third value is satisfied, the node of the first key and the node of the second key cannot be hypothesized together. */
     hash_map<node_idx_t, hash_map<node_idx_t, unifier_t> > m_mutual_exclusive_nodes;
 
     hash_map<edge_idx_t, hash_set<edge_idx_t> > m_mutual_exclusive_edges;
