@@ -10,15 +10,16 @@
     ```lisp
         ; Using -G option, Phillip searches the hypothesis which includes (p X) and (q Y).
         (O (req (^ (p X) (q Y)))
-	   (^ ...))
-	; On default, Phillip searches the hypothesis which includes (p X) or (q Y).
-	; Using -G option, Phillip searches the hypothesis which includes (p X).
-	(O (req (p X :gold) (q Y))
-	   (^ ...))
+           (^ ...))
+        ; On default, Phillip searches the hypothesis which includes (p X) or (q Y).
+        ; Using -G option, Phillip searches the hypothesis which includes (p X).
+        (O (req (p X :gold) (q Y))
+           (^ ...))
     ```
 - Modified `tools/out2html.py`.
     - You can see the usage by `python tools/out2html.py -h`.
 - Modified some command options:
+
 | Before                                              | After                           |
 | --------------------------------------------------- |-------------------------------- |
 | `-m inference`                                      | `-m inference` or `-m infer`    |
