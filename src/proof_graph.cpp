@@ -31,7 +31,7 @@ node_t::node_t(
         m_ancestors.insert(nodes.begin(), nodes.end());
     }
 
-    if (m_literal.is_equality())
+    if (not m_literal.is_equality())
         m_arity_id = kb::kb()->search_arity_id(m_literal.get_arity());
 }
 
@@ -1185,15 +1185,19 @@ hypernode_idx_t proof_graph_t::chain(
             {
                 node_idx_t n1(*it_n1), n2(*it_n2);
                 const unifier_t *uni = m_mutual_exclusive_nodes.find(n1, n2);
+                
                 if (uni != NULL)
                 {
-                    for (auto p : uni->mapping())
-                        presup_neqs.insert(make_sorted_pair(p.first, p.second));
-                }
+                    if (not uni->empty())
+                    {
+                        for (auto p : uni->mapping())
+                            presup_neqs.insert(make_sorted_pair(p.first, p.second));
+                    }
 #ifndef DISABLE_CANCELING
-                else
-                    return false;
+                    else
+                        return false; // n1 AND n2 ARE ALWAYS MUTUAL EXCLUSIVE.
 #endif
+                }
             }
         }
 

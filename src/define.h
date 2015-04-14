@@ -259,16 +259,16 @@ template <class Key, class Value> class triangular_matrix_t
 public:
     inline void insert(Key k1, Key k2, const Value &v)
     {
-        regularize_keys(k1, k2);
+        this->regularize_keys(k1, k2);
         (*this)[k1].insert(std::make_pair(k2, v));
     }
 
     Value* find(Key k1, Key k2)
     {
-        regularize_keys(k1, k2);
+        this->regularize_keys(k1, k2);
 
-        auto found1 = hash_map<Key, hash_map<Key, Value> >::find(k1);
-        if (found1 == end()) return NULL;
+        auto found1 = this->hash_map<Key, hash_map<Key, Value> >::find(k1);
+        if (found1 == this->end()) return NULL;
 
         auto found2 = found1->second.find(k2);
         return (found2 == found1->second.end()) ? NULL : &(found2->second);
@@ -276,10 +276,10 @@ public:
 
     const Value* find(Key k1, Key k2) const
     {
-        regularize_keys(k1, k2);
+        this->regularize_keys(k1, k2);
 
-        auto found1 = hash_map<Key, hash_map<Key, Value> >::find(k1);
-        if (found1 == end()) return NULL;
+        auto found1 = this->hash_map<Key, hash_map<Key, Value> >::find(k1);
+        if (found1 == this->end()) return NULL;
 
         auto found2 = found1->second.find(k2);
         return (found2 == found1->second.end()) ? NULL : &(found2->second);
@@ -295,15 +295,15 @@ template <class T> class pair_set_t : public hash_map<T, hash_set<T> >
 public:
     inline void insert(T x, T y)
     {
-        regularize(x, y);
+        this->regularize(x, y);
         (*this)[x].insert(y);
     }
 
     inline int count(T x, T y) const
     {
-        regularize(x, y);
-        auto found1 = find(x);
-        if (found1 == end()) return 0;
+        this->regularize(x, y);
+        auto found1 = this->find(x);
+        if (found1 == this->end()) return 0;
         auto found2 = found1->second.find(y);
         return (found2 == found1->second.end()) ? 0 : 1;
     }
