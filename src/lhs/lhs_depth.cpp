@@ -181,7 +181,7 @@ void depth_based_enumerator_t::enumerate_chain_candidates_sub(
         if (not do_include_requirement(graph, *it))
             _out.insert(pg::chain_candidate_t(*it, ax.id, !is_backward));
 
-        graph->erase_invalid_chain_candidates_with_coexistence(&_out, NULL);
+        graph->filter_invalid_chain_candidates_out(&_out);
         out->insert(_out.begin(), _out.end());
     }
 }

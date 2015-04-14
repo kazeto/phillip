@@ -226,6 +226,7 @@ void proof_graph_t::temporal_variables_t::clear()
 {
     postponed_unifications.clear();
     considered_unifications.clear();
+    coexistability_logs.clear();
     argument_set_ids.clear();
 }
 
@@ -322,9 +323,16 @@ bool proof_graph_t::check_availability_of_chain(
 }
 
 
-bool proof_graph_t::_check_nodes_coexistency(
+bool proof_graph_t::_check_nodes_coexistability(
     node_idx_t n1, node_idx_t n2, const unifier_t *uni) const
 {
+    // USES THE LOG ONLY IF uni == NULL.
+    if (uni == NULL)
+    {
+        const bool *log = m_temporal.coexistability_logs.find(n1, n2);
+        if (log != NULL) return (*log);
+    }
+    
     hash_set<edge_idx_t>
         e1(enumerate_dependent_edges(n1)),
         e2(enumerate_dependent_edges(n2));
@@ -341,7 +349,11 @@ bool proof_graph_t::_check_nodes_coexistency(
         auto muex_edges = found->second;
         if (has_intersection<hash_set<edge_idx_t>::const_iterator>(
             muex_edges.begin(), muex_edges.end(), e2.begin(), e2.end()))
+        {
+            if (uni == NULL)
+                m_temporal.coexistability_logs.insert(n1, n2, false);
             return false;
+        }
     }
 
     hash_set<node_idx_t> ns1, ns2;
@@ -364,7 +376,12 @@ bool proof_graph_t::_check_nodes_coexistency(
             if (uni2 != NULL)
             {
                 // n1 AND n2 ARE ALWAYS MUTUAL-EXCLUSIVE.
-                if (uni2->empty()) return false;
+                if (uni2->empty())
+                {
+                    if (uni == NULL)
+                        m_temporal.coexistability_logs.insert(n1, n2, false);
+                    return false;
+                }
 
                 // IF uni IS GIVEN, CHECKS UNIFIABILITY BETWEEN n1 AND n2.
                 // NAMELY, RETURNS FALSE IF THE UNIFICATION BETWEEN n1 AND n2
@@ -375,6 +392,8 @@ bool proof_graph_t::_check_nodes_coexistency(
         }
     }
 
+    if (uni == NULL)
+        m_temporal.coexistability_logs.insert(n1, n2, true);
     return true;
 }
 
@@ -1662,7 +1681,7 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
             // FILTERING WITH CO-EXISTENCY OF UNIFIED NODES
 #ifndef DISABLE_CANCELING
             if (unifiable)
-                unifiable = _check_nodes_coexistency(n1, n2, &unifier);
+                unifiable = _check_nodes_coexistability(n1, n2, &unifier);
 #endif
 
             if (unifiable and can_unify_nodes(n1, n2))

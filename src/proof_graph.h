@@ -389,9 +389,7 @@ public:
     /** Excludes nodes which includes any exclusive node pair.
      *  @param ptr_cands Pointer of container of chain_candidate_t. */
     template <class ContainerPtr>
-    void erase_invalid_chain_candidates_with_coexistence(
-        ContainerPtr ptr_cands,
-        hash_map<node_idx_t, hash_map<node_idx_t, bool> > *log) const;
+    void filter_invalid_chain_candidates_out(ContainerPtr ptr_cands) const;
 
     std::string hypernode2str(hypernode_idx_t i) const;
     std::string edge_to_string(edge_idx_t i) const;
@@ -515,7 +513,7 @@ protected:
     /** Returns whether given two nodes can coexistence in a hypothesis.
      *  @param uni The pointer of unifier between n1 and n2.
      *  @return Whether given nodes can coexist. */
-    bool _check_nodes_coexistency(
+    bool _check_nodes_coexistability(
         node_idx_t n1, node_idx_t n2, const unifier_t *uni = NULL) const;
 
     /** This is sub-routine of generate_unification_assumptions.
@@ -586,7 +584,8 @@ protected:
         *  KEY and VALUE express node pair, and KEY is less than VALUE. */
         pair_set_t<node_idx_t> considered_unifications;
 
-        triangular_matrix_t<node_idx_t, bool> coexistability_between_nodes; /// TODO
+        /** Used in _check_nodes_coexistability. */
+        mutable triangular_matrix_t<node_idx_t, bool> coexistability_logs;
 
         std::map<std::pair<pg::node_idx_t, term_idx_t>, unsigned long int> argument_set_ids;
     } m_temporal;

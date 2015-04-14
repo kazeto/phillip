@@ -339,9 +339,7 @@ proof_graph_t::find_variable_cluster( term_t t ) const
 
 
 template <class ContainerPtr>
-void proof_graph_t::erase_invalid_chain_candidates_with_coexistence(
-    ContainerPtr ptr_cands,
-    hash_map<node_idx_t, hash_map<node_idx_t, bool> > *log) const
+void proof_graph_t::filter_invalid_chain_candidates_out(ContainerPtr ptr_cands) const
 {
 #ifndef DISABLE_CANCELING
     for (auto it = ptr_cands->begin(); it != ptr_cands->end();)
@@ -353,26 +351,7 @@ void proof_graph_t::erase_invalid_chain_candidates_with_coexistence(
         // THE CHAIN FROM THEM IS INVALID.
         for (auto n1 = ns.begin(); n1 != ns.end() and is_valid; ++n1)
         for (auto n2 = ns.begin(); n2 != n1 and is_valid; ++n2)
-        {
-            if (log != NULL)
-            {
-                auto find1 = log->find(*n1);
-                if (find1 != log->end())
-                {
-                    auto find2 = find1->second.find(*n2);
-                    if (find2 != find1->second.end())
-                    {
-                        is_valid = find2->second;
-                        continue;
-                    }
-                }
-            }
-
-            bool can_coexist = _check_nodes_coexistency(*n1, *n2);
-            is_valid = can_coexist;
-            if (log != NULL)
-                (*log)[*n1][*n2] = (*log)[*n2][*n1] = can_coexist;
-        }
+            is_valid = _check_nodes_coexistability(*n1, *n2);
 
         if (is_valid) ++it;
         else it = ptr_cands->erase(it);
