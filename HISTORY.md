@@ -1,3 +1,40 @@
+# 2015/04/* (Phil.3.10)
+
+- Improved the performance of lhs::a_star_based_enumerator_t.
+- Changed the format of `req` statement in observations.
+    - Each argument must be a literal or a conjunction.
+    - If `req` statement has one argument, it is the gold label.
+    - If `req` statement has plural arguments, they are label candidates in some labeling task.
+      In this case, you can specify the gold label by adding the optional parameter `:gold`.
+    - Example:
+    ```lisp
+        ; Using -G option, Phillip searches the hypothesis which includes (p X) and (q Y).
+        (O (req (^ (p X) (q Y)))
+	   (^ ...))
+	; On default, Phillip searches the hypothesis which includes (p X) or (q Y).
+	; Using -G option, Phillip searches the hypothesis which includes (p X).
+	(O (req (p X :gold) (q Y))
+	   (^ ...))
+    ```
+- Modified `tools/out2html.py`.
+    - You can see the usage by `python tools/out2html.py -h`.
+- Modified some command options:
+| Before                                              | After                           |
+| --------------------------------------------------- |-------------------------------- |
+| `-m inference`                                      | `-m inference` or `-m infer`    |
+| `-m compile_kb`                                     | `-m compile_kb` or `-m compile` |
+| `-p path_out=<PATH>`                                | `-o <PATH>`                     |
+| `-p path_lhs_out=<PATH>`                            | `-o lhs=<PATH>`                 |
+| `-p path_ilp_out=<PATH>`                            | `-o ilp=<PATH>`                 |
+| `-p path_sol_out=<PATH>`                            | `-o sol=<PATH>`                 |
+| `-e <NAME>`                                         | `-t !<NAME>`                    |
+| `-o <NAME>`                                         | `-t <NAME>`                     |
+| `-P`                                                | `-G`                            |
+| `-p kb_thread_num=<INT> -p gurobi_thread_num=<INT>` | `-P <INT>`                      |
+| `-p kb_thread_num=<INT>`                            | `-P kb=<INT>`                   |
+| `-p gurobi_thread_num=<INT>`                        | `-P grb=<INT>`                  |
+
+
 # 2015/04/03 (Phil.3.00)
 
 - Added the function of Category-Table.
