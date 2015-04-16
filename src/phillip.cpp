@@ -98,14 +98,41 @@ void phillip_main_t::infer(const lf::input_t &input)
 
 void phillip_main_t::learn(const lf::input_t &input)
 {
+    auto get_path_for_gold = [this](const std::string &key) -> std::string
+    {
+        std::string path = param(key);
+        if (not path.empty())
+        {
+            int idx = path.rfind('.');
+            if (idx > 0)
+                path = path.substr(0, idx) + ".gold" + path.substr(idx);
+            else
+                path += ".gold";
+        }
+        return path;
+    };
+
     reset_for_inference();
     set_input(input);
 
     clock_t begin_infer(clock());
 
+    erase_flag("get_pseudo_positive");
+
     execute_enumerator();
     execute_convertor();
     execute_solver();
+
+    set_flag("get_pseudo_positive");
+
+    execute_convertor(
+        &m_ilp_gold, &m_clock_for_convert_gold,
+        get_path_for_gold("path_ilp_out"));
+    execute_solver(
+        &m_sol_gold, &m_clock_for_solve_gold,
+        get_path_for_gold("path_sol_out"));
+
+    m_ilp_convertor->tune(m_sol.front(), m_sol_gold.front());
 }
 
 

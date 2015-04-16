@@ -182,7 +182,7 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
             // ONE OF FOLLOWING CONDITIONS MUST BE SATISFIED:
             //   - ITS COST HAS BEEN PAID.
             //   - ONE OF ITS CHILDLEN NODES HAS BEEN HYPOTHESIZED.
-            //   - IT HAS BEEN UNIFIED WITH A NODE WHOSE COST IS LESS THAN IT.
+            //   - IT HAS BEEN UNIFIED WITH A NODE WHOSE COST IS LESS THAN IT AND IS NOT A REQUIREMENT.
 
             ilp::constraint_t cons(
                 format("cost-payment(n:%d)", n_idx), ilp::OPR_GREATER_EQ, 0.0);

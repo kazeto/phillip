@@ -306,8 +306,13 @@ bool logical_function_t::is_valid_as_requirements() const
     if (not is_operator(OPR_REQUIREMENT))
         return false;
 
+    size_t num_gold(0);
+
     for (auto br : branches())
     {
+        if (br.find_parameter("gold"))
+            num_gold += 1;
+
         if (br.is_operator(OPR_LITERAL))
             continue;
         else if (br.is_operator(OPR_AND))
@@ -319,6 +324,9 @@ bool logical_function_t::is_valid_as_requirements() const
         else
             return false;
     }
+
+    if (branches().size() > 1 and num_gold > 1)
+        return false;
 
     return true;
 }

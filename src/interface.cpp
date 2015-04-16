@@ -91,11 +91,8 @@ void ilp_converter_t::convert_proof_graph(ilp::ilp_problem_t *prob) const
             _check_timeout;
     }
 
-    if (phillip()->do_infer_pseudo_positive())
-    {
-        prob->add_variables_for_requirement(false);
-        _check_timeout;
-    }
+    prob->add_variables_for_requirement(false);
+    _check_timeout;
 
     prob->add_constraints_of_mutual_exclusions();
     _check_timeout;

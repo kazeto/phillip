@@ -162,7 +162,10 @@ private:
     // ---- FOR MEASURE TIME
     long m_clock_for_enumerate;
     long m_clock_for_convert;
+    long m_clock_for_convert_gold;
     long m_clock_for_solve;
+    long m_clock_for_solve_gold;
+    long m_clock_for_learn;
     long m_clock_for_infer;
 };
 

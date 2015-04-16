@@ -214,6 +214,18 @@ struct chain_candidate_t
 };
 
 
+struct requirement_t
+{
+    struct element_t
+    {
+        literal_t literal;
+        node_idx_t index;
+    };
+    std::list<element_t> conjunction;
+    bool is_gold;
+};
+
+
 /** A class to express proof-graph of latent-hypotheses-set. */
 class proof_graph_t
 {        
@@ -265,8 +277,7 @@ public:
     /** Returns a set of indices of observable nodes. */
     inline const hash_set<node_idx_t>& observation_indices() const;
 
-    inline const std::vector<std::list<
-        std::pair<literal_t, pg::node_idx_t> > >& requirements() const;
+    inline const std::vector<requirement_t>& requirements() const;
 
     std::list<std::tuple<node_idx_t, node_idx_t, unifier_t> >
         enumerate_mutual_exclusive_nodes() const;
@@ -550,7 +561,7 @@ protected:
     std::vector<edge_t> m_edges;
 
     hash_set<node_idx_t> m_observations; /// Indices of observation nodes.
-    std::vector<std::list<std::pair<literal_t, pg::node_idx_t> > > m_requirements;
+    std::vector<requirement_t> m_requirements;
 
     /** These are written in xml-file of output as attributes. */
     hash_map<std::string, std::string> m_attributes;

@@ -227,8 +227,7 @@ inline const hash_set<node_idx_t>& proof_graph_t::observation_indices() const
 }
 
 
-inline const std::vector<std::list<std::pair<literal_t, pg::node_idx_t> > >&
-proof_graph_t::requirements() const
+inline const std::vector<requirement_t>& proof_graph_t::requirements() const
 {
     return m_requirements;
 }

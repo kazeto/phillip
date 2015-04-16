@@ -216,7 +216,7 @@ public:
     /** Returns variables to be true in order to satisfy given requirement.
      *  To satisfy, at least one of variables returned should be true. */
     void enumerate_variables_for_requirement(
-        const std::pair<literal_t, pg::node_idx_t> &req,
+        const pg::requirement_t::element_t &req,
         hash_set<variable_idx_t> *out) const;
     void add_variables_for_requirement(bool do_maximize);
 
@@ -373,8 +373,7 @@ public:
         hash_set<constraint_idx_t> *filtered) const;
 
     /** Check whether this satisfy given requirement. */
-    bool do_satisfy_requirement(
-        const std::pair<literal_t, pg::node_idx_t> &req) const;
+    bool do_satisfy_requirement(const pg::requirement_t::element_t &req) const;
 
     std::string to_string() const;
     void print(std::ostream *os = &std::cout) const;
