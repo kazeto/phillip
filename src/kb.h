@@ -150,9 +150,9 @@ public:
     inline const unification_postponement_t* find_unification_postponement(arity_id_t arity) const;
     inline const unification_postponement_t* find_unification_postponement(const arity_t &arity) const;
     argument_set_id_t search_argument_set_id(const std::string &arity, int term_idx) const;
-    void search_queries(arity_id_t arity, std::list<search_query_t> *out) const;
+    void search_queries(arity_id_t arity, std::list<arity_pattern_t> *out) const;
     void search_axioms_with_query(
-        const search_query_t &query,
+        const arity_pattern_t &query,
         std::list<std::pair<axiom_id_t, bool> > *out) const;
 
     void set_distance_provider(const std::string &key);
@@ -451,8 +451,8 @@ protected:
 }
 
 
-void query_to_binary(const search_query_t &q, std::vector<char> *bin);
-size_t binary_to_query(const char *bin, search_query_t *out);
+void query_to_binary(const arity_pattern_t &q, std::vector<char> *bin);
+size_t binary_to_query(const char *bin, arity_pattern_t *out);
 
 inline knowledge_base_t* kb() { return knowledge_base_t::instance(); }
 

@@ -55,12 +55,28 @@ class knowledge_base_t;
 
 typedef unsigned long int argument_set_id_t;
 typedef size_t arity_id_t;
-typedef std::pair<arity_id_t, char> term_pos_t;
 
+typedef std::pair<index_t, term_idx_t> term_pos_t;
 typedef std::tuple<
-    std::list<arity_id_t>,
+    std::vector<arity_id_t>,
     std::list<std::pair<term_pos_t, term_pos_t> >,
-    std::list<char> > search_query_t;
+    std::list<small_size_t> > arity_pattern_t;
+
+inline const std::vector<arity_id_t>& arities(const arity_pattern_t &p)
+{
+    return std::get<0>(p);
+}
+
+inline const std::list<std::pair<term_pos_t, term_pos_t> >& hard_terms(const arity_pattern_t &p)
+{
+    return std::get<1>(p);
+}
+
+inline const std::list<small_size_t> soft_unifiable_literal_indices(const arity_pattern_t &p)
+{
+    return std::get<2>(p);
+}
+
 }
 
 namespace pg

@@ -603,7 +603,7 @@ search_argument_set_id(const std::string &arity, int term_idx) const
 }
 
 
-void knowledge_base_t::search_queries(arity_id_t arity, std::list<search_query_t> *out) const
+void knowledge_base_t::search_queries(arity_id_t arity, std::list<arity_pattern_t> *out) const
 {
     if (not m_cdb_arity_to_queries.is_readable())
     {
@@ -619,7 +619,7 @@ void knowledge_base_t::search_queries(arity_id_t arity, std::list<search_query_t
     {
         size_t num_query, read_size(0);
         read_size += binary_to<size_t>(value, &num_query);
-        out->assign(num_query, search_query_t());
+        out->assign(num_query, arity_pattern_t());
 
         for (auto it = out->begin(); it != out->end(); ++it)
             read_size += binary_to_query(value + read_size, &(*it));
@@ -628,7 +628,7 @@ void knowledge_base_t::search_queries(arity_id_t arity, std::list<search_query_t
 
 
 void knowledge_base_t::search_axioms_with_query(
-    const search_query_t &query,
+    const arity_pattern_t &query,
     std::list<std::pair<axiom_id_t, bool> > *out) const
 {
     if (not m_cdb_query_to_ids.is_readable())
@@ -934,38 +934,31 @@ void knowledge_base_t::create_query_map()
     m_cdb_rhs.prepare_query();
     m_cdb_lhs.prepare_query();
 
-    std::map<arity_id_t, std::set<search_query_t> > arity_to_queries;
-    std::map<search_query_t, std::set< std::pair<axiom_id_t, bool> > > query_to_ids;
+    std::map<arity_id_t, std::set<arity_pattern_t> > arity_to_queries;
+    std::map<arity_pattern_t, std::set< std::pair<axiom_id_t, bool> > > query_to_ids;
 
     auto proc = [this, &query_to_ids, &arity_to_queries](
         const lf::axiom_t &ax, bool is_backward)
     {
         std::vector<const lf::logical_function_t*> branches;
-        std::list<std::string> arities;
         hash_map<string_hash_t, std::set<std::pair<arity_id_t, char> > > term2arity;
+        arity_pattern_t query;
 
         ax.func.branch(is_backward ? 1 : 0).enumerate_literal_branches(&branches);
 
-        for (auto br : branches)
+        for (index_t i = 0; i < branches.size(); ++i)
         {
-            const literal_t &lit = br->literal();
+            const literal_t &lit = branches[i]->literal();
             std::string arity = lit.get_arity();
             arity_id_t idx = search_arity_id(arity);
+
             assert(idx != INVALID_ARITY_ID);
-            arities.push_back(arity);
+            std::get<0>(query).push_back(idx);
 
             for (int i_t = 0; i_t < lit.terms.size(); ++i_t)
             if (lit.terms.at(i_t).is_hard_term())
-                term2arity[lit.terms.at(i_t)].insert(std::make_pair(idx, (char)i_t));
+                term2arity[lit.terms.at(i_t)].insert(std::make_pair(i, (char)i_t));
         }
-
-        search_query_t query;
-        for (auto a : arities)
-        {
-            arity_id_t idx = search_arity_id(a);
-            std::get<0>(query).push_back(idx);
-        }
-        std::get<0>(query).sort();
 
         for (auto e : term2arity)
         {
@@ -981,12 +974,9 @@ void knowledge_base_t::create_query_map()
 
         query_to_ids[query].insert(std::make_pair(ax.id, is_backward));
 
-        for (auto a : arities)
-        if (m_stop_words.count(a) == 0)
-        {
-            arity_id_t idx = search_arity_id(a);
+        for (auto idx : std::get<0>(query))
+        if (m_stop_words.count(search_arity(idx)) == 0)
             arity_to_queries[idx].insert(query);
-        }
     };
 
     for (axiom_id_t i = 0; i < m_axioms.num_axioms(); ++i)
@@ -2175,7 +2165,7 @@ void basic_category_table_t::read(const std::string &filename)
 }
 
 
-void query_to_binary(const search_query_t &q, std::vector<char> *bin)
+void query_to_binary(const arity_pattern_t &q, std::vector<char> *bin)
 {
     size_t size_expected =
         sizeof(unsigned char) * 3 +
@@ -2206,7 +2196,7 @@ void query_to_binary(const search_query_t &q, std::vector<char> *bin)
 };
 
 
-size_t binary_to_query(const char *bin, search_query_t *out)
+size_t binary_to_query(const char *bin, arity_pattern_t *out)
 {
     size_t size(0);
     int num_arity, num_hardterm, num_option;

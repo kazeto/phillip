@@ -1492,20 +1492,19 @@ proof_graph_t::enumerate_mutual_exclusive_edges() const
 
 
 void proof_graph_t::enumerate_queries_for_knowledge_base(
-    node_idx_t pivot, std::list<kb::search_query_t> *out) const
+    node_idx_t pivot, std::list<kb::arity_pattern_t> *out) const
 {
     const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
 
-    std::list<kb::search_query_t> queries;
+    std::list<kb::arity_pattern_t> queries;
     base->search_queries(node(pivot).arity_id(), &queries);
 
     for (auto q : queries)
     {
-        std::vector<kb::arity_id_t> arities(std::get<0>(q).begin(), std::get<0>(q).end());
         hash_map<kb::arity_id_t, int> arity_count;
         hash_map<kb::arity_id_t, hash_set<node_idx_t> > a2ns;
 
-        for (auto a : arities)
+        for (auto a : kb::arities(q))
         {
             auto found = arity_count.find(a);
             if (found == arity_count.end()) arity_count[a] = 1;
@@ -1528,7 +1527,7 @@ void proof_graph_t::enumerate_queries_for_knowledge_base(
         // ADD NODES WHICH ARE SOFT-UNIFIABLE TO a2ns
         for (auto i : std::get<2>(q))
         {
-            kb::arity_id_t a = arities.at(i);
+            kb::arity_id_t a = kb::arities(q).at(i);
             hash_set<node_idx_t> ns;
 
             enumerate_nodes_softly_unifiable(kb::kb()->search_arity(a), &ns);

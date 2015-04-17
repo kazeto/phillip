@@ -285,7 +285,7 @@ public:
     std::list<hash_set<edge_idx_t> > enumerate_mutual_exclusive_edges() const;
 
     /** Returns queries for getting axioms around pivot node. */
-    void enumerate_queries_for_knowledge_base(node_idx_t pivot, std::list<kb::search_query_t> *out) const;
+    void enumerate_queries_for_knowledge_base(node_idx_t pivot, std::list<kb::arity_pattern_t> *out) const;
 
     /** Return pointer of unifier for mutual-exclusiveness between given nodes.
      *  If not found, return NULL. */

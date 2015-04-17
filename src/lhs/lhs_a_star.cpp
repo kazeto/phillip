@@ -222,7 +222,7 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
 
     std::set<std::pair<axiom_id_t, bool> > axioms;
     {
-        std::list<kb::search_query_t> queries;
+        std::list<kb::arity_pattern_t> queries;
         graph->enumerate_queries_for_knowledge_base(pivot, &queries);
 
         for (auto q : queries)
