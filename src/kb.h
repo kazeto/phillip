@@ -321,7 +321,7 @@ private:
 
     cdb_data_t m_cdb_rhs, m_cdb_lhs;
     cdb_data_t m_cdb_axiom_group, m_cdb_arg_set;
-    cdb_data_t m_cdb_arity_to_queries, m_cdb_query_to_ids;
+    cdb_data_t m_cdb_arity_patterns, m_cdb_pattern_to_ids;
     axioms_database_t m_axioms;
     arity_database_t m_arity_db;
     reachable_matrix_t m_rm;

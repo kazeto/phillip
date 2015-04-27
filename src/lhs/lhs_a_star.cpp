@@ -128,7 +128,7 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
     std::set<pg::chain_candidate_t> *out) const
 {
     auto enumerate_chain_candidates = [this](
-        const pg::proof_graph_t *graph, const lf::axiom_t &ax, bool is_backward,
+        const pg::proof_graph_t *graph, const kb::arity_pattern_t &pat,
         pg::node_idx_t target, std::set<pg::chain_candidate_t> *out)
     {
         auto enumerate_nodes_array_with_arities = [this](
@@ -193,24 +193,25 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
         std::vector<const lf::logical_function_t*> branches;
         std::vector<arity_t> arities;
 
-        ax.func.branch(is_backward ? 1 : 0).enumerate_literal_branches(&branches);
-
-        for (auto br : branches)
-        if (not br->literal().is_equality())
-            arities.push_back(br->literal().get_arity());
+        for (auto id : kb::arities(pat))
+            arities.push_back(kb::kb()->search_arity(id));
 
         if (not arities.empty())
         {
             std::list<std::vector<pg::node_idx_t> > targets =
                 enumerate_nodes_array_with_arities(graph, arities, target);
             std::set<pg::chain_candidate_t> _out;
+            std::list<std::pair<axiom_id_t, bool> > axs; // <AXIOM_ID, IS_BACKWARD>
 
-            for (auto it = targets.begin(); it != targets.end(); ++it)
-            if (not do_include_requirement(graph, *it))
-                _out.insert(pg::chain_candidate_t(*it, ax.id, !is_backward));
+            kb::kb()->search_axioms_with_query(pat, &axs);
 
-            graph->filter_invalid_chain_candidates_out(&_out);
-            out->insert(_out.begin(), _out.end());
+            for (auto nodes : targets)
+            {
+                if (not do_include_requirement(graph, nodes))
+                if (graph->check_nodes_coexistability(nodes.begin(), nodes.end()))
+                for (auto ax : axs)
+                    out->insert(pg::chain_candidate_t(nodes, ax.first, !ax.second));
+            }
         }
     };
 
@@ -220,25 +221,13 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
         graph->node(pivot).depth() >= m_max_depth)
         return;
 
-    std::set<std::pair<axiom_id_t, bool> > axioms;
+    std::list<kb::arity_pattern_t> queries;
+    graph->enumerate_arity_patterns(pivot, &queries);
+
+    for (auto q : queries)
     {
-        std::list<kb::arity_pattern_t> queries;
-        graph->enumerate_queries_for_knowledge_base(pivot, &queries);
-
-        for (auto q : queries)
-        {
-            std::list<std::pair<axiom_id_t, bool> > axs;
-            base->search_axioms_with_query(q, &axs);
-            axioms.insert(axs.begin(), axs.end());
-        }
-    }
-
-    for (auto it = axioms.begin(); it != axioms.end(); ++it)
-    {
-        lf::axiom_t axiom = base->get_axiom(it->first);
-        bool is_backward(it->second);
-
-        enumerate_chain_candidates(graph, axiom, is_backward, pivot, out);
+        std::list<std::pair<axiom_id_t, bool> > axs; // <AXIOM_ID, IS_BACKWARD>
+        base->search_axioms_with_query(q, &axs);
     }
 }
 

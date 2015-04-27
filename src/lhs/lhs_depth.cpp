@@ -177,12 +177,10 @@ void depth_based_enumerator_t::enumerate_chain_candidates_sub(
             enumerate_nodes_array_with_arities(graph, arities, depth);
         std::set<pg::chain_candidate_t> _out;
 
-        for (auto it = targets.begin(); it != targets.end(); ++it)
-        if (not do_include_requirement(graph, *it))
-            _out.insert(pg::chain_candidate_t(*it, ax.id, !is_backward));
-
-        graph->filter_invalid_chain_candidates_out(&_out);
-        out->insert(_out.begin(), _out.end());
+        for (auto nodes : targets)
+        if (not do_include_requirement(graph, nodes))
+        if (graph->check_nodes_coexistability(nodes.begin(), nodes.end()))
+            out->insert(pg::chain_candidate_t(nodes, ax.id, !is_backward));
     }
 }
 

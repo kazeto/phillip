@@ -1491,7 +1491,7 @@ proof_graph_t::enumerate_mutual_exclusive_edges() const
 }
 
 
-void proof_graph_t::enumerate_queries_for_knowledge_base(
+void proof_graph_t::enumerate_arity_patterns(
     node_idx_t pivot, std::list<kb::arity_pattern_t> *out) const
 {
     const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();

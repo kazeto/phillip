@@ -150,8 +150,8 @@ knowledge_base_t::knowledge_base_t(const std::string &filename)
       m_cdb_lhs(filename + ".lhs.cdb"),
       m_cdb_axiom_group(filename + ".group.cdb"),
       m_cdb_arg_set(filename + ".args.cdb"),
-      m_cdb_arity_to_queries(filename + ".pattern.cdb"),
-      m_cdb_query_to_ids(filename + ".search.cdb"),
+      m_cdb_arity_patterns(filename + ".pattern.cdb"),
+      m_cdb_pattern_to_ids(filename + ".search.cdb"),
       m_axioms(filename),
       m_arity_db(filename + ".arity.dat"),
       m_rm(filename + ".rm.dat")
@@ -192,8 +192,8 @@ void knowledge_base_t::prepare_compile()
         m_cdb_lhs.prepare_compile();
         m_cdb_axiom_group.prepare_compile();
         m_cdb_arg_set.prepare_compile();
-        m_cdb_arity_to_queries.prepare_compile();
-        m_cdb_query_to_ids.prepare_compile();
+        m_cdb_arity_patterns.prepare_compile();
+        m_cdb_pattern_to_ids.prepare_compile();
         m_category_table.instance->prepare_compile(this);
 
         m_state = STATE_COMPILE;
@@ -226,8 +226,8 @@ void knowledge_base_t::prepare_query()
         m_cdb_lhs.prepare_query();
         m_cdb_axiom_group.prepare_query();
         m_cdb_arg_set.prepare_query();
-        m_cdb_arity_to_queries.prepare_query();
-        m_cdb_query_to_ids.prepare_query();
+        m_cdb_arity_patterns.prepare_query();
+        m_cdb_pattern_to_ids.prepare_query();
         m_rm.prepare_query();
         m_category_table.instance->prepare_query(this);
 
@@ -316,8 +316,8 @@ void knowledge_base_t::finalize()
     m_cdb_lhs.finalize();
     m_cdb_axiom_group.finalize();
     m_cdb_arg_set.finalize();
-    m_cdb_arity_to_queries.finalize();
-    m_cdb_query_to_ids.finalize();
+    m_cdb_arity_patterns.finalize();
+    m_cdb_pattern_to_ids.finalize();
     m_rm.finalize();
     m_category_table.instance->finalize();
 
@@ -605,7 +605,7 @@ search_argument_set_id(const std::string &arity, int term_idx) const
 
 void knowledge_base_t::search_queries(arity_id_t arity, std::list<arity_pattern_t> *out) const
 {
-    if (not m_cdb_arity_to_queries.is_readable())
+    if (not m_cdb_arity_patterns.is_readable())
     {
         print_warning("kb-search: Kb-state is invalid.");
         return;
@@ -613,7 +613,7 @@ void knowledge_base_t::search_queries(arity_id_t arity, std::list<arity_pattern_
 
     size_t value_size;
     const char *value = (const char*)
-        m_cdb_arity_to_queries.get(&arity, sizeof(arity_id_t), &value_size);
+        m_cdb_arity_patterns.get(&arity, sizeof(arity_id_t), &value_size);
 
     if (value != NULL)
     {
@@ -631,7 +631,7 @@ void knowledge_base_t::search_axioms_with_query(
     const arity_pattern_t &query,
     std::list<std::pair<axiom_id_t, bool> > *out) const
 {
-    if (not m_cdb_query_to_ids.is_readable())
+    if (not m_cdb_pattern_to_ids.is_readable())
     {
         print_warning("kb-search: Kb-state is invalid.");
         return;
@@ -642,7 +642,7 @@ void knowledge_base_t::search_axioms_with_query(
 
     size_t value_size;
     const char *value = (const char*)
-        m_cdb_query_to_ids.get(&key[0], key.size(), &value_size);
+        m_cdb_pattern_to_ids.get(&key[0], key.size(), &value_size);
 
     if (value != NULL)
     {
@@ -928,16 +928,16 @@ void knowledge_base_t::set_stop_words()
 
 void knowledge_base_t::create_query_map()
 {
-    print_console("Creating the query map...");
+    print_console("Creating the arity patterns...");
 
     m_axioms.prepare_query();
     m_cdb_rhs.prepare_query();
     m_cdb_lhs.prepare_query();
 
     std::map<arity_id_t, std::set<arity_pattern_t> > arity_to_queries;
-    std::map<arity_pattern_t, std::set< std::pair<axiom_id_t, bool> > > query_to_ids;
+    std::map<arity_pattern_t, std::set< std::pair<axiom_id_t, bool> > > pattern_to_ids;
 
-    auto proc = [this, &query_to_ids, &arity_to_queries](
+    auto proc = [this, &pattern_to_ids, &arity_to_queries](
         const lf::axiom_t &ax, bool is_backward)
     {
         std::vector<const lf::logical_function_t*> branches;
@@ -972,7 +972,7 @@ void knowledge_base_t::create_query_map()
         if (do_target_on_category_table(branches[i]->literal().get_arity()))
             std::get<2>(query).push_back(i);
 
-        query_to_ids[query].insert(std::make_pair(ax.id, is_backward));
+        pattern_to_ids[query].insert(std::make_pair(ax.id, is_backward));
 
         for (auto idx : std::get<0>(query))
         if (m_stop_words.count(search_arity(idx)) == 0)
@@ -998,8 +998,8 @@ void knowledge_base_t::create_query_map()
         }
     }
 
-    m_cdb_arity_to_queries.prepare_compile();
-    print_console("  Writing " + m_cdb_arity_to_queries.filename() + "...");
+    m_cdb_arity_patterns.prepare_compile();
+    print_console("  Writing " + m_cdb_arity_patterns.filename() + "...");
 
     for (auto p : arity_to_queries)
     {
@@ -1026,20 +1026,19 @@ void knowledge_base_t::create_query_map()
         }
 
         assert(size == size_value);
-        m_cdb_arity_to_queries.put(
+        m_cdb_arity_patterns.put(
             (char*)(&p.first), sizeof(arity_id_t), value, size_value);
 
         delete[] value;
     }
 
-    print_console("  Completed writing " + m_cdb_arity_to_queries.filename() + ".");
-    m_cdb_query_to_ids.prepare_compile();
-    print_console("  Writing " + m_cdb_query_to_ids.filename() + "...");
+    print_console("  Completed writing " + m_cdb_arity_patterns.filename() + ".");
+    m_cdb_pattern_to_ids.prepare_compile();
+    print_console("  Writing " + m_cdb_pattern_to_ids.filename() + "...");
 
-    for (auto p : query_to_ids)
+    for (auto p : pattern_to_ids)
     {
         std::vector<char> key, val;
-
         query_to_binary(p.first, &key);
 
         size_t size_val = sizeof(size_t) + (sizeof(axiom_id_t) + sizeof(char)) * p.second.size();
@@ -1053,12 +1052,12 @@ void knowledge_base_t::create_query_map()
         }
         assert(size == size_val);
 
-        m_cdb_query_to_ids.put(&key[0], key.size(), &val[0], val.size());
+        m_cdb_pattern_to_ids.put(&key[0], key.size(), &val[0], val.size());
     }
 
-    print_console_fmt("    # of queries = %d", query_to_ids.size());
-    print_console("  Completed writing " + m_cdb_query_to_ids.filename() + ".");
-    print_console("Completed the query map creation.");
+    print_console_fmt("    # of patterns = %d", pattern_to_ids.size());
+    print_console("  Completed writing " + m_cdb_pattern_to_ids.filename() + ".");
+    print_console("Completed the arity patterns creation.");
 }
 
 

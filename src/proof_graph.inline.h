@@ -337,24 +337,17 @@ proof_graph_t::find_variable_cluster( term_t t ) const
 }
 
 
-template <class ContainerPtr>
-void proof_graph_t::filter_invalid_chain_candidates_out(ContainerPtr ptr_cands) const
+template <class IterNodesArray>
+bool proof_graph_t::check_nodes_coexistability(IterNodesArray begin, IterNodesArray end) const
 {
-#ifndef DISABLE_CANCELING
-    for (auto it = ptr_cands->begin(); it != ptr_cands->end();)
-    {
-        bool is_valid(true);
-        const std::vector<node_idx_t> &ns = it->nodes;
-
-        // IF ANY PAIR OF NODES IN EVIDENCE CANNOT CO-EXIST,
-        // THE CHAIN FROM THEM IS INVALID.
-        for (auto n1 = ns.begin(); n1 != ns.end() and is_valid; ++n1)
-        for (auto n2 = ns.begin(); n2 != n1 and is_valid; ++n2)
-            is_valid = _check_nodes_coexistability(*n1, *n2);
-
-        if (is_valid) ++it;
-        else it = ptr_cands->erase(it);
-    }
+#ifdef DISABLE_CANCELING
+    return true;
+#else
+    for (auto n1 = begin; n1 != end; ++n1)
+    for (auto n2 = begin; n2 != n1; ++n2)
+    if (not _check_nodes_coexistability(*n1, *n2))
+        return false;
+    return true;
 #endif
 }
 

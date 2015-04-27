@@ -285,7 +285,7 @@ public:
     std::list<hash_set<edge_idx_t> > enumerate_mutual_exclusive_edges() const;
 
     /** Returns queries for getting axioms around pivot node. */
-    void enumerate_queries_for_knowledge_base(node_idx_t pivot, std::list<kb::arity_pattern_t> *out) const;
+    void enumerate_arity_patterns(node_idx_t pivot, std::list<kb::arity_pattern_t> *out) const;
 
     /** Return pointer of unifier for mutual-exclusiveness between given nodes.
      *  If not found, return NULL. */
@@ -397,10 +397,9 @@ public:
         pg::edge_idx_t idx,
         hash_set<node_idx_t> *subs1, hash_set<node_idx_t> *subs2) const;
 
-    /** Excludes nodes which includes any exclusive node pair.
-     *  @param ptr_cands Pointer of container of chain_candidate_t. */
-    template <class ContainerPtr>
-    void filter_invalid_chain_candidates_out(ContainerPtr ptr_cands) const;
+    /** Returns whether nodes in given array can coexist. */
+    template <class IterNodesArray>
+    bool check_nodes_coexistability(IterNodesArray begin, IterNodesArray end) const;
 
     std::string hypernode2str(hypernode_idx_t i) const;
     std::string edge_to_string(edge_idx_t i) const;
