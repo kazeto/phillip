@@ -217,7 +217,8 @@ inline const std::vector< std::vector<node_idx_t> >&
 inline const std::vector<node_idx_t>&
 proof_graph_t::hypernode(hypernode_idx_t i) const
 {
-    return m_hypernodes.at(i);
+    static const std::vector<node_idx_t> empty;
+    return (i >= 0) ? m_hypernodes.at(i) : empty;
 }
 
 
