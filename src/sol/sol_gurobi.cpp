@@ -48,19 +48,24 @@ void gurobi_t::solve(
     std::vector<ilp::ilp_solution_t> *out) const
 {
 #ifdef USE_GUROBI
-    auto get_timeout = [this](int passed) -> double
+    auto begin = std::chrono::system_clock::now();
+    auto get_timeout = [&begin, this]() -> double
     {
+        duration_time_t passed = duration_time(begin);
         double t_o_sol(-1), t_o_all(-1);
 
         if (phillip() != NULL)
         {
-            if (phillip()->timeout_sol() > 0)
-                t_o_sol = std::max<double>(0.01, phillip()->timeout_sol() - passed);
-            if (phillip()->timeout_all() > 0)
+            if (not phillip()->timeout_sol().empty())
+                t_o_sol = std::max<double>(
+                0.01,
+                phillip()->timeout_sol().get() - passed);
+            if (not phillip()->timeout_all().empty())
                 t_o_all = std::max<double>(
                 0.01,
-                phillip()->timeout_all()
-                - phillip()->get_time_for_lhs() - phillip()->get_time_for_ilp()
+                phillip()->timeout_all().get()
+                - phillip()->get_time_for_lhs()
+                - phillip()->get_time_for_ilp()
                 - passed);
         }
 
@@ -79,7 +84,6 @@ void gurobi_t::solve(
     hash_map<ilp::variable_idx_t, GRBVar> vars;
     hash_set<ilp::constraint_idx_t>
         lazy_cons(prob->get_lazy_constraints());
-    std::time_t begin, now;
     g_mutex_gurobi.unlock();
 
     bool do_cpi(not lazy_cons.empty());
@@ -87,15 +91,13 @@ void gurobi_t::solve(
     if (phillip()->flag("disable_cpi"))
         do_cpi = false;
 
-    std::time(&begin);
     add_variables(prob, &model, &vars);
 
     for (int i = 0; i < prob->constraints().size(); ++i)
     if (lazy_cons.count(i) == 0 or not do_cpi)
         add_constraint(prob, &model, i, vars);
 
-    double timeout = get_timeout(0);
-
+    double timeout = get_timeout();
     GRBEXECUTE(
         model.update();
         model.set(
@@ -161,21 +163,14 @@ void gurobi_t::solve(
 
             if (not do_break and phillip() != NULL)
             {
-                std::time(&now);
-                int passed(now - begin);
-                int passed_all(
-                    phillip()->get_time_for_lhs() +
-                    phillip()->get_time_for_ilp() + passed);
-
-                if (phillip()->is_timeout_sol(passed)
-                    or phillip()->is_timeout_all(passed_all))
+                if (do_time_out(begin))
                 {
                     sol.timeout(true);
                     do_break = true;
                 }
                 else
                 {
-                    double t_o = get_timeout(passed);
+                    double t_o = get_timeout();
                     if (t_o > 0.0)
                         GRBEXECUTE(model.getEnv().set(GRB_DoubleParam_TimeLimit, t_o););
                 }

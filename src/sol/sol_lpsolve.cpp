@@ -32,9 +32,8 @@ void lp_solve_t::solve(
 #ifdef USE_LP_SOLVE
     std::vector<double> vars(prob->variables().size(), 0);
     ::lprec *rec(NULL);
-    std::time_t begin, now;
 
-    std::time(&begin);
+    auto begin = std::chrono::system_clock::now();
     initialize(prob, &rec);
     
     int ret = ::solve(rec);
@@ -51,13 +50,7 @@ void lp_solve_t::solve(
 
     if (phillip() != NULL)
     {
-        std::time(&now);
-        int t_sol(now - begin);
-        int t_all(
-            phillip()->get_time_for_lhs() +
-            phillip()->get_time_for_ilp() + t_sol);
-
-        if (phillip()->is_timeout_sol(t_sol) or phillip()->is_timeout_all(t_all))
+        if (do_time_out(begin))
             is_timeout = true;
     }
 
@@ -136,8 +129,8 @@ void lp_solve_t::initialize(const ilp::ilp_problem_t *prob, ::lprec **rec) const
         ::set_maxim(*rec) : ::set_minim(*rec);
 
     if (phillip() != NULL)
-    if (phillip()->timeout_sol() > 0)
-        ::set_timeout(*rec, phillip()->timeout_sol());
+    if (not phillip()->timeout_sol().empty())
+        ::set_timeout(*rec, phillip()->timeout_sol().get());
     
     ::set_outputfile(*rec, "");
     ::put_logfunc(*rec, lp_handler, NULL);

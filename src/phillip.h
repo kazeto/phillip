@@ -4,6 +4,7 @@
 
 #include <string>
 #include <map>
+#include <chrono>
 
 #include "./kb.h"
 #include "./interface.h"
@@ -60,10 +61,10 @@ public:
     inline void set_ilp_convertor(ilp_converter_t*);
     inline void set_ilp_solver(ilp_solver_t*);
 
-    inline void set_timeout_lhs(int t);
-    inline void set_timeout_ilp(int t);
-    inline void set_timeout_sol(int t);
-    inline void set_timeout_all(int t);
+    inline void set_timeout_lhs(duration_time_t t) { m_timeout_lhs.set(t); }
+    inline void set_timeout_ilp(duration_time_t t) { m_timeout_ilp.set(t); }
+    inline void set_timeout_sol(duration_time_t t) { m_timeout_sol.set(t); }
+    inline void set_timeout_all(duration_time_t t) { m_timeout_all.set(t); }
 
     inline void set_param(const std::string &key, const std::string &param);
     inline void erase_param(const std::string &key);
@@ -78,14 +79,10 @@ public:
     inline const ilp::ilp_problem_t* get_ilp_problem() const;
     inline const std::vector<ilp::ilp_solution_t>& get_solutions() const;
 
-    inline int timeout_lhs() const;
-    inline int timeout_ilp() const;
-    inline int timeout_sol() const;
-    inline int timeout_all() const;
-    inline bool is_timeout_lhs(int sec) const;
-    inline bool is_timeout_ilp(int sec) const;
-    inline bool is_timeout_sol(int sec) const;
-    inline bool is_timeout_all(int sec) const;
+    inline const timeout_t& timeout_lhs() const { return m_timeout_lhs; }
+    inline const timeout_t& timeout_ilp() const { return m_timeout_ilp; }
+    inline const timeout_t& timeout_sol() const { return m_timeout_sol; }
+    inline const timeout_t& timeout_all() const { return m_timeout_all; }
 
     inline const hash_map<std::string, std::string>& params() const;
     inline const std::string& param(const std::string &key) const;
@@ -95,11 +92,6 @@ public:
     inline const hash_set<std::string>& flags() const;
     inline bool flag(const std::string &key) const;
     inline bool do_infer_pseudo_positive() const;
-
-    inline const long& get_clock_for_lhs()  const;
-    inline const long& get_clock_for_ilp()  const;
-    inline const long& get_clock_for_sol()  const;
-    inline const long& get_clock_for_infer() const;
 
     inline float get_time_for_lhs()  const;
     inline float get_time_for_ilp()  const;
@@ -126,13 +118,14 @@ protected:
     inline void execute_solver();
     
     void execute_enumerator(
-        pg::proof_graph_t **out_lhs, long *out_clock,
+        pg::proof_graph_t **out_lhs, duration_time_t *out_time,
         const std::string &path_out_xml);
     void execute_convertor(
-        ilp::ilp_problem_t **out_ilp, long *out_clock,
+        ilp::ilp_problem_t **out_ilp, duration_time_t *out_time,
         const std::string &path_out_xml);
     void execute_solver(
-        std::vector<ilp::ilp_solution_t> *out_sols, long *out_clock,
+        std::vector<ilp::ilp_solution_t> *out_sols,
+        duration_time_t *out_clock,
         const std::string &path_out_xml);
 
 private:
@@ -146,7 +139,7 @@ private:
     // ---- DATA, SETTING, ETC...
     hash_map<std::string, std::string> m_params;
     hash_set<std::string> m_flags;
-    int  m_timeout_lhs, m_timeout_ilp, m_timeout_sol, m_timeout_all;
+    timeout_t m_timeout_lhs, m_timeout_ilp, m_timeout_sol, m_timeout_all;
     
     hash_set<std::string> m_target_obs_names;
     hash_set<std::string> m_excluded_obs_names;
@@ -160,13 +153,11 @@ private:
     std::vector<ilp::ilp_solution_t> m_sol_gold;
 
     // ---- FOR MEASURE TIME
-    long m_clock_for_enumerate;
-    long m_clock_for_convert;
-    long m_clock_for_convert_gold;
-    long m_clock_for_solve;
-    long m_clock_for_solve_gold;
-    long m_clock_for_learn;
-    long m_clock_for_infer;
+    duration_time_t
+        m_time_for_enumerate,
+        m_time_for_convert, m_time_for_convert_gold,
+        m_time_for_solve, m_time_for_solve_gold,
+        m_time_for_learn, m_time_for_infer;
 };
 
 

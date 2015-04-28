@@ -8,6 +8,7 @@
 #include <cstdarg>
 #include <cstdlib>
 #include <ctime>
+#include <chrono>
 #include <sys/stat.h>
 #include <iostream>
 #include <vector>
@@ -48,6 +49,7 @@ typedef long int axiom_id_t;
 typedef small_size_t term_idx_t;
 typedef std::string predicate_t;
 typedef std::string arity_t;
+typedef float duration_time_t;
 
 namespace kb
 {
@@ -200,6 +202,24 @@ public:
 
 private:
     inline void regularize();
+};
+
+
+class timeout_t
+{
+public:
+    timeout_t() : m_time(-1.0f) {}
+    timeout_t(duration_time_t t) : m_time(t) {}
+
+    inline void set(duration_time_t t) { m_time = t; }
+    inline duration_time_t get() const { return m_time; }
+
+    inline bool empty() const { return m_time <= 0.0f; }
+    inline bool do_time_out(duration_time_t duration) const;
+    inline bool do_time_out(const std::chrono::system_clock::time_point &begin) const;
+
+private:
+    duration_time_t m_time;
 };
 
 
@@ -362,6 +382,8 @@ public:
 
 /** Call this function on starting phillip. */
 void initialize();
+
+duration_time_t duration_time(const std::chrono::system_clock::time_point &begin);
 
 inline void print_console(const std::string &str);
 inline void print_error(const std::string &str);

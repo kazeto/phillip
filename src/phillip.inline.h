@@ -86,93 +86,65 @@ inline void phillip_main_t::set_ilp_solver(ilp_solver_t *ptr)
 }
 
 
-inline void phillip_main_t::set_timeout_lhs(int t)
-{ m_timeout_lhs = t; }
-
-
-inline void phillip_main_t::set_timeout_ilp(int t)
-{ m_timeout_ilp = t; }
-
-
-inline void phillip_main_t::set_timeout_sol(int t)
-{ m_timeout_sol = t; }
-
-
-inline void phillip_main_t::set_timeout_all(int t)
-{ m_timeout_all = t; }
-
-
 inline void phillip_main_t::set_param(
     const std::string &key, const std::string &param )
-{ m_params[key] = param; }
+{
+    m_params[key] = param;
+}
 
 
 inline void phillip_main_t::erase_param(const std::string &key)
-{ m_params.erase(key); }
+{
+    m_params.erase(key);
+}
 
 
 inline void phillip_main_t::set_flag(const std::string &key)
-{ m_flags.insert(key); }
+{
+    m_flags.insert(key);
+}
 
 
 inline void phillip_main_t::erase_flag(const std::string &key)
-{ m_flags.erase(key); }
+{
+    m_flags.erase(key);
+}
 
 
 inline const lf::input_t* phillip_main_t::get_input() const
-{ return m_input; }
+{
+    return m_input;
+}
 
 
 inline const lf::logical_function_t* phillip_main_t::get_observation() const
-{ return (m_input != NULL) ? &m_input->obs : NULL; }
+{
+    return (m_input != NULL) ? &m_input->obs : NULL;
+}
 
 
 inline const lf::logical_function_t* phillip_main_t::get_requirement() const
-{ return (m_input != NULL) ? &m_input->req : NULL; }
+{
+    return (m_input != NULL) ? &m_input->req : NULL;
+}
 
 
 inline const pg::proof_graph_t* phillip_main_t::get_latent_hypotheses_set() const
-{ return m_lhs; }
+{
+    return m_lhs;
+}
 
 
 inline const ilp::ilp_problem_t* phillip_main_t::get_ilp_problem() const
-{ return m_ilp; }
+{
+    return m_ilp;
+}
 
 
 inline const std::vector<ilp::ilp_solution_t>& phillip_main_t::get_solutions() const
-{ return m_sol; }
-
-
-inline int phillip_main_t::timeout_lhs() const
-{ return m_timeout_lhs; }
-
-
-inline int phillip_main_t::timeout_ilp() const
-{ return m_timeout_ilp; }
-
-
-inline int phillip_main_t::timeout_sol() const
-{ return m_timeout_sol; }
-
-
-inline int phillip_main_t::timeout_all() const
-{ return m_timeout_all; }
-
-
-inline bool phillip_main_t::is_timeout_lhs(int sec) const
-{ return (m_timeout_lhs > 0 and sec >= m_timeout_lhs); }
-
-
-inline bool phillip_main_t::is_timeout_ilp(int sec) const
-{ return (m_timeout_ilp > 0 and sec >= m_timeout_ilp); }
-
-
-inline bool phillip_main_t::is_timeout_sol(int sec) const
-{ return (m_timeout_sol > 0 and sec >= m_timeout_sol); }
-
-
-inline bool phillip_main_t::is_timeout_all(int sec) const
-{ return (m_timeout_all > 0 and sec >= m_timeout_all); }
+{
+    return m_sol;
+}
 
 
 inline const hash_map<std::string, std::string>& phillip_main_t::params() const
@@ -204,11 +176,15 @@ inline float phillip_main_t::param_float(const std::string &key, float def) cons
 
 
 inline const hash_set<std::string>& phillip_main_t::flags() const
-{ return m_flags; }
+{
+    return m_flags;
+}
 
 
 inline bool phillip_main_t::flag(const std::string &key) const
-{ return m_flags.find(key) != m_flags.end(); }
+{
+    return m_flags.find(key) != m_flags.end();
+}
 
 
 inline bool phillip_main_t::do_infer_pseudo_positive() const
@@ -217,41 +193,27 @@ inline bool phillip_main_t::do_infer_pseudo_positive() const
 }
 
 
-inline const long& phillip_main_t::get_clock_for_lhs() const
-{ return m_clock_for_enumerate; }
-
-
-inline const long& phillip_main_t::get_clock_for_ilp() const
-{ return m_clock_for_convert; }
-
-
-inline const long& phillip_main_t::get_clock_for_sol() const
-{ return m_clock_for_solve; }
-
-
-inline const long& phillip_main_t::get_clock_for_infer() const
-{ return m_clock_for_infer; }
-
-
 inline float phillip_main_t::get_time_for_lhs()  const
-{ return (float)m_clock_for_enumerate / (float)CLOCKS_PER_SEC; }
+{
+    return m_time_for_enumerate;
+}
 
 
 inline float phillip_main_t::get_time_for_ilp()  const
 {
-    return (float)m_clock_for_convert / (float)CLOCKS_PER_SEC;
+    return m_time_for_convert;
 }
 
 
 inline float phillip_main_t::get_time_for_sol()  const
 {
-    return (float)m_clock_for_solve / (float)CLOCKS_PER_SEC;
+    return m_time_for_solve;
 }
 
 
 inline float phillip_main_t::get_time_for_infer() const
 {
-    return (float)m_clock_for_infer / (float)CLOCKS_PER_SEC;
+    return m_time_for_infer;
 }
 
 
@@ -325,10 +287,13 @@ inline void phillip_main_t::reset_for_inference()
     m_lhs = NULL;
     m_ilp = NULL;
 
-    m_clock_for_enumerate = 0;
-    m_clock_for_convert = 0;
-    m_clock_for_solve = 0;
-    m_clock_for_infer = 0;
+    m_time_for_enumerate = 0.0f;
+    m_time_for_convert = 0.0f;
+    m_time_for_convert_gold = 0.0f;
+    m_time_for_solve = 0.0f;
+    m_time_for_solve_gold = 0.0f;
+    m_time_for_learn = 0.0f;
+    m_time_for_infer = 0.0f;
 
     m_sol.clear();
 }
@@ -337,21 +302,21 @@ inline void phillip_main_t::reset_for_inference()
 inline void phillip_main_t::execute_enumerator()
 {
     execute_enumerator(
-        &m_lhs, &m_clock_for_enumerate, param("path_lhs_out"));
+        &m_lhs, &m_time_for_enumerate, param("path_lhs_out"));
 }
 
 
 inline void phillip_main_t::execute_convertor()
 {
     execute_convertor(
-        &m_ilp, &m_clock_for_convert, param("path_ilp_out"));
+        &m_ilp, &m_time_for_convert, param("path_ilp_out"));
 }
 
 
 inline void phillip_main_t::execute_solver()
 {
     execute_solver(
-        &m_sol, &m_clock_for_solve, param("path_sol_out"));
+        &m_sol, &m_time_for_solve, param("path_sol_out"));
 }
 
 

@@ -503,11 +503,11 @@ bool _interpret_option(
 
     case 'T': // ---- SET TIMEOUT [SECOND]
     {                  
-        int t;
+        float t;
         auto spl = split(arg, "=");
         if (spl.size() == 1)
         {
-            _sscanf(arg.c_str(), "%d", &t);
+            _sscanf(arg.c_str(), "%f", &t);
             phillip->set_timeout_all(t);
             return true;
         }
@@ -515,7 +515,7 @@ bool _interpret_option(
         {
             if (spl[0] == "lhs" or spl[0] == "ilp" or spl[0] == "sol")
             {
-                _sscanf(spl[1].c_str(), "%d", &t);
+                _sscanf(spl[1].c_str(), "%f", &t);
                 if (spl[0] == "lhs") phillip->set_timeout_lhs(t);
                 if (spl[0] == "ilp") phillip->set_timeout_ilp(t);
                 if (spl[0] == "sol") phillip->set_timeout_sol(t);

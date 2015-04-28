@@ -32,10 +32,9 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
         new pg::proof_graph_t(phillip(), phillip()->get_input()->name);
     ilp_converter_t::enumeration_stopper_t *stopper =
         phillip()->ilp_convertor()->enumeration_stopper();
-    time_t begin, now;
     std::map<pg::chain_candidate_t, pg::hypernode_idx_t> considered;
     
-    time(&begin);
+    auto begin = std::chrono::system_clock::now();
     add_observations(graph);
 
     reachability_manager_t rm;
@@ -47,9 +46,8 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
         IF_VERBOSE_FULL("Candidates: " + cand.to_string());
 
         // CHECK TIME-OUT
-        time(&now);
-        int t(now - begin);
-        if (phillip()->is_timeout_lhs(t) or phillip()->is_timeout_all(t))
+        duration_time_t passed = duration_time(begin);
+        if (do_time_out(begin))
         {
             graph->timeout(true);
             break;

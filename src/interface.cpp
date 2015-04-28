@@ -6,6 +6,16 @@ namespace phil
 {
 
 
+bool lhs_enumerator_t::do_include_requirement(
+    const pg::proof_graph_t *graph, const std::vector<index_t> &nodes)
+{
+    for (auto it = nodes.begin(); it != nodes.end(); ++it)
+    if (graph->node(*it).type() == pg::NODE_REQUIRED)
+        return true;
+    return false;
+}
+
+
 void lhs_enumerator_t::add_observations(pg::proof_graph_t *target) const
 {
     std::vector<const literal_t*> obs =
@@ -23,23 +33,21 @@ void lhs_enumerator_t::add_observations(pg::proof_graph_t *target) const
 }
 
 
-bool lhs_enumerator_t::do_include_requirement(
-    const pg::proof_graph_t *graph, const std::vector<index_t> &nodes)
+bool lhs_enumerator_t::do_time_out(const std::chrono::system_clock::time_point &begin) const
 {
-    for (auto it = nodes.begin(); it != nodes.end(); ++it)
-    if (graph->node(*it).type() == pg::NODE_REQUIRED)
-        return true;
-    return false;
+    return
+        phillip()->timeout_lhs().do_time_out(begin) or
+        phillip()->timeout_all().do_time_out(begin);
 }
+
 
 
 void ilp_converter_t::convert_proof_graph(ilp::ilp_problem_t *prob) const
 {
     const pg::proof_graph_t *graph = prob->proof_graph();
-    std::time_t begin;
-    std::time(&begin);
+    auto begin = std::chrono::system_clock::now();
 
-#define _check_timeout if(is_timeout(begin)) { prob->timeout(true); return; }
+#define _check_timeout if(do_time_out(begin)) { prob->timeout(true); return; }
 
     // ADD VARIABLES FOR NODES
     for (pg::node_idx_t i = 0; i < graph->nodes().size(); ++i)
@@ -105,16 +113,26 @@ void ilp_converter_t::convert_proof_graph(ilp::ilp_problem_t *prob) const
 }
 
 
-bool ilp_converter_t::is_timeout(std::time_t begin) const
+bool ilp_converter_t::do_time_out(const std::chrono::system_clock::time_point &begin) const
 {
-    std::time_t now;
-    std::time(&now);
-    int t_ilp(now - begin);
-    int t_all(phillip()->get_time_for_lhs() + t_ilp);
+    duration_time_t t_ilp = duration_time(begin);
+    duration_time_t t_all(phillip()->get_time_for_lhs() + t_ilp);
 
     return
-        phillip()->is_timeout_ilp(t_ilp) or
-        phillip()->is_timeout_all(t_all);
+        phillip()->timeout_ilp().do_time_out(t_ilp) or
+        phillip()->timeout_all().do_time_out(t_all);
+}
+
+
+bool ilp_solver_t::do_time_out(const std::chrono::system_clock::time_point &begin) const
+{
+    duration_time_t t_sol = duration_time(begin);
+    duration_time_t t_all =
+        phillip()->get_time_for_lhs() + phillip()->get_time_for_ilp() + t_sol;
+
+    return
+        phillip()->timeout_sol().do_time_out(t_sol) or
+        phillip()->timeout_all().do_time_out(t_all);
 }
 
 

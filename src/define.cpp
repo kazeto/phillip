@@ -196,6 +196,7 @@ size_t literal_t::read_binary( const char *bin )
 }
 
 
+
 cdb_data_t::cdb_data_t(std::string _filename)
     : m_filename(_filename), m_fout(NULL), m_fin(NULL),
       m_builder(NULL), m_finder(NULL)
@@ -285,6 +286,15 @@ void initialize()
 {
     now(&TIME_BEGIN.year, &TIME_BEGIN.month, &TIME_BEGIN.day,
         &TIME_BEGIN.hour, &TIME_BEGIN.minuite, &TIME_BEGIN.second);
+}
+
+
+duration_time_t duration_time(const std::chrono::system_clock::time_point &begin)
+{
+    auto now = std::chrono::system_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - begin);
+
+    return duration.count() / 1000.0f;
 }
 
 

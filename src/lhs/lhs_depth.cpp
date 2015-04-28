@@ -37,9 +37,8 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
     pg::proof_graph_t *graph =
         new pg::proof_graph_t(phillip(), phillip()->get_input()->name);
     hash_map<pg::node_idx_t, reachable_map_t> reachability;
-    time_t begin, now;
     
-    time(&begin);
+    auto begin = std::chrono::system_clock::now();
     add_observations(graph);
 
     if (not m_do_disable_reachable_matrix)
@@ -69,9 +68,7 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
         for (auto it = cands.begin(); it != cands.end(); ++it)
         {
             // CHECK TIME-OUT
-            time(&now);
-            int t(now - begin);
-            if (phillip()->is_timeout_lhs(t) or phillip()->is_timeout_all(t))
+            if (do_time_out(begin))
             {
                 graph->timeout(true);
                 break;

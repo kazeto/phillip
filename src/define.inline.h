@@ -236,6 +236,20 @@ inline void literal_t::regularize()
 }
 
 
+
+inline bool timeout_t::do_time_out(duration_time_t duration) const
+{
+    return not this->empty() and duration >= m_time;
+}
+
+
+inline bool timeout_t::do_time_out(const std::chrono::system_clock::time_point &begin) const
+{
+    return do_time_out(duration_time(begin));
+}
+
+
+
 inline void cdb_data_t::put(
     const void *key, size_t ksize, const void *value, size_t vsize)
 {

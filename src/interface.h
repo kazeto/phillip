@@ -3,7 +3,7 @@
 #pragma once
 
 #include <vector>
-#include <ctime>
+#include <chrono>
 
 #include "./define.h"
 
@@ -35,11 +35,12 @@ public:
     virtual pg::proof_graph_t* execute() const = 0;
     
 protected:
-    /** Add nodes of observations in phillip_main_t to LHS. */
-    void add_observations(pg::proof_graph_t *target) const;
-
     static bool do_include_requirement(
         const pg::proof_graph_t *graph, const std::vector<index_t> &nodes);
+
+    /** Add nodes of observations in phillip_main_t to LHS. */
+    void add_observations(pg::proof_graph_t *target) const;
+    bool do_time_out(const std::chrono::system_clock::time_point &begin) const;
 };
 
 
@@ -70,7 +71,7 @@ public:
 protected:
     /** Converts proof-graph's structure into ILP problem. */
     void convert_proof_graph(ilp::ilp_problem_t *prob) const;
-    bool is_timeout(std::time_t begin) const;
+    bool do_time_out(const std::chrono::system_clock::time_point &begin) const;
 };
 
 
@@ -87,6 +88,9 @@ public:
     virtual void solve(
         const ilp::ilp_problem_t *prob,
         std::vector<ilp::ilp_solution_t> *out) const = 0;
+
+protected:
+    bool do_time_out(const std::chrono::system_clock::time_point &begin) const;
 };
 
 

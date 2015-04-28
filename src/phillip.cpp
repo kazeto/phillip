@@ -18,9 +18,9 @@ const std::string phillip_main_t::VERSION = "phil.3.10";
 phillip_main_t::phillip_main_t()
 : m_lhs_enumerator(NULL), m_ilp_convertor(NULL), m_ilp_solver(NULL),
   m_input(NULL), m_lhs(NULL), m_ilp(NULL),
-  m_timeout_lhs(-1), m_timeout_ilp(-1), m_timeout_sol(-1), m_timeout_all(-1),
-  m_clock_for_enumerate(0), m_clock_for_convert(0),
-  m_clock_for_solve(0), m_clock_for_infer(0)
+  m_time_for_enumerate(0), m_time_for_convert(0), m_time_for_convert_gold(0),
+  m_time_for_solve(0), m_time_for_solve_gold(0),
+  m_time_for_learn(0), m_time_for_infer(0)
 {}
 
 
@@ -77,14 +77,13 @@ void phillip_main_t::infer(const lf::input_t &input)
     reset_for_inference();
     set_input(input);
 
-    clock_t begin_infer(clock());
-    
+    auto begin = std::chrono::system_clock::now();
+
     execute_enumerator();
     execute_convertor();
     execute_solver();
 
-    clock_t end_infer(clock());
-    m_clock_for_infer = end_infer - begin_infer;
+    m_time_for_infer = duration_time(begin);
 
     std::ofstream *fo(NULL);
     if ((fo = _open_file(param("path_out"), std::ios::out | std::ios::app)) != NULL)
@@ -115,7 +114,7 @@ void phillip_main_t::learn(const lf::input_t &input)
     reset_for_inference();
     set_input(input);
 
-    clock_t begin_infer(clock());
+    auto begin_infer = std::chrono::system_clock::now();
 
     erase_flag("get_pseudo_positive");
 
@@ -126,10 +125,10 @@ void phillip_main_t::learn(const lf::input_t &input)
     set_flag("get_pseudo_positive");
 
     execute_convertor(
-        &m_ilp_gold, &m_clock_for_convert_gold,
+        &m_ilp_gold, &m_time_for_convert_gold,
         get_path_for_gold("path_ilp_out"));
     execute_solver(
-        &m_sol_gold, &m_clock_for_solve_gold,
+        &m_sol_gold, &m_time_for_solve_gold,
         get_path_for_gold("path_sol_out"));
 
     m_ilp_convertor->tune(m_sol.front(), m_sol_gold.front());
@@ -137,17 +136,16 @@ void phillip_main_t::learn(const lf::input_t &input)
 
 
 void phillip_main_t::execute_enumerator(
-    pg::proof_graph_t **out_lhs, long *out_clock,
+    pg::proof_graph_t **out_lhs, duration_time_t *out_time,
     const std::string &path_out_xml)
 {
     IF_VERBOSE_2("Generating latent-hypotheses-set...");
 
     if ((*out_lhs) != NULL) delete m_lhs;
 
-    clock_t begin_flhs(clock());
+    auto begin = std::chrono::system_clock::now();
     (*out_lhs) = m_lhs_enumerator->execute();
-    clock_t end_flhs(clock());
-    (*out_clock) = end_flhs - begin_flhs;
+    (*out_time) = duration_time(begin);
 
     IF_VERBOSE_2(
         m_lhs->is_timeout() ?
@@ -168,15 +166,14 @@ void phillip_main_t::execute_enumerator(
 
 
 void phillip_main_t::execute_convertor(
-    ilp::ilp_problem_t **out_ilp, long *out_clock,
+    ilp::ilp_problem_t **out_ilp, duration_time_t *out_time,
     const std::string &path_out_xml)
 {
     IF_VERBOSE_2("Converting LHS into linear-programming-problems...");
 
-    clock_t begin_flpp(clock());
+    auto begin = std::chrono::system_clock::now();
     (*out_ilp) = m_ilp_convertor->execute();
-    clock_t end_flpp(clock());
-    (*out_clock) = end_flpp - begin_flpp;
+    (*out_time) = duration_time(begin);
 
     IF_VERBOSE_2(
         m_ilp->is_timeout() ?
@@ -197,15 +194,15 @@ void phillip_main_t::execute_convertor(
 
 
 void phillip_main_t::execute_solver(
-    std::vector<ilp::ilp_solution_t> *out_sols, long *out_clock,
+    std::vector<ilp::ilp_solution_t> *out_sols,
+    duration_time_t *out_time,
     const std::string &path_out_xml)
 {
     IF_VERBOSE_2("Solving...");
 
-    clock_t begin_fsol(clock());
+    auto begin = std::chrono::system_clock::now();
     m_ilp_solver->execute(out_sols);
-    clock_t end_fsol(clock());
-    (*out_clock) = end_fsol - begin_fsol;
+    (*out_time) = duration_time(begin);
 
     IF_VERBOSE_2("Completed inference.");
 
@@ -246,10 +243,10 @@ void phillip_main_t::write_header() const
             << "\"></knowledge_base>" << std::endl;
 
         (*os)
-            << "<params timeout_lhs=\"" << timeout_lhs()
-            << "\" timeout_ilp=\"" << timeout_ilp()
-            << "\" timeout_sol=\"" << timeout_sol()
-            << "\" timeout_all=\"" << timeout_all()
+            << "<params timeout_lhs=\"" << timeout_lhs().get()
+            << "\" timeout_ilp=\"" << timeout_ilp().get()
+            << "\" timeout_sol=\"" << timeout_sol().get()
+            << "\" timeout_all=\"" << timeout_all().get()
             << "\" verbose=\"" << verbose();
 
         for (auto it = m_params.begin(); it != m_params.end(); ++it)

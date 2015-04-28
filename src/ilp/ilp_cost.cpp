@@ -57,8 +57,7 @@ ilp_converter_t* costed_converter_t::duplicate(phillip_main_t *ptr) const
 
 ilp::ilp_problem_t* costed_converter_t::execute() const
 {
-    std::time_t begin;
-    std::time(&begin);
+    auto begin = std::chrono::system_clock::now();
 
     const pg::proof_graph_t *graph = phillip()->get_latent_hypotheses_set();
     ilp::ilp_problem_t *prob = new ilp::ilp_problem_t(
@@ -67,7 +66,7 @@ ilp::ilp_problem_t* costed_converter_t::execute() const
     convert_proof_graph(prob);
     if (prob->is_timeout()) return prob;
 
-#define _check_timeout if(is_timeout(begin)) { prob->timeout(true); return prob; }
+#define _check_timeout if(do_time_out(begin)) { prob->timeout(true); return prob; }
 
     // ASSIGN COSTS OF NODES
     for (pg::node_idx_t i = 0; i < graph->nodes().size(); ++i)
