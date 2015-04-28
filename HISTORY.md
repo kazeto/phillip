@@ -35,6 +35,28 @@
 | `-p kb_thread_num=<INT>`                            | `-P kb=<INT>`                   |
 | `-p gurobi_thread_num=<INT>`                        | `-P grb=<INT>`                  |
 
+- Performed major refactoring. We show some of modified things below:
+
+| Before                                                         | After                                                         |
+| -------------------------------------------------------------- | ------------------------------------------------------------- |
+| stop_watch_t                                                   | Abolished                                                     |
+| `phillip_main_t::timeout_lhs()`                                | Replace to `phillip_main_t::timeout_lhs().get()`              |
+| `phillip_main_t::timeout_ilp()`                                | Replace to `phillip_main_t::timeout_ilp().get()`              |
+| `phillip_main_t::timeout_sol()`                                | Replace to `phillip_main_t::timeout_sol().get()`              |
+| `phillip_main_t::timeout_all()`                                | Replace to `phillip_main_t::timeout_all().get()`              |
+| `phillip_main_t::is_timeout_lhs(int)`                          | Replace to `phillip_main_t::timeout_lhs().do_time_out(float)` |
+| `phillip_main_t::is_timeout_ilp(int)`                          | Replace to `phillip_main_t::timeout_ilp().do_time_out(float)` |
+| `phillip_main_t::is_timeout_sol(int)`                          | Replace to `phillip_main_t::timeout_sol().do_time_out(float)` |
+| `phillip_main_t::is_timeout_all(int)`                          | Replace to `phillip_main_t::timeout_all().do_time_out(float)` |
+| `phillip_main_t::get_clock_for_lhs()`                          | Abolished                                                     |
+| `phillip_main_t::get_clock_for_ilp()`                          | Abolished                                                     |
+| `phillip_main_t::get_clock_for_sol()`                          | Abolished                                                     |
+| `phillip_main_t::get_clock_for_all()`                          | Abolished                                                     |
+| `pg::node_t::evidences()`                                      | Renamed to `pg::node_t::ancestors()`                          |
+| `pg::proof_graph_t::enumerate_observations()`                  | Replace to `pg::proof_graph_t::observation_indices()`         |
+| `pg::proof_graph_t::do_disregard_hypernode(int)`               | Abolished                                                     |
+| `pg::proof_graph_t::enumerate_queries_for_knowledge_base(...)` | Renamed to `pg::proof_graph_t::enumerate_arity_patterns(...)` |
+
 
 # 2015/04/03 (Phil.3.00)
 

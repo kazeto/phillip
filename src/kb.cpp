@@ -603,7 +603,7 @@ search_argument_set_id(const std::string &arity, int term_idx) const
 }
 
 
-void knowledge_base_t::search_queries(arity_id_t arity, std::list<arity_pattern_t> *out) const
+void knowledge_base_t::search_arity_patterns(arity_id_t arity, std::list<arity_pattern_t> *out) const
 {
     if (not m_cdb_arity_patterns.is_readable())
     {
@@ -627,7 +627,7 @@ void knowledge_base_t::search_queries(arity_id_t arity, std::list<arity_pattern_
 }
 
 
-void knowledge_base_t::search_axioms_with_query(
+void knowledge_base_t::search_axioms_with_arity_pattern(
     const arity_pattern_t &query,
     std::list<std::pair<axiom_id_t, bool> > *out) const
 {

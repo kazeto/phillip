@@ -150,8 +150,8 @@ public:
     inline const unification_postponement_t* find_unification_postponement(arity_id_t arity) const;
     inline const unification_postponement_t* find_unification_postponement(const arity_t &arity) const;
     argument_set_id_t search_argument_set_id(const std::string &arity, int term_idx) const;
-    void search_queries(arity_id_t arity, std::list<arity_pattern_t> *out) const;
-    void search_axioms_with_query(
+    void search_arity_patterns(arity_id_t arity, std::list<arity_pattern_t> *out) const;
+    void search_axioms_with_arity_pattern(
         const arity_pattern_t &query,
         std::list<std::pair<axiom_id_t, bool> > *out) const;
 

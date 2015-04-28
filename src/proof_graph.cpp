@@ -1497,7 +1497,7 @@ void proof_graph_t::enumerate_arity_patterns(
     const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
 
     std::list<kb::arity_pattern_t> queries;
-    base->search_queries(node(pivot).arity_id(), &queries);
+    base->search_arity_patterns(node(pivot).arity_id(), &queries);
 
     for (auto q : queries)
     {

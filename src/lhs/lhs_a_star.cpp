@@ -201,7 +201,7 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
             std::set<pg::chain_candidate_t> _out;
             std::list<std::pair<axiom_id_t, bool> > axs; // <AXIOM_ID, IS_BACKWARD>
 
-            kb::kb()->search_axioms_with_query(pat, &axs);
+            kb::kb()->search_axioms_with_arity_pattern(pat, &axs);
 
             for (auto nodes : targets)
             {
@@ -225,7 +225,7 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
     for (auto q : queries)
     {
         std::list<std::pair<axiom_id_t, bool> > axs; // <AXIOM_ID, IS_BACKWARD>
-        base->search_axioms_with_query(q, &axs);
+        base->search_axioms_with_arity_pattern(q, &axs);
     }
 }
 
