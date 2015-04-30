@@ -731,7 +731,7 @@ void proof_graph_t::print(std::ostream *os) const
     (*os)
         << "<latent-hypotheses-set name=\"" << name()
         << "\" time=\"" << phillip()->get_time_for_lhs()
-        << "\" timeout=\"" << (is_timeout() ? "yes" : "no");
+        << "\" timeout=\"" << (has_timed_out() ? "yes" : "no");
 
     for (auto it = m_attributes.begin(); it != m_attributes.end(); ++it)
         (*os) << "\" " << it->first << "=\"" << it->second;

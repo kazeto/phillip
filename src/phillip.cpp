@@ -114,7 +114,7 @@ void phillip_main_t::learn(const lf::input_t &input)
     reset_for_inference();
     set_input(input);
 
-    auto begin_infer = std::chrono::system_clock::now();
+    auto begin = std::chrono::system_clock::now();
 
     erase_flag("get_pseudo_positive");
 
@@ -131,7 +131,22 @@ void phillip_main_t::learn(const lf::input_t &input)
         &m_sol_gold, &m_time_for_solve_gold,
         get_path_for_gold("path_sol_out"));
 
-    m_ilp_convertor->tune(m_sol.front(), m_sol_gold.front());
+    xml_element_t elem("learn", "");
+    m_ilp_convertor->tune(m_sol.front(), m_sol_gold.front(), &elem);
+
+    m_time_for_learn = duration_time(begin);
+
+    std::ofstream *fo(NULL);
+    if ((fo = _open_file(param("path_out"), std::ios::out | std::ios::app)) != NULL)
+    {
+        if (not flag("omit_proof_graph_from_xml"))
+        {
+            m_sol.front().print_graph(fo);
+            m_sol_gold.front().print_graph(fo);
+        }
+        elem.print(fo);
+        delete fo;
+    }
 }
 
 
@@ -148,7 +163,7 @@ void phillip_main_t::execute_enumerator(
     (*out_time) = duration_time(begin);
 
     IF_VERBOSE_2(
-        m_lhs->is_timeout() ?
+        m_lhs->has_timed_out() ?
         "Interrupted generating latent-hypotheses-set." :
         "Completed generating latent-hypotheses-set.");
 
@@ -176,7 +191,7 @@ void phillip_main_t::execute_convertor(
     (*out_time) = duration_time(begin);
 
     IF_VERBOSE_2(
-        m_ilp->is_timeout() ?
+        m_ilp->has_timed_out() ?
         "Interrupted convertion into linear-programming-problems." :
         "Completed convertion into linear-programming-problems.");
 

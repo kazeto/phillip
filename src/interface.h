@@ -60,7 +60,9 @@ public:
     virtual ilp::ilp_problem_t* execute() const = 0;
 
     /** Tunes its own parameters from a system output and a gold output. */
-    virtual void tune(const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) {};
+    virtual void tune(
+        const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold,
+        xml_element_t *out) {};
 
     /** Returns an instance of function class
      *  to judge whether enumeration should be discontinued.

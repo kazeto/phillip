@@ -277,6 +277,30 @@ void cdb_data_t::finalize()
 }
 
 
+void xml_element_t::print(std::ostream *os) const
+{
+    std::function<void(const xml_element_t&)>
+        elem_to_string = [&](const xml_element_t &e) -> void
+    {
+        auto attr_to_string = [](const std::pair<std::string, std::string> &p)
+        { return format("%s=\"%s\"", p.first, p.second); };
+
+        (*os) << "<" << e.name() << " ";
+        (*os) << join_functional(e.attributes(), attr_to_string, " ") << ">" << std::endl;
+
+        if (not e.text().empty())
+            (*os) << e.text() << std::endl;
+
+        for (auto c : e.children())
+            elem_to_string(c);
+
+        (*os) << "</" << e.name() << ">" << std::endl;
+    };
+
+    elem_to_string(*this);
+}
+
+
 const int BUFFER_SIZE_FOR_FMT = 256 * 256;
 
 struct { int year, month, day, hour, minuite, second; } TIME_BEGIN;

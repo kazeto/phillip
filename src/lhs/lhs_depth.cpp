@@ -110,7 +110,7 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
             }
         }
 
-        if (graph->is_timeout()) break;
+        if (graph->has_timed_out()) break;
     }
 
     graph->post_process();

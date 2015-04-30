@@ -271,6 +271,24 @@ inline size_t cdb_data_t::size() const
 }
 
 
+inline void xml_element_t::add_attribute(const std::string &key, const std::string &value)
+{
+    m_attr[key] = value;
+}
+
+
+inline void xml_element_t::remove_attribute(const std::string &key)
+{
+    m_attr.erase(key);
+}
+
+
+inline void xml_element_t::add_child(const xml_element_t &elem)
+{
+    m_children.push_back(elem);
+}
+
+
 inline void print_console(const std::string &str)
 {
     std::lock_guard<std::mutex> lock(g_mutex_for_print);

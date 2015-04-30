@@ -67,7 +67,7 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
         graph, new ilp::basic_solution_interpreter_t(), false);
 
     convert_proof_graph(prob);
-    if (prob->is_timeout()) return prob;
+    if (prob->has_timed_out()) return prob;
 
 #define _check_timeout if(do_time_out(begin)) { prob->timeout(true); return prob; }
     

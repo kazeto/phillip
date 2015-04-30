@@ -19,10 +19,12 @@ public:
     };
 
     null_converter_t(phillip_main_t *ptr) : ilp_converter_t(ptr) {}
-    virtual ilp_converter_t* duplicate(phillip_main_t *ptr) const;
-    virtual ilp::ilp_problem_t* execute() const;
-    virtual bool is_available(std::list<std::string>*) const;
-    virtual std::string repr() const;
+
+    virtual ilp_converter_t* duplicate(phillip_main_t *ptr) const override;
+    virtual ilp::ilp_problem_t* execute() const override;
+    virtual bool is_available(std::list<std::string>*) const override;
+    virtual std::string repr() const override;
+    virtual bool do_keep_optimality_on_timeout() const override { return true; }
 };
 
 
@@ -81,10 +83,11 @@ public:
         bool is_logarithmic = false);
     ~weighted_converter_t();
 
-    virtual ilp_converter_t* duplicate(phillip_main_t *ptr) const;
-    virtual ilp::ilp_problem_t* execute() const;
-    virtual bool is_available(std::list<std::string>*) const;
-    virtual std::string repr() const;
+    virtual ilp_converter_t* duplicate(phillip_main_t *ptr) const override;
+    virtual ilp::ilp_problem_t* execute() const override;
+    virtual bool is_available(std::list<std::string>*) const override;
+    virtual std::string repr() const override;
+    virtual bool do_keep_optimality_on_timeout() const override { return false; }
 
     virtual enumeration_stopper_t* enumeration_stopper() const;
 
@@ -135,10 +138,11 @@ public:
     costed_converter_t(phillip_main_t *main, cost_provider_t *ptr = NULL);
     ~costed_converter_t();
 
-    virtual ilp_converter_t* duplicate(phillip_main_t *ptr) const;
-    virtual ilp::ilp_problem_t* execute() const;
-    virtual bool is_available(std::list<std::string>*) const;
-    virtual std::string repr() const;
+    virtual ilp_converter_t* duplicate(phillip_main_t *ptr) const override;
+    virtual ilp::ilp_problem_t* execute() const override;
+    virtual bool is_available(std::list<std::string>*) const override;
+    virtual std::string repr() const override;
+    virtual bool do_keep_optimality_on_timeout() const override { return false; }
 
 protected:
     cost_provider_t *m_cost_provider;

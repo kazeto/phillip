@@ -135,7 +135,7 @@ public:
 
     inline phillip_main_t* phillip() const { return m_graph->phillip(); }
     inline void timeout(bool flag) { m_is_timeout = flag; }
-    inline bool is_timeout() const { return m_is_timeout; }
+    inline bool has_timed_out() const { return m_is_timeout; }
 
     /** Add a new decorator for outputting xml-files.
      *  You can use this method to customize output. */
@@ -349,10 +349,11 @@ public:
 
     inline phillip_main_t* phillip() const { return problem()->phillip(); }
     inline void timeout(bool flag) { m_is_timeout = flag; }
-    inline bool is_timeout() const { return m_is_timeout; }
+    inline bool has_timed_out() const { return m_is_timeout; }
 
     inline const std::string& name() const;
     inline const ilp::ilp_problem_t* problem() const { return m_ilp; }
+    inline const pg::proof_graph_t* proof_graph() const { return m_ilp->proof_graph(); }
     inline void set_solution_type(solution_type_e t) { m_solution_type = t; }
     inline solution_type_e type() const;
     inline double value_of_objective_function() const;

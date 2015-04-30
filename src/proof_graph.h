@@ -234,7 +234,7 @@ public:
 
     inline phillip_main_t* phillip() const { return m_phillip; }
     inline void timeout(bool flag) { m_is_timeout = flag; }
-    inline bool is_timeout() const { return m_is_timeout; }
+    inline bool has_timed_out() const { return m_is_timeout; }
     inline const std::string& name() const { return m_name; }
 
     /** Deletes logs and enumerate hypernodes to be disregarded.

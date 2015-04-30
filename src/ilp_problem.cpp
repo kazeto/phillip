@@ -775,7 +775,7 @@ void ilp_problem_t::print(std::ostream *os) const
         << "<ilp name=\"" << name()
         << "\" maxmize=\"" << (do_maximize() ? "yes" : "no")
         << "\" time=\"" << phillip()->get_time_for_ilp()
-        << "\" timeout=\"" << (is_timeout() ? "yes" : "no");
+        << "\" timeout=\"" << (has_timed_out() ? "yes" : "no");
 
     for (auto attr = m_attributes.begin(); attr != m_attributes.end(); ++attr)
         (*os) << "\" " << attr->first << "=\"" << attr->second;
@@ -846,11 +846,11 @@ void ilp_problem_t::print_solution(
     const ilp::ilp_problem_t *prob(sol->problem());
     const pg::proof_graph_t *graph(sol->problem()->proof_graph());
     bool is_time_out_all =
-        graph->is_timeout() or prob->is_timeout() or sol->is_timeout();
+        graph->has_timed_out() or prob->has_timed_out() or sol->has_timed_out();
     (*os)
-        << "<timeout lhs=\"" << (graph->is_timeout() ? "yes" : "no")
-        << "\" ilp=\"" << (prob->is_timeout() ? "yes" : "no")
-        << "\" sol=\"" << (sol->is_timeout() ? "yes" : "no")
+        << "<timeout lhs=\"" << (graph->has_timed_out() ? "yes" : "no")
+        << "\" ilp=\"" << (prob->has_timed_out() ? "yes" : "no")
+        << "\" sol=\"" << (sol->has_timed_out() ? "yes" : "no")
         << "\" all=\"" << (is_time_out_all ? "yes" : "no")
         << "\"></timeout>" << std::endl;
 
@@ -1089,6 +1089,19 @@ ilp_solution_t::ilp_solution_t(
         const constraint_t &cons = prob->constraint(i);
         m_constraints_sufficiency[i] = cons.is_satisfied(values);
     }
+
+    if (proof_graph()->has_timed_out() and m_solution_type != SOLUTION_NOT_AVAILABLE)
+        m_solution_type =
+        phillip()->lhs_enumerator()->do_keep_optimality_on_timeout()
+        ? SOLUTION_SUB_OPTIMAL : SOLUTION_NOT_AVAILABLE;
+    if (problem()->has_timed_out() and m_solution_type != SOLUTION_NOT_AVAILABLE)
+        m_solution_type =
+        phillip()->ilp_convertor()->do_keep_optimality_on_timeout()
+        ? SOLUTION_SUB_OPTIMAL : SOLUTION_NOT_AVAILABLE;
+    if (has_timed_out() and m_solution_type != SOLUTION_NOT_AVAILABLE)
+        m_solution_type =
+        phillip()->ilp_solver()->do_keep_optimality_on_timeout()
+        ? SOLUTION_SUB_OPTIMAL : SOLUTION_NOT_AVAILABLE;
 }
 
 
@@ -1263,7 +1276,7 @@ void ilp_solution_t::print(std::ostream *os) const
     (*os)
         << "<solution name=\"" << name()
         << "\" time=\"" << phillip()->get_time_for_sol()
-        << "\" timeout=\"" << (is_timeout() ? "yes" : "no")
+        << "\" timeout=\"" << (has_timed_out() ? "yes" : "no")
         << "\">" << std::endl
         << "<variables num=\"" << m_ilp->variables().size()
         << "\">" << std::endl;

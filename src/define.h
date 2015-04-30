@@ -229,10 +229,17 @@ class phillip_component_interface_t
 public:
     phillip_component_interface_t(phillip_main_t *master) : m_phillip(master) {};
     virtual ~phillip_component_interface_t() {}
-    /** Return ability to execute this component on current setting.
-     *  @param[out] disp Error messages to be printed when return false. */
+
+    /** Returns whether this component can be used on current setting.
+     *  @param[out] disp Error messages to be printed when this method returns false. */
     virtual bool is_available(std::list<std::string> *disp) const = 0;
+
+    /** Returns the name of this component. */
     virtual std::string repr() const = 0;
+
+    /** Returns whether the output is non-available or sub-optimal
+     *  when this component has timed out. */
+    virtual bool do_keep_optimality_on_timeout() const = 0;
 
     phillip_main_t *phillip() const { return m_phillip; }
 
@@ -286,6 +293,33 @@ private:
     std::ifstream  *m_fin;
     cdbpp::builder *m_builder;
     cdbpp::cdbpp   *m_finder;
+};
+
+
+class xml_element_t
+{
+public:
+    inline xml_element_t(const std::string &name, const std::string &text)
+        : m_name(name), m_text(text) {}
+
+    inline const std::string& name() const { return m_name; }
+    inline const std::string& text() const { return m_text; }
+    inline hash_map<std::string, std::string> attributes() const { return m_attr; }
+    inline std::list<xml_element_t> children() const { return m_children; }
+
+    inline void add_attribute(const std::string &key, const std::string &val);
+    inline void remove_attribute(const std::string &key);
+
+    inline void add_child(const xml_element_t &elem);
+    inline xml_element_t& last_child() { return m_children.back(); }
+
+    void print(std::ostream *os) const;
+
+private:
+    std::string m_name;
+    std::string m_text;
+    hash_map<std::string, std::string> m_attr;
+    std::list<xml_element_t> m_children;
 };
 
 

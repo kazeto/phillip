@@ -192,14 +192,9 @@ bool gurobi_t::is_available(std::list<std::string> *err) const
 #ifdef USE_GUROBI
     return true;
 #else
+    err->push_back("This binary cannot use gurobi-optimizer.");
     return false;
 #endif
-}
-
-
-std::string gurobi_t::repr() const
-{
-    return "Gurobi-Optimizer";
 }
 
 

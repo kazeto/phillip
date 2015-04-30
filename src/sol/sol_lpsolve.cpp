@@ -38,7 +38,6 @@ void lp_solve_t::solve(
     
     int ret = ::solve(rec);
     ilp::ilp_solution_t *sol = NULL;
-    bool do_break(false), is_timeout(false);
 
     if (ret == OPTIMAL or ret == SUBOPTIMAL)
     {
@@ -48,11 +47,8 @@ void lp_solve_t::solve(
         sol = new ilp::ilp_solution_t(prob, type, vars);
     }
 
-    if (phillip() != NULL)
-    {
-        if (do_time_out(begin))
-            is_timeout = true;
-    }
+    if (do_time_out(begin))
+        sol->timeout(true);
 
     ::delete_lp(rec);
 
@@ -61,7 +57,6 @@ void lp_solve_t::solve(
         prob, ilp::SOLUTION_NOT_AVAILABLE,
         std::vector<double>(0.0, prob->variables().size()));
 
-    sol->timeout(is_timeout);
     out->push_back(*sol);
 
     delete sol;
