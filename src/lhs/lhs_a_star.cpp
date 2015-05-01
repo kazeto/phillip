@@ -30,8 +30,6 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
     const kb::knowledge_base_t *base(kb::knowledge_base_t::instance());
     pg::proof_graph_t *graph =
         new pg::proof_graph_t(phillip(), phillip()->get_input()->name);
-    ilp_converter_t::enumeration_stopper_t *stopper =
-        phillip()->ilp_convertor()->enumeration_stopper();
     std::map<pg::chain_candidate_t, pg::hypernode_idx_t> considered;
     
     auto begin = std::chrono::system_clock::now();
@@ -112,8 +110,6 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
             else
                 ++it;
         }
-
-        if ((*stopper)(graph)) break;
     }
 
     graph->post_process();

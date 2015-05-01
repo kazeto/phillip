@@ -64,12 +64,6 @@ public:
         const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold,
         xml_element_t *out) {};
 
-    /** Returns an instance of function class
-     *  to judge whether enumeration should be discontinued.
-     *  This is called by lhs_enumerator_t. */
-    virtual enumeration_stopper_t* enumeration_stopper() const
-    { return new enumeration_stopper_t(); }
-
 protected:
     /** Converts proof-graph's structure into ILP problem. */
     void convert_proof_graph(ilp::ilp_problem_t *prob) const;

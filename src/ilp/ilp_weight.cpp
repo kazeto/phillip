@@ -309,13 +309,6 @@ generator_t::operator()(phillip_main_t *ph) const
 }
 
 
-ilp_converter_t::enumeration_stopper_t*
-weighted_converter_t::enumeration_stopper() const
-{
-    return new my_enumeration_stopper_t(this);
-}
-
-
 std::vector<double> weighted_converter_t::basic_weight_provider_t::operator()(
     const pg::proof_graph_t *graph, pg::edge_idx_t idx) const
 {
@@ -383,27 +376,6 @@ hash_map<std::string, std::string> *out) const
         (*out)["paid-cost"] = sol->variable_is_active(costvar) ? "yes" : "no";
     }
 }
-
-
-
-bool weighted_converter_t::
-my_enumeration_stopper_t::operator()(const pg::proof_graph_t *graph)
-{
-    pg::edge_idx_t idx(-1);
-    for (pg::edge_idx_t i = graph->edges().size() - 1; i >= 0; --i)
-    if (graph->edge(i).is_unify_edge())
-    {
-        idx = i;
-        break;
-    }
-
-    if (idx < 0) return false;
-    if (m_considered_edges.count(idx) > 0) return false;
-
-    m_considered_edges.insert(idx);
-    return true;
-}
-
 
 
 }

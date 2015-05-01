@@ -66,15 +66,6 @@ public:
         hash_map<pg::node_idx_t, ilp::variable_idx_t> m_node2costvar;
     };
 
-    class my_enumeration_stopper_t : public ilp_converter_t::enumeration_stopper_t {
-    public:
-        my_enumeration_stopper_t(const weighted_converter_t *ptr) : m_converter(ptr) {}
-        virtual bool operator()(const pg::proof_graph_t*);
-    private:
-        const weighted_converter_t *m_converter;
-        hash_set<pg::edge_idx_t> m_considered_edges;
-    };
-
     static weight_provider_t* parse_string_to_weight_provider(const std::string &str);
 
     weighted_converter_t(
@@ -88,8 +79,6 @@ public:
     virtual bool is_available(std::list<std::string>*) const override;
     virtual std::string repr() const override;
     virtual bool do_keep_optimality_on_timeout() const override { return false; }
-
-    virtual enumeration_stopper_t* enumeration_stopper() const;
 
     inline std::vector<double> get_weights(
         const pg::proof_graph_t*, pg::edge_idx_t) const;
@@ -127,10 +116,6 @@ public:
         virtual double node_cost(const pg::proof_graph_t*, pg::node_idx_t) const;
     private:
         double m_default_axiom_cost, m_literal_unifying_cost, m_term_unifying_cost;
-    };
-
-    class my_enumeration_stopper_t : public ilp_converter_t::enumeration_stopper_t {
-        virtual bool operator()(const pg::proof_graph_t*) const;
     };
 
     static cost_provider_t* parse_string_to_cost_provider(const std::string&);
