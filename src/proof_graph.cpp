@@ -25,10 +25,23 @@ node_t::node_t(
     m_depth(depth), m_arity_id(kb::INVALID_ARITY_ID),
     m_master_hypernode_idx(-1), m_parents(parents), m_ancestors(parents)
 {
-    for (auto idx : parents)
+    for (auto p : m_parents)
     {
-        const hash_set<node_idx_t> &nodes = graph->node(idx).ancestors();
-        m_ancestors.insert(nodes.begin(), nodes.end());
+        const hash_set<node_idx_t> &ancs = graph->node(p).ancestors();
+        m_ancestors.insert(ancs.begin(), ancs.end());
+    }
+
+    for (auto idx : m_parents)
+    {
+        const node_t &n = graph->node(idx);
+        const std::vector<node_idx_t> &bros = graph->hypernode(n.master_hypernode());
+        m_relatives.insert(bros.begin(), bros.end());
+
+        for (auto br : bros)
+        {
+            const hash_set<node_idx_t> &ancs = graph->node(br).ancestors();
+            m_ancestors.insert(ancs.begin(), ancs.end());
+        }
     }
 
     if (not m_literal.is_equality())
@@ -1238,18 +1251,23 @@ hypernode_idx_t proof_graph_t::chain(
         std::set<std::pair<term_t, term_t> > eqs(cond);
 
         for (auto it_n = from.begin(); it_n != from.end(); ++it_n)
+        {
             enumerate_dependent_edges(*it_n, &dep_edges);
+
+            const hash_set<node_idx_t> &rels = node(*it_n).relatives();
+            evidences.insert(rels.begin(), rels.end());
+        }
 
         // ENUMERATE EVIDENCES AND SUBS IN CONDITIONS OF EDGE.
         for (auto it_e = dep_edges.begin(); it_e != dep_edges.end(); ++it_e)
         {
-            const std::vector<node_idx_t> &tail = hypernode(edge(*it_e).tail());
-            evidences.insert(tail.begin(), tail.end());
-
             auto it_subs = m_subs_of_conditions_for_chain.find(*it_e);
             if (it_subs != m_subs_of_conditions_for_chain.end())
                 eqs.insert(it_subs->second.begin(), it_subs->second.end());
         }
+
+        const hash_set<node_idx_t> &obs = observation_indices();
+        evidences.insert(obs.begin(), obs.end());
 
         // ENUMERATE SUBS IN EVIDENCES.
         for (auto it_n = evidences.begin(); it_n != evidences.end(); ++it_n)

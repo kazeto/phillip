@@ -75,8 +75,13 @@ public:
      *  Unification-nodes have depth of -1. */
     inline depth_t depth() const { return m_depth; }
 
-    /** Returns nodes which must be hypothesized to hypothesize this. */
+    inline const hash_set<pg::node_idx_t>& parents() const;
+
+    /** Returns nodes between this and observations which this explains. */
     inline const hash_set<pg::node_idx_t>& ancestors() const;
+
+    /** Returns nodes which must be hypothesized to hypothesize this. */
+    inline const hash_set<pg::node_idx_t>& relatives() const;
 
     /** Returns the index of hypernode
      *  which was instantiated for instantiation of this node.
@@ -108,6 +113,7 @@ private:
 
     hash_set<node_idx_t> m_parents;
     hash_set<node_idx_t> m_ancestors;
+    hash_set<node_idx_t> m_relatives;
 };
 
 

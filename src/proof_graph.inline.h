@@ -15,9 +15,21 @@ namespace pg
 
 
 
+inline const hash_set<pg::node_idx_t>& node_t::parents() const
+{
+    return m_parents;
+}
+
+
 inline const hash_set<pg::node_idx_t>& node_t::ancestors() const
 {
     return m_ancestors;
+}
+
+
+inline const hash_set<pg::node_idx_t>& node_t::relatives() const
+{
+    return m_relatives;
 }
 
 
