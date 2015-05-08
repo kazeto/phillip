@@ -282,8 +282,8 @@ void xml_element_t::print(std::ostream *os) const
     std::function<void(const xml_element_t&)>
         elem_to_string = [&](const xml_element_t &e) -> void
     {
-        auto attr_to_string = [](const std::pair<std::string, std::string> &p)
-        { return format("%s=\"%s\"", p.first, p.second); };
+        auto attr_to_string = [](const std::pair<std::string, std::string> &p) -> std::string
+        { return format("%s=\"%s\"", p.first.c_str(), p.second.c_str()); };
 
         (*os) << "<" << e.name() << " ";
         (*os) << join_functional(e.attributes(), attr_to_string, " ") << ">" << std::endl;
