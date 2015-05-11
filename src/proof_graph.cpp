@@ -949,13 +949,15 @@ edge_idx_t proof_graph_t::add_edge(const edge_t &edge)
 {
     edge_idx_t idx = m_edges.size();
 
-    m_maps.hypernode_to_edge[edge.head()].insert(idx);
     m_maps.hypernode_to_edge[edge.tail()].insert(idx);
+    m_maps.hypernode_to_edge[edge.head()].insert(idx);
 
-    for (auto n_idx : hypernode(edge.head()))
-        m_maps.head_node_to_edges[n_idx].insert(idx);
     for (auto n_idx : hypernode(edge.tail()))
         m_maps.tail_node_to_edges[n_idx].insert(idx);
+
+    if (edge.head() >= 0)
+    for (auto n_idx : hypernode(edge.head()))
+        m_maps.head_node_to_edges[n_idx].insert(idx);
 
     m_edges.push_back(edge);
     return idx;
