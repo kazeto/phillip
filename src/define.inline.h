@@ -162,10 +162,10 @@ inline void string_hash_t::set_flags(const std::string &str)
 
 
 inline std::string literal_t::get_arity(
-    const predicate_t &pred, int term_num, bool do_negate)
+    const predicate_t &pred, int term_num, bool is_negated)
 {
     return 
-        (do_negate ? "!" : "") +
+        (is_negated ? "!" : "") +
         phil::format("%s/%d", pred.c_str(), term_num);
 }
 

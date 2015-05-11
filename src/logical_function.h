@@ -126,6 +126,10 @@ struct axiom_t
 };
 
 
+/** Parses given string as S-expression and returns the result of parsing. */
+void parse(const std::string &str, std::list<logical_function_t> *out);
+
+
 }
 
 }

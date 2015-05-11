@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstring>
 #include <cstdarg>
+#include <sstream>
 
 #include "logical_function.h"
 #include "kb.h"
@@ -515,6 +516,16 @@ void logical_function_t::add_branch(const logical_function_t &lf)
     m_branches.push_back(lf);
 }
 
+
+void parse(const std::string &str, std::list<logical_function_t> *out)
+{
+    std::stringstream ss(str);
+    sexp::reader_t reader(ss);
+
+    for (; not reader.is_end(); reader.read())
+    if (reader.is_root())
+        out->push_back(logical_function_t(*reader.get_stack()));
+}
 
 
 }

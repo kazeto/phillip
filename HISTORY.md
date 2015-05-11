@@ -1,21 +1,6 @@
 # 2015/04/* (Phil.3.10)
 
 - Improved the performance of lhs::a_star_based_enumerator_t.
-- Changed the format of `req` statement in observations.
-    - Each argument must be a literal or a conjunction.
-    - If `req` statement has one argument, it is the gold label.
-    - If `req` statement has plural arguments, they are label candidates in some labeling task.
-      In this case, you can specify the gold label by adding the optional parameter `:gold`.
-    - Example:
-    ```lisp
-        ; Using -G option, Phillip searches the hypothesis which includes (p X) and (q Y).
-        (O (req (^ (p X) (q Y)))
-           (^ ...))
-        ; On default, Phillip searches the hypothesis which includes (p X) or (q Y).
-        ; Using -G option, Phillip searches the hypothesis which includes (p X).
-        (O (req (p X :gold) (q Y))
-           (^ ...))
-    ```
 - Modified `tools/out2html.py`.
     - You can see the usage by `python tools/out2html.py -h`.
 - Modified some command options:
@@ -56,6 +41,22 @@
 | `pg::proof_graph_t::enumerate_observations()`                  | Replace to `pg::proof_graph_t::observation_indices()`         |
 | `pg::proof_graph_t::do_disregard_hypernode(int)`               | Abolished                                                     |
 | `pg::proof_graph_t::enumerate_queries_for_knowledge_base(...)` | Renamed to `pg::proof_graph_t::enumerate_arity_patterns(...)` |
+
+- Changed the format of `req` statement in observations.
+    - Each argument of `req` must be a literal or a conjunction.
+    - If `req` statement has one argument, it is the gold label.
+    - If `req` statement has plural arguments, they are label candidates in some labeling task.
+      In this case, you can specify the gold label by adding the optional parameter `:gold`.
+    - Example:
+    ```lisp
+        ; Using -G option, Phillip searches the hypothesis which includes (p X).
+        (O (req (p X)) (^ ...))
+        ; Using -G option, Phillip searches the hypothesis which includes (p X) and (q Y).
+        (O (req (^ (p X) (q Y))) (^ ...))
+        ; On default, Phillip searches the hypothesis which includes (p X) or (q Y).
+        ; Using -G option, Phillip searches the hypothesis which includes (p X).
+        (O (req (p X :gold) (q Y)) (^ ...))
+    ```
 
 
 # 2015/04/03 (Phil.3.00)

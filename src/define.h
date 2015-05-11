@@ -159,7 +159,7 @@ class literal_t
 {
 public:
     static inline std::string get_arity(
-        const predicate_t &pred, int term_num, bool do_distinguish_negation);
+        const predicate_t &pred, int term_num, bool is_negated);
 
     inline literal_t() {}
     inline literal_t(const std::string &_pred, bool _truth = true);
