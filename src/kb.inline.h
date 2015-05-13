@@ -84,6 +84,18 @@ inline bool knowledge_base_t::is_valid_version() const
 }
 
 
+inline bool knowledge_base_t::is_writable() const
+{
+    return m_state == STATE_COMPILE;
+}
+
+
+inline bool knowledge_base_t::is_readable() const
+{
+    return m_state == STATE_QUERY;
+}
+
+
 inline int knowledge_base_t::num_of_axioms() const
 {
     return m_axioms.num_axioms();
