@@ -1090,18 +1090,21 @@ ilp_solution_t::ilp_solution_t(
         m_constraints_sufficiency[i] = cons.is_satisfied(values);
     }
 
-    if (proof_graph()->has_timed_out() and m_solution_type != SOLUTION_NOT_AVAILABLE)
-        m_solution_type =
-        phillip()->lhs_enumerator()->do_keep_optimality_on_timeout()
-        ? SOLUTION_SUB_OPTIMAL : SOLUTION_NOT_AVAILABLE;
-    if (problem()->has_timed_out() and m_solution_type != SOLUTION_NOT_AVAILABLE)
-        m_solution_type =
-        phillip()->ilp_convertor()->do_keep_optimality_on_timeout()
-        ? SOLUTION_SUB_OPTIMAL : SOLUTION_NOT_AVAILABLE;
-    if (has_timed_out() and m_solution_type != SOLUTION_NOT_AVAILABLE)
-        m_solution_type =
-        phillip()->ilp_solver()->do_keep_optimality_on_timeout()
-        ? SOLUTION_SUB_OPTIMAL : SOLUTION_NOT_AVAILABLE;
+    if (proof_graph() != NULL and phillip() != NULL)
+    {
+        if (proof_graph()->has_timed_out() and m_solution_type != SOLUTION_NOT_AVAILABLE)
+            m_solution_type =
+            phillip()->lhs_enumerator()->do_keep_optimality_on_timeout()
+            ? SOLUTION_SUB_OPTIMAL : SOLUTION_NOT_AVAILABLE;
+        if (problem()->has_timed_out() and m_solution_type != SOLUTION_NOT_AVAILABLE)
+            m_solution_type =
+            phillip()->ilp_convertor()->do_keep_optimality_on_timeout()
+            ? SOLUTION_SUB_OPTIMAL : SOLUTION_NOT_AVAILABLE;
+        if (has_timed_out() and m_solution_type != SOLUTION_NOT_AVAILABLE)
+            m_solution_type =
+            phillip()->ilp_solver()->do_keep_optimality_on_timeout()
+            ? SOLUTION_SUB_OPTIMAL : SOLUTION_NOT_AVAILABLE;
+    }
 }
 
 

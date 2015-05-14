@@ -246,7 +246,7 @@ void knowledge_base_t::finalize()
             const hash_map<arity_id_t, hash_set<axiom_id_t> > &ids,
             cdb_data_t *dat)
         {
-            print_console("starts writing " + dat->filename() + "...");
+            IF_VERBOSE_1("starts writing " + dat->filename() + "...");
 
             for (auto it = ids.begin(); it != ids.end(); ++it)
             {
@@ -262,7 +262,7 @@ void knowledge_base_t::finalize()
                 delete[] buffer;
             }
 
-            print_console("completed writing " + dat->filename() + ".");
+            IF_VERBOSE_1("completed writing " + dat->filename() + ".");
         };
 
         extend_inconsistency();
@@ -671,8 +671,8 @@ void knowledge_base_t::set_distance_provider(const std::string &key)
         key };
 
     if (m_distance_provider.instance == NULL)
-        print_error_fmt(
-        "The key of distance-provider is invalid: \"%s\"", key.c_str());
+        throw phillip_exception_t(
+        format("The key of distance-provider is invalid: \"%s\"", key.c_str()));
 }
 
 
@@ -686,8 +686,8 @@ void knowledge_base_t::set_category_table(const std::string &key)
         key };
 
     if (m_category_table.instance == NULL)
-        print_error_fmt(
-        "The key of category table is invalid: \"%s\"", key.c_str());
+        throw phillip_exception_t(
+        format("The key of category table is invalid: \"%s\"", key.c_str()));
 }
 
 
@@ -719,7 +719,7 @@ void knowledge_base_t::insert_axiom_group_to_cdb()
     const hash_map<std::string, hash_set<axiom_id_t> >& map(m_group_to_axioms);
     hash_map<axiom_id_t, hash_set<std::string> > axiom_to_group;
 
-    print_console("starts writing " + dat.filename() + "...");
+    IF_VERBOSE_1("starts writing " + dat.filename() + "...");
 
     for (auto it = map.begin(); it != map.end(); ++it)
     {
@@ -754,13 +754,13 @@ void knowledge_base_t::insert_axiom_group_to_cdb()
         dat.put(key.c_str(), key.length(), buffer, size);
     }
 
-    print_console("completed writing " + dat.filename() + ".");
+    IF_VERBOSE_1("completed writing " + dat.filename() + ".");
 }
 
 
 void knowledge_base_t::insert_argument_set_to_cdb()
 {
-    print_console("starts writing " + m_cdb_arg_set.filename() + "...");
+    IF_VERBOSE_1("starts writing " + m_cdb_arg_set.filename() + "...");
     IF_VERBOSE_4(format("  # of arg-sets = %d", m_argument_sets.size()));
 
     unsigned processed(0);
@@ -771,7 +771,7 @@ void knowledge_base_t::insert_argument_set_to_cdb()
             m_cdb_arg_set.put(arg->c_str(), arg->length(), &id, sizeof(argument_set_id_t));
     }
 
-    print_console("completed writing " + m_cdb_arg_set.filename() + ".");
+    IF_VERBOSE_1("completed writing " + m_cdb_arg_set.filename() + ".");
 }
 
 
@@ -788,7 +788,7 @@ void knowledge_base_t::set_stop_words()
     if (not can_use_lpsolve and not can_use_lpsolve) return;
     if (ms_do_disable_stop_word) return;
 
-    print_console("Setting stop-words...");
+    IF_VERBOSE_1("Setting stop-words...");
     m_axioms.prepare_query();
 
     typedef std::pair <std::string, char> term_pos_t;
@@ -852,7 +852,7 @@ void knowledge_base_t::set_stop_words()
             proc(ax, false);
         }
 
-        if (id % 10 == 0)
+        if (id % 10 == 0 and phillip_main_t::verbose() >= VERBOSE_1)
         {
             float progress = (float)(id)* 100.0f / (float)m_axioms.num_axioms();
             std::cerr << format("processed %d axioms [%.4f%%]\r", id, progress);
@@ -928,7 +928,7 @@ void knowledge_base_t::set_stop_words()
 
 void knowledge_base_t::create_query_map()
 {
-    print_console("Creating the arity patterns...");
+    IF_VERBOSE_1("Creating the arity patterns...");
 
     m_axioms.prepare_query();
     m_cdb_rhs.prepare_query();
@@ -991,7 +991,7 @@ void knowledge_base_t::create_query_map()
             proc(ax, false);
         }
 
-        if (i % 10 == 0)
+        if (i % 10 == 0 and phillip_main_t::verbose() >= VERBOSE_1)
         {
             float progress = (float)(i)* 100.0f / (float)m_axioms.num_axioms();
             std::cerr << format("processed %d axioms [%.4f%%]\r", i, progress);
@@ -999,7 +999,7 @@ void knowledge_base_t::create_query_map()
     }
 
     m_cdb_arity_patterns.prepare_compile();
-    print_console("  Writing " + m_cdb_arity_patterns.filename() + "...");
+    IF_VERBOSE_2("  Writing " + m_cdb_arity_patterns.filename() + "...");
 
     for (auto p : arity_to_queries)
     {
@@ -1032,9 +1032,9 @@ void knowledge_base_t::create_query_map()
         delete[] value;
     }
 
-    print_console("  Completed writing " + m_cdb_arity_patterns.filename() + ".");
+    IF_VERBOSE_2("  Completed writing " + m_cdb_arity_patterns.filename() + ".");
     m_cdb_pattern_to_ids.prepare_compile();
-    print_console("  Writing " + m_cdb_pattern_to_ids.filename() + "...");
+    IF_VERBOSE_2("  Writing " + m_cdb_pattern_to_ids.filename() + "...");
 
     for (auto p : pattern_to_ids)
     {
@@ -1055,15 +1055,15 @@ void knowledge_base_t::create_query_map()
         m_cdb_pattern_to_ids.put(&key[0], key.size(), &val[0], val.size());
     }
 
-    print_console_fmt("    # of patterns = %d", pattern_to_ids.size());
-    print_console("  Completed writing " + m_cdb_pattern_to_ids.filename() + ".");
-    print_console("Completed the arity patterns creation.");
+    IF_VERBOSE_3(format("    # of patterns = %d", pattern_to_ids.size()));
+    IF_VERBOSE_2("  Completed writing " + m_cdb_pattern_to_ids.filename() + ".");
+    IF_VERBOSE_1("Completed the arity patterns creation.");
 }
 
 
 void knowledge_base_t::create_reachable_matrix()
 {
-    print_console("starts to create reachable matrix...");
+    IF_VERBOSE_1("starts to create reachable matrix...");
 
     size_t processed(0), num_inserted(0);
     clock_t clock_past = clock_t();
@@ -1077,11 +1077,11 @@ void knowledge_base_t::create_reachable_matrix()
 
     m_rm.prepare_compile();
 
-    print_console_fmt("  num of axioms = %d", m_axioms.num_axioms());
-    print_console_fmt("  num of arities = %d", m_arity_db.arities().size());
-    print_console_fmt("  max distance = %.2f", get_max_distance());
-    print_console_fmt("  num of parallel threads = %d", ms_thread_num_for_rm);
-    print_console("  computing distance of direct edges...");
+    IF_VERBOSE_3(format("  num of axioms = %d", m_axioms.num_axioms()));
+    IF_VERBOSE_3(format("  num of arities = %d", m_arity_db.arities().size()));
+    IF_VERBOSE_3(format("  max distance = %.2f", get_max_distance()));
+    IF_VERBOSE_3(format("  num of parallel threads = %d", ms_thread_num_for_rm));
+    IF_VERBOSE_2("  computing distance of direct edges...");
 
     const std::vector<arity_t> &arities = m_arity_db.arities();
     hash_map<arity_id_t, hash_map<arity_id_t, float> > base_lhs, base_rhs;
@@ -1097,7 +1097,7 @@ void knowledge_base_t::create_reachable_matrix()
     
     _create_reachable_matrix_direct(ignored, &base_lhs, &base_rhs, &base_para);
 
-    print_console("  writing reachable matrix...");
+    IF_VERBOSE_2("  writing reachable matrix...");
     std::vector<std::thread> worker;
     int num_thread =
         std::min<int>(arities.size(),
@@ -1144,9 +1144,9 @@ void knowledge_base_t::create_reachable_matrix()
         num_inserted * 100.0 /
         (double)(arities.size() * arities.size()));
     
-    print_console("completed computation.");
-    print_console_fmt("  process-time = %d", proc_time);
-    print_console_fmt("  coverage = %.6lf%%", coverage);
+    IF_VERBOSE_1("completed computation.");
+    IF_VERBOSE_3(format("  process-time = %d", proc_time));
+    IF_VERBOSE_3(format("  coverage = %.6lf%%", coverage));
 }
 
 
@@ -1255,7 +1255,7 @@ void knowledge_base_t::_create_reachable_matrix_direct(
             }
         }
 
-        if (++num_processed % 10 == 0)
+        if (++num_processed % 10 == 0 and phillip_main_t::verbose() >= VERBOSE_1)
         {
             float progress = (float)(num_processed)* 100.0f / (float)m_axioms.num_axioms();
             std::cerr << format("processed %d axioms [%.4f%%]\r", num_processed, progress);

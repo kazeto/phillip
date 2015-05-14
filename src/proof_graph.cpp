@@ -1521,8 +1521,9 @@ void proof_graph_t::enumerate_arity_patterns(
     {
         hash_map<kb::arity_id_t, int> arity_count;
         hash_map<kb::arity_id_t, hash_set<node_idx_t> > a2ns;
+        const std::vector<kb::arity_id_t> &arities = kb::arities(q);
 
-        for (auto a : kb::arities(q))
+        for (auto a : arities)
         {
             auto found = arity_count.find(a);
             if (found == arity_count.end()) arity_count[a] = 1;
@@ -1559,17 +1560,19 @@ void proof_graph_t::enumerate_arity_patterns(
         bool is_valid_query(true);
 
         // CHECK WHETHER ANY OF TERM PAIR SATISFIES HARD TERM CONSTRAINTS BY q.
-        for (auto p : std::get<1>(q))
+        for (auto p : kb::hard_terms(q))
         {
             kb::term_pos_t &t1(p.first);
             kb::term_pos_t &t2(p.second);
+            kb::arity_id_t a1 = arities.at(t1.first);
+            kb::arity_id_t a2 = arities.at(t2.first);
             hash_set<term_t> terms;
             bool do_exist_term_pair(false);
 
-            for (auto n : a2ns.at(t1.first))
+            for (auto n : a2ns.at(a1))
                 terms.insert(node(n).literal().terms.at(t1.second));
 
-            for (auto n : a2ns.at(t2.first))
+            for (auto n : a2ns.at(a2))
             {
                 if (terms.count(node(n).literal().terms.at(t2.second)) > 0)
                 {

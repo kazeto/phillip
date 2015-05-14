@@ -11,7 +11,7 @@ namespace phil
 {
 
 
-int phillip_main_t::ms_verboseness = 0;
+int phillip_main_t::ms_verboseness = VERBOSE_1;
 const std::string phillip_main_t::VERSION = "phil.3.10";
 
 
