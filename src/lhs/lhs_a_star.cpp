@@ -220,8 +220,7 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
 
     for (auto q : queries)
     {
-        std::list<std::pair<axiom_id_t, bool> > axs; // <AXIOM_ID, IS_BACKWARD>
-        base->search_axioms_with_arity_pattern(q, &axs);
+        enumerate_chain_candidates(graph, q, pivot, out);
     }
 }
 
