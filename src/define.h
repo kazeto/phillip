@@ -11,6 +11,7 @@
 #include <chrono>
 #include <sys/stat.h>
 #include <iostream>
+#include <initializer_list>
 #include <vector>
 #include <list>
 #include <string>
@@ -106,6 +107,7 @@ class string_hash_t
 {
 public:
     static inline string_hash_t get_unknown_hash();
+    static inline void reset_unknown_hash_count();
 
     inline string_hash_t();
     inline string_hash_t(const string_hash_t& h);
@@ -172,6 +174,10 @@ public:
     inline literal_t(
         const std::string &_predicate,
         const term_t& term1, const term_t& term2,
+        bool _truth = true);
+    inline literal_t(
+        const std::string &_pred,
+        const std::initializer_list<std::string> &_terms,
         bool _truth = true);
     inline literal_t(
         const std::string &_predicate,
@@ -412,7 +418,9 @@ public:
 };
 
 
+
 /* -------- Functions -------- */
+
 
 /** Call this function on starting phillip. */
 void initialize();
@@ -505,6 +513,11 @@ template <class T> hash_set<T> intersection(
 template <class T> inline std::pair<T, T> make_sorted_pair(const T &x, const T &y);
 
 template <class Container> void erase(Container &c, size_t i);
+
+/** Functions for GoogleTest. */
+std::ostream& operator<<(std::ostream& os, const term_t& t);
+std::ostream& operator<<(std::ostream& os, const literal_t& t);
+
 
 extern std::mutex g_mutex_for_print;
 

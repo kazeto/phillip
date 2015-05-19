@@ -178,6 +178,7 @@ public:
     inline bool is_readable() const;
     inline const std::string& filename() const;
     inline int num_of_axioms() const;
+    inline const hash_set<std::string>& stop_words() const;
 
     inline void clear_distance_cache();
 

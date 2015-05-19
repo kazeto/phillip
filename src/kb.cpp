@@ -129,17 +129,15 @@ void knowledge_base_t::setup(
     std::string filename, float max_distance,
     int thread_num_for_rm, bool do_disable_stop_word)
 {
-    if (not ms_instance)
-    {
-        ms_filename = filename;
-        ms_max_distance = max_distance;
-        ms_thread_num_for_rm = thread_num_for_rm;
-        ms_do_disable_stop_word = do_disable_stop_word;
+    if (ms_instance != NULL)
+        ms_instance.reset(NULL);
+        
+    ms_filename = filename;
+    ms_max_distance = max_distance;
+    ms_thread_num_for_rm = thread_num_for_rm;
+    ms_do_disable_stop_word = do_disable_stop_word;
 
-        if (ms_thread_num_for_rm < 0) ms_thread_num_for_rm = 1;
-    }
-    else
-        print_warning("Failed to setup. The instance of KB has been created.");
+    if (ms_thread_num_for_rm < 0) ms_thread_num_for_rm = 1;
 }
 
 

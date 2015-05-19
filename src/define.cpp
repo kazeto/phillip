@@ -22,7 +22,7 @@ std::mutex string_hash_t::ms_mutex_hash;
 std::mutex string_hash_t::ms_mutex_unknown;
 hash_map<std::string, unsigned> string_hash_t::ms_hashier;
 std::vector<std::string> string_hash_t::ms_strs;
-unsigned string_hash_t::ms_issued_variable_count;
+unsigned string_hash_t::ms_issued_variable_count = 0;
 
 
 literal_t::literal_t(const sexp::stack_t &s)
@@ -654,6 +654,19 @@ bool parse_string_as_function_call(
 
     return false;
 }
+
+
+std::ostream& operator<<(std::ostream& os, const term_t& t)
+{
+    return os << t.string();
+}
+
+
+std::ostream& operator<<(std::ostream& os, const literal_t& lit)
+{
+    return os << lit.to_string();
+}
+
 
 
 std::mutex g_mutex_for_print;

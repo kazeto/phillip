@@ -40,8 +40,15 @@ inline string_hash_t string_hash_t::get_unknown_hash()
     std::lock_guard<std::mutex> lock(ms_mutex_unknown);
 
     char buffer[128];
-    _sprintf(buffer, "_u%d", ms_issued_variable_count++);
+    _sprintf(buffer, "_u%d", ++ms_issued_variable_count);
     return string_hash_t(std::string(buffer));
+}
+
+
+inline void string_hash_t::reset_unknown_hash_count()
+{
+    std::lock_guard<std::mutex> lock(ms_mutex_unknown);
+    ms_issued_variable_count = 0;
 }
 
 
@@ -187,6 +194,17 @@ inline literal_t::literal_t(
     const std::vector<term_t> _terms, bool _truth )
     : predicate(_pred), terms(_terms), truth(_truth)
 {
+    regularize();
+}
+
+
+inline literal_t::literal_t(
+    const std::string &_pred,
+    const std::initializer_list<std::string> &_terms, bool _truth)
+    : predicate(_pred), truth(_truth)
+{
+    for (auto t : _terms)
+        terms.push_back(term_t(t));
     regularize();
 }
 

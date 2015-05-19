@@ -102,6 +102,12 @@ inline int knowledge_base_t::num_of_axioms() const
 }
 
 
+inline const hash_set<std::string>& knowledge_base_t::stop_words() const
+{
+    return m_stop_words;
+}
+
+
 inline const std::string& knowledge_base_t::filename() const
 {
     return m_filename;
