@@ -86,6 +86,7 @@ ilp::ilp_problem_t* costed_converter_t::execute() const
     {
         ilp::variable_idx_t var =
             prob->find_variable_with_edge(i);
+        
         if (var >= 0)
         {
             double cost = m_cost_provider->edge_cost(graph, i);
@@ -147,11 +148,8 @@ double costed_converter_t::basic_cost_provider_t::edge_cost(
     if (edge.is_chain_edge())
     {
         lf::axiom_t axiom(base->get_axiom(edge.axiom_id()));
-        auto splitted = split(axiom.func.param(), ":");
-
-        for (auto it = splitted.begin(); it != splitted.end(); ++it)
-        if (_sscanf(it->c_str(), "%lf", &cost) == 1)
-            break;
+        if (not axiom.func.scan_parameter("%lf", &cost))
+            cost = m_default_axiom_cost;            
     }
     else if (edge.is_unify_edge())
     {

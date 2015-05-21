@@ -200,19 +200,31 @@ variable_idx_t ilp_problem_t::add_variable_of_edge(
 
     if (do_add_constraint_for_node)
     {
-        /* IF THE EDGE IS TRUE, TAIL AND HEAD MUST BE TRUE, TOO. */
-        constraint_t con(
-            format("e_hn_dependency:e(%d):hn(%d,%d)", idx, edge.tail(), edge.head()),
-            OPR_GREATER_EQ, 0.0);
         variable_idx_t v_tail = find_variable_with_hypernode(edge.tail());
         variable_idx_t v_head = find_variable_with_hypernode(edge.head());
 
+        /* IF THE EDGE IS TRUE, TAIL AND HEAD MUST BE TRUE, TOO. */
         if (v_tail >= 0 and (v_head >= 0 or edge.head() < 0))
         {
+            constraint_t con(
+                format("e_hn_dependency:e(%d):hn(%d,%d)",
+                       idx, edge.tail(), edge.head()),
+                OPR_GREATER_EQ, 0.0);
+            
             con.add_term(v_tail, 1.0);
             if (edge.head() >= 0)
                 con.add_term(v_head, 1.0);
             con.add_term(var, -1.0 * con.terms().size());
+            add_constraint(con);
+        }
+
+        /* IF LITERAL NODES IN THE HEAD ARE TRUE, THE NODE MUST BE TRUE, TOO. */
+        if (edge.is_chain_edge() and v_head >= 0)
+        {
+            constraint_t con(
+                format("n_e_dependency:e(%d)", idx), OPR_GREATER_EQ, 0.0);
+            con.add_term(v_head, -1.0);
+            con.add_term(var, con.terms().size());
             add_constraint(con);
         }
     }
