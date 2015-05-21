@@ -24,6 +24,8 @@ def ask_yes_no(query):
 
 
 def write_main(target_bin, do_use_lpsolve, do_use_gurobi):
+    cmd_test = ''
+    
     with open('Makefile', 'w') as fout:
         fout.write('\n'.join([
             'CXX = g++',
@@ -70,8 +72,10 @@ def write_main(target_bin, do_use_lpsolve, do_use_gurobi):
             '\trm -f $(OBJS_LIB)',
             '',
             'test:',
-            '\t$(TARGET_BIN) -l conf/toy.compile.conf',
-            '\t$(TARGET_BIN) -l conf/toy.inference.conf']))
+            '\t$(TARGET_BIN) -m infer -k data/compiled/kb '
+            '-c dist=basic -c tab=null -c lhs=a* -c ilp=weighted -c sol=gurobi '
+            '-p kb_max_distance=4 -p max_distance=4.0 '
+            '-f do_compile_kb -v 5 data/toy.lisp']))
 
 
 def write_example(dir, do_use_lpsolve, do_use_gurobi):

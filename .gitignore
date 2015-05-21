@@ -2,6 +2,7 @@
 
 ; DATA
 data/*
+!data/toy.lisp
 !data/toy.obs.lisp
 !data/toy.kb.lisp
 
