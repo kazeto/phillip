@@ -84,10 +84,8 @@ public:
         virtual lhs_enumerator_t* operator()(phillip_main_t*) const override;
     };
 
-    depth_based_enumerator_t(
-        phillip_main_t *ptr,
-        int max_depth, float max_distance, float max_redundancy,
-        bool do_disable_reachable_matrix = false);
+    depth_based_enumerator_t(phillip_main_t *ptr, int max_depth);
+
     virtual lhs_enumerator_t* duplicate(phillip_main_t *ptr) const;
     virtual pg::proof_graph_t* execute() const;
     virtual bool is_available(std::list<std::string>*) const;
@@ -97,21 +95,6 @@ public:
 private:
     struct reachability_t { float distance, redundancy; };
     typedef hash_map<pg::node_idx_t, reachability_t > reachable_map_t;
-
-    /** This is a sub-routine of execute.
-    *  Creates reachability map for observations. */
-    hash_map<pg::node_idx_t, reachable_map_t>
-        compute_reachability_of_observations(const pg::proof_graph_t*) const;
-
-    /** This is a sub-routine of execute.
-    *  Computes reachability of new nodes
-    *  and returns possibility of the chaining. */
-    bool compute_reachability_of_chaining(
-        const pg::proof_graph_t *graph,
-        const hash_map<pg::node_idx_t, reachable_map_t> &reachability,
-        const std::vector<pg::node_idx_t> &from,
-        const lf::axiom_t &axiom, bool is_forward,
-        std::vector<reachable_map_t> *out) const;
 
     /** This is a sub-routine of execute.
     *  Gets candidates of chaining from nodes containing a node
@@ -137,15 +120,7 @@ private:
         const pg::proof_graph_t *graph,
         const std::vector<std::string> &arities, int depth) const;
 
-    /** This is a sub-routine of execute.
-    *  Erases satisfied reachabilities from out. */
-    void filter_unified_reachability(
-        const pg::proof_graph_t *graph, pg::node_idx_t target,
-        reachable_map_t *out) const;
-
     int m_depth_max;
-    float m_distance_max, m_redundancy_max;
-    bool m_do_disable_reachable_matrix;
 };
 
 
