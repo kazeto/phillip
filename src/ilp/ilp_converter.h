@@ -24,7 +24,7 @@ public:
     virtual ilp::ilp_problem_t* execute() const override;
     virtual bool is_available(std::list<std::string>*) const override;
     virtual std::string repr() const override;
-    virtual bool do_keep_optimality_on_timeout() const override { return true; }
+    virtual bool do_keep_validity_on_timeout() const override { return true; }
 };
 
 
@@ -78,7 +78,7 @@ public:
     virtual ilp::ilp_problem_t* execute() const override;
     virtual bool is_available(std::list<std::string>*) const override;
     virtual std::string repr() const override;
-    virtual bool do_keep_optimality_on_timeout() const override { return false; }
+    virtual bool do_keep_validity_on_timeout() const override { return false; }
 
     inline std::vector<double> get_weights(
         const pg::proof_graph_t*, pg::edge_idx_t) const;
@@ -127,7 +127,7 @@ public:
     virtual ilp::ilp_problem_t* execute() const override;
     virtual bool is_available(std::list<std::string>*) const override;
     virtual std::string repr() const override;
-    virtual bool do_keep_optimality_on_timeout() const override { return false; }
+    virtual bool do_keep_validity_on_timeout() const override { return false; }
 
 protected:
     cost_provider_t *m_cost_provider;

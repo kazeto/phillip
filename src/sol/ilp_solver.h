@@ -45,7 +45,7 @@ public:
 
     virtual bool is_available(std::list<std::string> *error_messages) const;
     virtual std::string repr() const;
-    virtual bool do_keep_optimality_on_timeout() const override { return false; }
+    virtual bool do_keep_validity_on_timeout() const override { return false; }
 };
 
 
@@ -68,7 +68,7 @@ public:
 
     virtual bool is_available(std::list<std::string> *error_messages) const;
     virtual std::string repr() const;
-    virtual bool do_keep_optimality_on_timeout() const override { return false; }
+    virtual bool do_keep_validity_on_timeout() const override { return false; }
 
 #ifdef USE_LP_SOLVE
 private:
@@ -100,7 +100,7 @@ public:
 
     virtual bool is_available(std::list<std::string> *error_messages) const;
     virtual std::string repr() const { return "gurobi-optimizer"; }
-    virtual bool do_keep_optimality_on_timeout() const override { return false; }
+    virtual bool do_keep_validity_on_timeout() const override { return false; }
 
 private:
 #ifdef USE_GUROBI

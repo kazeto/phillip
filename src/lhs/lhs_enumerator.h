@@ -31,7 +31,7 @@ public:
     virtual pg::proof_graph_t* execute() const;
     virtual bool is_available(std::list<std::string>*) const;
     virtual std::string repr() const;
-    virtual bool do_keep_optimality_on_timeout() const override { return true; }
+    virtual bool do_keep_validity_on_timeout() const override { return true; }
 
 private:
     struct reachability_t : public pg::chain_candidate_t
@@ -90,7 +90,7 @@ public:
     virtual pg::proof_graph_t* execute() const;
     virtual bool is_available(std::list<std::string>*) const;
     virtual std::string repr() const;
-    virtual bool do_keep_optimality_on_timeout() const override { return true; }
+    virtual bool do_keep_validity_on_timeout() const override { return true; }
 
 private:
     struct reachability_t { float distance, redundancy; };

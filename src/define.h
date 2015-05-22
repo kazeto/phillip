@@ -245,7 +245,7 @@ public:
 
     /** Returns whether the output is non-available or sub-optimal
      *  when this component has timed out. */
-    virtual bool do_keep_optimality_on_timeout() const = 0;
+    virtual bool do_keep_validity_on_timeout() const = 0;
 
     phillip_main_t *phillip() const { return m_phillip; }
 
