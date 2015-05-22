@@ -2057,7 +2057,10 @@ bool basic_category_table_t::do_target(const arity_t &a) const
 void basic_category_table_t::finalize()
 {
     if (m_state == STATE_COMPILE)
+    {
+        combinate();
         write(filename());
+    }
 
     m_table.clear();
     m_state = STATE_NULL;
@@ -2066,10 +2069,12 @@ void basic_category_table_t::finalize()
 
 void basic_category_table_t::combinate()
 {
-    auto search = [this](arity_id_t a1, arity_id_t a2) -> float
+    auto search = [](
+        const hash_map<arity_id_t, hash_map<arity_id_t, float> > &table,
+        arity_id_t a1, arity_id_t a2) -> float
     {
-        auto found1 = m_table.find(a1);
-        if (found1 != m_table.end())
+        auto found1 = table.find(a1);
+        if (found1 != table.end())
         {
             auto found2 = found1->second.find(a2);
             if (found2 != found1->second.end())
@@ -2078,23 +2083,41 @@ void basic_category_table_t::combinate()
         return -1.0f;
     };
 
-    while (true)
+    
+    hash_map<arity_id_t, hash_map<arity_id_t, float> > table_dir(m_table);
+    const float max_dist = knowledge_base_t::get_max_distance();
+    bool did_update(true);
+
+    while (did_update)
     {
+        hash_map<arity_id_t, hash_map<arity_id_t, float> > table_buf;
+        did_update = false;
+        
         for (auto p1 : m_table)
         for (auto p2 : p1.second)
+        for (auto p3 : table_dir.at(p2.first))
+        if (p1.first != p3.first)
         {
-            for (auto q1 : m_table.at(p1.first))
-            for (auto q2 : m_table.at(p2.first))
-            {
-                float d_old = search(p1.first, p2.first);
-                float d_new = p2.second + q1.second + q2.second;
+            float d_old = search(m_table, p1.first, p3.first);
+            float d_new = p2.second + p3.second;
 
-                if (d_old < 0.0f or(d_old >= 0.0f and d_new < d_old))
+            if (max_dist < 0.0f or d_new < max_dist)
+            if (d_old < 0.0f or (d_old >= 0.0f and d_new < d_old))
+            {
+                float d_buf = search(table_buf, p1.first, p3.first);
+                    
+                if (d_buf < 0.0f or (d_buf >= 0.0f and d_new < d_buf))
                 {
-                    // TODO
+                    table_buf[p1.first][p3.first] = d_new;
+                    table_buf[p3.first][p1.first] = d_new;
+                    did_update = true;
                 }
             }
         }
+
+        for (auto p1 : table_buf)
+        for (auto p2 : p1.second)
+            m_table[p1.first][p2.first] = p2.second;
     }
 }
 
