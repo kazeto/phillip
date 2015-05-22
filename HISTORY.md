@@ -1,7 +1,9 @@
-# 2015/04/* (Phil.3.10)
+# 2015/05/22 (Phil.3.10)
 
 - Improved the performance of lhs::a_star_based_enumerator_t.
-- Modified `tools/out2html.py`.
+- Updated the version of compiled knowledge base.
+    - So please recompile your knowledge base.
+- Modified `tools/out2html.py`, which is the script to visualize output of Phillip.
     - You can see the usage by `python tools/out2html.py -h`.
 - Modified some command options:
 
@@ -57,7 +59,8 @@
         ; Using -G option, Phillip searches the hypothesis which includes (p X).
         (O (req (p X :gold) (q Y)) (^ ...))
     ```
-
+- Fixed some bugs.
+    
 
 # 2015/04/03 (Phil.3.00)
 
