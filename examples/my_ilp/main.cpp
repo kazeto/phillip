@@ -31,8 +31,7 @@ public:
                 graph, new phil::ilp::basic_solution_interpreter_t(), false);
 
             convert_proof_graph(prob);
-            if (prob->is_timeout()) return prob;
-
+            if (prob->has_timed_out()) return prob;
 
             /* THE FOLLOWING PROCEDURE DEFINES THE EVALUATION FUNCTION,
                AS THE OBJECTIVE FUNTION IN ILP-PROBLEM. */
@@ -66,6 +65,11 @@ public:
                 return false;
             }
         }
+    
+    /** Returns whether the output is non-available or sub-optimal
+     *  when this component has timed out. */
+    virtual bool do_keep_validity_on_timeout() const override { return false; }
+    
     virtual std::string repr() const override
         {
             /* DEFINE THE NAME OF YOUR CONVERTER HERE.
@@ -83,7 +87,7 @@ private:
 
 /** A generator of your ilp-convertetr. */
 class my_ilp_converter_generator_t :
-    public phil::bin::component_generator_t<phil::ilp_converter_t>
+    public phil::component_generator_t<phil::ilp_converter_t>
 {
 public:
     /** Generates an instance your converter and returns it. */
