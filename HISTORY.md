@@ -7,20 +7,20 @@
     - You can see the usage by `python tools/out2html.py -h`.
 - Modified some command options:
 
-| Before                                              | After                           |
-| --------------------------------------------------- |-------------------------------- |
-| `-m inference`                                      | `-m inference` or `-m infer`    |
-| `-m compile_kb`                                     | `-m compile_kb` or `-m compile` |
-| `-p path_out=<PATH>`                                | `-o <PATH>`                     |
-| `-p path_lhs_out=<PATH>`                            | `-o lhs=<PATH>`                 |
-| `-p path_ilp_out=<PATH>`                            | `-o ilp=<PATH>`                 |
-| `-p path_sol_out=<PATH>`                            | `-o sol=<PATH>`                 |
-| `-e <NAME>`                                         | `-t !<NAME>`                    |
-| `-o <NAME>`                                         | `-t <NAME>`                     |
-| `-P`                                                | `-G`                            |
-| `-p kb_thread_num=<INT> -p gurobi_thread_num=<INT>` | `-P <INT>`                      |
-| `-p kb_thread_num=<INT>`                            | `-P kb=<INT>`                   |
-| `-p gurobi_thread_num=<INT>`                        | `-P grb=<INT>`                  |
+| Before                   | After                           |
+| ------------------------ |-------------------------------- |
+| `-m inference`           | `-m inference` or `-m infer`    |
+| `-m compile_kb`          | `-m compile_kb` or `-m compile` |
+| `-p path_out=<PATH>`     | `-o <PATH>`                     |
+| `-p path_lhs_out=<PATH>` | `-o lhs=<PATH>`                 |
+| `-p path_ilp_out=<PATH>` | `-o ilp=<PATH>`                 |
+| `-p path_sol_out=<PATH>` | `-o sol=<PATH>`                 |
+| `-e <NAME>`              | `-t !<NAME>`                    |
+| `-o <NAME>`              | `-t <NAME>`                     |
+| `-P`                     | `-G`                            |
+| `-t <INT>`               | `-P <INT>`                      |
+| `-t kb=<INT>`            | `-P kb=<INT>`                   |
+| `-p grb=<INT>`           | `-P grb=<INT>`                  |
 
 - Performed major refactoring. We show some of modified things below:
 

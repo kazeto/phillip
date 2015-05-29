@@ -191,9 +191,8 @@ void execute(
         print_console_fmt("    # of observations: %d", parsed_inputs.size());
 
         kb::knowledge_base_t::instance()->prepare_query();
+        phillip->check_validity();
 
-        if (phillip->check_validity())
-        if (kb::knowledge_base_t::instance()->is_valid_version())
         for (int i = 0; i < parsed_inputs.size(); ++i)
         {
             const lf::input_t &ipt = parsed_inputs.at(i);
