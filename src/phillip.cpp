@@ -12,7 +12,7 @@ namespace phil
 
 
 int phillip_main_t::ms_verboseness = VERBOSE_1;
-const std::string phillip_main_t::VERSION = "phil.3.10";
+const std::string phillip_main_t::VERSION = "phil.3.11";
 
 
 phillip_main_t::phillip_main_t()
@@ -241,8 +241,36 @@ void phillip_main_t::write_header() const
     {
         (*os) << "<phillip>" << std::endl;
         (*os) << "<configure>" << std::endl;
-
         (*os) << "<version>" << VERSION << "</version>" << std::endl;
+
+        auto get_time_stamp_exe = []() -> std::string
+        {
+            int year, month, day, hour, min, sec;
+            std::string out;
+            beginning_time(&year, &month, &day, &hour, &min, &sec);
+            switch (month)
+            {
+            case 1:  out = "Jan"; break;
+            case 2:  out = "Feb"; break;
+            case 3:  out = "Mar"; break;
+            case 4:  out = "Apr"; break;
+            case 5:  out = "May"; break;
+            case 6:  out = "Jun"; break;
+            case 7:  out = "Jul"; break;
+            case 8:  out = "Aug"; break;
+            case 9:  out = "Sep"; break;
+            case 10: out = "Oct"; break;
+            case 11: out = "Nov"; break;
+            case 12: out = "Dec"; break;
+            default: throw;
+            }
+            return out + format(" %2d %4d %02d:%02d:%02d", day, year, hour, min, sec);
+        };
+        
+        (*os)
+            << "<time_stamp compiled=\"" << format("%s %s", __DATE__, __TIME__)
+            << "\" executed=\"" << get_time_stamp_exe()
+            << "\"></time_stamp>" << std::endl;
 
         (*os)
             << "<components lhs=\"" << m_lhs_enumerator->repr()
