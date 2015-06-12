@@ -105,7 +105,7 @@ bool unification_postponement_t::do_postpone(
 
 
 const int BUFFER_SIZE = 512 * 512;
-std::unique_ptr<knowledge_base_t, deleter_t<knowledge_base_t> > knowledge_base_t::ms_instance;
+std::unique_ptr<knowledge_base_t, util::deleter_t<knowledge_base_t> > knowledge_base_t::ms_instance;
 std::string knowledge_base_t::ms_filename = "kb";
 float knowledge_base_t::ms_max_distance = -1.0f;
 int knowledge_base_t::ms_thread_num_for_rm = 1;
@@ -118,7 +118,7 @@ knowledge_base_t* knowledge_base_t::instance()
 {
     if (not ms_instance)
     {
-        mkdir(get_directory_name(ms_filename));
+        util::mkdir(util::get_directory_name(ms_filename));
         ms_instance.reset(new knowledge_base_t(ms_filename));
     }
     return ms_instance.get();
@@ -242,7 +242,7 @@ void knowledge_base_t::finalize()
     {
         auto insert_cdb = [](
             const hash_map<arity_id_t, hash_set<axiom_id_t> > &ids,
-            cdb_data_t *dat)
+            util::cdb_data_t *dat)
         {
             IF_VERBOSE_1("starts writing " + dat->filename() + "...");
 
@@ -251,9 +251,9 @@ void knowledge_base_t::finalize()
                 size_t read_size = sizeof(size_t)+sizeof(axiom_id_t)* it->second.size();
                 char *buffer = new char[read_size];
 
-                int size = to_binary<size_t>(it->second.size(), buffer);
+                int size = util::to_binary<size_t>(it->second.size(), buffer);
                 for (auto id = it->second.begin(); id != it->second.end(); ++id)
-                    size += to_binary<axiom_id_t>(*id, buffer + size);
+                    size += util::to_binary<axiom_id_t>(*id, buffer + size);
 
                 assert(read_size == size);
                 dat->put((char*)&it->first, sizeof(arity_id_t), buffer, size);
@@ -383,7 +383,7 @@ axiom_id_t knowledge_base_t::insert_implication(
 
         if (not is_implication and not is_paraphrase)
         {
-            print_warning_fmt(
+            util::print_warning_fmt(
                 "Axiom \"%s\" is invalid and skipped.", func.to_string().c_str());
             return INVALID_AXIOM_ID;
         }
@@ -402,7 +402,7 @@ axiom_id_t knowledge_base_t::insert_implication(
         m_axioms.put(name, func);
 
         // REGISTER AXIOMS'S GROUPS
-        auto spl = split(name, "#");
+        auto spl = util::split(name, "#");
         if (spl.size() > 1)
         {
             for (int i = 0; i < spl.size() - 1; ++i)
@@ -440,7 +440,7 @@ void knowledge_base_t::insert_inconsistency(const lf::logical_function_t &func)
     {
         if (not func.is_valid_as_inconsistency())
         {
-            print_warning_fmt(
+            util::print_warning_fmt(
                 "Inconsistency \"%s\" is invalid and skipped.",
                 func.to_string().c_str());
             return;
@@ -464,7 +464,7 @@ void knowledge_base_t::insert_unification_postponement(const lf::logical_functio
     {
         if (not func.is_valid_as_unification_postponement())
         {
-            print_warning_fmt(
+            util::print_warning_fmt(
                 "Unification postponement \"%s\" is invalid and skipped.",
                 func.to_string().c_str());
             return;
@@ -487,7 +487,7 @@ void knowledge_base_t::insert_unification_postponement(const lf::logical_functio
                     args[i] = UNI_PP_DISPENSABLE;
                 else
                 {
-                    print_warning_fmt(
+                    util::print_warning_fmt(
                         "The unification postponement for the arity \"%s\" is invalid.",
                         lit.get_arity().c_str());
                     return;
@@ -510,7 +510,7 @@ void knowledge_base_t::insert_argument_set(const lf::logical_function_t &f)
 
     if (not f.is_valid_as_argument_set())
     {
-        print_warning_fmt(
+        util::print_warning_fmt(
             "Argument set \"%s\" is invalid and skipped.",
             f.to_string().c_str());
     }
@@ -553,11 +553,11 @@ void knowledge_base_t::insert_argument_set(const lf::logical_function_t &f)
 
 hash_set<axiom_id_t> knowledge_base_t::search_axiom_group(axiom_id_t id) const
 {
-    std::string key = format("#%lu", id);
+    std::string key = util::format("#%lu", id);
 
     if (not m_cdb_axiom_group.is_readable())
     {
-        print_warning("kb-search: Kb-state is invalid.");
+        util::print_warning("kb-search: Kb-state is invalid.");
         return hash_set<axiom_id_t>();
     }
 
@@ -569,12 +569,12 @@ hash_set<axiom_id_t> knowledge_base_t::search_axiom_group(axiom_id_t id) const
 
     hash_set<axiom_id_t> out(id);
     size_t size(0), num_grp(0);
-    size += binary_to<size_t>(value + size, &num_grp);
+    size += util::binary_to<size_t>(value + size, &num_grp);
 
     for (int i = 0; i < num_grp; ++i)
     {
         std::string grp;
-        size += binary_to_string(value + size, &grp);
+        size += util::binary_to_string(value + size, &grp);
 
         auto ids = search_id_list(grp, &m_cdb_axiom_group);
         out.insert(ids.begin(), ids.end());
@@ -588,11 +588,11 @@ search_argument_set_id(const std::string &arity, int term_idx) const
 {
     if (not m_cdb_arg_set.is_readable())
     {
-        print_warning("kb-search: Kb-state is invalid.");
+        util::print_warning("kb-search: Kb-state is invalid.");
         return 0;
     }
 
-    std::string key = format("%s/%d", arity.c_str(), term_idx);
+    std::string key = util::format("%s/%d", arity.c_str(), term_idx);
     size_t value_size;
     const argument_set_id_t *value = (const argument_set_id_t*)
         m_cdb_arg_set.get(key.c_str(), key.length(), &value_size);
@@ -605,7 +605,7 @@ void knowledge_base_t::search_arity_patterns(arity_id_t arity, std::list<arity_p
 {
     if (not m_cdb_arity_patterns.is_readable())
     {
-        print_warning("kb-search: Kb-state is invalid.");
+        util::print_warning("kb-search: Kb-state is invalid.");
         return;
     }
 
@@ -616,7 +616,7 @@ void knowledge_base_t::search_arity_patterns(arity_id_t arity, std::list<arity_p
     if (value != NULL)
     {
         size_t num_query, read_size(0);
-        read_size += binary_to<size_t>(value, &num_query);
+        read_size += util::binary_to<size_t>(value, &num_query);
         out->assign(num_query, arity_pattern_t());
 
         for (auto it = out->begin(); it != out->end(); ++it)
@@ -631,7 +631,7 @@ void knowledge_base_t::search_axioms_with_arity_pattern(
 {
     if (not m_cdb_pattern_to_ids.is_readable())
     {
-        print_warning("kb-search: Kb-state is invalid.");
+        util::print_warning("kb-search: Kb-state is invalid.");
         return;
     }
 
@@ -645,14 +645,14 @@ void knowledge_base_t::search_axioms_with_arity_pattern(
     if (value != NULL)
     {
         size_t size(0), num_id(0);
-        size += binary_to<size_t>(value + size, &num_id);
+        size += util::binary_to<size_t>(value + size, &num_id);
         out->assign(num_id, std::pair<axiom_id_t, bool>());
 
         for (auto it = out->begin(); it != out->end(); ++it)
         {
             char flag;
-            size += binary_to<axiom_id_t>(value + size, &(it->first));
-            size += binary_to<char>(value + size, &flag);
+            size += util::binary_to<axiom_id_t>(value + size, &(it->first));
+            size += util::binary_to<char>(value + size, &flag);
             it->second = (flag != 0x00);
         }
     }
@@ -670,7 +670,7 @@ void knowledge_base_t::set_distance_provider(const std::string &key)
 
     if (m_distance_provider.instance == NULL)
         throw phillip_exception_t(
-        format("The key of distance-provider is invalid: \"%s\"", key.c_str()));
+        util::format("The key of distance-provider is invalid: \"%s\"", key.c_str()));
 }
 
 
@@ -685,7 +685,7 @@ void knowledge_base_t::set_category_table(const std::string &key)
 
     if (m_category_table.instance == NULL)
         throw phillip_exception_t(
-        format("The key of category table is invalid: \"%s\"", key.c_str()));
+        util::format("The key of category table is invalid: \"%s\"", key.c_str()));
 }
 
 
@@ -713,7 +713,7 @@ float knowledge_base_t::get_distance(
 
 void knowledge_base_t::insert_axiom_group_to_cdb()
 {
-    cdb_data_t &dat(m_cdb_axiom_group);
+    util::cdb_data_t &dat(m_cdb_axiom_group);
     const hash_map<std::string, hash_set<axiom_id_t> >& map(m_group_to_axioms);
     hash_map<axiom_id_t, hash_set<std::string> > axiom_to_group;
 
@@ -724,10 +724,10 @@ void knowledge_base_t::insert_axiom_group_to_cdb()
         size_t byte_size = sizeof(size_t)+sizeof(axiom_id_t)* it->second.size();
         char *buffer = new char[byte_size];
 
-        int size = to_binary<size_t>(it->second.size(), buffer);
+        int size = util::to_binary<size_t>(it->second.size(), buffer);
         for (auto id = it->second.begin(); id != it->second.end(); ++id)
         {
-            size += to_binary<axiom_id_t>(*id, buffer + size);
+            size += util::to_binary<axiom_id_t>(*id, buffer + size);
             axiom_to_group[*id].insert(it->first);
         }
 
@@ -742,13 +742,13 @@ void knowledge_base_t::insert_axiom_group_to_cdb()
     
     for (auto it = axiom_to_group.begin(); it != axiom_to_group.end(); ++it)
     {
-        int size = to_binary<size_t>(it->second.size(), buffer);
+        int size = util::to_binary<size_t>(it->second.size(), buffer);
         for (auto grp : it->second)
-            size += string_to_binary(grp, buffer + size);
+            size += util::string_to_binary(grp, buffer + size);
 
         assert(size < SIZE);
 
-        std::string key = format("#%lu", it->first);
+        std::string key = util::format("#%lu", it->first);
         dat.put(key.c_str(), key.length(), buffer, size);
     }
 
@@ -759,7 +759,7 @@ void knowledge_base_t::insert_axiom_group_to_cdb()
 void knowledge_base_t::insert_argument_set_to_cdb()
 {
     IF_VERBOSE_1("starts writing " + m_cdb_arg_set.filename() + "...");
-    IF_VERBOSE_4(format("  # of arg-sets = %d", m_argument_sets.size()));
+    IF_VERBOSE_4(util::format("  # of arg-sets = %d", m_argument_sets.size()));
 
     unsigned processed(0);
     for (auto args = m_argument_sets.begin(); args != m_argument_sets.end(); ++args)
@@ -853,7 +853,7 @@ void knowledge_base_t::set_stop_words()
         if (id % 10 == 0 and phillip_main_t::verbose() >= VERBOSE_1)
         {
             float progress = (float)(id)* 100.0f / (float)m_axioms.num_axioms();
-            std::cerr << format("processed %d axioms [%.4f%%]\r", id, progress);
+            std::cerr << util::format("processed %d axioms [%.4f%%]\r", id, progress);
         }
     }
 
@@ -920,7 +920,7 @@ void knowledge_base_t::set_stop_words()
 
     IF_VERBOSE_3(
         "stop-words = {" +
-        join(m_stop_words.begin(), m_stop_words.end(), ", ") + "}");
+        util::join(m_stop_words.begin(), m_stop_words.end(), ", ") + "}");
 }
 
 
@@ -962,7 +962,7 @@ void knowledge_base_t::create_query_map()
         {
             for (auto it1 = e.second.begin(); it1 != e.second.end(); ++it1)
             for (auto it2 = e.second.begin(); it2 != it1; ++it2)
-                std::get<1>(query).push_back(make_sorted_pair(*it1, *it2));
+                std::get<1>(query).push_back(util::make_sorted_pair(*it1, *it2));
         }
         std::get<1>(query).sort();
 
@@ -992,7 +992,7 @@ void knowledge_base_t::create_query_map()
         if (i % 10 == 0 and phillip_main_t::verbose() >= VERBOSE_1)
         {
             float progress = (float)(i)* 100.0f / (float)m_axioms.num_axioms();
-            std::cerr << format("processed %d axioms [%.4f%%]\r", i, progress);
+            std::cerr << util::format("processed %d axioms [%.4f%%]\r", i, progress);
         }
     }
 
@@ -1016,7 +1016,7 @@ void knowledge_base_t::create_query_map()
         char *value = new char[size_value];
         size_t size(0);
 
-        size += to_binary<size_t>(p.second.size(), value);
+        size += util::to_binary<size_t>(p.second.size(), value);
         for (auto q : queries)
         {
             std::memcpy(value + size, &q[0], q.size());
@@ -1042,18 +1042,18 @@ void knowledge_base_t::create_query_map()
         size_t size_val = sizeof(size_t) + (sizeof(axiom_id_t) + sizeof(char)) * p.second.size();
         val.assign(size_val, '\0');
 
-        size_t size = to_binary<size_t>(p.second.size(), &val[0]);
+        size_t size = util::to_binary<size_t>(p.second.size(), &val[0]);
         for (auto p2 : p.second)
         {
-            size += to_binary<axiom_id_t>(p2.first, &val[0] + size);
-            size += to_binary<char>((p2.second ? 0xff : 0x00), &val[0] + size);
+            size += util::to_binary<axiom_id_t>(p2.first, &val[0] + size);
+            size += util::to_binary<char>((p2.second ? 0xff : 0x00), &val[0] + size);
         }
         assert(size == size_val);
 
         m_cdb_pattern_to_ids.put(&key[0], key.size(), &val[0], val.size());
     }
 
-    IF_VERBOSE_3(format("    # of patterns = %d", pattern_to_ids.size()));
+    IF_VERBOSE_3(util::format("    # of patterns = %d", pattern_to_ids.size()));
     IF_VERBOSE_2("  Completed writing " + m_cdb_pattern_to_ids.filename() + ".");
     IF_VERBOSE_1("Completed the arity patterns creation.");
 }
@@ -1075,10 +1075,10 @@ void knowledge_base_t::create_reachable_matrix()
 
     m_rm.prepare_compile();
 
-    IF_VERBOSE_3(format("  num of axioms = %d", m_axioms.num_axioms()));
-    IF_VERBOSE_3(format("  num of arities = %d", m_arity_db.arities().size()));
-    IF_VERBOSE_3(format("  max distance = %.2f", get_max_distance()));
-    IF_VERBOSE_3(format("  num of parallel threads = %d", ms_thread_num_for_rm));
+    IF_VERBOSE_3(util::format("  num of axioms = %d", m_axioms.num_axioms()));
+    IF_VERBOSE_3(util::format("  num of arities = %d", m_arity_db.arities().size()));
+    IF_VERBOSE_3(util::format("  max distance = %.2f", get_max_distance()));
+    IF_VERBOSE_3(util::format("  num of parallel threads = %d", ms_thread_num_for_rm));
     IF_VERBOSE_2("  computing distance of direct edges...");
 
     const std::vector<arity_t> &arities = m_arity_db.arities();
@@ -1124,7 +1124,7 @@ void knowledge_base_t::create_reachable_matrix()
                     if (c - clock_past > CLOCKS_PER_SEC)
                     {
                         float progress = (float)(processed)* 100.0f / (float)arities.size();
-                        std::cerr << format(
+                        std::cerr << util::format(
                             "processed %d tokens [%.4f%%]\r", processed, progress);
                         std::cerr.flush();
                         clock_past = c;
@@ -1143,8 +1143,8 @@ void knowledge_base_t::create_reachable_matrix()
         (double)(arities.size() * arities.size()));
     
     IF_VERBOSE_1("completed computation.");
-    IF_VERBOSE_3(format("  process-time = %d", proc_time));
-    IF_VERBOSE_3(format("  coverage = %.6lf%%", coverage));
+    IF_VERBOSE_3(util::format("  process-time = %d", proc_time));
+    IF_VERBOSE_3(util::format("  coverage = %.6lf%%", coverage));
 }
 
 
@@ -1249,14 +1249,14 @@ void knowledge_base_t::_create_reachable_matrix_direct(
                 if (axiom.func.is_operator(lf::OPR_PARAPHRASE))
                 for (auto it_l = lhs_ids.begin(); it_l != lhs_ids.end(); ++it_l)
                 for (auto it_r = rhs_ids.begin(); it_r != rhs_ids.end(); ++it_r)
-                    out_para->insert(make_sorted_pair(*it_l, *it_r));
+                    out_para->insert(util::make_sorted_pair(*it_l, *it_r));
             }
         }
 
         if (++num_processed % 10 == 0 and phillip_main_t::verbose() >= VERBOSE_1)
         {
             float progress = (float)(num_processed)* 100.0f / (float)m_axioms.num_axioms();
-            std::cerr << format("processed %d axioms [%.4f%%]\r", num_processed, progress);
+            std::cerr << util::format("processed %d axioms [%.4f%%]\r", num_processed, progress);
         }
     }    
 }
@@ -1296,7 +1296,7 @@ void knowledge_base_t::_create_reachable_matrix_indirect(
                 if (idx1 == idx2) continue;
 
                 bool is_paraphrasal =
-                    (base_para.count(make_sorted_pair(idx1, idx2)) > 0);
+                    (base_para.count(util::make_sorted_pair(idx1, idx2)) > 0);
                 if (not is_paraphrasal and
                     ((is_forward and not can_deduction) or
                     (not is_forward and not can_abduction)))
@@ -1375,14 +1375,14 @@ void knowledge_base_t::_enumerate_deducible_literals(
 
 
 std::list<axiom_id_t> knowledge_base_t::search_id_list(
-    const std::string &query, const cdb_data_t *dat) const
+    const std::string &query, const util::cdb_data_t *dat) const
 {
     std::list<axiom_id_t> out;
     
     if (dat != NULL)
     {
         if (not dat->is_readable())
-            print_warning("kb-search: Kb-state is invalid.");
+            util::print_warning("kb-search: Kb-state is invalid.");
         else
         {
             size_t value_size;
@@ -1392,12 +1392,12 @@ std::list<axiom_id_t> knowledge_base_t::search_id_list(
             if (value != NULL)
             {
                 size_t size(0), num_id(0);
-                size += binary_to<size_t>(value + size, &num_id);
+                size += util::binary_to<size_t>(value + size, &num_id);
 
                 for (int j = 0; j<num_id; ++j)
                 {
                     axiom_id_t id;
-                    size += binary_to<axiom_id_t>(value + size, &id);
+                    size += util::binary_to<axiom_id_t>(value + size, &id);
                     out.push_back(id);
                 }
             }
@@ -1409,14 +1409,14 @@ std::list<axiom_id_t> knowledge_base_t::search_id_list(
 
 
 std::list<axiom_id_t> knowledge_base_t::search_id_list(
-    arity_id_t arity_id, const cdb_data_t *dat) const
+    arity_id_t arity_id, const util::cdb_data_t *dat) const
 {
     std::list<axiom_id_t> out;
 
     if (arity_id != INVALID_ARITY_ID and dat != NULL)
     {
         if (not dat->is_readable())
-            print_warning("kb-search: Kb-state is invalid.");
+            util::print_warning("kb-search: Kb-state is invalid.");
         else
         {
             size_t value_size;
@@ -1426,12 +1426,12 @@ std::list<axiom_id_t> knowledge_base_t::search_id_list(
             if (value != NULL)
             {
                 size_t size(0), num_id(0);
-                size += binary_to<size_t>(value + size, &num_id);
+                size += util::binary_to<size_t>(value + size, &num_id);
 
                 for (int j = 0; j<num_id; ++j)
                 {
                     axiom_id_t id;
-                    size += binary_to<axiom_id_t>(value + size, &id);
+                    size += util::binary_to<axiom_id_t>(value + size, &id);
                     out.push_back(id);
                 }
             }
@@ -1537,7 +1537,7 @@ void knowledge_base_t::axioms_database_t::put(
 
     /* AXIOM => BINARY-DATA */
     size_t size = func.write_binary(buffer);
-    size += string_to_binary(
+    size += util::string_to_binary(
         (name.empty() ? get_name_of_unnamed_axiom() : name),
         buffer + size);
     assert(size < BUFFER_SIZE and size < ULONG_MAX);
@@ -1561,7 +1561,7 @@ lf::axiom_t knowledge_base_t::axioms_database_t::get(axiom_id_t id) const
 
     if (not is_readable())
     {
-        print_warning("kb-search: KB is currently not readable.");
+        util::print_warning("kb-search: KB is currently not readable.");
         return out;
     }
 
@@ -1579,7 +1579,7 @@ lf::axiom_t knowledge_base_t::axioms_database_t::get(axiom_id_t id) const
 
     out.id = id;
     size_t _size = out.func.read_binary(buffer);
-    _size += binary_to_string(buffer + _size, &out.name);
+    _size += util::binary_to_string(buffer + _size, &out.name);
 
     return out;
 }
@@ -1909,7 +1909,7 @@ namespace dist
 
 float basic_distance_provider_t::operator()(const lf::axiom_t &ax) const
 {
-    auto splitted = split(ax.func.param(), ":");
+    auto splitted = util::split(ax.func.param(), ":");
     float dist;
 
     for (auto s : splitted)
@@ -2047,7 +2047,7 @@ bool basic_category_table_t::do_insert(
 bool basic_category_table_t::do_target(const arity_t &a) const
 {
     int num;
-    if (parse_arity(a, NULL, &num))
+    if (util::parse_arity(a, NULL, &num))
         return (num == 1);
     else
         return false;
@@ -2129,7 +2129,7 @@ void basic_category_table_t::write(const std::string &filename) const
 
     if (fout.bad())
     {
-        print_error_fmt("Cannot open %s.", filename.c_str());
+        util::print_error_fmt("Cannot open %s.", filename.c_str());
         return;
     }
 
@@ -2160,7 +2160,7 @@ void basic_category_table_t::read(const std::string &filename)
 
     if (fin.bad())
     {
-        print_error_fmt("Cannot open %s.", filename.c_str());
+        util::print_error_fmt("Cannot open %s.", filename.c_str());
         return;
     }
 
@@ -2195,20 +2195,20 @@ void query_to_binary(const arity_pattern_t &q, std::vector<char> *bin)
     size_t size = 0;
     bin->assign(size_expected, '\0');
 
-    size += num_to_binary(std::get<0>(q).size(), &(*bin)[0]);
+    size += util::num_to_binary(std::get<0>(q).size(), &(*bin)[0]);
     for (auto id : std::get<0>(q))
-        size += to_binary<arity_id_t>(id, &(*bin)[0] + size);
+        size += util::to_binary<arity_id_t>(id, &(*bin)[0] + size);
 
-    size += num_to_binary(std::get<1>(q).size(), &(*bin)[0] + size);
+    size += util::num_to_binary(std::get<1>(q).size(), &(*bin)[0] + size);
     for (auto ht : std::get<1>(q))
     {
-        size += to_binary<arity_id_t>(ht.first.first, &(*bin)[0] + size);
-        size += to_binary<char>(ht.first.second, &(*bin)[0] + size);
-        size += to_binary<arity_id_t>(ht.second.first, &(*bin)[0] + size);
-        size += to_binary<char>(ht.second.second, &(*bin)[0] + size);
+        size += util::to_binary<arity_id_t>(ht.first.first, &(*bin)[0] + size);
+        size += util::to_binary<char>(ht.first.second, &(*bin)[0] + size);
+        size += util::to_binary<arity_id_t>(ht.second.first, &(*bin)[0] + size);
+        size += util::to_binary<char>(ht.second.second, &(*bin)[0] + size);
     }
 
-    size += num_to_binary(std::get<2>(q).size(), &(*bin)[0] + size);
+    size += util::num_to_binary(std::get<2>(q).size(), &(*bin)[0] + size);
     for (auto i : std::get<2>(q))
         (*bin)[size++] = i;
 
@@ -2225,28 +2225,28 @@ size_t binary_to_query(const char *bin, arity_pattern_t *out)
     std::get<1>(*out).clear();
     std::get<2>(*out).clear();
 
-    size += binary_to_num(bin + size, &num_arity);
+    size += util::binary_to_num(bin + size, &num_arity);
     for (int i = 0; i < num_arity; ++i)
     {
         arity_id_t id;
-        size += binary_to<arity_id_t>(bin + size, &id);
+        size += util::binary_to<arity_id_t>(bin + size, &id);
         std::get<0>(*out).push_back(id);
     }
 
-    size += binary_to_num(bin + size, &num_hardterm);
+    size += util::binary_to_num(bin + size, &num_hardterm);
     for (int i = 0; i < num_hardterm; ++i)
     {
         arity_id_t id1, id2;
         char idx1, idx2;
-        size += binary_to<arity_id_t>(bin + size, &id1);
-        size += binary_to<char>(bin + size, &idx1);
-        size += binary_to<arity_id_t>(bin + size, &id2);
-        size += binary_to<char>(bin + size, &idx2);
+        size += util::binary_to<arity_id_t>(bin + size, &id1);
+        size += util::binary_to<char>(bin + size, &idx1);
+        size += util::binary_to<arity_id_t>(bin + size, &id2);
+        size += util::binary_to<char>(bin + size, &idx2);
         std::get<1>(*out).push_back(std::make_pair(
             std::make_pair(id1, idx1), std::make_pair(id2, idx2)));
     }
 
-    size += binary_to_num(bin + size, &num_option);
+    size += util::binary_to_num(bin + size, &num_option);
     for (int i = 0; i < num_option; ++i)
         std::get<2>(*out).push_back(bin[size++]);
 

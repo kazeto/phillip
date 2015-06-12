@@ -54,41 +54,41 @@ typedef float duration_time_t;
 
 namespace kb
 {
-class knowledge_base_t;
+    class knowledge_base_t;
 
-typedef unsigned long int argument_set_id_t;
-typedef size_t arity_id_t;
+    typedef unsigned long int argument_set_id_t;
+    typedef size_t arity_id_t;
 
-typedef std::pair<index_t, term_idx_t> term_pos_t;
-typedef std::tuple<
-    std::vector<arity_id_t>,
-    std::list<std::pair<term_pos_t, term_pos_t> >,
-    std::list<small_size_t> > arity_pattern_t;
+    typedef std::pair<index_t, term_idx_t> term_pos_t;
+    typedef std::tuple<
+        std::vector<arity_id_t>,
+        std::list<std::pair<term_pos_t, term_pos_t> >,
+        std::list<small_size_t> > arity_pattern_t;
 
-inline const std::vector<arity_id_t>& arities(const arity_pattern_t &p)
-{
-    return std::get<0>(p);
-}
+    inline const std::vector<arity_id_t>& arities(const arity_pattern_t &p)
+    {
+        return std::get<0>(p);
+    }
 
-inline const std::list<std::pair<term_pos_t, term_pos_t> >& hard_terms(const arity_pattern_t &p)
-{
-    return std::get<1>(p);
-}
+    inline const std::list<std::pair<term_pos_t, term_pos_t> >& hard_terms(const arity_pattern_t &p)
+    {
+        return std::get<1>(p);
+    }
 
-inline const std::list<small_size_t> soft_unifiable_literal_indices(const arity_pattern_t &p)
-{
-    return std::get<2>(p);
-}
+    inline const std::list<small_size_t> soft_unifiable_literal_indices(const arity_pattern_t &p)
+    {
+        return std::get<2>(p);
+    }
 
 }
 
 namespace pg
 {
-typedef index_t entity_idx_t;
-typedef index_t node_idx_t;
-typedef index_t edge_idx_t;
-typedef index_t hypernode_idx_t;
-typedef int depth_t;
+    typedef index_t entity_idx_t;
+    typedef index_t node_idx_t;
+    typedef index_t edge_idx_t;
+    typedef index_t hypernode_idx_t;
+    typedef int depth_t;
 }
 
 
@@ -115,10 +115,10 @@ public:
 
     inline const std::string& string() const;
     inline operator const std::string& () const;
-    
+
     inline string_hash_t& operator=(const std::string &s);
     inline string_hash_t& operator=(const string_hash_t &h);
-    
+
     inline bool operator>(const string_hash_t &x) const;
     inline bool operator<(const string_hash_t &x) const;
     inline bool operator==(const char *s) const;
@@ -131,11 +131,11 @@ public:
     inline bool is_constant() const { return m_is_constant; }
     inline bool is_unknown()  const { return m_is_unknown; }
     inline bool is_hard_term() const { return m_is_hard_term; }
-    
+
 private:
     /** Assign a hash to str if needed, and return the hash of str. */
     static inline unsigned get_hash(std::string str);
-    
+
     static std::mutex ms_mutex_hash, ms_mutex_unknown;
     static hash_map<std::string, unsigned> ms_hashier;
     static std::vector<std::string> ms_strs;
@@ -184,7 +184,7 @@ public:
         const std::string &term1, const std::string &term2,
         bool _truth = true);
     literal_t(const sexp::stack_t &s);
-    
+
     bool operator > (const literal_t &x) const;
     bool operator < (const literal_t &x) const;
     bool operator == (const literal_t &x) const;
@@ -194,14 +194,14 @@ public:
     inline std::string get_arity() const;
 
     inline bool is_equality() const { return predicate == "="; }
-    
-    size_t write_binary( char *bin ) const;
-    size_t read_binary( const char *bin );
-    
+
+    size_t write_binary(char *bin) const;
+    size_t read_binary(const char *bin);
+
     void print(std::string *p_out_str, bool f_colored = false) const;
-    
+
     static const int MAX_ARGUMENTS_NUM = 12;
-    
+
     predicate_t predicate;
     std::vector<term_t> terms;
     bool truth;
@@ -231,7 +231,7 @@ private:
 
 /** A base class of components of phillip_main_t. */
 class phillip_component_interface_t
-{    
+{
 public:
     phillip_component_interface_t(phillip_main_t *master) : m_phillip(master) {};
     virtual ~phillip_component_interface_t() {}
@@ -271,6 +271,14 @@ public:
     virtual T* operator()(phillip_main_t*) const { return NULL; }
 };
 
+
+/** Functions for GoogleTest. */
+std::ostream& operator<<(std::ostream& os, const term_t& t);
+std::ostream& operator<<(std::ostream& os, const literal_t& t);
+
+
+namespace util
+{
 
 /** A wrapper class of cdb++. */
 class cdb_data_t
@@ -425,7 +433,7 @@ public:
 /** Call this function on starting phillip. */
 void initialize();
 
-duration_time_t duration_time(const std::chrono::system_clock::time_point &begin);
+phil::duration_time_t duration_time(const std::chrono::system_clock::time_point &begin);
 
 inline void print_console(const std::string &str);
 inline void print_error(const std::string &str);
@@ -510,16 +518,17 @@ template <class It> bool has_intersection(
 template <class T> hash_set<T> intersection(
     const hash_set<T> &set1, const hash_set<T> &set2);
 
+template <class Container, class Element>
+inline bool has_element(const Container&, const Element&);
+
 template <class T> inline std::pair<T, T> make_sorted_pair(const T &x, const T &y);
 
 template <class Container> void erase(Container &c, size_t i);
 
-/** Functions for GoogleTest. */
-std::ostream& operator<<(std::ostream& os, const term_t& t);
-std::ostream& operator<<(std::ostream& os, const literal_t& t);
-
-
 extern std::mutex g_mutex_for_print;
+
+
+} // end util
 
 } // end phil
 

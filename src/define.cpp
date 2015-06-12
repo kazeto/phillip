@@ -196,6 +196,9 @@ size_t literal_t::read_binary( const char *bin )
 }
 
 
+namespace util
+{
+
 
 cdb_data_t::cdb_data_t(std::string _filename)
     : m_filename(_filename), m_fout(NULL), m_fin(NULL),
@@ -219,7 +222,7 @@ void cdb_data_t::prepare_compile()
             m_filename.c_str(),
             std::ios::binary | std::ios::trunc);
         if (m_fout->fail())
-            throw phillip_exception_t(
+            throw phil::phillip_exception_t(
             "Failed to open a database file: " + m_filename);
         else
             m_builder = new cdbpp::builder(*m_fout);
@@ -668,8 +671,9 @@ std::ostream& operator<<(std::ostream& os, const literal_t& lit)
 }
 
 
-
 std::mutex g_mutex_for_print;
 
 
-} // end phil
+} // end of util
+
+} // end of phil

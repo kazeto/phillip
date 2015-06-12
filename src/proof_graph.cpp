@@ -360,7 +360,7 @@ bool proof_graph_t::_check_nodes_coexistability(
         if (found == m_mutual_exclusive_edges.end()) continue;
 
         auto muex_edges = found->second;
-        if (has_intersection<hash_set<edge_idx_t>::const_iterator>(
+        if (util::has_intersection<hash_set<edge_idx_t>::const_iterator>(
             muex_edges.begin(), muex_edges.end(), e2.begin(), e2.end()))
         {
             if (uni == NULL)
@@ -416,7 +416,9 @@ std::string proof_graph_t::hypernode2str(hypernode_idx_t i) const
     if (i >= 0 and i < m_hypernodes.size())
     {
         const std::vector<node_idx_t>& tail = hypernode(i);
-        return format("%d:{", i) + join(tail.begin(), tail.end(), "%d", ",") + "}";
+        return
+            util::format("%d:{", i) +
+            util::join(tail.begin(), tail.end(), "%d", ",") + "}";
     }
     else
         return "-1:{}";
@@ -445,15 +447,15 @@ std::string proof_graph_t::edge_to_string( edge_idx_t i ) const
     case EDGE_UNDERSPECIFIED:
         str_edge << " => UNDERSPECIFIED => "; break;
     case EDGE_HYPOTHESIZE:
-        str_edge << format(" => BACKWARD(axiom=%d) => ", _edge.axiom_id());
+        str_edge << util::format(" => BACKWARD(axiom=%d) => ", _edge.axiom_id());
         break;
     case EDGE_IMPLICATION:
-        str_edge << format(" => FORWARD(axiom=%d) => ", _edge.axiom_id());
+        str_edge << util::format(" => FORWARD(axiom=%d) => ", _edge.axiom_id());
         break;
     case EDGE_UNIFICATION:
         str_edge << " => UNIFY => "; break;
     default:
-        str_edge << format(" => USER-DEFINED(type=%d) => ", _edge.type());
+        str_edge << util::format(" => USER-DEFINED(type=%d) => ", _edge.type());
         break;               
     }
 
@@ -828,9 +830,9 @@ void proof_graph_t::print_edges(std::ostream *os) const
             default: type = "unknown";
             }
         }
-        else type = format("user-defined(%d)", e.type());
+        else type = util::format("user-defined(%d)", e.type());
 
-        std::string gaps = join_functional(
+        std::string gaps = util::join_functional(
             get_gaps_on_edge(i),
             [](const std::pair<arity_t, arity_t> &p){return p.first + ":" + p.second; }, ",");
 
@@ -1021,7 +1023,7 @@ hypernode_idx_t proof_graph_t::chain(
                         return false;
                     else
 #endif
-                        conds->insert(make_sorted_pair(t_ax, t_hy));
+                        conds->insert(util::make_sorted_pair(t_ax, t_hy));
                 }
             }
             else
@@ -1033,7 +1035,7 @@ hypernode_idx_t proof_graph_t::chain(
                     if (t_ax.is_hard_term())
                         return false;
                     else
-                        conds->insert(make_sorted_pair(t_hy, find1->second));
+                        conds->insert(util::make_sorted_pair(t_hy, find1->second));
                 }
             }
 
@@ -1126,13 +1128,13 @@ hypernode_idx_t proof_graph_t::chain(
             if (it1 != it2)
             {
                 if (it1->first == it2->first)
-                    conds->insert(make_sorted_pair(it1->second, it2->second));
+                    conds->insert(util::make_sorted_pair(it1->second, it2->second));
                 else if (it1->first == it2->second)
-                    conds->insert(make_sorted_pair(it1->second, it2->first));
+                    conds->insert(util::make_sorted_pair(it1->second, it2->first));
                 else if (it1->second == it2->first)
-                    conds->insert(make_sorted_pair(it1->first, it2->second));
+                    conds->insert(util::make_sorted_pair(it1->first, it2->second));
                 else if (it1->second == it2->second)
-                    conds->insert(make_sorted_pair(it1->first, it2->first));
+                    conds->insert(util::make_sorted_pair(it1->first, it2->first));
             }
 
             if (conds->size() == n) break;
@@ -1204,7 +1206,7 @@ hypernode_idx_t proof_graph_t::chain(
                     if (not uni->empty())
                     {
                         for (auto p : uni->mapping())
-                            presup_neqs.insert(make_sorted_pair(p.first, p.second));
+                            presup_neqs.insert(util::make_sorted_pair(p.first, p.second));
                     }
 #ifndef DISABLE_CANCELING
                     else
@@ -1309,11 +1311,11 @@ hypernode_idx_t proof_graph_t::chain(
             &hn_from(hypernode(from)), &hn_to(hypernode(to));
         std::string
             header(is_backward ? "BackwardChain: " : "ForwardChain: "),
-            str_from(join(hn_from.begin(), hn_from.end(), "%d", ",")),
-            str_to(join(hn_to.begin(), hn_to.end(), "%d", ",")),
+            str_from(util::join(hn_from.begin(), hn_from.end(), "%d", ",")),
+            str_to(util::join(hn_to.begin(), hn_to.end(), "%d", ",")),
             arrow(is_backward ? "<=" : "=>");
 
-        print_console_fmt("%s: %d:[%s] %s %s %s %d:[%s]",
+        util::print_console_fmt("%s: %d:[%s] %s %s %s %d:[%s]",
             header.c_str(), from, str_from.c_str(), arrow.c_str(),
             axiom.name.c_str(), arrow.c_str(), to, str_to.c_str());
     };
@@ -1491,14 +1493,14 @@ proof_graph_t::enumerate_mutual_exclusive_edges() const
 {
     const hash_map<edge_idx_t, hash_set<edge_idx_t> >
         muexs(m_mutual_exclusive_edges);
-    std::set<comparable_list<edge_idx_t> > buf;
+    std::set<util::comparable_list<edge_idx_t> > buf;
 
     for (auto it = muexs.begin(); it != muexs.end(); ++it)
     {
         std::list<edge_idx_t> _list(it->second.begin(), it->second.end());
         _list.push_back(it->first);
         _list.sort();
-        buf.insert(comparable_list<edge_idx_t>(_list));
+        buf.insert(util::comparable_list<edge_idx_t>(_list));
     }
 
     std::list<hash_set<edge_idx_t> > out;
@@ -1729,7 +1731,7 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
             m_temporal.postponed_unifications.insert(n1, n2);
 
             IF_VERBOSE_FULL(
-                format("Postponed unification: node[%d] - node[%d]", n1, n2));
+                util::format("Postponed unification: node[%d] - node[%d]", n1, n2));
             continue;
         }
 
@@ -1753,7 +1755,7 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
             /* GENERATE TRANSITIVE UNIFICATION. */
             if (find_sub_node(t, *it) < 0)
             {
-                std::pair<term_t, term_t> ts = make_sorted_pair(t, *it);
+                std::pair<term_t, term_t> ts = util::make_sorted_pair(t, *it);
                 literal_t sub("=", ts.first, ts.second);
                 node_idx_t idx = add_node(sub, NODE_HYPOTHESIS, -1, hash_set<node_idx_t>());
                 m_maps.terms_to_sub_node.insert(ts.first, ts.second, idx);
@@ -1851,7 +1853,7 @@ size_t proof_graph_t::get_hash_of_nodes(std::list<node_idx_t> nodes)
     static std::hash<std::string> hasher;
     std::lock_guard<std::mutex> lock(g_mutex_hasher);
     nodes.sort();
-    return hasher(join(nodes.begin(), nodes.end(), "%d", ","));    
+    return hasher(util::join(nodes.begin(), nodes.end(), "%d", ","));
 }
 
 
@@ -1904,14 +1906,14 @@ void proof_graph_t::post_process()
             {
                 for (auto t2 : terms.second)
                 if (t2.is_constant())
-                    muex_terms.insert(make_sorted_pair(t1, t2));
+                    muex_terms.insert(util::make_sorted_pair(t1, t2));
             }
 
             for (auto ts : muex_terms)
             for (auto t : terms.second)
             if (t != ts.first and t != ts.second)
             {
-                std::pair<node_idx_t, node_idx_t> ns = make_sorted_pair(
+                std::pair<node_idx_t, node_idx_t> ns = util::make_sorted_pair(
                     find_sub_node(ts.first, t), find_sub_node(ts.second, t));
                 if (ns.first >= 0 and ns.second >= 0 and ns.first != ns.second)
                     m_mutual_exclusive_nodes[ns.first][ns.second] = unifier_t();
@@ -2083,14 +2085,14 @@ void proof_graph_t::_generate_mutual_exclusion_for_edges(
         if (not targets.empty())
         {
             // CREATE MAP OF EXCLUSIVENESS
-            std::set< comparable_list<edge_idx_t> > exclusions;
+            std::set< util::comparable_list<edge_idx_t> > exclusions;
             for (auto it1 = targets.begin(); it1 != targets.end(); ++it1)
             {
                 const edge_t &e1 = edge(*it1);
                 hash_set<axiom_id_t> grp = kb->search_axiom_group(e1.axiom_id());
                 if (grp.empty()) continue;
 
-                comparable_list<edge_idx_t> exc;
+                util::comparable_list<edge_idx_t> exc;
                 for (auto it2 = targets.begin(); it2 != it1; ++it2)
                 {
                     const edge_t &e2 = edge(*it2);
@@ -2118,7 +2120,7 @@ void proof_graph_t::_generate_mutual_exclusion_for_edges(
         const hash_set<edge_idx_t> *edges = this->search_edges_with_hypernode(from);
         if (edges == NULL) return;
 
-        std::set< comparable_list<edge_idx_t> > exclusions;
+        std::set<util::comparable_list<edge_idx_t> > exclusions;
 
         // CREATE MAP OF EXCLUSIVENESS
         for (auto it1 = edges->begin(); it1 != edges->end(); ++it1)
@@ -2129,7 +2131,7 @@ void proof_graph_t::_generate_mutual_exclusion_for_edges(
             hash_set<axiom_id_t> grp = kb->search_axiom_group(e1.axiom_id());
             if (grp.empty()) continue;
 
-            comparable_list<edge_idx_t> exc;
+            util::comparable_list<edge_idx_t> exc;
             for (auto it2 = edges->begin(); it2 != it1; ++it2)
             {
                 const edge_t &e2 = edge(*it2);

@@ -15,7 +15,7 @@ namespace phil
 
 #define _assert_syntax(x, s, e) \
         if (not x) throw phillip_exception_t( \
-        format("Syntax error at line %d:", s.get_line_num()) \
+        util::format("Syntax error at line %d:", s.get_line_num()) \
         + e + "\n" + s.get_stack()->to_string()); \
 
 
@@ -123,7 +123,7 @@ void compile_kb_t::process( const sexp::reader_t *reader )
             std::string disp;
             for (auto it = terms.begin(); it != terms.end(); ++it)
                 disp += (it != terms.begin() ? ", " : "") + it->string();
-            print_console("Added argument-set: {" + disp + "}");
+            util::print_console("Added argument-set: {" + disp + "}");
         }
         _kb->insert_argument_set(func);
     }
@@ -148,7 +148,7 @@ void processor_t::process( std::vector<std::string> inputs )
 
     IF_VERBOSE_FULL(
         "processor_t::process: inputs={" +
-        join(inputs.begin(), inputs.end(), ", ") + "}" );
+        util::join(inputs.begin(), inputs.end(), ", ") + "}" );
 
     if( m_recursion++ == 0 )
         for( auto it=m_components.begin(); it!=m_components.end(); ++it )
@@ -170,7 +170,7 @@ void processor_t::process( std::vector<std::string> inputs )
             if (file.fail())
                 throw phillip_exception_t("File not found: " + input_path);
 
-            file_size = get_file_size(*p_is);
+            file_size = util::get_file_size(*p_is);
             filename  = input_path.substr( input_path.rfind('/')+1 );
         }
         else
@@ -188,7 +188,7 @@ void processor_t::process( std::vector<std::string> inputs )
                 if( notified.count(progress) == 0 )
                 {
                     notified.insert(progress);
-                    std::cerr << time_stamp()
+                    std::cerr << util::time_stamp()
                               << input_path << ":" << read_bytes
                               << "/" << file_size
                               << " bytes processed (" << progress << "%)."
@@ -206,7 +206,7 @@ void processor_t::process( std::vector<std::string> inputs )
 
         if( reader.get_queue().size() != 1 )
         {
-            std::string out = format(
+            std::string out = util::format(
                 "Syntax error: too few parentheses. Around here, or line %d"
                 " (typically the expression followed by this): %s",
                 reader.get_line_num(),

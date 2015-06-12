@@ -113,7 +113,7 @@ variable_idx_t
 {
     const pg::node_t &node = m_graph->node(idx);
     std::string lit = node.literal().to_string();
-    variable_t var(format("n(%d):%s", idx, lit.c_str()), coef);
+    variable_t var(util::format("n(%d):%s", idx, lit.c_str()), coef);
     variable_idx_t var_idx = add_variable(var);
     m_map_node_to_variable[idx] = var_idx;
 
@@ -148,14 +148,14 @@ variable_idx_t ilp_problem_t::add_variable_of_hypernode(
 
     std::string nodes =
         join(hypernode.begin(), hypernode.end(), "%d", ",");
-    std::string name = format("hn(%d):n(%s)", idx, nodes.c_str());
+    std::string name = util::format("hn(%d):n(%s)", idx, nodes.c_str());
     variable_idx_t var = add_variable(variable_t(name, coef));
 
     if (do_add_constraint_for_member)
     {
         /* FOR A HYPERNODE BEING TRUE, ITS ALL MEMBERS MUST BE TRUE TOO. */
         constraint_t cons(
-            format("hn_n_dependency:hn(%d):n(%s)", idx, nodes.c_str()),
+            util::format("hn_n_dependency:hn(%d):n(%s)", idx, nodes.c_str()),
             OPR_GREATER_EQ, 0.0);
         for (auto n = hypernode.begin(); n != hypernode.end(); ++n)
         {
@@ -196,7 +196,7 @@ variable_idx_t ilp_problem_t::add_variable_of_edge(
     }
 
     variable_idx_t var = add_variable(variable_t(
-        format("edge(%d):hn(%d,%d)", idx, edge.tail(), edge.head()), 0.0));
+        util::format("edge(%d):hn(%d,%d)", idx, edge.tail(), edge.head()), 0.0));
 
     if (do_add_constraint_for_node)
     {
@@ -207,7 +207,7 @@ variable_idx_t ilp_problem_t::add_variable_of_edge(
         if (v_tail >= 0 and (v_head >= 0 or edge.head() < 0))
         {
             constraint_t con(
-                format("e_hn_dependency:e(%d):hn(%d,%d)",
+                util::format("e_hn_dependency:e(%d):hn(%d,%d)",
                        idx, edge.tail(), edge.head()),
                 OPR_GREATER_EQ, 0.0);
             
@@ -222,7 +222,7 @@ variable_idx_t ilp_problem_t::add_variable_of_edge(
         if (edge.is_chain_edge() and v_head >= 0)
         {
             constraint_t con(
-                format("n_e_dependency:e(%d)", idx), OPR_GREATER_EQ, 0.0);
+                util::format("n_e_dependency:e(%d)", idx), OPR_GREATER_EQ, 0.0);
             con.add_term(v_head, -1.0);
             con.add_term(var, con.terms().size());
             add_constraint(con);
@@ -261,7 +261,7 @@ add_constraint_of_dependence_of_node_on_hypernode(pg::node_idx_t idx)
         masters.insert(node.master_hypernode());
 
     /* TO LET A NODE BE TRUE, ITS MASTER-HYPERNODES IS TRUE */
-    constraint_t con(format("n_dependency:n(%d)", idx), OPR_GREATER_EQ, 0.0);
+    constraint_t con(util::format("n_dependency:n(%d)", idx), OPR_GREATER_EQ, 0.0);
 
     for (auto it = masters.begin(); it != masters.end(); ++it)
     {
@@ -289,7 +289,7 @@ add_constraint_of_dependence_of_hypernode_on_parents(pg::hypernode_idx_t idx)
     if (parents.empty()) return -1;
 
     /* TO LET A HYPERNODE BE TRUE, ANY OF ITS PARENTS ARE MUST BE TRUE. */
-    constraint_t con(format("hn_dependency:hn(%d)", idx), OPR_GREATER_EQ, 0.0);
+    constraint_t con(util::format("hn_dependency:hn(%d)", idx), OPR_GREATER_EQ, 0.0);
     con.add_term(var, -1.0);
     for( auto hn = parents.begin(); hn != parents.end(); ++hn )
     {
@@ -327,7 +327,7 @@ void ilp_problem_t::add_constraints_to_forbid_chaining_from_explained_node(
             if (not e_ch.is_chain_edge() or e_ch.tail() != (*hn)) continue;
 
             constraint_t con(
-                format("unify_or_chain:e(%d):e(%d)", idx_unify, *j), OPR_GREATER_EQ, -1.0);
+                util::format("unify_or_chain:e(%d):e(%d)", idx_unify, *j), OPR_GREATER_EQ, -1.0);
             variable_idx_t v_ch = find_variable_with_edge(*j);
 
             if (v_ch >= 0)
@@ -392,7 +392,7 @@ void ilp_problem_t::add_constraints_to_forbid_looping_unification(
             if (v_uni_2 >= 0)
             {
                 ilp::constraint_t con(
-                    format("muex_unify:e(%d,%d)", idx_uni_1, idx_uni_2),
+                    util::format("muex_unify:e(%d,%d)", idx_uni_1, idx_uni_2),
                     ilp::OPR_GREATER_EQ, -1.0);
 
                 con.add_term(v_uni_1, -1.0);
@@ -412,7 +412,7 @@ constraint_idx_t ilp_problem_t::add_constraint_of_mutual_exclusion(
     pg::node_idx_t n1, pg::node_idx_t n2, const pg::unifier_t &uni)
 {
     std::string key = (n1 < n2) ?
-        format("%d:%d", n1, n2) : format("%d:%d", n2, n1);
+        util::format("%d:%d", n1, n2) : util::format("%d:%d", n2, n1);
 
     /* IGNORE TUPLES WHICH HAVE BEEN CONSIDERED ALREADY. */
     if(m_log_of_node_tuple_for_mutual_exclusion.count(key) > 0)
@@ -425,7 +425,7 @@ constraint_idx_t ilp_problem_t::add_constraint_of_mutual_exclusion(
 
     /* N1 AND N2 CANNOT BE TRUE AT SAME TIME. */
     constraint_t con(
-        format("inconsistency:n(%d,%d)", n1, n2), OPR_LESS_EQ, 1.0);
+        util::format("inconsistency:n(%d,%d)", n1, n2), OPR_LESS_EQ, 1.0);
     con.add_term(var1, 1.0);
     con.add_term(var2, 1.0);
 
@@ -471,7 +471,7 @@ bool ilp_problem_t::add_constraints_of_transitive_unification(
     term_t t1, term_t t2, term_t t3)
 {
     std::string key =
-        format("%ld:%ld:%ld", t1.get_hash(), t2.get_hash(), t3.get_hash());
+        util::format("%ld:%ld:%ld", t1.get_hash(), t2.get_hash(), t3.get_hash());
 
     /* IGNORE TRIPLETS WHICH HAVE BEEN CONSIDERED ALREADY. */
     if (m_log_of_term_triplet_for_transitive_unification.count(key) > 0)
@@ -490,7 +490,7 @@ bool ilp_problem_t::add_constraints_of_transitive_unification(
     if (v_t1t2 < 0 or v_t2t3 < 0 or v_t3t1 < 0) return false;
 
     std::string name1 =
-        format("transitivity:(%s,%s,%s)",
+        util::format("transitivity:(%s,%s,%s)",
         t1.string().c_str(), t2.string().c_str(), t3.string().c_str());
     constraint_t con_trans1(name1, OPR_GREATER_EQ, -1);
     con_trans1.add_term(v_t1t2, +1.0);
@@ -498,7 +498,7 @@ bool ilp_problem_t::add_constraints_of_transitive_unification(
     con_trans1.add_term(v_t3t1, -1.0);
 
     std::string name2 =
-        format("transitivity:(%s,%s,%s)",
+        util::format("transitivity:(%s,%s,%s)",
         t2.string().c_str(), t3.string().c_str(), t1.string().c_str());
     constraint_t con_trans2(name2, OPR_GREATER_EQ, -1);
     con_trans2.add_term(v_t1t2, -1.0);
@@ -506,7 +506,7 @@ bool ilp_problem_t::add_constraints_of_transitive_unification(
     con_trans2.add_term(v_t3t1, -1.0);
 
     std::string name3 =
-        format("transitivity:(%s,%s,%s)",
+        util::format("transitivity:(%s,%s,%s)",
         t3.string().c_str(), t1.string().c_str(), t2.string().c_str());
     constraint_t con_trans3(name3, OPR_GREATER_EQ, -1);
     con_trans3.add_term(v_t1t2, -1.0);
@@ -601,9 +601,9 @@ void ilp_problem_t::add_variables_for_requirement(bool do_maximize)
             str += req.conjunction.front().literal.to_string();
 
         variable_idx_t var = add_variable(
-            variable_t(format("satisfy:%s", str.c_str()), 0.0));
+            variable_t(util::format("satisfy:%s", str.c_str()), 0.0));
         constraint_t con(
-            format("satisfy_req:%s", str.c_str()),
+            util::format("satisfy_req:%s", str.c_str()),
             OPR_GREATER_EQ, 0.0);
 
         for (auto p : req.conjunction)
@@ -672,7 +672,7 @@ add_constrains_of_conditions_for_chain(pg::edge_idx_t idx)
         {
             // TO PERFORM THE CHAINING, NODES IN conds1 MUST BE TRUE.
             constraint_t con(
-                format("node_must_be_true_for_chain:e(%d)", idx),
+                util::format("node_must_be_true_for_chain:e(%d)", idx),
                 OPR_GREATER_EQ, 0.0);
 
             for (auto n = conds1.begin(); n != conds1.end(); ++n)
@@ -690,7 +690,7 @@ add_constrains_of_conditions_for_chain(pg::edge_idx_t idx)
         {
             // TO PERFORM THE CHAINING, NODES IN conds2 MUST NOT BE TRUE.
             constraint_t con(
-                format("node_must_be_false_for_chain:e(%d)", idx),
+                util::format("node_must_be_false_for_chain:e(%d)", idx),
                 OPR_GREATER_EQ, 0.0);
 
             for (auto n = conds2.begin(); n != conds2.end(); ++n)
@@ -716,7 +716,7 @@ void ilp_problem_t::add_constrains_of_exclusive_chains()
     auto excs = m_graph->enumerate_mutual_exclusive_edges();
     int num = add_constrains_of_exclusive_chains(excs);
 
-    IF_VERBOSE_4(format("    # of added constraints = %d", num));
+    IF_VERBOSE_4(util::format("    # of added constraints = %d", num));
 }
 
 

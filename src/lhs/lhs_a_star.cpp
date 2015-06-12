@@ -44,7 +44,7 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
         IF_VERBOSE_FULL("Candidates: " + cand.to_string());
 
         // CHECK TIME-OUT
-        duration_time_t passed = duration_time(begin);
+        duration_time_t passed = util::duration_time(begin);
         if (do_time_out(begin))
         {
             graph->timeout(true);
@@ -317,8 +317,8 @@ generator_t::operator()(phillip_main_t *ph) const
 
 std::string a_star_based_enumerator_t::reachability_t::to_string() const
 {
-    std::string from = join(nodes.begin(), nodes.end(), "%d", ", ");
-    return format(
+    std::string from = util::join(nodes.begin(), nodes.end(), "%d", ", ");
+    return util::format(
         "nodes: {%s}, axiom: %d, reachability: [%d](dist = %f) -> [%d](dist = %f)",
         from.c_str(), axiom_id, node_from, dist_from, node_to, dist_to);
 }

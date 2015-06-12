@@ -173,7 +173,7 @@ inline std::string literal_t::get_arity(
 {
     return 
         (is_negated ? "!" : "") +
-        phil::format("%s/%d", pred.c_str(), term_num);
+        util::format("%s/%d", pred.c_str(), term_num);
 }
 
 
@@ -253,6 +253,9 @@ inline void literal_t::regularize()
             std::swap(terms[0], terms[1]);
 }
 
+
+namespace util
+{
 
 
 inline bool timeout_t::do_time_out(duration_time_t duration) const
@@ -593,6 +596,13 @@ template <class T> hash_set<T> intersection(
 }
 
 
+template <class Container, class Element>
+inline bool has_element(const Container &c, const Element &e)
+{
+    return c.find(e) != c.end();
+}
+
+
 template <class T> std::pair<T, T> make_sorted_pair(const T &x, const T &y)
 {
     return (x < y) ? std::make_pair(x, y) : std::make_pair(y, x);
@@ -607,5 +617,7 @@ template <class Container> void erase(Container &c, size_t i)
 }
 
 
-} // end phil
+} // end of util
+
+} // end of phil
 

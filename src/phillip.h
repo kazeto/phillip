@@ -164,7 +164,7 @@ private:
 }
 
 
-#define IF_VERBOSE(V, E) if(phillip_main_t::verbose() >= V) print_console(E);
+#define IF_VERBOSE(V, E) if(phillip_main_t::verbose() >= V) util::print_console(E);
 
 #define IF_VERBOSE_1(E) IF_VERBOSE(phil::VERBOSE_1, E)
 #define IF_VERBOSE_2(E) IF_VERBOSE(phil::VERBOSE_2, E)

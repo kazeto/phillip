@@ -106,7 +106,7 @@ logical_function_t::logical_function_t(const sexp::stack_t &s)
 
 bool logical_function_t::param2int(int *out) const
 {
-    auto splitted = split(param(), ":");
+    auto splitted = util::split(param(), ":");
     for (auto it = splitted.begin(); it != splitted.end(); ++it)
     {
         if (_sscanf(it->c_str(), "%d", out) == 1)
@@ -118,7 +118,7 @@ bool logical_function_t::param2int(int *out) const
 
 bool logical_function_t::param2double(double *out) const
 {
-    auto splitted = split(param(), ":");
+    auto splitted = util::split(param(), ":");
     for (auto it = splitted.begin(); it != splitted.end(); ++it)
     {
         if (_sscanf(it->c_str(), "%lf", out) == 1)
@@ -394,7 +394,7 @@ void logical_function_t::enumerate_literal_branches(
 size_t logical_function_t::write_binary( char *bin ) const
 {
     size_t n(0);
-    n += num_to_binary( static_cast<int>(m_operator), bin );
+    n += util::num_to_binary( static_cast<int>(m_operator), bin );
 
     switch( m_operator )
     {
@@ -403,7 +403,7 @@ size_t logical_function_t::write_binary( char *bin ) const
         break;
     case OPR_AND:
     case OPR_OR:
-        n += num_to_binary( m_branches.size(), bin+n );
+        n += util::num_to_binary( m_branches.size(), bin+n );
         for( int i=0; i<m_branches.size(); ++i )
             n += m_branches.at(i).write_binary( bin+n );
         break;
@@ -418,7 +418,7 @@ size_t logical_function_t::write_binary( char *bin ) const
         break;
     }
 
-    n += string_to_binary( m_param, bin+n );
+    n += util::string_to_binary( m_param, bin+n );
 
     return n;
 }
@@ -429,7 +429,7 @@ size_t logical_function_t::read_binary( const char *bin )
     size_t n(0);
     int i_buf;
     
-    n += binary_to_num( bin, &i_buf );
+    n += util::binary_to_num( bin, &i_buf );
     m_operator = static_cast<logical_operator_t>(i_buf);
 
     switch( m_operator )
@@ -439,24 +439,24 @@ size_t logical_function_t::read_binary( const char *bin )
         break;
     case OPR_AND:
     case OPR_OR:
-        n += binary_to_num( bin+n, &i_buf );
-        m_branches.assign( i_buf, logical_function_t() );
-        for( int i=0; i<i_buf; ++i )
-            n += m_branches[i].read_binary( bin+n );
+        n += util::binary_to_num(bin + n, &i_buf);
+        m_branches.assign(i_buf, logical_function_t());
+        for (int i = 0; i < i_buf; ++i)
+            n += m_branches[i].read_binary(bin + n);
         break;
     case OPR_IMPLICATION:
     case OPR_PARAPHRASE:
     case OPR_INCONSISTENT:
-        m_branches.assign( 2, logical_function_t() );
-        n += m_branches[0].read_binary( bin+n );
-        n += m_branches[1].read_binary( bin+n );
+        m_branches.assign(2, logical_function_t());
+        n += m_branches[0].read_binary(bin + n);
+        n += m_branches[1].read_binary(bin + n);
         break;
     case OPR_UNIPP:
         m_branches.assign(1, logical_function_t());
         n += m_branches[0].read_binary(bin + n);
     }
 
-    n += binary_to_string( bin+n, &m_param );
+    n += util::binary_to_string(bin + n, &m_param);
 
     return n;
 }

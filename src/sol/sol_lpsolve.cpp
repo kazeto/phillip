@@ -99,7 +99,7 @@ void lp_handler(::lprec *lp, void *userhandle, char *buf)
         if (line.at(j) == '\n')
         {
             if (j - i > 0 and not (j - i == 1 and line.at(i) == ' '))
-                print_console(line.substr(i, j - i) + "$");
+                util::print_console(line.substr(i, j - i) + "$");
             i = j + 1;
         }
     }

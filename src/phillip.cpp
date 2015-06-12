@@ -57,14 +57,14 @@ std::ofstream* _open_file(const std::string &path, std::ios::openmode mode)
 {
     if (not path.empty())
     {
-        mkdir(get_directory_name(path));
+        util::mkdir(util::get_directory_name(path));
 
         std::ofstream *fo = new std::ofstream(path.c_str(), mode);
         if (fo->good())
             return fo;
         else
         {
-            print_error_fmt("Cannot open file: \"%s\"", path.c_str());
+            util::print_error_fmt("Cannot open file: \"%s\"", path.c_str());
             delete fo;
         }
     }
@@ -83,7 +83,7 @@ void phillip_main_t::infer(const lf::input_t &input)
     execute_convertor();
     execute_solver();
 
-    m_time_for_infer = duration_time(begin);
+    m_time_for_infer = util::duration_time(begin);
 
     std::ofstream *fo(NULL);
     if ((fo = _open_file(param("path_out"), std::ios::out | std::ios::app)) != NULL)
@@ -131,10 +131,10 @@ void phillip_main_t::learn(const lf::input_t &input)
         &m_sol_gold, &m_time_for_solve_gold,
         get_path_for_gold("path_sol_out"));
 
-    xml_element_t elem("learn", "");
+    util::xml_element_t elem("learn", "");
     m_ilp_convertor->tune(m_sol.front(), m_sol_gold.front(), &elem);
 
-    m_time_for_learn = duration_time(begin);
+    m_time_for_learn = util::duration_time(begin);
 
     std::ofstream *fo(NULL);
     if ((fo = _open_file(param("path_out"), std::ios::out | std::ios::app)) != NULL)
@@ -160,7 +160,7 @@ void phillip_main_t::execute_enumerator(
 
     auto begin = std::chrono::system_clock::now();
     (*out_lhs) = m_lhs_enumerator->execute();
-    (*out_time) = duration_time(begin);
+    (*out_time) = util::duration_time(begin);
 
     IF_VERBOSE_2(
         m_lhs->has_timed_out() ?
@@ -188,7 +188,7 @@ void phillip_main_t::execute_convertor(
 
     auto begin = std::chrono::system_clock::now();
     (*out_ilp) = m_ilp_convertor->execute();
-    (*out_time) = duration_time(begin);
+    (*out_time) = util::duration_time(begin);
 
     IF_VERBOSE_2(
         m_ilp->has_timed_out() ?
@@ -217,7 +217,7 @@ void phillip_main_t::execute_solver(
 
     auto begin = std::chrono::system_clock::now();
     m_ilp_solver->execute(out_sols);
-    (*out_time) = duration_time(begin);
+    (*out_time) = util::duration_time(begin);
 
     IF_VERBOSE_2("Completed inference.");
 
@@ -247,7 +247,7 @@ void phillip_main_t::write_header() const
         {
             int year, month, day, hour, min, sec;
             std::string out;
-            beginning_time(&year, &month, &day, &hour, &min, &sec);
+            util::beginning_time(&year, &month, &day, &hour, &min, &sec);
             switch (month)
             {
             case 1:  out = "Jan"; break;
@@ -264,11 +264,11 @@ void phillip_main_t::write_header() const
             case 12: out = "Dec"; break;
             default: throw;
             }
-            return out + format(" %2d %4d %02d:%02d:%02d", day, year, hour, min, sec);
+            return out + util::format(" %2d %4d %02d:%02d:%02d", day, year, hour, min, sec);
         };
         
         (*os)
-            << "<time_stamp compiled=\"" << format("%s %s", __DATE__, __TIME__)
+            << "<time_stamp compiled=\"" << util::format("%s %s", __DATE__, __TIME__)
             << "\" executed=\"" << get_time_stamp_exe()
             << "\"></time_stamp>" << std::endl;
 
