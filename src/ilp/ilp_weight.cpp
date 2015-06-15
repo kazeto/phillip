@@ -14,7 +14,7 @@ parse_string_to_weight_provider(const std::string &str)
     {
         std::string pred;
         std::vector<std::string> terms;
-        parse_string_as_function_call(str, &pred, &terms);
+        util::parse_string_as_function_call(str, &pred, &terms);
 
         if (pred == "basic")
         {
@@ -79,7 +79,7 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
         ilp::variable_idx_t v(prob->find_variable_with_node(idx));
         if (v >= 0)
         {
-            std::string name = format("cost(n:%d)", idx);
+            std::string name = util::format("cost(n:%d)", idx);
             ilp::variable_idx_t costvar =
                 prob->add_variable(ilp::variable_t(name, cost));
             node2costvar[idx] = costvar;
@@ -184,7 +184,8 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
             //   - IT HAS BEEN UNIFIED WITH A NODE WHOSE COST IS LESS THAN IT AND IS NOT A REQUIREMENT.
 
             ilp::constraint_t cons(
-                format("cost-payment(n:%d)", n_idx), ilp::OPR_GREATER_EQ, 0.0);
+                util::format("cost-payment(n:%d)", n_idx),
+                ilp::OPR_GREATER_EQ, 0.0);
             cons.add_term(nodevar, -1.0);
             cons.add_term(costvar, 1.0);
 
@@ -372,7 +373,7 @@ hash_map<std::string, std::string> *out) const
     {
         ilp::variable_idx_t costvar = find->second;
         double cost(sol->problem()->variable(costvar).objective_coefficient());
-        (*out)["cost"] = format("%lf", cost);
+        (*out)["cost"] = util::format("%lf", cost);
         (*out)["paid-cost"] = sol->variable_is_active(costvar) ? "yes" : "no";
     }
 }

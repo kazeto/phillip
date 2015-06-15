@@ -418,7 +418,7 @@ std::string proof_graph_t::hypernode2str(hypernode_idx_t i) const
         const std::vector<node_idx_t>& tail = hypernode(i);
         return
             util::format("%d:{", i) +
-            util::join(tail.begin(), tail.end(), "%d", ",") + "}";
+            util::join(tail.begin(), tail.end(), ",") + "}";
     }
     else
         return "-1:{}";
@@ -832,7 +832,7 @@ void proof_graph_t::print_edges(std::ostream *os) const
         }
         else type = util::format("user-defined(%d)", e.type());
 
-        std::string gaps = util::join_functional(
+        std::string gaps = util::join_f(
             get_gaps_on_edge(i),
             [](const std::pair<arity_t, arity_t> &p){return p.first + ":" + p.second; }, ",");
 
@@ -1311,8 +1311,8 @@ hypernode_idx_t proof_graph_t::chain(
             &hn_from(hypernode(from)), &hn_to(hypernode(to));
         std::string
             header(is_backward ? "BackwardChain: " : "ForwardChain: "),
-            str_from(util::join(hn_from.begin(), hn_from.end(), "%d", ",")),
-            str_to(util::join(hn_to.begin(), hn_to.end(), "%d", ",")),
+            str_from(util::join(hn_from.begin(), hn_from.end(), ",")),
+            str_to(util::join(hn_to.begin(), hn_to.end(), ",")),
             arrow(is_backward ? "<=" : "=>");
 
         util::print_console_fmt("%s: %d:[%s] %s %s %s %d:[%s]",
@@ -1853,7 +1853,7 @@ size_t proof_graph_t::get_hash_of_nodes(std::list<node_idx_t> nodes)
     static std::hash<std::string> hasher;
     std::lock_guard<std::mutex> lock(g_mutex_hasher);
     nodes.sort();
-    return hasher(util::join(nodes.begin(), nodes.end(), "%d", ","));
+    return hasher(util::join(nodes.begin(), nodes.end(), ","));
 }
 
 

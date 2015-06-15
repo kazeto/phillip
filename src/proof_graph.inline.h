@@ -65,7 +65,7 @@ inline bool node_t::is_transitive_equality_node() const
 
 inline std::string node_t::to_string() const
 {
-    return m_literal.to_string() + format(":%d", m_index);
+    return m_literal.to_string() + util::format(":%d", m_index);
 }
 
 

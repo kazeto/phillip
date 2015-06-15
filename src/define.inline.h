@@ -522,41 +522,17 @@ template <class T> inline size_t binary_to(const char *bin, T *out)
 }
 
 
-template <class It, bool USE_STREAM> std::string join(
+template <class It> std::string join(
     const It &s_begin, const It &s_end, const std::string &delimiter)
 {
-    if (USE_STREAM)
-    {
-        std::ostringstream ss;
-        for (It it = s_begin; it != s_end; ++it)
-            ss << (it == s_begin ? "" : delimiter) << (*it);
-        return ss.str();
-    }
-    else
-    {
-        std::string out;
-        for (It it = s_begin; it != s_end; ++it)
-            out += (it == s_begin ? "" : delimiter) + (*it);
-        return out;
-    }
+    std::ostringstream ss;
+    for (It it = s_begin; it != s_end; ++it)
+        ss << (it == s_begin ? "" : delimiter) << (*it);
+    return ss.str();
 }
 
 
-template <class It> std::string join(
-    const It &s_begin, const It &s_end,
-    const std::string &fmt, const std::string &delimiter )
-{
-    std::string out;
-    for (It it = s_begin; s_end != it; ++it)
-    {
-        std::string buf = format(fmt.c_str(), *it);
-        out += (it != s_begin ? delimiter : "") + buf;
-    }
-    return out;
-}
-
-
-template <class Container, class Function> std::string join_functional(
+template <class Container, class Function> std::string join_f(
     const Container &container, Function func, const std::string &delim)
 {
     std::string out;

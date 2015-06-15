@@ -211,24 +211,6 @@ private:
 };
 
 
-class timeout_t
-{
-public:
-    timeout_t() : m_time(-1.0f) {}
-    timeout_t(duration_time_t t) : m_time(t) {}
-
-    inline void set(duration_time_t t) { m_time = t; }
-    inline duration_time_t get() const { return m_time; }
-
-    inline bool empty() const { return m_time <= 0.0f; }
-    inline bool do_time_out(duration_time_t duration) const;
-    inline bool do_time_out(const std::chrono::system_clock::time_point &begin) const;
-
-private:
-    duration_time_t m_time;
-};
-
-
 /** A base class of components of phillip_main_t. */
 class phillip_component_interface_t
 {
@@ -307,6 +289,24 @@ private:
     std::ifstream  *m_fin;
     cdbpp::builder *m_builder;
     cdbpp::cdbpp   *m_finder;
+};
+
+
+class timeout_t
+{
+public:
+    timeout_t() : m_time(-1.0f) {}
+    timeout_t(duration_time_t t) : m_time(t) {}
+
+    inline void set(duration_time_t t) { m_time = t; }
+    inline duration_time_t get() const { return m_time; }
+
+    inline bool empty() const { return m_time <= 0.0f; }
+    inline bool do_time_out(duration_time_t duration) const;
+    inline bool do_time_out(const std::chrono::system_clock::time_point &begin) const;
+
+private:
+    duration_time_t m_time;
 };
 
 
@@ -426,7 +426,6 @@ public:
 };
 
 
-
 /* -------- Functions -------- */
 
 
@@ -502,12 +501,9 @@ template <class T> inline size_t binary_to(const char *bin, T *out);
 
 /** Returns joined string.
  *  If USE_STREAM is true, uses ostringstream to join. */
-template <class It, bool USE_STREAM = false> std::string join(
-    const It &s_begin, const It &s_end, const std::string &delim);
 template <class It> std::string join(
-    const It &s_begin, const It &s_end,
-    const std::string &fmt, const std::string &delim);
-template <class Container, class Function> std::string join_functional(
+    const It &s_begin, const It &s_end, const std::string &delim);
+template <class Container, class Function> std::string join_f(
     const Container &container, Function func, const std::string &delim);
 
 /** Returns whether set1 and set2 have any intersection. */

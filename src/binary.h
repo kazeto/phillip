@@ -80,7 +80,7 @@ private:
 
     static std::unique_ptr<
         lhs_enumerator_library_t,
-        deleter_t<lhs_enumerator_library_t> > ms_instance;
+        util::deleter_t<lhs_enumerator_library_t> > ms_instance;
 };
 
 
@@ -95,7 +95,7 @@ private:
 
     static std::unique_ptr<
         ilp_converter_library_t,
-        deleter_t<ilp_converter_library_t> > ms_instance;
+        util::deleter_t<ilp_converter_library_t> > ms_instance;
 };
 
 
@@ -110,7 +110,7 @@ private:
 
     static std::unique_ptr<
         ilp_solver_library_t,
-        deleter_t<ilp_solver_library_t> > ms_instance;
+        util::deleter_t<ilp_solver_library_t> > ms_instance;
 };
 
 
@@ -126,7 +126,7 @@ private:
 
     static std::unique_ptr<
         distance_provider_library_t,
-        deleter_t<distance_provider_library_t> > ms_instance;
+        util::deleter_t<distance_provider_library_t> > ms_instance;
 };
 
 
@@ -142,7 +142,7 @@ private:
 
     static std::unique_ptr<
         category_table_library_t,
-        deleter_t<category_table_library_t> > ms_instance;
+        util::deleter_t<category_table_library_t> > ms_instance;
 };
 
 

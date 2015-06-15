@@ -79,10 +79,10 @@ public:
     inline const ilp::ilp_problem_t* get_ilp_problem() const;
     inline const std::vector<ilp::ilp_solution_t>& get_solutions() const;
 
-    inline const timeout_t& timeout_lhs() const { return m_timeout_lhs; }
-    inline const timeout_t& timeout_ilp() const { return m_timeout_ilp; }
-    inline const timeout_t& timeout_sol() const { return m_timeout_sol; }
-    inline const timeout_t& timeout_all() const { return m_timeout_all; }
+    inline const util::timeout_t& timeout_lhs() const { return m_timeout_lhs; }
+    inline const util::timeout_t& timeout_ilp() const { return m_timeout_ilp; }
+    inline const util::timeout_t& timeout_sol() const { return m_timeout_sol; }
+    inline const util::timeout_t& timeout_all() const { return m_timeout_all; }
 
     inline const hash_map<std::string, std::string>& params() const;
     inline const std::string& param(const std::string &key) const;
@@ -139,7 +139,7 @@ private:
     // ---- DATA, SETTING, ETC...
     hash_map<std::string, std::string> m_params;
     hash_set<std::string> m_flags;
-    timeout_t m_timeout_lhs, m_timeout_ilp, m_timeout_sol, m_timeout_all;
+    util::timeout_t m_timeout_lhs, m_timeout_ilp, m_timeout_sol, m_timeout_all;
     
     hash_set<std::string> m_target_obs_names;
     hash_set<std::string> m_excluded_obs_names;

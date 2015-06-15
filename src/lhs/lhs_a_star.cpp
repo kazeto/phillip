@@ -317,7 +317,7 @@ generator_t::operator()(phillip_main_t *ph) const
 
 std::string a_star_based_enumerator_t::reachability_t::to_string() const
 {
-    std::string from = util::join(nodes.begin(), nodes.end(), "%d", ", ");
+    std::string from = util::join(nodes.begin(), nodes.end(), ", ");
     return util::format(
         "nodes: {%s}, axiom: %d, reachability: [%d](dist = %f) -> [%d](dist = %f)",
         from.c_str(), axiom_id, node_from, dist_from, node_to, dist_to);

@@ -147,7 +147,7 @@ variable_idx_t ilp_problem_t::add_variable_of_hypernode(
     }
 
     std::string nodes =
-        join(hypernode.begin(), hypernode.end(), "%d", ",");
+        util::join(hypernode.begin(), hypernode.end(), ",");
     std::string name = util::format("hn(%d):n(%s)", idx, nodes.c_str());
     variable_idx_t var = add_variable(variable_t(name, coef));
 
@@ -729,7 +729,7 @@ size_t ilp_problem_t::add_constrains_of_exclusive_chains(
     {
         std::string name =
             "exclusive_chains(" +
-            join(it->begin(), it->end(), "%d", ",") + ")";
+            util::join(it->begin(), it->end(), ",") + ")";
         constraint_t con(name, OPR_GREATER_EQ, -1.0);
 
         for (auto e = it->begin(); e != it->end(); ++e)
@@ -831,7 +831,7 @@ void ilp_problem_t::print_solution(
     const ilp_solution_t *sol, std::ostream *os) const
 {
     if (os == &std::cout)
-        g_mutex_for_print.lock();
+        util::g_mutex_for_print.lock();
 
     std::string state;
     switch (sol->type())
@@ -877,7 +877,7 @@ void ilp_problem_t::print_solution(
     (*os) << "</proofgraph>" << std::endl;
 
     if (os == &std::cout)
-        g_mutex_for_print.unlock();
+        util::g_mutex_for_print.unlock();
 }
 
 
@@ -998,14 +998,14 @@ void ilp_problem_t::_print_explanations_in_solution(
             &hn_to(m_graph->hypernode(edge.head()));
         bool is_backward = (edge.type() == pg::EDGE_HYPOTHESIZE);
         std::string
-            s_from(join(hn_from.begin(), hn_from.end(), "%d", ",")),
-            s_to(join(hn_to.begin(), hn_to.end(), "%d", ",")),
+            s_from(util::join(hn_from.begin(), hn_from.end(), ",")),
+            s_to(util::join(hn_to.begin(), hn_to.end(), ",")),
             axiom_name = "_blank",
             gaps;
 
         if (edge.axiom_id() >= 0)
         {
-            gaps = join_functional(
+            gaps = util::join_f(
                 m_graph->get_gaps_on_edge(*it),
                 [](const std::pair<arity_t, arity_t> &p){return p.first + ":" + p.second; }, ",");
             axiom_name = base->get_axiom(edge.axiom_id()).name;
@@ -1068,7 +1068,7 @@ void ilp_problem_t::_print_unifications_in_solution(
         (*os)
             << "<unification l1=\"" << hn_from[0]
             << "\" l2=\"" << hn_from[1]
-            << "\" unifier=\"" << join(subs.begin(), subs.end(), ", ")
+            << "\" unifier=\"" << util::join(subs.begin(), subs.end(), ", ")
             << "\" active=\"" << (edge_is_active(*sol, *it) ? "yes" : "no");
 
         hash_map<std::string, std::string> attributes;
@@ -1176,7 +1176,7 @@ void ilp_solution_t::enumerate_unified_terms_sets(std::list<hash_set<term_t> > *
         for (auto it1 = out->begin(); it1 != out->end() and not has_merged; ++it1)
         for (auto it2 = out->begin(); it2 != it1 and not has_merged; ++it2)
         if (it1 != it2)
-        if (has_intersection(it1->begin(), it1->end(), it2->begin(), it2->end()))
+        if (util::has_intersection(it1->begin(), it1->end(), it2->begin(), it2->end()))
         {
             it1->insert(it2->begin(), it2->end());
             out->erase(it2);
@@ -1234,13 +1234,13 @@ void ilp_solution_t::print_human_readable_hypothesis(std::ostream *os) const
     (*os) << "<hypothesis>" << std::endl;
     (*os)
         << "(^ "
-        << join_functional(literals, [](const literal_t &l){ return l.to_string(); }, " ")
+        << util::join_f(literals, [](const literal_t &l){ return l.to_string(); }, " ")
         << (non_eqs.empty() ? "" : " ")
-        << join_functional(non_eqs, [](const literal_t &l){ return l.to_string(); }, " ");
+        << util::join_f(non_eqs, [](const literal_t &l){ return l.to_string(); }, " ");
 
     auto term2str = [](const term_t &t){ return t.string(); };
     for (auto set : terms)
-        (*os) << " (= " << join_functional(set, term2str, " ") << ")";
+        (*os) << " (= " << util::join_f(set, term2str, " ") << ")";
 
     (*os) << ")" << std::endl;
     (*os) << "</hypothesis>" << std::endl;

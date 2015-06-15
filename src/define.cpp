@@ -156,18 +156,18 @@ void literal_t::print( std::string *p_out_str, bool f_colored ) const
 }
 
 
-size_t literal_t::write_binary( char *bin ) const
+size_t literal_t::write_binary(char *bin) const
 {
     size_t n(0);
-    
-    n += string_to_binary( predicate, bin );
+
+    n += util::string_to_binary(predicate, bin);
 
     /* terms */
-    n += num_to_binary( terms.size(), bin+n );
-    for( int i=0; i<terms.size(); ++i )
-        n += string_to_binary( terms.at(i).string(), bin+n );
+    n += util::num_to_binary(terms.size(), bin + n);
+    for (int i = 0; i < terms.size(); ++i)
+        n += util::string_to_binary(terms.at(i).string(), bin + n);
 
-    n += bool_to_binary( truth, bin+n );
+    n += util::bool_to_binary(truth, bin + n);
 
     return n;
 }
@@ -179,18 +179,18 @@ size_t literal_t::read_binary( const char *bin )
     std::string s_buf;
     int i_buf;
 
-    n += binary_to_string( bin, &s_buf );
+    n += util::binary_to_string(bin, &s_buf);
     predicate = predicate_t(s_buf);
 
-    n += binary_to_num( bin+n, &i_buf );
-    terms.assign( i_buf, term_t() );
+    n += util::binary_to_num(bin + n, &i_buf);
+    terms.assign(i_buf, term_t());
     for( int i=0; i<i_buf; ++i )
     {
-        n += binary_to_string( bin+n, &s_buf );
+        n += util::binary_to_string(bin + n, &s_buf);
         terms[i] = term_t(s_buf);
     }
 
-    n += binary_to_bool( bin+n, &truth );
+    n += util::binary_to_bool(bin + n, &truth);
 
     return n;
 }
@@ -289,7 +289,7 @@ void xml_element_t::print(std::ostream *os) const
         { return format("%s=\"%s\"", p.first.c_str(), p.second.c_str()); };
 
         (*os) << "<" << e.name() << " ";
-        (*os) << join_functional(e.attributes(), attr_to_string, " ") << ">" << std::endl;
+        (*os) << join_f(e.attributes(), attr_to_string, " ") << ">" << std::endl;
 
         if (not e.text().empty())
             (*os) << e.text() << std::endl;

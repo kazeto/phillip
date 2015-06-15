@@ -62,7 +62,7 @@ public:
     /** Tunes its own parameters from a system output and a gold output. */
     virtual void tune(
         const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold,
-        xml_element_t *out) {};
+        util::xml_element_t *out) {};
 
 protected:
     /** Converts proof-graph's structure into ILP problem. */
