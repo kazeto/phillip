@@ -196,6 +196,19 @@ size_t literal_t::read_binary( const char *bin )
 }
 
 
+std::ostream& operator<<(std::ostream& os, const term_t& t)
+{
+    return os << t.string();
+}
+
+
+std::ostream& operator<<(std::ostream& os, const literal_t& lit)
+{
+    return os << lit.to_string();
+}
+
+
+
 namespace util
 {
 
@@ -656,18 +669,6 @@ bool parse_string_as_function_call(
     }
 
     return false;
-}
-
-
-std::ostream& operator<<(std::ostream& os, const term_t& t)
-{
-    return os << t.string();
-}
-
-
-std::ostream& operator<<(std::ostream& os, const literal_t& lit)
-{
-    return os << lit.to_string();
 }
 
 
