@@ -130,7 +130,7 @@ void literal_t::print( std::string *p_out_str, bool f_colored ) const
 #else
     if( f_colored )
         (*p_out_str) +=
-            format( "\33[40m%s\33[0m", predicate.c_str() );
+            util::format( "\33[40m%s\33[0m", predicate.c_str() );
     else
         (*p_out_str) += predicate;
 #endif
@@ -144,7 +144,7 @@ void literal_t::print( std::string *p_out_str, bool f_colored ) const
         if (f_colored)
         {
             const int &_color = color[(terms[i].get_hash()) % 8];
-            (*p_out_str) += format(
+            (*p_out_str) += util::format(
                 "\33[0;%dm%s\33[0m",
                 _color, terms[i].string().c_str() );
         }
