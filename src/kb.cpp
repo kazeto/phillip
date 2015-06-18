@@ -783,7 +783,7 @@ void knowledge_base_t::set_stop_words()
     can_use_gurobi = true;
 #endif
 
-    if (not can_use_lpsolve and not can_use_lpsolve) return;
+    if (not can_use_gurobi and not can_use_lpsolve) return;
     if (ms_do_disable_stop_word) return;
 
     IF_VERBOSE_1("Setting stop-words...");
