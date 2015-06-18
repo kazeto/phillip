@@ -173,7 +173,7 @@ inline std::string literal_t::get_arity(
 {
     return 
         (is_negated ? "!" : "") +
-        phil::format("%s/%d", pred.c_str(), term_num);
+        util::format("%s/%d", pred.c_str(), term_num);
 }
 
 
@@ -253,6 +253,9 @@ inline void literal_t::regularize()
             std::swap(terms[0], terms[1]);
 }
 
+
+namespace util
+{
 
 
 inline bool timeout_t::do_time_out(duration_time_t duration) const
@@ -519,41 +522,17 @@ template <class T> inline size_t binary_to(const char *bin, T *out)
 }
 
 
-template <class It, bool USE_STREAM> std::string join(
+template <class It> std::string join(
     const It &s_begin, const It &s_end, const std::string &delimiter)
 {
-    if (USE_STREAM)
-    {
-        std::ostringstream ss;
-        for (It it = s_begin; it != s_end; ++it)
-            ss << (it == s_begin ? "" : delimiter) << (*it);
-        return ss.str();
-    }
-    else
-    {
-        std::string out;
-        for (It it = s_begin; it != s_end; ++it)
-            out += (it == s_begin ? "" : delimiter) + (*it);
-        return out;
-    }
+    std::ostringstream ss;
+    for (It it = s_begin; it != s_end; ++it)
+        ss << (it == s_begin ? "" : delimiter) << (*it);
+    return ss.str();
 }
 
 
-template <class It> std::string join(
-    const It &s_begin, const It &s_end,
-    const std::string &fmt, const std::string &delimiter )
-{
-    std::string out;
-    for (It it = s_begin; s_end != it; ++it)
-    {
-        std::string buf = format(fmt.c_str(), *it);
-        out += (it != s_begin ? delimiter : "") + buf;
-    }
-    return out;
-}
-
-
-template <class Container, class Function> std::string join_functional(
+template <class Container, class Function> std::string join_f(
     const Container &container, Function func, const std::string &delim)
 {
     std::string out;
@@ -593,6 +572,13 @@ template <class T> hash_set<T> intersection(
 }
 
 
+template <class Container, class Element>
+inline bool has_element(const Container &c, const Element &e)
+{
+    return c.find(e) != c.end();
+}
+
+
 template <class T> std::pair<T, T> make_sorted_pair(const T &x, const T &y)
 {
     return (x < y) ? std::make_pair(x, y) : std::make_pair(y, x);
@@ -607,5 +593,7 @@ template <class Container> void erase(Container &c, size_t i)
 }
 
 
-} // end phil
+} // end of util
+
+} // end of phil
 

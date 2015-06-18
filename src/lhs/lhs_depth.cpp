@@ -48,9 +48,9 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
 
         if (phillip_main_t::verbose() == FULL_VERBOSE)
         {
-            print_console_fmt("  depth %d:", depth);
-            print_console_fmt("    # of cands = %d", cands.size());
-            print_console_fmt("    # of axioms = %d", axioms.size());
+            util::print_console_fmt("  depth %d:", depth);
+            util::print_console_fmt("    # of cands = %d", cands.size());
+            util::print_console_fmt("    # of axioms = %d", axioms.size());
         }
 
         // EXECUTE CHAINING

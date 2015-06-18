@@ -13,8 +13,8 @@ namespace sol
 #define GRBEXECUTE(x) \
     try { x; } \
     catch (GRBException e) { \
-        print_error_fmt("Gurobi: code(%d): %s", \
-                        e.getErrorCode(), e.getMessage().c_str()); }
+        util::print_error_fmt("Gurobi: code(%d): %s", \
+            e.getErrorCode(), e.getMessage().c_str()); }
 
 
 std::mutex g_mutex_gurobi;
@@ -51,7 +51,7 @@ void gurobi_t::solve(
     auto begin = std::chrono::system_clock::now();
     auto get_timeout = [&begin, this]() -> double
     {
-        duration_time_t passed = duration_time(begin);
+        duration_time_t passed = util::duration_time(begin);
         double t_o_sol(-1), t_o_all(-1);
 
         if (phillip() != NULL)
@@ -113,7 +113,7 @@ void gurobi_t::solve(
     while (true)
     {
         if (do_cpi)
-            print_console_fmt("begin: Cutting-Plane-Inference #%d", (num_loop++));
+            util::print_console_fmt("begin: Cutting-Plane-Inference #%d", (num_loop++));
 
         GRBEXECUTE(model.optimize());
 
@@ -128,7 +128,7 @@ void gurobi_t::solve(
                 if (cons[i].get(GRB_IntAttr_IISConstr) == 1)
                 {
                     std::string name(cons[i].get(GRB_StringAttr_ConstrName));
-                    print_warning("Infeasible: " + name);
+                    util::print_warning("Infeasible: " + name);
                 }
 
                 delete[] cons;

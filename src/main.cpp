@@ -22,7 +22,7 @@ int main(int argc, char* argv[])
     }
     catch (const phillip_exception_t &exception)
     {
-        print_error(exception.what());
+        util::print_error(exception.what());
         if (exception.do_print_usage()) bin::print_usage();
     }
 

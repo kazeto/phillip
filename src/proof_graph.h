@@ -573,7 +573,7 @@ protected:
     
     /** Mutual exclusiveness betwen two nodes.
      *  If unifier of third value is satisfied, the node of the first key and the node of the second key cannot be hypothesized together. */
-    triangular_matrix_t<node_idx_t, unifier_t> m_mutual_exclusive_nodes;
+    util::triangular_matrix_t<node_idx_t, unifier_t> m_mutual_exclusive_nodes;
 
     hash_map<edge_idx_t, hash_set<edge_idx_t> > m_mutual_exclusive_edges;
     
@@ -593,15 +593,15 @@ protected:
         void clear();
 
         /** Set of pair of nodes whose unification was postponed. */
-        pair_set_t<node_idx_t> postponed_unifications;
+        util::pair_set_t<node_idx_t> postponed_unifications;
 
         /** Set of pair of nodes
         *  whose unifiability has been already considered.
         *  KEY and VALUE express node pair, and KEY is less than VALUE. */
-        pair_set_t<node_idx_t> considered_unifications;
+        util::pair_set_t<node_idx_t> considered_unifications;
 
         /** Used in _check_nodes_coexistability. */
-        mutable triangular_matrix_t<node_idx_t, bool> coexistability_logs;
+        mutable util::triangular_matrix_t<node_idx_t, bool> coexistability_logs;
 
         std::map<std::pair<pg::node_idx_t, term_idx_t>, unsigned long int> argument_set_ids;
     } m_temporal;
@@ -611,12 +611,12 @@ protected:
         /** Map from terms to the node index.
          *   - KEY1, KEY2 : Terms. KEY1 is less than KEY2.
          *   - VALUE : Index of node of "KEY1 == KEY2". */
-        triangular_matrix_t<term_t, node_idx_t> terms_to_sub_node;
+        util::triangular_matrix_t<term_t, node_idx_t> terms_to_sub_node;
 
         /** Map from terms to the node index.
          *   - KEY1, KEY2 : Terms. KEY1 is less than KEY2.
          *   - VALUE : Index of node of "KEY1 != KEY2". */
-        triangular_matrix_t<term_t, node_idx_t> terms_to_negsub_node;
+        util::triangular_matrix_t<term_t, node_idx_t> terms_to_negsub_node;
 
         /** Map from depth to indices of nodes assigned the depth. */
         hash_map<depth_t, hash_set<node_idx_t> > depth_to_nodes;

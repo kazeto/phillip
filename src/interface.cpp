@@ -115,7 +115,7 @@ void ilp_converter_t::convert_proof_graph(ilp::ilp_problem_t *prob) const
 
 bool ilp_converter_t::do_time_out(const std::chrono::system_clock::time_point &begin) const
 {
-    duration_time_t t_ilp = duration_time(begin);
+    duration_time_t t_ilp = util::duration_time(begin);
     duration_time_t t_all(phillip()->get_time_for_lhs() + t_ilp);
 
     return
@@ -126,7 +126,7 @@ bool ilp_converter_t::do_time_out(const std::chrono::system_clock::time_point &b
 
 bool ilp_solver_t::do_time_out(const std::chrono::system_clock::time_point &begin) const
 {
-    duration_time_t t_sol = duration_time(begin);
+    duration_time_t t_sol = util::duration_time(begin);
     duration_time_t t_all =
         phillip()->get_time_for_lhs() + phillip()->get_time_for_ilp() + t_sol;
 

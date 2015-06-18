@@ -306,11 +306,11 @@ private:
      *  @param dat A database of cdb to seach axiom.
      *  @param tmp A map of temporal axioms related with dat. */
     std::list<axiom_id_t> search_id_list(
-        const std::string &query, const cdb_data_t *dat) const;
+        const std::string &query, const util::cdb_data_t *dat) const;
     std::list<axiom_id_t> search_id_list(
-        arity_id_t arity_id, const cdb_data_t *dat) const;
+        arity_id_t arity_id, const util::cdb_data_t *dat) const;
 
-    static std::unique_ptr<knowledge_base_t, deleter_t<knowledge_base_t> > ms_instance;
+    static std::unique_ptr<knowledge_base_t, util::deleter_t<knowledge_base_t> > ms_instance;
     static std::string ms_filename;
     static float ms_max_distance;
     static int ms_thread_num_for_rm;
@@ -322,9 +322,9 @@ private:
     std::string m_filename;
     version_e m_version;
 
-    cdb_data_t m_cdb_rhs, m_cdb_lhs;
-    cdb_data_t m_cdb_axiom_group, m_cdb_arg_set;
-    cdb_data_t m_cdb_arity_patterns, m_cdb_pattern_to_ids;
+    util::cdb_data_t m_cdb_rhs, m_cdb_lhs;
+    util::cdb_data_t m_cdb_axiom_group, m_cdb_arg_set;
+    util::cdb_data_t m_cdb_arity_patterns, m_cdb_pattern_to_ids;
     axioms_database_t m_axioms;
     arity_database_t m_arity_db;
     reachable_matrix_t m_rm;

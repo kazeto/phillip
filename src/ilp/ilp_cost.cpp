@@ -14,7 +14,7 @@ parse_string_to_cost_provider(const std::string &str)
     {
         std::string pred;
         std::vector<std::string> terms;
-        parse_string_as_function_call(str, &pred, &terms);
+        util::parse_string_as_function_call(str, &pred, &terms);
 
         if (pred == "basic" and terms.size() == 3)
         {

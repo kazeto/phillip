@@ -130,7 +130,7 @@ void literal_t::print( std::string *p_out_str, bool f_colored ) const
 #else
     if( f_colored )
         (*p_out_str) +=
-            format( "\33[40m%s\33[0m", predicate.c_str() );
+            util::format( "\33[40m%s\33[0m", predicate.c_str() );
     else
         (*p_out_str) += predicate;
 #endif
@@ -144,7 +144,7 @@ void literal_t::print( std::string *p_out_str, bool f_colored ) const
         if (f_colored)
         {
             const int &_color = color[(terms[i].get_hash()) % 8];
-            (*p_out_str) += format(
+            (*p_out_str) += util::format(
                 "\33[0;%dm%s\33[0m",
                 _color, terms[i].string().c_str() );
         }
@@ -156,18 +156,18 @@ void literal_t::print( std::string *p_out_str, bool f_colored ) const
 }
 
 
-size_t literal_t::write_binary( char *bin ) const
+size_t literal_t::write_binary(char *bin) const
 {
     size_t n(0);
-    
-    n += string_to_binary( predicate, bin );
+
+    n += util::string_to_binary(predicate, bin);
 
     /* terms */
-    n += num_to_binary( terms.size(), bin+n );
-    for( int i=0; i<terms.size(); ++i )
-        n += string_to_binary( terms.at(i).string(), bin+n );
+    n += util::num_to_binary(terms.size(), bin + n);
+    for (int i = 0; i < terms.size(); ++i)
+        n += util::string_to_binary(terms.at(i).string(), bin + n);
 
-    n += bool_to_binary( truth, bin+n );
+    n += util::bool_to_binary(truth, bin + n);
 
     return n;
 }
@@ -179,22 +179,38 @@ size_t literal_t::read_binary( const char *bin )
     std::string s_buf;
     int i_buf;
 
-    n += binary_to_string( bin, &s_buf );
+    n += util::binary_to_string(bin, &s_buf);
     predicate = predicate_t(s_buf);
 
-    n += binary_to_num( bin+n, &i_buf );
-    terms.assign( i_buf, term_t() );
+    n += util::binary_to_num(bin + n, &i_buf);
+    terms.assign(i_buf, term_t());
     for( int i=0; i<i_buf; ++i )
     {
-        n += binary_to_string( bin+n, &s_buf );
+        n += util::binary_to_string(bin + n, &s_buf);
         terms[i] = term_t(s_buf);
     }
 
-    n += binary_to_bool( bin+n, &truth );
+    n += util::binary_to_bool(bin + n, &truth);
 
     return n;
 }
 
+
+std::ostream& operator<<(std::ostream& os, const term_t& t)
+{
+    return os << t.string();
+}
+
+
+std::ostream& operator<<(std::ostream& os, const literal_t& lit)
+{
+    return os << lit.to_string();
+}
+
+
+
+namespace util
+{
 
 
 cdb_data_t::cdb_data_t(std::string _filename)
@@ -219,7 +235,7 @@ void cdb_data_t::prepare_compile()
             m_filename.c_str(),
             std::ios::binary | std::ios::trunc);
         if (m_fout->fail())
-            throw phillip_exception_t(
+            throw phil::phillip_exception_t(
             "Failed to open a database file: " + m_filename);
         else
             m_builder = new cdbpp::builder(*m_fout);
@@ -286,7 +302,7 @@ void xml_element_t::print(std::ostream *os) const
         { return format("%s=\"%s\"", p.first.c_str(), p.second.c_str()); };
 
         (*os) << "<" << e.name() << " ";
-        (*os) << join_functional(e.attributes(), attr_to_string, " ") << ">" << std::endl;
+        (*os) << join_f(e.attributes(), attr_to_string, " ") << ">" << std::endl;
 
         if (not e.text().empty())
             (*os) << e.text() << std::endl;
@@ -656,20 +672,9 @@ bool parse_string_as_function_call(
 }
 
 
-std::ostream& operator<<(std::ostream& os, const term_t& t)
-{
-    return os << t.string();
-}
-
-
-std::ostream& operator<<(std::ostream& os, const literal_t& lit)
-{
-    return os << lit.to_string();
-}
-
-
-
 std::mutex g_mutex_for_print;
 
 
-} // end phil
+} // end of util
+
+} // end of phil

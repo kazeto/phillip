@@ -13,7 +13,7 @@ namespace bin
 char ACCEPTABLE_OPTIONS[] = "c:f:hk:l:m:o:p:t:v:GHP:T:";
 
 
-std::unique_ptr<lhs_enumerator_library_t, deleter_t<lhs_enumerator_library_t> >
+std::unique_ptr<lhs_enumerator_library_t, util::deleter_t<lhs_enumerator_library_t> >
 lhs_enumerator_library_t::ms_instance;
 
 
@@ -32,7 +32,7 @@ lhs_enumerator_library_t::lhs_enumerator_library_t()
 }
 
 
-std::unique_ptr<ilp_converter_library_t, deleter_t<ilp_converter_library_t> >
+std::unique_ptr<ilp_converter_library_t, util::deleter_t<ilp_converter_library_t> >
 ilp_converter_library_t::ms_instance;
 
 
@@ -52,7 +52,7 @@ ilp_converter_library_t::ilp_converter_library_t()
 }
 
 
-std::unique_ptr<ilp_solver_library_t, deleter_t<ilp_solver_library_t> >
+std::unique_ptr<ilp_solver_library_t, util::deleter_t<ilp_solver_library_t> >
 ilp_solver_library_t::ms_instance;
 
 
@@ -72,7 +72,7 @@ ilp_solver_library_t::ilp_solver_library_t()
 }
 
 
-std::unique_ptr<distance_provider_library_t, deleter_t<distance_provider_library_t> >
+std::unique_ptr<distance_provider_library_t, util::deleter_t<distance_provider_library_t> >
 distance_provider_library_t::ms_instance;
 
 
@@ -91,7 +91,7 @@ distance_provider_library_t::distance_provider_library_t()
 }
 
 
-std::unique_ptr<category_table_library_t, deleter_t<category_table_library_t> >
+std::unique_ptr<category_table_library_t, util::deleter_t<category_table_library_t> >
 category_table_library_t::ms_instance;
 
 
@@ -130,10 +130,10 @@ void prepare(
     int argc, char* argv[], phillip_main_t *phillip,
     execution_configure_t *config, inputs_t *inputs)
 {
-    initialize();
+    util::initialize();
 
-    print_console("Phillip starts...");
-    print_console("  version: " + phillip_main_t::VERSION);
+    util::print_console("Phillip starts...");
+    util::print_console("  version: " + phillip_main_t::VERSION);
 
     parse_options(argc, argv, phillip, config, inputs);
     IF_VERBOSE_1("Phillip has completed parsing comand options.");
@@ -162,7 +162,7 @@ void execute(
     {
         kb::knowledge_base_t *kb = kb::knowledge_base_t::instance();
         proc::processor_t processor;
-        print_console("Compiling knowledge-base ...");
+        util::print_console("Compiling knowledge-base ...");
 
         kb->prepare_compile();
 
@@ -171,7 +171,7 @@ void execute(
 
         kb->finalize();
 
-        print_console("Completed to compile knowledge-base.");
+        util::print_console("Completed to compile knowledge-base.");
     }
 
     /* INFERENCE */
@@ -182,13 +182,13 @@ void execute(
         proc::processor_t processor;
         bool flag_printing(false);
 
-        print_console("Loading observations ...");
+        util::print_console("Loading observations ...");
 
         processor.add_component(new proc::parse_obs_t(&parsed_inputs));
         processor.process(inputs);
 
-        print_console("Completed to load observations.");
-        print_console_fmt("    # of observations: %d", parsed_inputs.size());
+        util::print_console("Completed to load observations.");
+        util::print_console_fmt("    # of observations: %d", parsed_inputs.size());
 
         kb::knowledge_base_t::instance()->prepare_query();
         phillip->check_validity();
@@ -210,7 +210,7 @@ void execute(
                     flag_printing = true;
                 }
 
-                print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
+                util::print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
                 kb::knowledge_base_t::instance()->clear_distance_cache();
 
                 if (config.mode == bin::EXE_MODE_INFERENCE)
@@ -252,11 +252,11 @@ bool parse_options(
         if (not ret)
             throw phillip_exception_t(
             "Any error occured during parsing command line options:"
-            + format("-%c %s", opt, arg.c_str()), true);
+            + util::format("-%c %s", opt, arg.c_str()), true);
     }
 
     for (int i = optind; i < argc; i++)
-        inputs->push_back(normalize_path(argv[i]));
+        inputs->push_back(util::normalize_path(argv[i]));
 
     return true;
 }
@@ -271,10 +271,10 @@ bool _load_config_file(
     std::ifstream fin( filename );
 
     if (not fin)
-        throw phillip_exception_t(format(
+        throw phillip_exception_t(util::format(
         "Cannot open setting file \"%s\"", filename));
 
-    print_console_fmt("Loading setting file \"%s\"", filename);
+    util::print_console_fmt("Loading setting file \"%s\"", filename);
     
     while( not fin.eof() )
     {
@@ -282,14 +282,14 @@ bool _load_config_file(
         if( line[0] == '#' ) continue; // COMMENT
 
         std::string sline(line);
-        auto spl = phil::split(sline, " \t", 1);
+        auto spl = phil::util::split(sline, " \t", 1);
         
         if( spl.empty() ) continue;
 
         if( spl.at(0).at(0) == '-' )
         {
             int opt = static_cast<int>( spl.at(0).at(1) );
-            std::string arg = (spl.size() <= 1) ? "" : strip(spl.at(1), "\n");
+            std::string arg = (spl.size() <= 1) ? "" : util::strip(spl.at(1), "\n");
             int ret = _interpret_option( opt, arg, phillip, config, inputs );
             
             if (not ret)
@@ -298,7 +298,7 @@ bool _load_config_file(
                 + std::string(line), true);
         }
         if (spl.at(0).at(0) != '-' and spl.size() == 1)
-            inputs->push_back(normalize_path(spl.at(0)));
+            inputs->push_back(util::normalize_path(spl.at(0)));
     }
 
     fin.close();
@@ -359,13 +359,13 @@ bool _interpret_option(
     
     case 'k': // ---- SET FILENAME OF KNOWLEDGE-BASE
     {
-        config->kb_name = normalize_path(arg);
+        config->kb_name = util::normalize_path(arg);
         return true;
     }
 
     case 'l': // ---- SET THE PATH OF PHILLIP CONFIGURE FILE
     {
-        std::string path = normalize_path(arg);
+        std::string path = util::normalize_path(arg);
         _load_config_file(path.c_str(), phillip, config, inputs);
         return true;
     }
@@ -398,17 +398,17 @@ bool _interpret_option(
 
             if (key == "lhs")
             {
-                phillip->set_param("path_lhs_out", normalize_path(val));
+                phillip->set_param("path_lhs_out", util::normalize_path(val));
                 return true;
             }
             else if (key == "ilp")
             {
-                phillip->set_param("path_ilp_out", normalize_path(val));
+                phillip->set_param("path_ilp_out", util::normalize_path(val));
                 return true;
             }
             else if (key == "sol")
             {
-                phillip->set_param("path_sol_out", normalize_path(val));
+                phillip->set_param("path_sol_out", util::normalize_path(val));
                 return true;
             }
             else
@@ -416,7 +416,7 @@ bool _interpret_option(
         }
         else
         {
-            phillip->set_param("path_out", normalize_path(arg));
+            phillip->set_param("path_out", util::normalize_path(arg));
             return true;
         }
     }
@@ -429,8 +429,8 @@ bool _interpret_option(
         {
             std::string key = arg.substr(0, idx);
             std::string val = arg.substr(idx + 1);
-            if (startswith(key, "path"))
-                val = normalize_path(val);
+            if (util::startswith(key, "path"))
+                val = util::normalize_path(val);
             phillip->set_param(key, val);
         }
         else
@@ -474,7 +474,7 @@ bool _interpret_option(
 
     case 'P': // ---- SET PARALLEL THREAD NUM
     {
-        auto spl = split(arg, "=");
+        auto spl = util::split(arg, "=");
         if (spl.size() == 1)
         {
             phillip->set_param("kb_thread_num", spl[0]);
@@ -503,7 +503,7 @@ bool _interpret_option(
     case 'T': // ---- SET TIMEOUT [SECOND]
     {                  
         float t;
-        auto spl = split(arg, "=");
+        auto spl = util::split(arg, "=");
         if (spl.size() == 1)
         {
             _sscanf(arg.c_str(), "%f", &t);
@@ -629,7 +629,7 @@ void print_usage()
         "  Wiki: https://github.com/kazeto/phillip/wiki"};
 
     for (auto s : USAGE)
-        print_console(s);
+        util::print_console(s);
 }
 
 
