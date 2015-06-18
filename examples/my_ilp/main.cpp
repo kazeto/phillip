@@ -74,7 +74,7 @@ public:
         {
             /* DEFINE THE NAME OF YOUR CONVERTER HERE.
              * THE NAME IS PRINTED IN XML OUTPUT. */
-            return phil::format(
+            return phil::util::format(
                 "MyILPConverter(w_u=%lf,w_b=%lf)",
                 m_weight_unification, m_weight_backchain);
         }
