@@ -1,3 +1,16 @@
+# 2015/06/30 (Phil.3.12)
+
+- Performed minor refactoring.
+    - Moved some classes and functions to the namespace of `phil::util`.
+- Fixed some bugs.
+
+
+# 2015/06/04 (Phil.3.11)
+
+- Added the function to print a time-stamp to XML output.
+- Fixed some bugs.
+
+
 # 2015/05/22 (Phil.3.10)
 
 - Improved the performance of lhs::a_star_based_enumerator_t.
