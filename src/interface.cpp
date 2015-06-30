@@ -127,12 +127,18 @@ bool ilp_converter_t::do_time_out(const std::chrono::system_clock::time_point &b
 bool ilp_solver_t::do_time_out(const std::chrono::system_clock::time_point &begin) const
 {
     duration_time_t t_sol = util::duration_time(begin);
-    duration_time_t t_all =
-        phillip()->get_time_for_lhs() + phillip()->get_time_for_ilp() + t_sol;
 
-    return
-        phillip()->timeout_sol().do_time_out(t_sol) or
-        phillip()->timeout_all().do_time_out(t_all);
+    if (phillip() != NULL)
+    {
+        duration_time_t t_all =
+            phillip()->get_time_for_lhs() + phillip()->get_time_for_ilp() + t_sol;
+
+        return
+            phillip()->timeout_sol().do_time_out(t_sol) or
+            phillip()->timeout_all().do_time_out(t_all);
+    }
+    else
+        return t_sol > 60.0f; // 1 MIN.
 }
 
 
