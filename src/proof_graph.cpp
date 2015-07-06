@@ -170,6 +170,157 @@ bool chain_candidate_t::operator!=(const chain_candidate_t &x) const
 }
 
 
+proof_graph_t::chain_candidate_generator_t
+::chain_candidate_generator_t(const proof_graph_t *g)
+: m_graph(g)
+{
+    init(-1);
+}
+
+
+void proof_graph_t::chain_candidate_generator_t::init(node_idx_t idx)
+{
+    m_pivot = idx;
+
+    if (m_pivot >= 0)
+        kb::kb()->search_arity_patterns(
+        m_graph->node(m_pivot).arity_id(), &m_patterns);
+
+    m_pt_iter = m_patterns.begin();
+
+    do enumerate();
+    while (not end() and empty());
+}
+
+
+void proof_graph_t::chain_candidate_generator_t::next()
+{
+    ++m_pt_iter;
+    do enumerate();
+    while (not end() and empty());
+}
+
+
+void proof_graph_t::chain_candidate_generator_t::enumerate()
+{
+    m_targets.clear();
+    m_axioms.clear();
+
+    if (end()) return;
+
+    hash_map<kb::arity_id_t, hash_set<node_idx_t>> a2ns;
+    std::list<std::list<node_idx_t> > node_arrays;
+
+    // CONSTRUCTS a2ns
+    for (auto a : kb::arities(*m_pt_iter))
+    if (a2ns.count(a) == 0)
+    {
+        auto found = m_graph->search_nodes_with_arity(a);
+
+        if (found != NULL)
+            a2ns.insert(std::make_pair(a, *found));
+        else
+            return; // ABORT!!
+    }
+
+    // EXPANDS a2ns WITH SOFT-UNIFIABLE NODES
+    for (auto i : kb::soft_unifiable_literal_indices(*m_pt_iter))
+    {
+        kb::arity_id_t a = kb::arities(*m_pt_iter).at(i);
+        hash_set<node_idx_t> ns;
+
+        m_graph->enumerate_nodes_softly_unifiable(kb::kb()->search_arity(a), &ns);
+        if (not ns.empty())
+            a2ns[a].insert(ns.begin(), ns.end());
+    }
+
+    typedef std::tuple<index_t, node_idx_t, index_t, node_idx_t> hard_term_satisfier_t;
+
+    // CONSTRUCTS hard_term_satisfiers,
+    // WHICH IS LISTS OF NODE-PAIR WHICH CAN SATISFY HARD-TERM CONSTRAINTS.
+    std::list<std::list<hard_term_satisfier_t>> hard_term_satisfiers;
+    for (auto p : kb::hard_terms(*m_pt_iter))
+    {
+        kb::term_pos_t &t1(p.first);
+        kb::term_pos_t &t2(p.second);
+        kb::arity_id_t a1 = kb::arities(*m_pt_iter).at(t1.first);
+        kb::arity_id_t a2 = kb::arities(*m_pt_iter).at(t2.first);
+        const hash_set<node_idx_t> &ns1 = a2ns.at(a1);
+        const hash_set<node_idx_t> &ns2 = a2ns.at(a2);
+
+        hard_term_satisfiers.push_back(std::list<hard_term_satisfier_t>());
+
+        for (auto n1 : ns1)
+        for (auto n2 : ns2)
+        {
+            const term_t &_t1 = m_graph->node(n1).literal().terms.at(t1.second);
+            const term_t &_t2 = m_graph->node(n2).literal().terms.at(t2.second);
+            if (_t1 == _t2)
+                hard_term_satisfiers.back().push_back(
+                std::make_tuple(t1.first, n1, t2.first, n2));
+        }
+
+        if (hard_term_satisfiers.back().empty())
+            return; // THIS HARD-TERM CANNOT BE SATISFIED.
+    }
+
+    util::combinator_with_arrays_t<
+        std::list<std::list<hard_term_satisfier_t>>,
+        std::list<hard_term_satisfier_t>, hard_term_satisfier_t>
+        combinator(hard_term_satisfiers);
+
+    for (; not combinator.end(); combinator.next())
+    {
+        std::vector<node_idx_t> nodes(kb::arities(*m_pt_iter).size(), -1);
+        std::list<const hard_term_satisfier_t&> sats;
+        bool is_valid(true);
+
+        combinator.get(&sats);
+        for (auto s : sats)
+        {
+            index_t idx1 = std::get<0>(s);
+            node_idx_t node1 = std::get<1>(s);
+            index_t idx2 = std::get<2>(s);
+            node_idx_t node2 = std::get<3>(s);
+
+            if (nodes.at(idx1) < 0) nodes[idx1] = node1;
+            else if (nodes.at(idx1) != node1) is_valid = false;
+
+            if (nodes.at(idx2) < 0) nodes[idx2] = node2;
+            else if (nodes.at(idx2) != node2) is_valid = false;
+        }
+
+        if (is_valid)
+        {
+            hash_map<index_t, const hash_set<node_idx_t>*> fillers;
+
+            for (index_t i = 0; i < nodes.size(); ++i)
+            if (nodes.at(i) < 0)
+            {
+                kb::arity_id_t a = kb::arities(*m_pt_iter).at(i);
+                fillers[i] = &a2ns.at(a);
+            }
+
+            if (fillers.empty())
+                m_targets.push_back(nodes);
+            else
+            {
+                std::list<std::list<std::pair<index_t, node_idx_t>>> _fillers;
+                for (auto p : fillers)
+                {
+                    _fillers.push_back(std::list<std::pair<index_t, node_idx_t>>());
+                    for (auto i : *p.second)
+                        _fillers.back().push_back(std::make_pair(p.first, i));
+                }
+            }
+        }
+    }
+
+    if (not m_targets.empty())
+        kb::kb()->search_axioms_with_arity_pattern(*m_pt_iter, &m_axioms);
+}
+
+
 void proof_graph_t::unifiable_variable_clusters_set_t::add(
     term_t t1, term_t t2 )
 {
@@ -1512,7 +1663,8 @@ proof_graph_t::enumerate_mutual_exclusive_edges() const
 
 
 void proof_graph_t::enumerate_arity_patterns(
-    node_idx_t pivot, std::list<kb::arity_pattern_t> *out) const
+    node_idx_t pivot,
+    std::map<axiom_id_t, std::list<std::vector<node_idx_t> > > *out) const
 {
     const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
 
@@ -1522,31 +1674,28 @@ void proof_graph_t::enumerate_arity_patterns(
     for (auto q : queries)
     {
         hash_map<kb::arity_id_t, int> arity_count;
-        hash_map<kb::arity_id_t, hash_set<node_idx_t> > a2ns;
-        const std::vector<kb::arity_id_t> &arities = kb::arities(q);
+        hash_map<kb::arity_id_t, hash_set<node_idx_t>> a2ns;
+        std::list<std::vector<node_idx_t> > node_arrays;
+        bool is_invalid_pattern(false);
 
-        for (auto a : arities)
+        // CONSTRUCTS a2ns
+        for (auto a : kb::arities(q))
+        if (a2ns.count(a) == 0)
         {
-            auto found = arity_count.find(a);
-            if (found == arity_count.end()) arity_count[a] = 1;
-            else ++(found->second);
-        }
-
-        for (auto p : arity_count)
-        {
-            if (p.first == node(pivot).arity_id() and p.second == 1)
-                a2ns[p.first].insert(pivot);
+            auto found = m_maps.arity_to_nodes.find(a);
+            
+            if (found != m_maps.arity_to_nodes.end())
+                a2ns.insert(std::make_pair(a, found->second));
             else
             {
-                auto found = m_maps.arity_to_nodes.find(p.first);
-                if (found != m_maps.arity_to_nodes.end())
-                    a2ns.insert(std::make_pair(p.first, found->second));
-                else break;
+                is_invalid_pattern = true;
+                break;
             }
         }
 
-        // ADD NODES WHICH ARE SOFT-UNIFIABLE TO a2ns
-        for (auto i : std::get<2>(q))
+        // EXPANDS a2ns WITH SOFT-UNIFIABLE NODES
+        if (not is_invalid_pattern)
+        for (auto i : kb::soft_unifiable_literal_indices(q))
         {
             kb::arity_id_t a = kb::arities(q).at(i);
             hash_set<node_idx_t> ns;
@@ -1556,42 +1705,20 @@ void proof_graph_t::enumerate_arity_patterns(
                 a2ns[a].insert(ns.begin(), ns.end());
         }
 
-        // q INCLUDING AN ARITY WHICH DOES NOT EXIST IN PROOF-GRAPH IS INVALID.
-        if (a2ns.size() != arity_count.size()) continue;
-
-        bool is_valid_query(true);
-
-        // CHECK WHETHER ANY OF TERM PAIR SATISFIES HARD TERM CONSTRAINTS BY q.
+        // HARD-TERM Çè[ë´Ç≈Ç´ÇÈÉmÅ[ÉhÉyÉAÇóÒãìÇ∑ÇÈ
         for (auto p : kb::hard_terms(q))
         {
             kb::term_pos_t &t1(p.first);
             kb::term_pos_t &t2(p.second);
-            kb::arity_id_t a1 = arities.at(t1.first);
-            kb::arity_id_t a2 = arities.at(t2.first);
+            kb::arity_id_t a1 = kb::arities(q).at(t1.first);
+            kb::arity_id_t a2 = kb::arities(q).at(t2.first);
+
             hash_set<term_t> terms;
             bool do_exist_term_pair(false);
-
-            for (auto n : a2ns.at(a1))
-                terms.insert(node(n).literal().terms.at(t1.second));
-
-            for (auto n : a2ns.at(a2))
-            {
-                if (terms.count(node(n).literal().terms.at(t2.second)) > 0)
-                {
-                    do_exist_term_pair = true;
-                    break;
-                }
-            }
-
-            if (not do_exist_term_pair)
-            {
-                is_valid_query = false;
-                break;
-            }
         }
 
-        if (is_valid_query)
-            out->push_back(q);
+        if (not node_arrays.empty())
+            out->insert(q, node_arrays);
     }
 }
 

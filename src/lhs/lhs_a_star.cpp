@@ -219,9 +219,7 @@ void a_star_based_enumerator_t::enumerate_chain_candidates(
     graph->enumerate_arity_patterns(pivot, &queries);
 
     for (auto q : queries)
-    {
         enumerate_chain_candidates(graph, q, pivot, out);
-    }
 }
 
 

@@ -236,6 +236,46 @@ struct requirement_t
 class proof_graph_t
 {        
 public:
+    /** A class to generate candidates of chaining. */
+    class chain_candidate_generator_t
+    {
+    public:
+        chain_candidate_generator_t(const proof_graph_t *g);
+
+        void init(node_idx_t);
+        void next() { ++m_pt_iter; enumerate(); }
+        bool end() const { return m_pt_iter == m_patterns.end(); }
+        bool empty() const { return m_axioms.empty(); }
+
+        const std::list<std::vector<node_idx_t> >& targets() const { return m_targets; }
+        const std::list<std::pair<axiom_id_t, bool> >& axioms() const { return m_axioms; }
+
+    private:
+        void enumerate();
+
+        const proof_graph_t *m_graph;
+        node_idx_t m_pivot;
+
+        std::list<kb::arity_pattern_t> m_patterns;
+        std::list<kb::arity_pattern_t>::const_iterator m_pt_iter;
+
+        std::list<std::vector<node_idx_t> > m_targets;
+        std::list<std::pair<axiom_id_t, bool> > m_axioms;
+    };
+
+    /** A class to detect potential loops in a proof-graph. */
+    class loop_detector_t
+    {
+    public:
+        loop_detector_t(const proof_graph_t *g);
+        const std::list<std::list<edge_idx_t>>& loops() const { return m_loops; }
+
+    private:
+        void construct();
+        const proof_graph_t *m_graph;
+        std::list<std::list<edge_idx_t>> m_loops;
+    };
+
     inline proof_graph_t(phillip_main_t *main, const std::string &name = "");
 
     inline phillip_main_t* phillip() const { return m_phillip; }
@@ -291,7 +331,9 @@ public:
     std::list<hash_set<edge_idx_t> > enumerate_mutual_exclusive_edges() const;
 
     /** Returns queries for getting axioms around pivot node. */
-    void enumerate_arity_patterns(node_idx_t pivot, std::list<kb::arity_pattern_t> *out) const;
+    void enumerate_arity_patterns(
+        node_idx_t pivot,
+        std::list<std::pair<hash_set<axiom_id_t>, std::list<std::vector<node_idx_t>>>> *out) const;
 
     /** Return pointer of unifier for mutual-exclusiveness between given nodes.
      *  If not found, return NULL. */
@@ -308,6 +350,7 @@ public:
     /** Return pointer of set of nodes whose literal has given predicate.
      *  If any node was found, return NULL. */
     inline const hash_set<node_idx_t>* search_nodes_with_arity(const arity_t &arity) const;
+    inline const hash_set<node_idx_t>* search_nodes_with_arity(kb::arity_id_t arity) const;
 
     /** Return pointer of set of nodes whose depth is equal to given value.
      *  If any node was found, return NULL. */

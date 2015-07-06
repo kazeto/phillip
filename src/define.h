@@ -64,22 +64,18 @@ namespace kb
         std::vector<arity_id_t>,
         std::list<std::pair<term_pos_t, term_pos_t> >,
         std::list<small_size_t> > arity_pattern_t;
+    typedef std::pair<std::pair<kb::arity_id_t, term_idx_t>,
+                      std::pair<kb::arity_id_t, term_idx_t> > hard_term_pair_t;
 
-    inline const std::vector<arity_id_t>& arities(const arity_pattern_t &p)
-    {
-        return std::get<0>(p);
-    }
+    inline const std::vector<arity_id_t>&
+        arities(const arity_pattern_t &p) { return std::get<0>(p); }
 
-    inline const std::list<std::pair<term_pos_t, term_pos_t> >& hard_terms(const arity_pattern_t &p)
-    {
-        return std::get<1>(p);
-    }
+    inline const std::list<std::pair<term_pos_t, term_pos_t> >&
+        hard_terms(const arity_pattern_t &p) { return std::get<1>(p); }
 
-    inline const std::list<small_size_t> soft_unifiable_literal_indices(const arity_pattern_t &p)
-    {
-        return std::get<2>(p);
-    }
-
+    inline const std::list<small_size_t>
+        soft_unifiable_literal_indices(const arity_pattern_t &p)
+    { return std::get<2>(p); }
 }
 
 namespace pg
@@ -415,6 +411,80 @@ public:
         }
         return false;
     }
+};
+
+
+/** A template class to generate combinations among some arrays.
+ *  A class C1 is a container of a class C2.
+ *  A class C2 is a container of a class T.
+ *  Example: {{1,2},{3,4,5}} => {1,3},{1,4},{1,5},{2,3},{2,4},{2,5} */
+template <class C1, class C2, class T> class combinator_with_arrays_t
+{
+public:
+    combinator_with_arrays_t(const C1 &c) {
+        for (auto it = c.begin(); it != c.end(); ++it)
+            m_iters.push_back(std::make_pair(it->begin(), &(*it)));
+    }
+
+    void next() {
+        for (auto it = m_iters.begin(); it != iters.end(); ++it)
+        {
+            ++(it->first);
+            if (it->first == it->second->end())
+                it->first = it->second->begin();
+            else break;
+        }
+    }
+
+    bool end() const
+    { m_iters.back().first == m_iters.back().second.end(); }
+
+    void get(std::list<const T&> *out) const {
+        out->clear();
+        for (auto p : m_iters)
+            out->push_back(*p.first)
+    }
+
+private:
+    std::list<std::pair<C2::const_iterator, const C2*>> m_iters;
+};
+
+
+/** A template class to generate combinations among some arrays.
+*  A class M is a map.
+*  A class K is a key of the class M.
+*  A class C is a value of the class M and a container of a class T. */
+template <class M, class K, class C, class V> class combinator_with_map_t
+{
+public:
+    combinator_with_map_t(const M &m) {
+        for (auto it = m.begin(); it != m.end(); ++it)
+            m_iters.push_back(std::make_pair(it->second.begin(), &(*it)));
+    }
+
+    void next() {
+        for (auto it = m_iters.begin(); it != iters.end(); ++it)
+        {
+            ++(it->first);
+            if (it->first == it->second->second.end())
+                it->first = it->second->second.begin();
+            else break;
+        }
+    }
+
+    bool end() const
+    {
+        m_iters.back().first == m_iters.back().second.end();
+    }
+
+    void get(hash_map<K, const T&> *out) const {
+        out->clear();
+        for (auto p : m_iters)
+            out->insert(std::make_pair(p.second.first, p.first->second));
+    }
+
+private:
+    std::list<std::pair<C::const_iterator, const std::pair<K, C>*>> m_iters;
 };
 
 
