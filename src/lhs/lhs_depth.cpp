@@ -29,50 +29,54 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
     const kb::knowledge_base_t *base(kb::knowledge_base_t::instance());
     pg::proof_graph_t *graph =
         new pg::proof_graph_t(phillip(), phillip()->get_input()->name);
-    
+    pg::proof_graph_t::chain_candidate_generator_t gen(graph);
+
     auto begin = std::chrono::system_clock::now();
     add_observations(graph);
 
     for (int depth = 0; (m_depth_max < 0 or depth < m_depth_max); ++depth)
     {
-        std::set<pg::chain_candidate_t> cands =
-            enumerate_chain_candidates(graph, depth);
-        if (cands.empty()) break;
+        const hash_set<pg::node_idx_t>
+            *nodes = graph->search_nodes_with_depth(depth);
+        if (nodes == NULL) break;
 
-        hash_map<axiom_id_t, lf::axiom_t> axioms;
+        hash_map<axiom_id_t, std::set<pg::chain_candidate_t>> candidates;
 
-        // ENUMERATE AXIOMS USED HERE
-        for (auto it = cands.begin(); it != cands.end(); ++it)
-        if (axioms.count(it->axiom_id) == 0)
-            axioms[it->axiom_id] = base->get_axiom(it->axiom_id);
-
-        if (phillip_main_t::verbose() == FULL_VERBOSE)
+        for (auto n : (*nodes))
         {
-            util::print_console_fmt("  depth %d:", depth);
-            util::print_console_fmt("    # of cands = %d", cands.size());
-            util::print_console_fmt("    # of axioms = %d", axioms.size());
+            for (gen.init(n); not gen.end(); gen.next())
+            {
+                for (auto ax : gen.axioms())
+                {
+                    std::set<pg::chain_candidate_t> &cands = candidates[ax.first];
+
+                    for (auto nodes : gen.targets())
+                        cands.insert(pg::chain_candidate_t(
+                        nodes, ax.first, not kb::is_backward(ax)));
+                }
+            }
         }
 
-        // EXECUTE CHAINING
-        for (auto it = cands.begin(); it != cands.end(); ++it)
+        for (auto p : candidates)
         {
-            // CHECK TIME-OUT
+            const lf::axiom_t &axiom = kb::kb()->get_axiom(p.first);
+
+            for (auto c : p.second)
+            {
+                pg::hypernode_idx_t to = c.is_forward ?
+                    graph->forward_chain(c.nodes, axiom) :
+                    graph->backward_chain(c.nodes, axiom);
+            }
+
             if (do_time_out(begin))
             {
                 graph->timeout(true);
-                break;
+                goto TIMED_OUT;
             }
-            
-            const lf::axiom_t &axiom = axioms.at(it->axiom_id);
-            pg::hypernode_idx_t to(-1);
-
-            to = it->is_forward ?
-                graph->forward_chain(it->nodes, axiom) :
-                graph->backward_chain(it->nodes, axiom);
         }
-
-        if (graph->has_timed_out()) break;
     }
+
+    TIMED_OUT:
 
     graph->post_process();
     return graph;

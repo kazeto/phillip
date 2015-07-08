@@ -62,10 +62,6 @@ private:
         pg::node_idx_t, pg::node_idx_t, float, const hash_set<pg::node_idx_t>&,
         reachability_manager_t*) const;
 
-    void enumerate_chain_candidates(
-        const pg::proof_graph_t *graph, pg::node_idx_t i,
-        std::set<pg::chain_candidate_t> *out) const;
-
     inline bool check_permissibility_of(float dist) const;
     inline bool check_permissibility_of(const reachability_t &r) const;
 

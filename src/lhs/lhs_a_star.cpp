@@ -117,112 +117,6 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
 }
 
 
-void a_star_based_enumerator_t::enumerate_chain_candidates(
-    const pg::proof_graph_t *graph, pg::node_idx_t pivot,
-    std::set<pg::chain_candidate_t> *out) const
-{
-    auto enumerate_chain_candidates = [this](
-        const pg::proof_graph_t *graph, const kb::arity_pattern_t &pat,
-        pg::node_idx_t target, std::set<pg::chain_candidate_t> *out)
-    {
-        auto enumerate_nodes_array_with_arities = [this](
-            const pg::proof_graph_t *graph,
-            const std::vector<arity_t> &arities, pg::node_idx_t target)
-        {
-            std::vector< std::vector<pg::node_idx_t> > candidates;
-            std::list< std::vector<pg::node_idx_t> > out;
-            std::string arity_target = graph->node(target).arity();
-
-            for (auto a : arities)
-            {
-                bool is_target_arity = (a == arity_target);
-                hash_set<pg::node_idx_t> indices;
-
-                graph->enumerate_nodes_softly_unifiable(a, &indices);
-
-                if (indices.empty()) return out;
-
-                candidates.push_back(std::vector<pg::node_idx_t>());
-                for (auto _idx : indices)
-                if ((not is_target_arity or _idx == target) and
-                    (m_max_depth < 0 or graph->node(_idx).depth() < m_max_depth))
-                    candidates.back().push_back(_idx);
-
-                if (candidates.back().empty())
-                    return out;
-            }
-
-            std::vector<int> indices(arities.size(), 0);
-            bool do_end_loop(false);
-
-            while (not do_end_loop)
-            {
-                std::vector<pg::node_idx_t> _new;
-
-                for (int i = 0; i < candidates.size(); ++i)
-                {
-                    pg::node_idx_t idx = candidates.at(i).at(indices[i]);
-                    _new.push_back(idx);
-                }
-
-                out.push_back(_new);
-
-                // INCREMENT
-                ++indices[0];
-                for (int i = 0; i < candidates.size(); ++i)
-                if (indices[i] >= candidates[i].size())
-                {
-                    if (i < indices.size() - 1)
-                    {
-                        indices[i] = 0;
-                        ++indices[i + 1];
-                    }
-                    else do_end_loop = true;
-                }
-            }
-
-            return out;
-        };
-
-        std::vector<const lf::logical_function_t*> branches;
-        std::vector<arity_t> arities;
-
-        for (auto id : kb::arities(pat))
-            arities.push_back(kb::kb()->search_arity(id));
-
-        if (not arities.empty())
-        {
-            std::list<std::vector<pg::node_idx_t> > targets =
-                enumerate_nodes_array_with_arities(graph, arities, target);
-            std::set<pg::chain_candidate_t> _out;
-            std::list<std::pair<axiom_id_t, bool> > axs; // <AXIOM_ID, IS_BACKWARD>
-
-            kb::kb()->search_axioms_with_arity_pattern(pat, &axs);
-
-            for (auto nodes : targets)
-            {
-                if (not do_include_requirement(graph, nodes))
-                if (graph->check_nodes_coexistability(nodes.begin(), nodes.end()))
-                for (auto ax : axs)
-                    out->insert(pg::chain_candidate_t(nodes, ax.first, !ax.second));
-            }
-        }
-    };
-
-    const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
-
-    if (m_max_depth >= 0 and
-        graph->node(pivot).depth() >= m_max_depth)
-        return;
-
-    std::list<kb::arity_pattern_t> queries;
-    graph->enumerate_arity_patterns(pivot, &queries);
-
-    for (auto q : queries)
-        enumerate_chain_candidates(graph, q, pivot, out);
-}
-
-
 void a_star_based_enumerator_t::initialize_reachability(
 const pg::proof_graph_t *graph, reachability_manager_t *out) const
 {
@@ -248,8 +142,7 @@ const pg::proof_graph_t *graph, reachability_manager_t *out) const
 void a_star_based_enumerator_t::add_reachability(
     const pg::proof_graph_t *graph,
     pg::node_idx_t start, pg::node_idx_t current, float dist,
-    const hash_set<pg::node_idx_t> &goals,
-    reachability_manager_t *out) const
+    const hash_set<pg::node_idx_t> &goals, reachability_manager_t *out) const
 {    
     if (not check_permissibility_of(dist)) return;
 
@@ -263,11 +156,11 @@ void a_star_based_enumerator_t::add_reachability(
     if (goals_filtered.empty()) return;
 
     pg::proof_graph_t::chain_candidate_generator_t gen(graph);
-    for (; not gen.end() and not gen.empty()); gen.next())
+    for (gen.init(current); not gen.end(); gen.next())
     {
         for (auto ax : gen.axioms())
         {
-            lf::axiom_t axiom = kb::kb()->get_axiom(c.axiom_id);
+            lf::axiom_t axiom = kb::kb()->get_axiom(ax.first);
             float d_from = dist + kb::kb()->get_distance(axiom);
             
             if (not check_permissibility_of(d_from)) continue;
@@ -275,12 +168,12 @@ void a_star_based_enumerator_t::add_reachability(
             for (auto g : goals_filtered)
             {
                 std::string arity_goal = graph->node(g).arity();
-                float d_to(-1.0f);
 
                 for (auto tar : gen.targets())
                 {
-                    auto lits = not is_backward(ax) ?
+                    auto lits = not kb::is_backward(ax) ?
                         axiom.func.get_rhs() : axiom.func.get_lhs();
+                    float d_to(-1.0f);
 
                     for (auto l : lits)
                     {
@@ -298,37 +191,6 @@ void a_star_based_enumerator_t::add_reachability(
                         start, g, d_from, d_to));
                 }
             }
-        }
-    }
-
-
-    // TRASH
-    std::set<pg::chain_candidate_t> cands;
-    enumerate_chain_candidates(graph, current, &cands);
-
-    for (auto c : cands)
-    {
-        lf::axiom_t ax = kb::kb()->get_axiom(c.axiom_id);
-        float d_from = dist + kb::kb()->get_distance(ax);
-
-        // NOTE: MOST CANDIDATES CANNOT PASS THIS IF-STATEMENT.
-        if (check_permissibility_of(d_from))
-        for (auto g : goals_filtered)
-        {
-            std::string arity_goal = graph->node(g).arity();
-            float d_to(-1.0f);
-
-            for (auto l : (c.is_forward ? ax.func.get_rhs() : ax.func.get_lhs()))
-            {
-                float d = kb::kb()->get_distance(l->get_arity(), arity_goal);
-                if (check_permissibility_of(d))
-                if (d_to < 0.0f or d_to > d)
-                    d_to = d;
-            }
-
-            if (check_permissibility_of(d_to))
-            if (check_permissibility_of(d_from + d_to))
-                out->push(reachability_t(c, start, g, d_from, d_to));
         }
     }
 }

@@ -4,6 +4,7 @@
 #include <functional>
 #include <cassert>
 #include <set>
+#include <iterator>
 
 #include "./proof_graph.h"
 #include "./phillip.h"
@@ -187,22 +188,96 @@ void proof_graph_t::chain_candidate_generator_t::init(node_idx_t idx)
         m_graph->node(m_pivot).arity_id(), &m_patterns);
 
     m_pt_iter = m_patterns.begin();
+    enumerate();
 
-    do enumerate();
-    while (not end() and empty());
+    while (not end() and empty())
+        next();
 }
 
 
 void proof_graph_t::chain_candidate_generator_t::next()
 {
-    ++m_pt_iter;
-    do enumerate();
+    do
+    {
+        ++m_pt_iter;
+        enumerate();
+    }
     while (not end() and empty());
 }
 
 
 void proof_graph_t::chain_candidate_generator_t::enumerate()
 {
+    typedef std::tuple<index_t, node_idx_t, index_t, node_idx_t> hard_term_satisfier_t;
+
+    struct _combinator_hts :
+        protected std::list<std::pair<std::list<hard_term_satisfier_t>::const_iterator,
+                                      const std::list<hard_term_satisfier_t>* >>
+    {
+        _combinator_hts(const std::list<std::list<hard_term_satisfier_t>> &c) {
+            for (auto it = c.begin(); it != c.end(); ++it)
+                push_back(std::make_pair(it->begin(), &(*it)));
+        }
+
+        void next() {
+            for (auto it = begin(); it != end(); ++it)
+            {
+                ++(it->first);
+                if (std::next(it) != end())
+                {
+                    if (it->first == it->second->end())
+                        it->first = it->second->begin();
+                    else break;
+                }
+            }
+        }
+
+        bool is_end() const
+        {
+            return (back().first == back().second->end());
+        }
+
+        void get(std::list<const hard_term_satisfier_t*> *out) const {
+            out->clear();
+            for (auto p : (*this))
+                out->push_back(&(*p.first));
+        }
+    };
+
+    struct _combinator_idx :
+        protected std::list<std::tuple<index_t, hash_set<node_idx_t>::const_iterator, const hash_set<node_idx_t>*>>
+    {
+    public:
+        _combinator_idx(const hash_map<index_t, const hash_set<node_idx_t>*> &m) {
+            for (auto it = m.begin(); it != m.end(); ++it)
+                push_back(std::make_tuple(it->first, it->second->begin(), it->second));
+        }
+
+        void next() {
+            for (auto it = begin(); it != end(); ++it)
+            {
+                ++(std::get<1>(*it));
+                if (std::next(it) != end())
+                {
+                    if (std::get<1>(*it) == std::get<2>(*it)->end())
+                        std::get<1>(*it) = std::get<2>(*it)->begin();
+                    else break;
+                }
+            }
+        }
+
+        bool is_end() const
+        {
+            return std::get<1>(back()) == std::get<2>(back())->end();
+        }
+
+        void get(hash_map<index_t, node_idx_t> *out) const {
+            out->clear();
+            for (auto p : (*this))
+                out->insert(std::make_pair(std::get<0>(p), *std::get<1>(p)));
+        }
+    };
+
     m_targets.clear();
     m_axioms.clear();
 
@@ -234,8 +309,6 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
             a2ns[a].insert(ns.begin(), ns.end());
     }
 
-    typedef std::tuple<index_t, node_idx_t, index_t, node_idx_t> hard_term_satisfier_t;
-
     // CONSTRUCTS hard_term_satisfiers,
     // WHICH IS LISTS OF NODE-PAIR WHICH CAN SATISFY HARD-TERM CONSTRAINTS.
     std::list<std::list<hard_term_satisfier_t>> hard_term_satisfiers;
@@ -264,24 +337,21 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
             return; // THIS HARD-TERM CANNOT BE SATISFIED.
     }
 
-    util::combinator_with_arrays_t<
-        std::list<std::list<hard_term_satisfier_t>>,
-        std::list<hard_term_satisfier_t>, hard_term_satisfier_t>
-        combinator(hard_term_satisfiers);
+    _combinator_hts combinator(hard_term_satisfiers);
 
-    for (; not combinator.end(); combinator.next())
+    for (; not combinator.is_end(); combinator.next())
     {
         std::vector<node_idx_t> nodes(kb::arities(*m_pt_iter).size(), -1);
-        std::list<const hard_term_satisfier_t&> sats;
+        std::list<const hard_term_satisfier_t*> sats;
         bool is_valid(true);
 
         combinator.get(&sats);
         for (auto s : sats)
         {
-            index_t idx1 = std::get<0>(s);
-            node_idx_t node1 = std::get<1>(s);
-            index_t idx2 = std::get<2>(s);
-            node_idx_t node2 = std::get<3>(s);
+            index_t idx1 = std::get<0>(*s);
+            node_idx_t node1 = std::get<1>(*s);
+            index_t idx2 = std::get<2>(*s);
+            node_idx_t node2 = std::get<3>(*s);
 
             if (nodes.at(idx1) < 0) nodes[idx1] = node1;
             else if (nodes.at(idx1) != node1) is_valid = false;
@@ -292,23 +362,21 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
 
         if (is_valid)
         {
-            hash_map<index_t, const hash_set<node_idx_t>&> fillers;
+            hash_map<index_t, const hash_set<node_idx_t>*> fillers;
 
             for (index_t i = 0; i < nodes.size(); ++i)
             if (nodes.at(i) < 0)
             {
                 kb::arity_id_t a = kb::arities(*m_pt_iter).at(i);
-                fillers[i] = a2ns.at(a);
+                fillers[i] = &a2ns.at(a);
             }
 
             if (fillers.empty())
                 m_targets.push_back(nodes);
             else
             {
-                util::combinator_with_map_t<
-                    hash_map<index_t, const hash_set<node_idx_t>&>,
-                    index_t, hash_set<node_idx_t>, node_idx_t> cmb;
-                for (; not cmb.end(); cmb.next())
+                _combinator_idx cmb(fillers);
+                for (; not cmb.is_end(); cmb.next())
                 {
                     
                     hash_map<index_t, node_idx_t> i2n;
@@ -323,6 +391,17 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
 
     if (not m_targets.empty())
         kb::kb()->search_axioms_with_arity_pattern(*m_pt_iter, &m_axioms);
+}
+
+
+proof_graph_t::loop_detector_t::loop_detector_t(const proof_graph_t *g)
+: m_graph(g)
+{}
+
+
+void proof_graph_t::loop_detector_t::construct()
+{
+    // TODO
 }
 
 
