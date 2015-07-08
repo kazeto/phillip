@@ -243,7 +243,7 @@ public:
         chain_candidate_generator_t(const proof_graph_t *g);
 
         void init(node_idx_t);
-        void next() { ++m_pt_iter; enumerate(); }
+        void next();
         bool end() const { return m_pt_iter == m_patterns.end(); }
         bool empty() const { return m_axioms.empty(); }
 
@@ -329,11 +329,6 @@ public:
         enumerate_mutual_exclusive_nodes() const;
 
     std::list<hash_set<edge_idx_t> > enumerate_mutual_exclusive_edges() const;
-
-    /** Returns queries for getting axioms around pivot node. */
-    void enumerate_arity_patterns(
-        node_idx_t pivot,
-        std::list<std::pair<hash_set<axiom_id_t>, std::list<std::vector<node_idx_t>>>> *out) const;
 
     /** Return pointer of unifier for mutual-exclusiveness between given nodes.
      *  If not found, return NULL. */

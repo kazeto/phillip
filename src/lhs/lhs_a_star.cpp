@@ -262,6 +262,47 @@ void a_star_based_enumerator_t::add_reachability(
     }
     if (goals_filtered.empty()) return;
 
+    pg::proof_graph_t::chain_candidate_generator_t gen(graph);
+    for (; not gen.end() and not gen.empty()); gen.next())
+    {
+        for (auto ax : gen.axioms())
+        {
+            lf::axiom_t axiom = kb::kb()->get_axiom(c.axiom_id);
+            float d_from = dist + kb::kb()->get_distance(axiom);
+            
+            if (not check_permissibility_of(d_from)) continue;
+            
+            for (auto g : goals_filtered)
+            {
+                std::string arity_goal = graph->node(g).arity();
+                float d_to(-1.0f);
+
+                for (auto tar : gen.targets())
+                {
+                    auto lits = not is_backward(ax) ?
+                        axiom.func.get_rhs() : axiom.func.get_lhs();
+
+                    for (auto l : lits)
+                    {
+                        float d = kb::kb()->get_distance(l->get_arity(), arity_goal);
+                        if ((d_to < 0.0f or d_to > d)
+                            and check_permissibility_of(d))
+                            d_to = d;
+                    }
+
+                    if (not check_permissibility_of(d_to)) continue;
+                    if (not check_permissibility_of(d_from + d_to)) continue;
+
+                    out->push(reachability_t(
+                        pg::chain_candidate_t(tar, ax.first, !ax.second),
+                        start, g, d_from, d_to));
+                }
+            }
+        }
+    }
+
+
+    // TRASH
     std::set<pg::chain_candidate_t> cands;
     enumerate_chain_candidates(graph, current, &cands);
 

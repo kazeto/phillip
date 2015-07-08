@@ -292,25 +292,30 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
 
         if (is_valid)
         {
-            hash_map<index_t, const hash_set<node_idx_t>*> fillers;
+            hash_map<index_t, const hash_set<node_idx_t>&> fillers;
 
             for (index_t i = 0; i < nodes.size(); ++i)
             if (nodes.at(i) < 0)
             {
                 kb::arity_id_t a = kb::arities(*m_pt_iter).at(i);
-                fillers[i] = &a2ns.at(a);
+                fillers[i] = a2ns.at(a);
             }
 
             if (fillers.empty())
                 m_targets.push_back(nodes);
             else
             {
-                std::list<std::list<std::pair<index_t, node_idx_t>>> _fillers;
-                for (auto p : fillers)
+                util::combinator_with_map_t<
+                    hash_map<index_t, const hash_set<node_idx_t>&>,
+                    index_t, hash_set<node_idx_t>, node_idx_t> cmb;
+                for (; not cmb.end(); cmb.next())
                 {
-                    _fillers.push_back(std::list<std::pair<index_t, node_idx_t>>());
-                    for (auto i : *p.second)
-                        _fillers.back().push_back(std::make_pair(p.first, i));
+                    
+                    hash_map<index_t, node_idx_t> i2n;
+                    cmb.get(&i2n);
+                    m_targets.push_back(nodes);
+                    for (auto p : i2n)
+                        m_targets.back()[p.first] = p.second;
                 }
             }
         }
@@ -1659,67 +1664,6 @@ proof_graph_t::enumerate_mutual_exclusive_edges() const
         out.push_back(hash_set<edge_idx_t>(it->begin(), it->end()));
 
     return out;
-}
-
-
-void proof_graph_t::enumerate_arity_patterns(
-    node_idx_t pivot,
-    std::map<axiom_id_t, std::list<std::vector<node_idx_t> > > *out) const
-{
-    const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
-
-    std::list<kb::arity_pattern_t> queries;
-    base->search_arity_patterns(node(pivot).arity_id(), &queries);
-
-    for (auto q : queries)
-    {
-        hash_map<kb::arity_id_t, int> arity_count;
-        hash_map<kb::arity_id_t, hash_set<node_idx_t>> a2ns;
-        std::list<std::vector<node_idx_t> > node_arrays;
-        bool is_invalid_pattern(false);
-
-        // CONSTRUCTS a2ns
-        for (auto a : kb::arities(q))
-        if (a2ns.count(a) == 0)
-        {
-            auto found = m_maps.arity_to_nodes.find(a);
-            
-            if (found != m_maps.arity_to_nodes.end())
-                a2ns.insert(std::make_pair(a, found->second));
-            else
-            {
-                is_invalid_pattern = true;
-                break;
-            }
-        }
-
-        // EXPANDS a2ns WITH SOFT-UNIFIABLE NODES
-        if (not is_invalid_pattern)
-        for (auto i : kb::soft_unifiable_literal_indices(q))
-        {
-            kb::arity_id_t a = kb::arities(q).at(i);
-            hash_set<node_idx_t> ns;
-
-            enumerate_nodes_softly_unifiable(kb::kb()->search_arity(a), &ns);
-            if (not ns.empty())
-                a2ns[a].insert(ns.begin(), ns.end());
-        }
-
-        // HARD-TERM を充足できるノードペアを列挙する
-        for (auto p : kb::hard_terms(q))
-        {
-            kb::term_pos_t &t1(p.first);
-            kb::term_pos_t &t2(p.second);
-            kb::arity_id_t a1 = kb::arities(q).at(t1.first);
-            kb::arity_id_t a2 = kb::arities(q).at(t2.first);
-
-            hash_set<term_t> terms;
-            bool do_exist_term_pair(false);
-        }
-
-        if (not node_arrays.empty())
-            out->insert(q, node_arrays);
-    }
 }
 
 

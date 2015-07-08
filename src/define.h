@@ -54,28 +54,32 @@ typedef float duration_time_t;
 
 namespace kb
 {
-    class knowledge_base_t;
+class knowledge_base_t;
 
-    typedef unsigned long int argument_set_id_t;
-    typedef size_t arity_id_t;
+typedef unsigned long int argument_set_id_t;
+typedef size_t arity_id_t;
 
-    typedef std::pair<index_t, term_idx_t> term_pos_t;
-    typedef std::tuple<
-        std::vector<arity_id_t>,
-        std::list<std::pair<term_pos_t, term_pos_t> >,
-        std::list<small_size_t> > arity_pattern_t;
-    typedef std::pair<std::pair<kb::arity_id_t, term_idx_t>,
-                      std::pair<kb::arity_id_t, term_idx_t> > hard_term_pair_t;
+typedef std::pair<index_t, term_idx_t> term_pos_t;
+typedef std::tuple<
+    std::vector<arity_id_t>,
+    std::list<std::pair<term_pos_t, term_pos_t> >,
+    std::list<small_size_t> > arity_pattern_t;
+typedef std::pair<std::pair<kb::arity_id_t, term_idx_t>,
+                  std::pair<kb::arity_id_t, term_idx_t> > hard_term_pair_t;
 
-    inline const std::vector<arity_id_t>&
-        arities(const arity_pattern_t &p) { return std::get<0>(p); }
+inline const std::vector<arity_id_t>&
+arities(const arity_pattern_t &p) { return std::get<0>(p); }
 
-    inline const std::list<std::pair<term_pos_t, term_pos_t> >&
-        hard_terms(const arity_pattern_t &p) { return std::get<1>(p); }
+inline const std::list<std::pair<term_pos_t, term_pos_t> >&
+hard_terms(const arity_pattern_t &p) { return std::get<1>(p); }
 
-    inline const std::list<small_size_t>
-        soft_unifiable_literal_indices(const arity_pattern_t &p)
-    { return std::get<2>(p); }
+inline const std::list<small_size_t>
+soft_unifiable_literal_indices(const arity_pattern_t &p)
+{ return std::get<2>(p); }
+
+inline bool is_backward(std::pair<axiom_id_t, bool> &p)
+{ return p.second; }
+
 }
 
 namespace pg
@@ -477,7 +481,7 @@ public:
         m_iters.back().first == m_iters.back().second.end();
     }
 
-    void get(hash_map<K, const T&> *out) const {
+    void get(hash_map<K, const V&> *out) const {
         out->clear();
         for (auto p : m_iters)
             out->insert(std::make_pair(p.second.first, p.first->second));
