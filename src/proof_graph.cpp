@@ -182,6 +182,7 @@ proof_graph_t::chain_candidate_generator_t
 void proof_graph_t::chain_candidate_generator_t::init(node_idx_t idx)
 {
     m_pivot = idx;
+    m_patterns.clear();
 
     if (m_pivot >= 0)
         kb::kb()->search_arity_patterns(
@@ -244,8 +245,10 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
         }
     };
 
-    struct _combinator_idx :
-        protected std::list<std::tuple<index_t, hash_set<node_idx_t>::const_iterator, const hash_set<node_idx_t>*>>
+    typedef std::tuple<index_t, hash_set<node_idx_t>::const_iterator, const hash_set<node_idx_t>*>
+        _tuple_for_combinator_t;
+    
+    struct _combinator_idx : protected std::list<_tuple_for_combinator_t>
     {
     public:
         _combinator_idx(const hash_map<index_t, const hash_set<node_idx_t>*> &m) {
@@ -337,53 +340,65 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
             return; // THIS HARD-TERM CANNOT BE SATISFIED.
     }
 
+    hash_set<index_t> slots_pivot;
+    for (index_t i = 0; i < kb::arities(*m_pt_iter).size(); ++i)
+        if (kb::arities(*m_pt_iter).at(i) == m_graph->node(m_pivot).arity_id())
+            slots_pivot.insert(i);
+    assert(not slots_pivot.empty());
+    
     _combinator_hts combinator(hard_term_satisfiers);
 
     for (; not combinator.is_end(); combinator.next())
     {
-        std::vector<node_idx_t> nodes(kb::arities(*m_pt_iter).size(), -1);
-        std::list<const hard_term_satisfier_t*> sats;
-        bool is_valid(true);
-
-        combinator.get(&sats);
-        for (auto s : sats)
+        for (auto i_pivot : slots_pivot)
         {
-            index_t idx1 = std::get<0>(*s);
-            node_idx_t node1 = std::get<1>(*s);
-            index_t idx2 = std::get<2>(*s);
-            node_idx_t node2 = std::get<3>(*s);
+            std::vector<node_idx_t> nodes(kb::arities(*m_pt_iter).size(), -1);
+            std::list<const hard_term_satisfier_t*> sats;
+            bool is_valid(true);
 
-            if (nodes.at(idx1) < 0) nodes[idx1] = node1;
-            else if (nodes.at(idx1) != node1) is_valid = false;
-
-            if (nodes.at(idx2) < 0) nodes[idx2] = node2;
-            else if (nodes.at(idx2) != node2) is_valid = false;
-        }
-
-        if (is_valid)
-        {
-            hash_map<index_t, const hash_set<node_idx_t>*> fillers;
-
-            for (index_t i = 0; i < nodes.size(); ++i)
-            if (nodes.at(i) < 0)
+            nodes[i_pivot] = m_pivot;
+            combinator.get(&sats);
+            
+            for (auto s : sats)
             {
-                kb::arity_id_t a = kb::arities(*m_pt_iter).at(i);
-                fillers[i] = &a2ns.at(a);
+                index_t idx1 = std::get<0>(*s);
+                node_idx_t node1 = std::get<1>(*s);
+                index_t idx2 = std::get<2>(*s);
+                node_idx_t node2 = std::get<3>(*s);
+
+                if (nodes.at(idx1) < 0) nodes[idx1] = node1;
+                else if (nodes.at(idx1) != node1) is_valid = false;
+
+                if (nodes.at(idx2) < 0) nodes[idx2] = node2;
+                else if (nodes.at(idx2) != node2) is_valid = false;
+
+                if (not is_valid) break;
             }
 
-            if (fillers.empty())
-                m_targets.push_back(nodes);
-            else
+            if (is_valid)
             {
-                _combinator_idx cmb(fillers);
-                for (; not cmb.is_end(); cmb.next())
+                hash_map<index_t, const hash_set<node_idx_t>*> fillers;
+
+                for (index_t i = 0; i < nodes.size(); ++i)
+                if (nodes.at(i) < 0)
                 {
-                    
-                    hash_map<index_t, node_idx_t> i2n;
-                    cmb.get(&i2n);
+                    kb::arity_id_t a = kb::arities(*m_pt_iter).at(i);
+                    fillers[i] = &a2ns.at(a);
+                }
+
+                if (fillers.empty())
                     m_targets.push_back(nodes);
-                    for (auto p : i2n)
-                        m_targets.back()[p.first] = p.second;
+                else
+                {
+                    _combinator_idx cmb(fillers);
+                    for (; not cmb.is_end(); cmb.next())
+                    {                    
+                        hash_map<index_t, node_idx_t> i2n;
+                        cmb.get(&i2n);
+                        m_targets.push_back(nodes);
+                        for (auto p : i2n)
+                            m_targets.back()[p.first] = p.second;
+                    }
                 }
             }
         }
