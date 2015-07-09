@@ -340,6 +340,8 @@ private:
     hash_map<std::string, hash_set<axiom_id_t> > m_group_to_axioms;
     hash_map<arity_id_t, hash_set<axiom_id_t> > m_lhs_to_axioms, m_rhs_to_axioms;
 
+    hash_set<arity_t> m_expected_stop_words;
+
     /** Function object to provide distance between predicates. */
     struct
     {

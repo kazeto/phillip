@@ -156,6 +156,9 @@ knowledge_base_t::knowledge_base_t(const std::string &filename)
 {
     m_distance_provider = { NULL, "" };
     m_category_table = { NULL, "" };
+
+    m_expected_stop_words.insert("nsubj/3");
+    m_expected_stop_words.insert("dobj/3");
 }
 
 
@@ -790,9 +793,12 @@ void knowledge_base_t::set_stop_words()
     m_axioms.prepare_query();
 
     typedef std::pair <std::string, char> term_pos_t;
-    std::set<term_pos_t> candidates, excluded;
+    hash_map<arity_t, hash_set<term_idx_t> > candidates;
+    std::set<term_pos_t> excluded;
     hash_map<std::string, size_t> counts; // ARITY FREQUENCY IN EVIDENCE
     std::set<std::list<std::string> > arities_set; // ARITY SET IN EVIDENCE
+    hash_map<arity_t, hash_map<term_idx_t, std::list<std::string> > >
+        names_of_axiom_excludes_expected_stop_word;
 
     auto proc = [&](const lf::axiom_t &ax, bool is_backward)
     {
@@ -802,6 +808,13 @@ void knowledge_base_t::set_stop_words()
         hash_map<term_t, std::list<term_pos_t> > hard_terms;
         std::set<std::string> arities;
 
+        auto add_excluded = [&](const arity_t &a, term_idx_t i)
+        {
+            if (m_expected_stop_words.count(a) > 0)
+                names_of_axiom_excludes_expected_stop_word[a][i].push_back(ax.name);
+            excluded.insert(std::make_pair(a, i));
+        };
+        
         for (auto l : evd)
         if (not l->is_equality())
         {
@@ -817,7 +830,7 @@ void knowledge_base_t::set_stop_words()
                 if (t.is_hard_term())
                     hard_terms[t].push_back(std::make_pair(arity, i));
                 else
-                    excluded.insert(std::make_pair(arity, i));
+                    add_excluded(arity, i);
             }
         }
 
@@ -827,14 +840,17 @@ void knowledge_base_t::set_stop_words()
 
         for (auto e : hard_terms)
         if (e.second.size() > 1)
-            candidates.insert(e.second.begin(), e.second.end());
+        {
+            for (auto p : e.second)
+                candidates[p.first].insert(p.second);
+        }
 
         for (auto l : hyp)
         if (not l->is_equality())
         {
             for (char i = 0; i < l->terms.size(); ++i)
             if (terms_evd.count(l->terms.at(i)) > 0)
-                excluded.insert(std::make_pair(l->get_arity(), i));
+                add_excluded(l->get_arity(), i);
         }
     };
 
@@ -857,12 +873,45 @@ void knowledge_base_t::set_stop_words()
         }
     }
 
-    // EXCLUDED ELEMENTS IN excluded FROM candidate
-    for (auto it = candidates.begin(); it != candidates.end();)
+    // CHECK WHETHER THERE ARE EXPECTED STOP-WORDS IN candidates
     {
-        if (excluded.count(*it) > 0)
-            it = candidates.erase(it);
-        else ++it;
+        for (auto e : m_expected_stop_words)
+        {
+            if (candidates.count(e) == 0)
+                throw phillip_exception_t(util::format(
+                "\"%s\" is not a candidate of stop-word.", e.c_str()));
+        }
+    }
+
+    // EXCLUDED ELEMENTS IN excluded FROM candidates
+    for (auto it1 = candidates.begin(); it1 != candidates.end();)
+    {
+        for (auto it2 = it1->second.begin(); it2 != it1->second.end();)
+        {
+            term_pos_t p(it1->first, *it2);
+        
+            if (excluded.count(p) > 0)
+            {
+                if (m_expected_stop_words.count(it1->first) > 0 and
+                    it1->second.size() == 1)
+                {
+                    std::string ax_name =
+                        names_of_axiom_excludes_expected_stop_word
+                        .at(it1->first).at(*it2).front();
+                    std::string disp(util::format(
+                        "\"%s\" cannot be a stop-word because of \"%s\".",
+                        it1->first.c_str(), ax_name.c_str()));
+                
+                    throw phillip_exception_t(disp);
+                }
+                it2 = it1->second.erase(it2);
+            }
+            else ++it2;
+        }
+
+        if (it1->second.empty())
+            it1 = candidates.erase(it1);
+        else ++it1;
     }
 
     if (candidates.empty()) return;
@@ -918,9 +967,15 @@ void knowledge_base_t::set_stop_words()
 
     delete solver;
 
-    IF_VERBOSE_3(
-        "stop-words = {" +
-        util::join(m_stop_words.begin(), m_stop_words.end(), ", ") + "}");
+    if (phillip_main_t::verbose() >= VERBOSE_3)
+    {
+        std::list<std::string> stop_words(m_stop_words.begin(), m_stop_words.end());
+        stop_words.sort();
+        
+        util::print_console(
+            "stop-words = {" +
+            util::join(stop_words.begin(), stop_words.end(), ", ") + "}");
+    }
 }
 
 
