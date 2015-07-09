@@ -23,7 +23,7 @@ enum logical_operator_t
     OPR_PARAPHRASE,     /// Paraphrase (as "<=>")
     OPR_INCONSISTENT,   /// Inconsistent (as "xor")
     OPR_REQUIREMENT,    /// Requirement (as "require")
-    OPR_UNIPP           /// Unification-Postponement (as "unipp")
+    OPR_UNIPP,          /// Unification-Postponement (as "unipp")
 };
 
 
@@ -36,6 +36,7 @@ extern const std::string OPR_STR_INCONSISTENT;
 extern const std::string OPR_STR_REQUIREMENT;
 extern const std::string OPR_STR_UNIPP;
 extern const std::string OPR_STR_EXARGSET; /// Exclusive argument set.
+extern const std::string OPR_STR_ASSERTION;
 
 
 /** A struct type of logical function with s-expression. */

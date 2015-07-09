@@ -25,6 +25,7 @@ const std::string OPR_STR_INCONSISTENT = "xor";
 const std::string OPR_STR_REQUIREMENT = "req";
 const std::string OPR_STR_UNIPP = "unipp";
 const std::string OPR_STR_EXARGSET = "argset";
+const std::string OPR_STR_ASSERTION = "assert";
 
 
 logical_function_t::logical_function_t(
@@ -95,7 +96,7 @@ logical_function_t::logical_function_t(const sexp::stack_t &s)
     }
     
     // SET OPTIONAL PARAMETER
-    if( not s.children.empty() )
+    if (not s.children.empty())
     {
         const sexp::stack_t &child = *(s.children.back());
         if (child.is_parameter())
@@ -362,6 +363,8 @@ void logical_function_t::get_all_literals_sub(
         for (int i = 0; i<m_branches.size(); i++)
             m_branches[i].get_all_literals_sub(p_out_list);
         break;
+    default:
+        break;
     }
 }
 
@@ -386,6 +389,8 @@ void logical_function_t::enumerate_literal_branches(
     case OPR_UNIPP:
         for (int i = 0; i<m_branches.size(); i++)
             m_branches[i].enumerate_literal_branches(out);
+        break;
+    default:
         break;
     }
 }
@@ -415,6 +420,8 @@ size_t logical_function_t::write_binary( char *bin ) const
         break;
     case OPR_UNIPP:
         n += m_branches.at(0).write_binary( bin+n );
+        break;
+    default:
         break;
     }
 
@@ -454,6 +461,8 @@ size_t logical_function_t::read_binary( const char *bin )
     case OPR_UNIPP:
         m_branches.assign(1, logical_function_t());
         n += m_branches[0].read_binary(bin + n);
+    default:
+        throw phillip_exception_t("Invalid operator occured.");
     }
 
     n += util::binary_to_string(bin + n, &m_param);

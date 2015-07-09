@@ -138,6 +138,7 @@ public:
     void insert_inconsistency(const lf::logical_function_t &f);
     void insert_unification_postponement(const lf::logical_function_t &f);
     void insert_argument_set(const lf::logical_function_t &f);
+    void assert_stop_word(const arity_t &arity);
 
     inline lf::axiom_t get_axiom(axiom_id_t id) const;
     inline std::list<axiom_id_t> search_axioms_with_rhs(const std::string &arity) const;
@@ -333,14 +334,16 @@ private:
 
     /** A set of arities of stop-words.
      *  These arities are ignored in constructing a reachable-matrix. */
-    hash_set<std::string> m_stop_words;
+    hash_set<arity_t> m_stop_words;
 
     std::list<hash_set<std::string> > m_argument_sets;
 
     hash_map<std::string, hash_set<axiom_id_t> > m_group_to_axioms;
     hash_map<arity_id_t, hash_set<axiom_id_t> > m_lhs_to_axioms, m_rhs_to_axioms;
 
-    hash_set<arity_t> m_expected_stop_words;
+    /** A set of arities which must be stop-words.
+     *  If any one of these cannot be a stop-word, Phillip throws an exception. */
+    hash_set<arity_t> m_asserted_stop_words;
 
     /** Function object to provide distance between predicates. */
     struct

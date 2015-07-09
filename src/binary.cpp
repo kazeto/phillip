@@ -160,16 +160,15 @@ void execute(
     /* COMPILING KNOWLEDGE-BASE */
     if (do_compile)
     {
-        kb::knowledge_base_t *kb = kb::knowledge_base_t::instance();
         proc::processor_t processor;
         util::print_console("Compiling knowledge-base ...");
 
-        kb->prepare_compile();
+        kb::kb()->prepare_compile();
 
         processor.add_component(new proc::compile_kb_t());
         processor.process(inputs);
 
-        kb->finalize();
+        kb::kb()->finalize();
 
         util::print_console("Completed to compile knowledge-base.");
     }

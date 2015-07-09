@@ -14,7 +14,7 @@ namespace phil
 
 
 #define _assert_syntax(x, s, e) \
-        if (not x) throw phillip_exception_t( \
+        if (not(x)) throw phillip_exception_t( \
         util::format("Syntax error at line %d:", s.get_line_num()) \
         + e + "\n" + s.get_stack()->to_string()); \
 
@@ -62,12 +62,29 @@ void compile_kb_t::process( const sexp::reader_t *reader )
     const sexp::stack_t *stack(reader->get_stack());
     kb::knowledge_base_t *_kb = kb::knowledge_base_t::instance();
 
+    if (stack->is_functor("ASSERT"))
+    {
+        _assert_syntax(reader->is_root(), (*reader), "Function ASSERT should be root.");
+        _assert_syntax(stack->children.size() >= 1, (*reader), "There is no operator of assertion.");
+        _assert_syntax(stack->children.size() >= 2, (*reader), "There is no argument of assertion.");
+
+        if (stack->children.at(0)->get_string() == "stopword")
+        {
+            for (int i = 1; i < stack->children.size(); ++i)
+            {
+                arity_t a = stack->children.at(i)->get_string();
+                kb::kb()->assert_stop_word(a);
+                IF_VERBOSE_FULL("Added stop-word assertion: " + a);
+            }
+        }
+    }
+    
     if (not stack->is_functor("B"))
         return;
 
     /* SHOULD BE ROOT. */
-    _assert_syntax(reader->is_root(), (*reader), "Function B should be root." );
-        
+    _assert_syntax(reader->is_root(), (*reader), "Function B should be root.");
+
     /* IDENTIFY THE LOGICAL FORM PART. */
     index_t idx_lf = stack->find_functor(lf::OPR_STR_IMPLICATION);
     index_t idx_para = stack->find_functor(lf::OPR_STR_PARAPHRASE);
@@ -75,9 +92,10 @@ void compile_kb_t::process( const sexp::reader_t *reader )
     index_t idx_pp = stack->find_functor(lf::OPR_STR_UNIPP);
     index_t idx_as = stack->find_functor(lf::OPR_STR_EXARGSET);
     index_t idx_name = stack->find_functor(lf::OPR_STR_NAME);
+    index_t idx_assert = stack->find_functor(lf::OPR_STR_ASSERTION);
         
     _assert_syntax(
-        (idx_lf >= 0 or idx_para >= 0 or idx_inc >= 0 or idx_pp >= 0 or idx_as >= 0),
+        (idx_lf >= 0 or idx_para >= 0 or idx_inc >= 0 or idx_pp >= 0 or idx_as >= 0 or idx_assert >= 0),
         (*reader), "No logical connectors found." );
 
     std::string name;
@@ -126,6 +144,24 @@ void compile_kb_t::process( const sexp::reader_t *reader )
             util::print_console("Added argument-set: {" + disp + "}");
         }
         _kb->insert_argument_set(func);
+    }
+    else if (idx_assert >= 0)
+    {
+        const sexp::stack_t *target = stack->children.at(idx_assert);
+        _assert_syntax(target->children.size() > 1, (*reader), "Function 'assert' takes one operator.");
+
+        if (target->children.at(1)->get_string() == "stopword")
+        {
+            _assert_syntax(
+                target->children.size() > 2, (*reader),
+                "Function 'assert stopword' takes at least one argument.");
+            for (int i = 2; i < target->children.size(); ++i)
+            {
+                arity_t a = target->children.at(i)->get_string();
+                kb::kb()->assert_stop_word(a);
+                IF_VERBOSE_FULL("Added stop-word assertion: " + a);
+            }
+        }
     }
 }
 

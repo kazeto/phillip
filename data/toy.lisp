@@ -11,6 +11,8 @@
 
 (B (xor (nsubj e x) (dobj e x)))
 
+(B (assert stopword nsubj/2 dobj/2))
+
 ; OBSERVATIONS
 (O (name toy)
    (^ (john-nn X) (tom-nn Y)

@@ -156,9 +156,6 @@ knowledge_base_t::knowledge_base_t(const std::string &filename)
 {
     m_distance_provider = { NULL, "" };
     m_category_table = { NULL, "" };
-
-    m_expected_stop_words.insert("nsubj/3");
-    m_expected_stop_words.insert("dobj/3");
 }
 
 
@@ -241,7 +238,10 @@ void knowledge_base_t::finalize()
 {
     if (m_state == STATE_NULL) return;
 
-    if (m_state == STATE_COMPILE)
+    kb_state_e state = m_state;
+    m_state = STATE_NULL;
+
+    if (state == STATE_COMPILE)
     {
         auto insert_cdb = [](
             const hash_map<arity_id_t, hash_set<axiom_id_t> > &ids,
@@ -321,8 +321,6 @@ void knowledge_base_t::finalize()
     m_cdb_pattern_to_ids.finalize();
     m_rm.finalize();
     m_category_table.instance->finalize();
-
-    m_state = STATE_NULL;
 }
 
 
@@ -551,6 +549,12 @@ void knowledge_base_t::insert_argument_set(const lf::logical_function_t &f)
         if (pivot == NULL)
             m_argument_sets.push_back(args);
     }
+}
+
+
+void knowledge_base_t::assert_stop_word(const arity_t &arity)
+{
+    m_asserted_stop_words.insert(arity);
 }
 
 
@@ -810,7 +814,7 @@ void knowledge_base_t::set_stop_words()
 
         auto add_excluded = [&](const arity_t &a, term_idx_t i)
         {
-            if (m_expected_stop_words.count(a) > 0)
+            if (m_asserted_stop_words.count(a) > 0)
                 names_of_axiom_excludes_expected_stop_word[a][i].push_back(ax.name);
             excluded.insert(std::make_pair(a, i));
         };
@@ -873,12 +877,13 @@ void knowledge_base_t::set_stop_words()
         }
     }
 
-    // CHECK WHETHER THERE ARE EXPECTED STOP-WORDS IN candidates
+    // CHECK WHETHER THERE ARE ASSERTED STOP-WORDS IN candidates
     {
-        for (auto e : m_expected_stop_words)
+        for (auto e : m_asserted_stop_words)
         {
             if (candidates.count(e) == 0)
                 throw phillip_exception_t(util::format(
+                "Stop-word assertion failed: "
                 "\"%s\" is not a candidate of stop-word.", e.c_str()));
         }
     }
@@ -892,13 +897,14 @@ void knowledge_base_t::set_stop_words()
         
             if (excluded.count(p) > 0)
             {
-                if (m_expected_stop_words.count(it1->first) > 0 and
+                if (m_asserted_stop_words.count(it1->first) > 0 and
                     it1->second.size() == 1)
                 {
                     std::string ax_name =
                         names_of_axiom_excludes_expected_stop_word
                         .at(it1->first).at(*it2).front();
                     std::string disp(util::format(
+                        "Stop-word assertion failed: "
                         "\"%s\" cannot be a stop-word because of \"%s\".",
                         it1->first.c_str(), ax_name.c_str()));
                 
@@ -916,7 +922,7 @@ void knowledge_base_t::set_stop_words()
 
     if (candidates.empty()) return;
 
-    hash_map<std::string, ilp::variable_idx_t> a2v;
+    hash_map<arity_t, ilp::variable_idx_t> a2v;
     for (auto c : candidates)
         a2v[c.first] = -1;
 
@@ -925,8 +931,8 @@ void knowledge_base_t::set_stop_words()
     for (auto it = a2v.begin(); it != a2v.end(); ++it)
     {
         double coef =
-            100.0 * ((double)counts.at(it->first) - 0.9)
-            / m_axioms.num_axioms();
+            (m_asserted_stop_words.count(it->first) > 0) ? 100.0 :
+            100.0 * ((double)counts.at(it->first) - 0.9) / m_axioms.num_axioms();
         ilp::variable_t var(it->first, coef);
         it->second = prob.add_variable(var);
     }
@@ -975,6 +981,14 @@ void knowledge_base_t::set_stop_words()
         util::print_console(
             "stop-words = {" +
             util::join(stop_words.begin(), stop_words.end(), ", ") + "}");
+    }
+
+    for (auto a : m_asserted_stop_words)
+    {
+        if (m_stop_words.count(a) == 0)
+            throw phillip_exception_t(util::format(
+            "Stop-word assertion failed: "
+            "\"%s\" is not a stop-word.", a.c_str()));
     }
 }
 
