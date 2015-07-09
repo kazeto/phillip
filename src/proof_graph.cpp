@@ -262,8 +262,8 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
         if (it != hard_terms.end())
         for (auto p : it->second)
         {
-            const literal_t &l1 = m_graph->node(i).literal();
-            const literal_t &l2 = m_graph->node(p.first).literal();
+            const literal_t &l1 = m_graph->node(nodes->at(i)).literal();
+            const literal_t &l2 = m_graph->node(nodes->at(p.first)).literal();
 
             return l1.terms.at(p.second.first) != l2.terms.at(p.second.second);
         }
