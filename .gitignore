@@ -13,6 +13,9 @@ conf/*
 ; LIBS
 lpsolve55/*
 
+; PYTHON
+*.pyc
+
 ; FOR UNIX
 *.o
 *.lo

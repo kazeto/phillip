@@ -209,78 +209,6 @@ void proof_graph_t::chain_candidate_generator_t::next()
 
 void proof_graph_t::chain_candidate_generator_t::enumerate()
 {
-    typedef std::tuple<index_t, node_idx_t, index_t, node_idx_t> hard_term_satisfier_t;
-
-    struct _combinator_hts :
-        protected std::list<std::pair<std::list<hard_term_satisfier_t>::const_iterator,
-                                      const std::list<hard_term_satisfier_t>* >>
-    {
-        _combinator_hts(const std::list<std::list<hard_term_satisfier_t>> &c) {
-            for (auto it = c.begin(); it != c.end(); ++it)
-                push_back(std::make_pair(it->begin(), &(*it)));
-        }
-
-        void next() {
-            for (auto it = begin(); it != end(); ++it)
-            {
-                ++(it->first);
-                if (std::next(it) != end())
-                {
-                    if (it->first == it->second->end())
-                        it->first = it->second->begin();
-                    else break;
-                }
-            }
-        }
-
-        bool is_end() const
-        {
-            return (back().first == back().second->end());
-        }
-
-        void get(std::list<const hard_term_satisfier_t*> *out) const {
-            out->clear();
-            for (auto p : (*this))
-                out->push_back(&(*p.first));
-        }
-    };
-
-    typedef std::tuple<index_t, hash_set<node_idx_t>::const_iterator, const hash_set<node_idx_t>*>
-        _tuple_for_combinator_t;
-    
-    struct _combinator_idx : protected std::list<_tuple_for_combinator_t>
-    {
-    public:
-        _combinator_idx(const hash_map<index_t, const hash_set<node_idx_t>*> &m) {
-            for (auto it = m.begin(); it != m.end(); ++it)
-                push_back(std::make_tuple(it->first, it->second->begin(), it->second));
-        }
-
-        void next() {
-            for (auto it = begin(); it != end(); ++it)
-            {
-                ++(std::get<1>(*it));
-                if (std::next(it) != end())
-                {
-                    if (std::get<1>(*it) == std::get<2>(*it)->end())
-                        std::get<1>(*it) = std::get<2>(*it)->begin();
-                    else break;
-                }
-            }
-        }
-
-        bool is_end() const
-        {
-            return std::get<1>(back()) == std::get<2>(back())->end();
-        }
-
-        void get(hash_map<index_t, node_idx_t> *out) const {
-            out->clear();
-            for (auto p : (*this))
-                out->insert(std::make_pair(std::get<0>(p), *std::get<1>(p)));
-        }
-    };
-
     m_targets.clear();
     m_axioms.clear();
 
@@ -314,95 +242,74 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
 
     // CONSTRUCTS hard_term_satisfiers,
     // WHICH IS LISTS OF NODE-PAIR WHICH CAN SATISFY HARD-TERM CONSTRAINTS.
-    std::list<std::list<hard_term_satisfier_t>> hard_term_satisfiers;
+    hash_map<index_t, hash_map<index_t, std::pair<term_idx_t, term_idx_t>>> hard_terms;
     for (auto p : kb::hard_terms(*m_pt_iter))
-    {
-        kb::term_pos_t &t1(p.first);
-        kb::term_pos_t &t2(p.second);
-        kb::arity_id_t a1 = kb::arities(*m_pt_iter).at(t1.first);
-        kb::arity_id_t a2 = kb::arities(*m_pt_iter).at(t2.first);
-        const hash_set<node_idx_t> &ns1 = a2ns.at(a1);
-        const hash_set<node_idx_t> &ns2 = a2ns.at(a2);
-
-        hard_term_satisfiers.push_back(std::list<hard_term_satisfier_t>());
-
-        for (auto n1 : ns1)
-        for (auto n2 : ns2)
-        {
-            const term_t &_t1 = m_graph->node(n1).literal().terms.at(t1.second);
-            const term_t &_t2 = m_graph->node(n2).literal().terms.at(t2.second);
-            if (_t1 == _t2)
-                hard_term_satisfiers.back().push_back(
-                std::make_tuple(t1.first, n1, t2.first, n2));
-        }
-
-        if (hard_term_satisfiers.back().empty())
-            return; // THIS HARD-TERM CANNOT BE SATISFIED.
-    }
+        hard_terms[p.second.first][p.first.first] =
+            std::make_pair(p.second.second, p.first.second);
 
     hash_set<index_t> slots_pivot;
     for (index_t i = 0; i < kb::arities(*m_pt_iter).size(); ++i)
         if (kb::arities(*m_pt_iter).at(i) == m_graph->node(m_pivot).arity_id())
             slots_pivot.insert(i);
     assert(not slots_pivot.empty());
-    
-    _combinator_hts combinator(hard_term_satisfiers);
 
-    for (; not combinator.is_end(); combinator.next())
+    // SUB-ROUTINE OF routine_recursive.
+    auto do_violate_hard_term =
+        [&, this](const std::vector<pg::node_idx_t> *nodes, index_t i) -> bool
     {
-        for (auto i_pivot : slots_pivot)
+        auto it = hard_terms.find(i);
+        
+        if (it != hard_terms.end())
+        for (auto p : it->second)
         {
-            std::vector<node_idx_t> nodes(kb::arities(*m_pt_iter).size(), -1);
-            std::list<const hard_term_satisfier_t*> sats;
-            bool is_valid(true);
+            const literal_t &l1 = m_graph->node(i).literal();
+            const literal_t &l2 = m_graph->node(p.first).literal();
 
-            nodes[i_pivot] = m_pivot;
-            combinator.get(&sats);
+            return l1.terms.at(p.second.first) != l2.terms.at(p.second.second);
+        }
+        
+        return false;
+    };
+
+    std::function<void(std::vector<node_idx_t>*, index_t, index_t)> routine_recursive;
+    routine_recursive = [&, this](std::vector<pg::node_idx_t> *nodes, index_t i, index_t i_pivot)
+    {
+        if (i == i_pivot)
+        {
+            (*nodes)[i] = m_pivot;
             
-            for (auto s : sats)
+            if (not do_violate_hard_term(nodes, i))
             {
-                index_t idx1 = std::get<0>(*s);
-                node_idx_t node1 = std::get<1>(*s);
-                index_t idx2 = std::get<2>(*s);
-                node_idx_t node2 = std::get<3>(*s);
-
-                if (nodes.at(idx1) < 0) nodes[idx1] = node1;
-                else if (nodes.at(idx1) != node1) is_valid = false;
-
-                if (nodes.at(idx2) < 0) nodes[idx2] = node2;
-                else if (nodes.at(idx2) != node2) is_valid = false;
-
-                if (not is_valid) break;
-            }
-
-            if (is_valid)
-            {
-                hash_map<index_t, const hash_set<node_idx_t>*> fillers;
-
-                for (index_t i = 0; i < nodes.size(); ++i)
-                if (nodes.at(i) < 0)
-                {
-                    kb::arity_id_t a = kb::arities(*m_pt_iter).at(i);
-                    fillers[i] = &a2ns.at(a);
-                }
-
-                if (fillers.empty())
-                    m_targets.push_back(nodes);
+                if (i < kb::arities(*m_pt_iter).size() - 1)
+                    routine_recursive(nodes, i + 1, i_pivot);
                 else
+                    m_targets.push_back(*nodes);
+            }
+        }
+        else
+        {
+            const hash_set<node_idx_t> &ns =
+                a2ns.at(kb::arities(*m_pt_iter).at(i));
+            
+            for (auto n : ns)
+            {
+                (*nodes)[i] = n;
+
+                if (not do_violate_hard_term(nodes, i))
                 {
-                    _combinator_idx cmb(fillers);
-                    for (; not cmb.is_end(); cmb.next())
-                    {                    
-                        hash_map<index_t, node_idx_t> i2n;
-                        cmb.get(&i2n);
-                        m_targets.push_back(nodes);
-                        for (auto p : i2n)
-                            m_targets.back()[p.first] = p.second;
-                    }
+                    if (i < kb::arities(*m_pt_iter).size() - 1)
+                        routine_recursive(nodes, i + 1, i_pivot);
+                    else
+                        m_targets.push_back(*nodes);
                 }
             }
         }
-    }
+    };
+    
+    std::vector<node_idx_t> nodes(kb::arities(*m_pt_iter).size(), -1);
+
+    for (auto i_pivot : slots_pivot)
+        routine_recursive(&nodes, 0, i_pivot);
 
     if (not m_targets.empty())
         kb::kb()->search_axioms_with_arity_pattern(*m_pt_iter, &m_axioms);
