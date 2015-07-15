@@ -92,30 +92,6 @@ private:
     struct reachability_t { float distance, redundancy; };
     typedef hash_map<pg::node_idx_t, reachability_t > reachable_map_t;
 
-    /** This is a sub-routine of execute.
-    *  Gets candidates of chaining from nodes containing a node
-    *  whose depth is equals to given depth. */
-    std::set<pg::chain_candidate_t> enumerate_chain_candidates(
-        const pg::proof_graph_t *graph, int depth) const;
-
-    /** Enumerate candidates for chaining.
-     *  Following candidates are excluded from output:
-     *    - One is not feasible due to exclusiveness of chains.
-     *    - One includes a node whose depth exceeds target depth.
-     *    - One do not includes a node whose depth equals to target depth.
-     *  @param depth       Target dpeth.
-     *                     If -1, limitation on depth will be ignored. */
-    void enumerate_chain_candidates_sub(
-        const pg::proof_graph_t *graph, const lf::axiom_t &ax, bool is_backward,
-        int depth, std::set<pg::chain_candidate_t> *out) const;
-
-    /** Returns arrays of nodes whose arities are same as given arities.
-    *  @param arities Arrays of arities to search.
-    *  @param target  Each vector must include this node. */
-    std::list< std::vector<pg::node_idx_t> > enumerate_nodes_array_with_arities(
-        const pg::proof_graph_t *graph,
-        const std::vector<std::string> &arities, int depth) const;
-
     int m_depth_max;
 };
 

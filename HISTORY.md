@@ -1,3 +1,24 @@
+# 2015/07/15 (Phil.3.13)
+
+- Improved the performance of lhs::a_star_based_enumerator_t and lhs::depth_based_enumerator_t.
+- Added function to assert stop-words.
+    - The assertion can be defined in knowledge base:
+    
+        ```lisp
+	    ; nsubj/3 should be a stop-word!
+            (B (assert stopword nsubj/3))
+        ```
+    
+    - You can specify plural arities in one `assert` operation:
+    
+        ```lisp
+	    ; nsubj/3, dobj/3 and iobj/3 should be a stop-word!
+            (B (assert stopword nsubj/3 dobj/3 iobj/3))
+	```
+
+    - If asserted arities could not be stop-word, then an exception is thrown.
+
+
 # 2015/06/30 (Phil.3.12)
 
 - Performed minor refactoring.
@@ -63,6 +84,7 @@
     - If `req` statement has plural arguments, they are label candidates in some labeling task.
       In this case, you can specify the gold label by adding the optional parameter `:gold`.
     - Example:
+    
     ```lisp
         ; Using -G option, Phillip searches the hypothesis which includes (p X).
         (O (req (p X)) (^ ...))
@@ -72,6 +94,7 @@
         ; Using -G option, Phillip searches the hypothesis which includes (p X).
         (O (req (p X :gold) (q Y)) (^ ...))
     ```
+    
 - Fixed some bugs.
     
 
