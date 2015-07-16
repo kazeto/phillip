@@ -563,8 +563,8 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
 
     kb::knowledge_base_t::setup(
         config.kb_name, max_dist, thread_num, disable_stop_word);
-    kb::knowledge_base_t::instance()->set_distance_provider(dist_key);
-    kb::knowledge_base_t::instance()->set_category_table(tab_key);
+    kb::knowledge_base_t::instance()->set_distance_provider(dist_key, phillip);
+    kb::knowledge_base_t::instance()->set_category_table(tab_key, phillip);
 
     switch (config.mode)
     {

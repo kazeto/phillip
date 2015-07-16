@@ -79,6 +79,10 @@ public:
     *  If p1 cannot be p2, returns -1. */
     virtual float get(const arity_t &p1, const arity_t &p2) const = 0;
 
+    /** Gets the elements related to a1.
+     *  This method is used on reachable-matrix construction. */
+    virtual void gets(const arity_id_t &a1, hash_map<arity_id_t, float> *out) const = 0;
+
     virtual bool do_target(const arity_t &a) const = 0;
 
     virtual void finalize() = 0;
@@ -156,8 +160,8 @@ public:
         const arity_pattern_t &query,
         std::list<std::pair<axiom_id_t, bool> > *out) const;
 
-    void set_distance_provider(const std::string &key);
-    void set_category_table(const std::string &key);
+    void set_distance_provider(const std::string &key, phillip_main_t *ph = NULL);
+    void set_category_table(const std::string &key, phillip_main_t *ph = NULL);
 
     /** Returns ditance between arity1 and arity2
      *  in a reachable-matrix in the current knowledge-base.
@@ -416,6 +420,8 @@ public:
 
     virtual void prepare_query(const knowledge_base_t*) override {}
     virtual float get(const arity_t &a1, const arity_t &a2) const override;
+    virtual void gets(
+        const arity_id_t &a1, hash_map<arity_id_t, float> *out) const override {};
 
     virtual bool do_target(const arity_t&) const override;
 
@@ -427,18 +433,20 @@ public:
 class basic_category_table_t : public category_table_t
 {
 public:
-    class generator_t : public component_generator_t<category_table_t>
+    struct generator_t : public component_generator_t<category_table_t>
     {
-    public:
-        virtual category_table_t* operator() (phillip_main_t*) const override
-            { return new basic_category_table_t(); }
+        virtual category_table_t* operator() (phillip_main_t*) const override;
     };
+
+    basic_category_table_t(int max_depth, float dist_scale);
     
     virtual void prepare_compile(const knowledge_base_t*) override;
     virtual bool insert(const lf::logical_function_t &ax) override;
 
     virtual void prepare_query(const knowledge_base_t*) override;
     virtual float get(const arity_t &a1, const arity_t &a2) const override;
+    virtual void gets(
+        const arity_id_t &a1, hash_map<arity_id_t, float> *out) const override;
 
     virtual bool do_target(const arity_t&) const override;
 
@@ -453,6 +461,9 @@ protected:
     std::string filename() const { return m_prefix + ".category.dat"; }
 
     hash_map<arity_id_t, hash_map<arity_id_t, float> > m_table;
+
+    int m_max_depth;
+    float m_distance_scale;
 };
 
 
