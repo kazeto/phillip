@@ -1,3 +1,11 @@
+# 2015/07/17 (Phil.3.14)
+
+- Improved the performance of basic category-table construction.
+- Modified the procedure of inference with using category-table.
+- Fixed the bug that an exception is thrown when there is too long predicate in the knowledge base.
+    - After this version, too long predicates are automatically shorten to 250 characters and Phillip warns it.
+
+
 # 2015/07/15 (Phil.3.13)
 
 - Improved the performance of lhs::a_star_based_enumerator_t and lhs::depth_based_enumerator_t.
