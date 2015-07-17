@@ -185,10 +185,28 @@ void proof_graph_t::chain_candidate_generator_t::init(node_idx_t idx)
     m_patterns.clear();
 
     if (m_pivot >= 0)
-        kb::kb()->search_arity_patterns(
-        m_graph->node(m_pivot).arity_id(), &m_patterns);
+    {
+        std::list<kb::arity_pattern_t> patterns;
+        kb::arity_id_t id_pivot = m_graph->node(m_pivot).arity_id();
+
+        kb::kb()->search_arity_patterns(id_pivot, &patterns);
+        m_patterns.insert(patterns.begin(), patterns.end());
+
+        hash_map<kb::arity_id_t, float> soft_unifiable_arities;
+
+        kb::kb()->category_table()->gets(id_pivot, &soft_unifiable_arities);
+
+        for (auto p : soft_unifiable_arities)
+        if (p.second >= 0.0 and
+            p.second < m_graph->threshold_distance_for_soft_unifying())
+        {
+            kb::kb()->search_arity_patterns(p.first, &patterns);
+            m_patterns.insert(patterns.begin(), patterns.end());
+        }
+    }
 
     m_pt_iter = m_patterns.begin();
+
     enumerate();
 
     while (not end() and empty())
@@ -222,11 +240,8 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
     if (a2ns.count(a) == 0)
     {
         auto found = m_graph->search_nodes_with_arity(a);
-
         if (found != NULL)
             a2ns.insert(std::make_pair(a, *found));
-        else
-            return; // ABORT!!
     }
 
     // EXPANDS a2ns WITH SOFT-UNIFIABLE NODES
@@ -240,6 +255,14 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
             a2ns[a].insert(ns.begin(), ns.end());
     }
 
+    // IF THERE IS A SLOT WHICH CANNOT BE FILLED, THEN ABORT.
+    {
+        hash_set<kb::arity_id_t> arity_set(
+            kb::arities(*m_pt_iter).begin(),
+            kb::arities(*m_pt_iter).end());
+        if (a2ns.size() < arity_set.size()) return;
+    }
+
     // CONSTRUCTS hard_term_satisfiers,
     // WHICH IS LISTS OF NODE-PAIR WHICH CAN SATISFY HARD-TERM CONSTRAINTS.
     hash_map<index_t, hash_map<index_t, std::pair<term_idx_t, term_idx_t>>> hard_terms;
@@ -249,8 +272,20 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
 
     hash_set<index_t> slots_pivot;
     for (index_t i = 0; i < kb::arities(*m_pt_iter).size(); ++i)
-        if (kb::arities(*m_pt_iter).at(i) == m_graph->node(m_pivot).arity_id())
+    {
+        kb::arity_id_t id1 = kb::arities(*m_pt_iter).at(i);
+        kb::arity_id_t id2 = m_graph->node(m_pivot).arity_id();
+
+        if (id1 == id2)
             slots_pivot.insert(i);
+        else
+        {
+            float dist = kb::kb()->category_table()->get(id1, id2);
+            if (dist >= 0.0f and
+                dist < m_graph->threshold_distance_for_soft_unifying())
+                slots_pivot.insert(i);
+        }
+    }
     assert(not slots_pivot.empty());
 
     // SUB-ROUTINE OF routine_recursive.
@@ -398,6 +433,14 @@ void proof_graph_t::temporal_variables_t::clear()
     considered_unifications.clear();
     coexistability_logs.clear();
     argument_set_ids.clear();
+}
+
+
+proof_graph_t::proof_graph_t(phillip_main_t *main, const std::string &name)
+: m_phillip(main), m_name(name), m_is_timeout(false)
+{
+    m_threshold_distance_for_soft_unify =
+        m_phillip->param_float("threshold_soft_unify", kb::kb()->get_max_distance());
 }
 
 
@@ -639,11 +682,8 @@ const arity_t &arity, hash_set<node_idx_t> *out) const
     if (ns1 != NULL)
         out->insert(ns1->begin(), ns1->end());
 
-    if (kb::kb()->do_target_on_category_table(arity))
+    if (kb::kb()->category_table()->do_target(arity))
     {
-        float threshold = phillip()->param_float(
-            "threshold_soft_unify", kb::knowledge_base_t::get_max_distance());
-
         for (auto p1 : m_maps.predicate_to_nodes)
         for (auto p2 : p1.second)
         if (p2.first == 1)
@@ -651,8 +691,8 @@ const arity_t &arity, hash_set<node_idx_t> *out) const
             arity_t arity2 = literal_t::get_arity(p1.first, p2.first, false);
             if (arity2 != arity)
             {
-                float cost = kb::kb()->get_soft_unifying_cost(arity, arity2);
-                if (cost >= 0.0 and cost < threshold)
+                float dist = kb::kb()->category_table()->get(arity, arity2);
+                if (dist >= 0.0 and dist < threshold_distance_for_soft_unifying())
                     out->insert(p2.second.begin(), p2.second.end());
             }
         }
@@ -1602,28 +1642,34 @@ int proof_graph_t::get_depth_of_deepest_node(
 
 std::list<std::pair<arity_t, arity_t> > proof_graph_t::get_gaps_on_edge(edge_idx_t idx) const
 {
-    const edge_t &e = edge(idx);
     std::list<std::pair<arity_t, arity_t> > out;
+    const edge_t &e = edge(idx);
+    auto tail = hypernode(e.tail());
 
-    if (e.axiom_id() < 0) return out;
-
-    lf::axiom_t ax = kb::knowledge_base_t::instance()->get_axiom(e.axiom_id());
-    std::vector<const lf::logical_function_t*> branches_tail;
-
-    if (e.type() == EDGE_IMPLICATION)
-        ax.func.branch(0).enumerate_literal_branches(&branches_tail);
-    else if (e.type() == EDGE_HYPOTHESIZE)
-        ax.func.branch(1).enumerate_literal_branches(&branches_tail);
-
-    auto hypernode_tail = hypernode(e.tail());
-
-    for (index_t i = 0; i < branches_tail.size(); ++i)
+    if (e.is_chain_edge())
     {
-        arity_t a1 = branches_tail.at(i)->literal().get_arity();
-        arity_t a2 = node(hypernode_tail.at(i)).arity();
+        lf::axiom_t ax = kb::knowledge_base_t::instance()->get_axiom(e.axiom_id());
+        std::vector<const lf::logical_function_t*> branches_tail;
 
-        if (a1 != a2)
-            out.push_back(std::make_pair(a1, a2));
+        if (e.type() == EDGE_IMPLICATION)
+            ax.func.branch(0).enumerate_literal_branches(&branches_tail);
+        else if (e.type() == EDGE_HYPOTHESIZE)
+            ax.func.branch(1).enumerate_literal_branches(&branches_tail);
+
+        for (index_t i = 0; i < branches_tail.size(); ++i)
+        {
+            arity_t a1 = branches_tail.at(i)->literal().get_arity();
+            arity_t a2 = node(tail.at(i)).arity();
+
+            if (a1 != a2) out.push_back(std::make_pair(a1, a2));
+        }
+    }
+    else if (e.is_unify_edge())
+    {
+        assert(tail.size() == 2);
+        arity_t a1(node(tail.at(0)).arity()), a2(node(tail.at(1)).arity());
+
+        if (a1 != a2) out.push_back(std::make_pair(a1, a2));
     }
 
     return out;

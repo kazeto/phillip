@@ -75,9 +75,10 @@ public:
      *  This method is called in knowledge_base_t::insert_implication. */
     virtual bool insert(const lf::logical_function_t &ax) = 0;
 
-    /** Returns the semantic gap between p1 & p2, which is a positive value.
-    *  If p1 cannot be p2, returns -1. */
-    virtual float get(const arity_t &p1, const arity_t &p2) const = 0;
+    /** Returns the semantic gap between a1 & a2, which is a positive value.
+    *  If a1 cannot be a2, returns -1. */
+    virtual float get(const arity_t &a1, const arity_t &a2) const = 0;
+    virtual float get(arity_id_t a1, arity_id_t a2) const = 0;
 
     /** Gets the elements related to a1.
      *  This method is used on reachable-matrix construction. */
@@ -173,9 +174,7 @@ public:
     inline float get_distance(const lf::axiom_t &axiom) const;
     inline float get_distance(axiom_id_t id) const;
 
-    inline float get_soft_unifying_cost(
-        const arity_t &arity1, const arity_t &arity2) const;
-    inline bool do_target_on_category_table(const arity_t &arity) const;
+    const category_table_t* category_table() const { return m_category_table.instance; }
 
     inline version_e version() const;
     inline bool is_valid_version() const;
@@ -420,6 +419,7 @@ public:
 
     virtual void prepare_query(const knowledge_base_t*) override {}
     virtual float get(const arity_t &a1, const arity_t &a2) const override;
+    virtual float get(arity_id_t a1, arity_id_t a2) const override;
     virtual void gets(
         const arity_id_t &a1, hash_map<arity_id_t, float> *out) const override {};
 
@@ -445,6 +445,7 @@ public:
 
     virtual void prepare_query(const knowledge_base_t*) override;
     virtual float get(const arity_t &a1, const arity_t &a2) const override;
+    virtual float get(arity_id_t a1, arity_id_t a2) const override;
     virtual void gets(
         const arity_id_t &a1, hash_map<arity_id_t, float> *out) const override;
 

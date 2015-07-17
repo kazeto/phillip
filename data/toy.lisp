@@ -5,6 +5,8 @@
 (B (name criminal_is_arrested)
    (=> (^ (criminal-jj *e1) (nsubj *e1 x))
        (^ (arrest-vb *e2) (dobj *e2 x))))
+(B (name murder_is_kill)
+   (=> (murder-vb e) (kill-vb e)))
 
 (B (unipp (nsubj * .)))
 (B (unipp (dobj * .)))
@@ -16,5 +18,5 @@
 ; OBSERVATIONS
 (O (name toy)
    (^ (john-nn X) (tom-nn Y)
-      (kill-vb E1) (nsubj E1 X) (dobj E1 Y)
+      (murder-vb E1) (nsubj E1 X) (dobj E1 Y)
       (arrest-vb E2) (dobj E2 X)))

@@ -997,19 +997,12 @@ void ilp_problem_t::_print_explanations_in_solution(
             &hn_from(m_graph->hypernode(edge.tail())),
             &hn_to(m_graph->hypernode(edge.head()));
         bool is_backward = (edge.type() == pg::EDGE_HYPOTHESIZE);
-        std::string
-            s_from(util::join(hn_from.begin(), hn_from.end(), ",")),
-            s_to(util::join(hn_to.begin(), hn_to.end(), ",")),
-            axiom_name = "_blank",
-            gaps;
-
-        if (edge.axiom_id() >= 0)
-        {
-            gaps = util::join_f(
-                m_graph->get_gaps_on_edge(*it),
-                [](const std::pair<arity_t, arity_t> &p){return p.first + ":" + p.second; }, ",");
-            axiom_name = base->get_axiom(edge.axiom_id()).name;
-        }
+        std::string s_from(util::join(hn_from.begin(), hn_from.end(), ","));
+        std::string s_to(util::join(hn_to.begin(), hn_to.end(), ","));
+        std::string axiom_name = base->get_axiom(edge.axiom_id()).name;
+        std::string gaps = util::join_f(
+            m_graph->get_gaps_on_edge(*it),
+            [](const std::pair<arity_t, arity_t> &p){return p.first + ":" + p.second; }, ",");
 
         (*os)
             << "<explanation id=\"" << (*it)
@@ -1065,11 +1058,16 @@ void ilp_problem_t::_print_unifications_in_solution(
 
         const std::vector<pg::node_idx_t>
             &hn_from(m_graph->hypernode(edge.tail()));
+        std::string gaps = util::join_f(
+            m_graph->get_gaps_on_edge(*it),
+            [](const std::pair<arity_t, arity_t> &p){return p.first + ":" + p.second; }, ",");
+
         (*os)
             << "<unification l1=\"" << hn_from[0]
             << "\" l2=\"" << hn_from[1]
             << "\" unifier=\"" << util::join(subs.begin(), subs.end(), ", ")
-            << "\" active=\"" << (edge_is_active(*sol, *it) ? "yes" : "no");
+            << "\" active=\"" << (edge_is_active(*sol, *it) ? "yes" : "no")
+            << "\" gap=\"" << gaps;
 
         hash_map<std::string, std::string> attributes;
         for (auto dec = m_xml_decorators.begin(); dec != m_xml_decorators.end(); ++dec)

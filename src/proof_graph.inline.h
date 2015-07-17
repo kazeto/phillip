@@ -165,11 +165,6 @@ proof_graph_t::unifiable_variable_clusters_set_t::is_in_same_cluster(
 }
 
 
-inline proof_graph_t::proof_graph_t(phillip_main_t *main, const std::string &name)
-: m_phillip(main), m_name(name), m_is_timeout(false)
-{}
-
-
 inline node_idx_t proof_graph_t::
     add_observation(const literal_t &lit, int depth)
 {
@@ -381,6 +376,12 @@ is_hypernode_for_unification(hypernode_idx_t idx) const
 inline void proof_graph_t::add_attribute(const std::string &name, const std::string &value)
 {
     m_attributes[name] = value;
+}
+
+
+inline float proof_graph_t::threshold_distance_for_soft_unifying() const
+{
+    return m_threshold_distance_for_soft_unify;
 }
 
 

@@ -1038,7 +1038,7 @@ void knowledge_base_t::create_query_map()
         std::get<1>(query).sort();
 
         for (char i = 0; i < branches.size(); ++i)
-        if (do_target_on_category_table(branches[i]->literal().get_arity()))
+        if (category_table()->do_target(branches[i]->literal().get_arity()))
             std::get<2>(query).push_back(i);
 
         pattern_to_ids[query].insert(std::make_pair(ax.id, is_backward));
@@ -2017,6 +2017,13 @@ float null_category_table_t::get(const arity_t &a1, const arity_t &a2) const
 }
 
 
+float null_category_table_t::get(arity_id_t a1, arity_id_t a2) const
+{
+    assert(a1 != INVALID_ARITY_ID and a2 != INVALID_ARITY_ID);
+    return (a1 == a2) ? 0.0 : -1.0;
+}
+
+
 bool null_category_table_t::do_target(const arity_t&) const
 {
     return false;
@@ -2102,10 +2109,18 @@ float basic_category_table_t::get(const arity_t &a1, const arity_t &a2) const
     arity_id_t i = kb()->search_arity_id(a1);
     arity_id_t j = kb()->search_arity_id(a2);
 
-    auto found1 = m_table.find(i);
+    return (i != INVALID_ARITY_ID and j != INVALID_ARITY_ID) ? get(i, j) : -1.0f;
+}
+
+
+float basic_category_table_t::get(arity_id_t a1, arity_id_t a2) const
+{
+    assert(a1 != INVALID_ARITY_ID and a2 != INVALID_ARITY_ID);
+
+    auto found1 = m_table.find(a1);
     if (found1 != m_table.end())
     {
-        auto found2 = found1->second.find(j);
+        auto found2 = found1->second.find(a2);
         if (found2 != found1->second.end())
             return found2->second;
     }

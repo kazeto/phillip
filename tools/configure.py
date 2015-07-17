@@ -73,7 +73,7 @@ def write_main(target_bin, do_use_lpsolve, do_use_gurobi):
             '',
             'test:',
             '\t$(TARGET_BIN) -m infer -k data/compiled/kb '
-            '-c dist=basic -c tab=null -c lhs=a* -c ilp=weighted -c sol=gurobi '
+            '-c dist=basic -c tab=basic -c lhs=a* -c ilp=weighted -c sol=gurobi '
             '-p kb_max_distance=4 -p max_distance=4.0 '
             '-f do_compile_kb -v 5 data/toy.lisp']))
 

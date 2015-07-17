@@ -256,8 +256,8 @@ public:
         const proof_graph_t *m_graph;
         node_idx_t m_pivot;
 
-        std::list<kb::arity_pattern_t> m_patterns;
-        std::list<kb::arity_pattern_t>::const_iterator m_pt_iter;
+        std::set<kb::arity_pattern_t> m_patterns;
+        std::set<kb::arity_pattern_t>::const_iterator m_pt_iter;
 
         std::list<std::vector<node_idx_t> > m_targets;
         std::list<std::pair<axiom_id_t, bool> > m_axioms;
@@ -276,7 +276,7 @@ public:
         std::list<std::list<edge_idx_t>> m_loops;
     };
 
-    inline proof_graph_t(phillip_main_t *main, const std::string &name = "");
+    proof_graph_t(phillip_main_t *main, const std::string &name = "");
 
     inline phillip_main_t* phillip() const { return m_phillip; }
     inline void timeout(bool flag) { m_is_timeout = flag; }
@@ -457,6 +457,8 @@ public:
 
     inline void add_attribute(const std::string &name, const std::string &value);
 
+    inline float threshold_distance_for_soft_unifying() const;
+
     virtual void print(std::ostream *os) const;
 
 protected:
@@ -608,6 +610,8 @@ protected:
 
     /** These are written in xml-file of output as attributes. */
     hash_map<std::string, std::string> m_attributes;
+
+    float m_threshold_distance_for_soft_unify;
     
     /** Mutual exclusiveness betwen two nodes.
      *  If unifier of third value is satisfied, the node of the first key and the node of the second key cannot be hypothesized together. */
