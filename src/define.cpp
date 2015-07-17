@@ -51,6 +51,14 @@ literal_t::literal_t(const sexp::stack_t &s)
     else
         predicate = s.children[0]->str;
 
+    if (predicate.length() >= 255)
+    {
+        util::print_warning_fmt(
+            "Following predicate is too long and shortened: \"%s\"",
+            predicate.c_str());
+        predicate = predicate.substr(0, 250);
+    }
+
     regularize();
 }
 
