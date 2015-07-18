@@ -1,3 +1,10 @@
+# 2015/07/18 (Phil.3.15)
+
+- Bugfix.
+- Updated the version of knowledge-base.
+    - Please re-compile your knowledge-base.
+
+
 # 2015/07/17 (Phil.3.14)
 
 - Improved the performance of basic category-table construction.
