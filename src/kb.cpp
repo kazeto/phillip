@@ -330,12 +330,17 @@ void knowledge_base_t::write_config() const
     std::ofstream fo(
         filename.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);
     char version(NUM_OF_KB_VERSION_TYPES - 1); // LATEST VERSION
-    char num = m_distance_provider.key.length();
+    char num_dp = m_distance_provider.key.length();
+    char num_ct = m_category_table.key.length();
 
     fo.write(&version, sizeof(char));
     fo.write((char*)&ms_max_distance, sizeof(float));
-    fo.write(&num, sizeof(char));
+
+    fo.write(&num_dp, sizeof(char));
     fo.write(m_distance_provider.key.c_str(), m_distance_provider.key.length());
+
+    fo.write(&num_ct, sizeof(char));
+    fo.write(m_category_table.key.c_str(), m_category_table.key.length());
 
     fo.close();
 }
@@ -364,13 +369,19 @@ void knowledge_base_t::read_config()
         "This compiled knowledge base is too old. Please re-compile it.");
 
     fi.read((char*)&ms_max_distance, sizeof(float));
+
     fi.read(&num, sizeof(char));
     fi.read(key, num);
+    key[num] = '\0';
+    set_distance_provider(key);
+
+    fi.read(&num, sizeof(char));
+    fi.read(key, num);
+    key[num] = '\0';
+    set_category_table(key);
 
     fi.close();
 
-    key[num] = '\0';
-    set_distance_provider(key);
 }
 
 

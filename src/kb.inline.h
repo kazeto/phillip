@@ -67,7 +67,7 @@ inline version_e knowledge_base_t::version() const
 
 inline bool knowledge_base_t::is_valid_version() const
 {
-    return m_version == KB_VERSION_7;
+    return m_version == KB_VERSION_8;
 }
 
 
