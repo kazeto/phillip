@@ -48,7 +48,7 @@ class ProofGraph:
     
     ## @param pg An elment of ElementTree which is tagged "proofgraph".
     def __init__(self, pg):
-        nodes = [Node(n) for n in pg.getiterator('literal')]
+        nodes = [Node(n) for n in pg.find('literals').getiterator('literal')]
         chains = [Chain(e) for e in pg.getiterator('explanation')]
 
         self.name = pg.get('name')
