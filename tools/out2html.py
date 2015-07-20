@@ -266,7 +266,7 @@ self.timeout['sol'], self.timeout['all'],
 
         
 
-def convert_to_html(conf, graphs):
+def convert_to_html(conf, graphs, visjs):
     return """
 <!doctype html>
 <html>
@@ -274,7 +274,7 @@ def convert_to_html(conf, graphs):
   <meta http-equiv=\"Content-Type\" content=\"text/html;charset=utf-8\">
   <title>%s</title>
 
-  <script type=\"text/javascript\" src=\"./visjs/dist/vis.min.js\"></script>
+  <script type=\"text/javascript\" src=\"%s\"></script>
 
 </head>
 
@@ -285,7 +285,7 @@ def convert_to_html(conf, graphs):
 </body>
 </html>
 """ % (
-(graphs[0].name if len(graphs) == 1 else "Phillip"),
+(graphs[0].name if len(graphs) == 1 else "Phillip"), visjs,
 '\n<hr>\n'.join([g.html('_%d' % i) for i, g in enumerate(graphs)]))
 
 
@@ -297,6 +297,9 @@ def main():
     parser.add_argument(
         '--split', '-s',
         help='Generate HTMLs for each proof-graph, where SPLIT is prefix of file path')
+    parser.add_argument(
+        '--visjs', nargs=1, default='./visjs/dist/vis.min.js',
+        help='Set the path of visjs. (default: \"./visjs/dist/vis.min.js\")')
     
     args = parser.parse_args()
     
@@ -309,17 +312,23 @@ def main():
     graphs = [ProofGraph(pg) for pg in root.getiterator('proofgraph')]
 
     if args.split:
-        prefix = args.split.strip('html')
+        prefix = args.split
+        
+        if prefix.endswith('html'):
+            prefix = args[:-4]
+        if prefix.endswith('htm'):
+            prefix = args[:-3]
+            
         if prefix:
             if not prefix[-1] in ['.', '/']:
                 prefix += '.'
                 
-        for i, pg in enumerate(graphs):                    
+        for i, pg in enumerate(graphs):
             with open('%s%d.html' % (prefix, i), 'w') as fo:
-                fo.write(convert_to_html(conf, [pg,]))
+                fo.write(convert_to_html(conf, [pg,], args.visjs[0]))
                 
     else:        
-        print convert_to_html(conf, graphs)
+        print convert_to_html(conf, graphs, args.visjs[0])
 
     
 if(__name__=='__main__'):
