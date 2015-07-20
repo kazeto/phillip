@@ -144,6 +144,7 @@ void gurobi_t::solve(
         {
             ilp::ilp_solution_t sol = convert(prob, &model, vars, prob->name());
             bool do_break(false);
+            bool do_violate_lazy_constraint(false);
 
             if (not lazy_cons.empty() and do_cpi)
             {
@@ -156,6 +157,7 @@ void gurobi_t::solve(
                     for (auto it = filtered.begin(); it != filtered.end(); ++it)
                         add_constraint(prob, &model, *it, vars);
                     model.update();
+                    do_violate_lazy_constraint = true;
                 }
                 else do_break = true;
             }
@@ -178,6 +180,11 @@ void gurobi_t::solve(
 
             if (do_break)
             {
+                ilp::solution_type_e sol_type = sol.infer_solution_type();
+                if (do_violate_lazy_constraint)
+                    sol_type = ilp::SOLUTION_NOT_AVAILABLE;
+
+                sol.set_solution_type(sol_type);
                 out->push_back(sol);
                 break;
             }

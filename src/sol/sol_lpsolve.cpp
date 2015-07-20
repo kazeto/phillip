@@ -56,6 +56,8 @@ void lp_solve_t::solve(
         sol = new ilp::ilp_solution_t(
         prob, ilp::SOLUTION_NOT_AVAILABLE,
         std::vector<double>(0.0, prob->variables().size()));
+    else
+        sol->set_solution_type(sol->infer_solution_type());
 
     out->push_back(*sol);
 

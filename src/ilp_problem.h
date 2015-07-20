@@ -358,6 +358,9 @@ public:
     inline solution_type_e type() const;
     inline double value_of_objective_function() const;
 
+    /** Infer solution-type of this solution. */
+    solution_type_e infer_solution_type() const;
+
     inline bool variable_is_active(variable_idx_t) const;
     inline bool constraint_is_satisfied(constraint_idx_t idx) const;
 
