@@ -11,10 +11,10 @@ from collections import defaultdict
 import util
 
 
-class ProofGraph(phil.ProofGraph):
+class ProofGraph(util.ProofGraph):
     
     def __init__(self, pg):
-        phil.ProofGraph.__init__(self, pg)
+        util.ProofGraph.__init__(self, pg)
         self.node2id = dict()
         self.relay_id_offset = math.pow(10, math.ceil(math.log10(max(self.nodes.keys()) + 1)))
     
@@ -53,6 +53,7 @@ class ProofGraph(phil.ProofGraph):
       height: 1000px;
       margin: 40p;
       border: 1px solid lightgray;
+      font-family: monospace;
     }
   </style>
   
@@ -132,9 +133,10 @@ self.timeout['sol'], self.timeout['all'],
 ",\n    ".join(self.str_edges))).replace('@SUF', suffix)
 
     def __node2str(self, n):
+        splitted = n.literal[1:-1].split()        
         params = {
             'id' : self.node2id[n.id],
-            'label' : "\'%s\'" % n.literal,
+            'label' : "\'%s(%s)\'" % (splitted[0], ', '.join(splitted[1:])),
             'shape': "\'box\'",
             'color': "\'%s\'" % (self.__get_color(n.depth) if n.active
                                  else 'whitesmoke'),
@@ -144,10 +146,11 @@ self.timeout['sol'], self.timeout['all'],
                       (n.id, n.type,
                        '<br>'.join(['%s = <b>%s</b>' % (k, v)
                                     for k, v in n.attr.iteritems()
-                                    if not k in phil.DEFAULT_NODE_ATTRIBUTES]))),
+                                    if not k in util.DEFAULT_NODE_ATTRIBUTES]))),
             'isActive': 'true' if n.active else 'false',
             'depth' : (n.depth * 2),
             }
+            
         return self.__join_parameters(params)
 
 
@@ -308,7 +311,7 @@ def main():
     else:
         root = et.fromstring(sys.stdin.read())
 
-    conf = phil.Configure(root)
+    conf = util.Configure(root)
     graphs = [ProofGraph(pg) for pg in root.getiterator('proofgraph')]
 
     if args.split:
