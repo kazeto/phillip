@@ -8,7 +8,7 @@ import sys, math, argparse
 import xml.etree.ElementTree as et
 from collections import defaultdict
 
-import phil
+import util
 
 
 class ProofGraph(phil.ProofGraph):
