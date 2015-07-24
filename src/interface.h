@@ -6,6 +6,7 @@
 #include <chrono>
 
 #include "./define.h"
+#include "./ilp_problem.h"
 
 
 namespace phil
@@ -87,6 +88,10 @@ public:
 
 protected:
     bool do_time_out(const std::chrono::system_clock::time_point &begin) const;
+
+    /** Infer solution-type of this solution. */
+    ilp::solution_type_e infer_solution_type(
+        bool has_timed_out_lhs, bool has_timed_out_ilp, bool has_timed_out_sol) const;
 };
 
 

@@ -1138,41 +1138,6 @@ void ilp_solution_t::merge(const ilp_solution_t &sol)
 }
 
 
-solution_type_e ilp_solution_t::infer_solution_type() const
-{
-    solution_type_e out(SOLUTION_OPTIMAL);
-
-    if (phillip())
-    {
-        if (proof_graph()->has_timed_out())
-        {
-            solution_type_e t =
-                phillip()->lhs_enumerator()->do_keep_validity_on_timeout() ?
-            SOLUTION_SUB_OPTIMAL : SOLUTION_NOT_AVAILABLE;
-            if (out < t) out = t;
-        }
-
-        if (problem()->has_timed_out())
-        {
-            solution_type_e t =
-                phillip()->ilp_convertor()->do_keep_validity_on_timeout() ?
-            SOLUTION_SUB_OPTIMAL : SOLUTION_NOT_AVAILABLE;
-            if (out < t) out = t;
-        }
-
-        if (this->has_timed_out())
-        {
-            solution_type_e t =
-                phillip()->ilp_solver()->do_keep_validity_on_timeout() ?
-            SOLUTION_SUB_OPTIMAL : SOLUTION_NOT_AVAILABLE;
-            if (out < t) out = t;
-        }
-    }
-
-    return out;
-}
-
-
 void ilp_solution_t::enumerate_unified_terms_sets(std::list<hash_set<term_t> > *out) const
 {
     const ilp_problem_t *prob = problem();

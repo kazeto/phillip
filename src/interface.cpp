@@ -142,4 +142,40 @@ bool ilp_solver_t::do_time_out(const std::chrono::system_clock::time_point &begi
 }
 
 
+ilp::solution_type_e ilp_solver_t::infer_solution_type(
+    bool has_timed_out_lhs, bool has_timed_out_ilp, bool has_timed_out_sol) const
+{
+    ilp::solution_type_e out(ilp::SOLUTION_OPTIMAL);
+
+    if (phillip())
+    {
+        if (has_timed_out_lhs)
+        {
+            ilp::solution_type_e t =
+                phillip()->lhs_enumerator()->do_keep_validity_on_timeout() ?
+                ilp::SOLUTION_SUB_OPTIMAL : ilp::SOLUTION_NOT_AVAILABLE;
+            if (out < t) out = t;
+        }
+
+        if (has_timed_out_ilp)
+        {
+            ilp::solution_type_e t =
+                phillip()->ilp_convertor()->do_keep_validity_on_timeout() ?
+                ilp::SOLUTION_SUB_OPTIMAL : ilp::SOLUTION_NOT_AVAILABLE;
+            if (out < t) out = t;
+        }
+
+        if (has_timed_out_sol)
+        {
+            ilp::solution_type_e t =
+                phillip()->ilp_solver()->do_keep_validity_on_timeout() ?
+                ilp::SOLUTION_SUB_OPTIMAL : ilp::SOLUTION_NOT_AVAILABLE;
+            if (out < t) out = t;
+        }
+    }
+
+    return out;
+}
+
+
 }

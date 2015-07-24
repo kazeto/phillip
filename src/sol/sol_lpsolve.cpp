@@ -53,11 +53,21 @@ void lp_solve_t::solve(
     ::delete_lp(rec);
 
     if (sol == NULL)
+    {
         sol = new ilp::ilp_solution_t(
-        prob, ilp::SOLUTION_NOT_AVAILABLE,
-        std::vector<double>(0.0, prob->variables().size()));
+            prob, ilp::SOLUTION_NOT_AVAILABLE,
+            std::vector<double>(0.0, prob->variables().size()));
+    }
     else
-        sol->set_solution_type(sol->infer_solution_type());
+    {
+        bool timeout_lhs =
+            (prob->proof_graph() != NULL) ?
+            prob->proof_graph()->has_timed_out() : false;
+        ilp::solution_type_e sol_type =
+            infer_solution_type(
+            timeout_lhs, prob->has_timed_out(), sol->has_timed_out());
+        sol->set_solution_type(sol_type);
+    }
 
     out->push_back(*sol);
 
