@@ -86,8 +86,9 @@ void compile_kb_t::process( const sexp::reader_t *reader )
     _assert_syntax(reader->is_root(), (*reader), "Function B should be root.");
 
     /* IDENTIFY THE LOGICAL FORM PART. */
-    index_t idx_lf = stack->find_functor(lf::OPR_STR_IMPLICATION);
-    index_t idx_para = stack->find_functor(lf::OPR_STR_PARAPHRASE);
+    index_t idx_lf = std::max(
+        stack->find_functor(lf::OPR_STR_IMPLICATION),
+        stack->find_functor(lf::OPR_STR_HARD_IMPLICATION));
     index_t idx_inc = stack->find_functor(lf::OPR_STR_INCONSISTENT);
     index_t idx_pp = stack->find_functor(lf::OPR_STR_UNIPP);
     index_t idx_as = stack->find_functor(lf::OPR_STR_EXARGSET);
@@ -95,23 +96,20 @@ void compile_kb_t::process( const sexp::reader_t *reader )
     index_t idx_assert = stack->find_functor(lf::OPR_STR_ASSERTION);
         
     _assert_syntax(
-        (idx_lf >= 0 or idx_para >= 0 or idx_inc >= 0 or idx_pp >= 0 or idx_as >= 0 or idx_assert >= 0),
+        (idx_lf >= 0 or idx_inc >= 0 or idx_pp >= 0 or idx_as >= 0 or idx_assert >= 0),
         (*reader), "No logical connectors found." );
 
     std::string name;
     if (idx_name >= 0)
         name = stack->children.at(idx_name)->children.at(1)->get_string();
 
-    if (idx_lf >= 0 or idx_para >= 0)
+    if (idx_lf >= 0)
     {
-        index_t idx = std::max(idx_lf, idx_para);
-        lf::logical_function_t func(*stack->children[idx]);
+        lf::logical_function_t func(*stack->children[idx_lf]);
         _assert_syntax(
-            (stack->children.at(idx)->children.size() >= 3), (*reader),
-            "Function '=>' and '<=>' takes two arguments.");
-        IF_VERBOSE_FULL(
-            ((idx_lf >= 0) ? "Added implication: " : "Added paraphrase") +
-            stack->to_string());
+            (stack->children.at(idx_lf)->children.size() >= 3), (*reader),
+            "Function '=>' and '>>' takes two arguments.");
+        IF_VERBOSE_FULL("Added implication: "+ stack->to_string());
         _kb->insert_implication(func, name);
     }
     else if (idx_inc >= 0)

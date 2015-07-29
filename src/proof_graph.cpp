@@ -255,7 +255,7 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
             a2ns[a].insert(ns.begin(), ns.end());
     }
 
-    // IF THERE IS A SLOT WHICH CANNOT BE FILLED, THEN ABORT.
+    // IF THERE IS A SLOT WHICH CANNOT BE FILLED, THEN STOP.
     {
         hash_set<kb::arity_id_t> arity_set(
             kb::arities(*m_pt_iter).begin(),
@@ -1378,7 +1378,7 @@ hypernode_idx_t proof_graph_t::chain(
                 }
             }
 
-            if (axiom.func.is_operator(lf::OPR_PARAPHRASE))
+            if (axiom.func.is_operator(lf::OPR_IMPLICATION))
             for (auto idx : from)
             {
                 auto _edges = search_edges_with_node_in_head(idx);

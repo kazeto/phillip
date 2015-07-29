@@ -391,9 +391,9 @@ axiom_id_t knowledge_base_t::insert_implication(
     if (m_state == STATE_COMPILE)
     {
         bool is_implication = func.is_valid_as_implication();
-        bool is_paraphrase = func.is_valid_as_paraphrase();
+        bool is_hard_implication = func.is_valid_as_hard_implication();
 
-        if (not is_implication and not is_paraphrase)
+        if (not is_implication and not is_hard_implication)
         {
             util::print_warning_fmt(
                 "Axiom \"%s\" is invalid and skipped.", func.to_string().c_str());
@@ -424,20 +424,26 @@ axiom_id_t knowledge_base_t::insert_implication(
         std::vector<const literal_t*> rhs(func.get_rhs());
         std::vector<const literal_t*> lhs(func.get_lhs());
 
-        for (auto it = rhs.begin(); it != rhs.end(); ++it)
-        if (not (*it)->is_equality())
+        // ABDUCTION
+        if (not is_hard_implication)
         {
-            arity_id_t arity_id = m_arity_db.add((*it)->get_arity());
-            m_rhs_to_axioms[arity_id].insert(id);
+            for (auto it = rhs.begin(); it != rhs.end(); ++it)
+            if (not(*it)->is_equality())
+            {
+                arity_id_t arity_id = m_arity_db.add((*it)->get_arity());
+                m_rhs_to_axioms[arity_id].insert(id);
+            }
         }
 
+        // DEDUCTION
+#ifndef DISABLE_DEDUCTION
         for (auto it = lhs.begin(); it != lhs.end(); ++it)
         if (not(*it)->is_equality())
         {
             arity_id_t arity_id = m_arity_db.add((*it)->get_arity());
-            if (is_paraphrase)
-                m_lhs_to_axioms[arity_id].insert(id);
+            m_lhs_to_axioms[arity_id].insert(id);
         }
+#endif
 
         return id;
     }
@@ -876,12 +882,13 @@ void knowledge_base_t::set_stop_words()
         lf::axiom_t ax = m_axioms.get(id);
 
         if (ax.func.is_operator(lf::OPR_IMPLICATION))
-            proc(ax, true);
-        else if (ax.func.is_operator(lf::OPR_PARAPHRASE))
-        {
-            proc(ax, true);
-            proc(ax, false);
-        }
+            proc(ax, true);  // ABDUCTION
+
+#ifndef DISABLE_DEDUCTION
+        if (ax.func.is_operator(lf::OPR_IMPLICATION) or
+            ax.func.is_operator(lf::OPR_HARD_IMPLICATION))
+            proc(ax, false); // DEDUCTION
+#endif
 
         if (id % 10 == 0 and phillip_main_t::verbose() >= VERBOSE_1)
         {
@@ -1064,12 +1071,13 @@ void knowledge_base_t::create_query_map()
         lf::axiom_t ax = get_axiom(i);
 
         if (ax.func.is_operator(lf::OPR_IMPLICATION))
-            proc(ax, true);
-        else if (ax.func.is_operator(lf::OPR_PARAPHRASE))
-        {
-            proc(ax, true);
-            proc(ax, false);
-        }
+            proc(ax, true);  // ABDUCTION
+
+#ifndef DISABLE_DEDUCTION
+        if (ax.func.is_operator(lf::OPR_IMPLICATION) or
+            ax.func.is_operator(lf::OPR_HARD_IMPLICATION))
+            proc(ax, false); // DEDUCTION
+#endif
 
         if (i % 10 == 0 and phillip_main_t::verbose() >= VERBOSE_1)
         {
@@ -1266,8 +1274,12 @@ void knowledge_base_t::_create_reachable_matrix_direct(
     {
         lf::axiom_t axiom = get_axiom(id);
 
+#ifndef DISABLE_DEDUCTION
         if (axiom.func.is_operator(lf::OPR_IMPLICATION) or
-            axiom.func.is_operator(lf::OPR_PARAPHRASE))
+            axiom.func.is_operator(lf::OPR_HARD_IMPLICATION))
+#else
+        if (axiom.func.is_operator(lf::OPR_IMPLICATION))
+#endif
         {
             float dist = (*m_distance_provider.instance)(axiom);
 
@@ -1326,10 +1338,12 @@ void knowledge_base_t::_create_reachable_matrix_direct(
                     }
                 }
 
-                if (axiom.func.is_operator(lf::OPR_PARAPHRASE))
+#ifndef DISABLE_DEDUCTION
+                if (axiom.func.is_operator(lf::OPR_IMPLICATION))
                 for (auto it_l = lhs_ids.begin(); it_l != lhs_ids.end(); ++it_l)
                 for (auto it_r = rhs_ids.begin(); it_r != rhs_ids.end(); ++it_r)
                     out_para->insert(util::make_sorted_pair(*it_l, *it_r));
+#endif
             }
         }
 
@@ -1351,76 +1365,66 @@ void knowledge_base_t::_create_reachable_matrix_indirect(
 {
     if (base_lhs.count(target) == 0 or base_rhs.count(target) == 0) return;
 
-    std::map<std::tuple<arity_id_t, bool, bool>, float> current;
     std::map<std::tuple<arity_id_t, bool, bool>, float> processed;
 
-    current[std::make_tuple(target, true, true)] = 0.0f;
+    std::function<void(arity_id_t, bool, bool, float, bool)> process = [&](
+        arity_id_t idx1, bool can_abduction, bool can_deduction, float dist, bool is_forward)
+    {
+        const hash_map<arity_id_t, hash_map<arity_id_t, float> >
+            &base = (is_forward ? base_lhs : base_rhs);
+        auto found = base.find(idx1);
+
+        if (found != base.end())
+        for (auto it2 = found->second.begin(); it2 != found->second.end(); ++it2)
+        {
+            if (idx1 == it2->first) continue;
+            if (it2->second < 0.0f) continue;
+
+            arity_id_t idx2(it2->first);
+            bool is_paraphrasal =
+                (base_para.count(util::make_sorted_pair(idx1, idx2)) > 0);
+            if (not is_paraphrasal and
+                ((is_forward and not can_deduction) or
+                (not is_forward and not can_abduction)))
+                continue;
+
+            float dist_new(dist + it2->second); // DISTANCE idx1 ~ idx2
+            if (get_max_distance() >= 0.0f and dist_new > get_max_distance())
+                continue;
+
+            std::tuple<arity_id_t, bool, bool> key =
+                std::make_tuple(idx2, can_abduction, can_deduction);
+
+#ifndef DISABLE_DEDUCTION
+            // ONCE DONE ABDUCTION WITH HARD-IMPLICATION,
+            // THEN IT CANNOT DO DEDUCTION ANY MORE.
+            if (is_backward and not is_paraphrasal)
+                std::get<2>(key) = false;
+#else
+            // ONCE DONE DEDUCTION, THEN IT CANNOT DO ABDUCTION ANY MORE.
+            if (is_forward) std::get<1>(key) = false;
+#endif
+
+            if (not util::find_then(
+                processed, key, dist_new, std::less_equal<float>()))
+            {
+                processed[key] = dist_new;
+
+                if (not util::find_then(
+                    *out, idx2, dist_new, std::less_equal<float>()))
+                    (*out)[idx2] = dist_new;
+
+                process(std::get<0>(key), std::get<1>(key), std::get<2>(key), dist_new, true);
+                process(std::get<0>(key), std::get<1>(key), std::get<2>(key), dist_new, false);
+            }
+        }
+    };
+
     processed[std::make_tuple(target, true, true)] = 0.0f;
     (*out)[target] = 0.0f;
 
-    while (not current.empty())
-    {
-        std::map<std::tuple<arity_id_t, bool, bool>, float> next;
-        auto _process = [&](
-            arity_id_t idx1, bool can_abduction, bool can_deduction,
-            float dist, bool is_forward)
-        {
-            const hash_map<arity_id_t, hash_map<arity_id_t, float> >
-                &base = (is_forward ? base_lhs : base_rhs);
-            auto found = base.find(idx1);
-
-            if (found != base.end())
-            for (auto it2 = found->second.begin(); it2 != found->second.end(); ++it2)
-            {
-                arity_id_t idx2(it2->first);
-                if (idx1 == idx2) continue;
-
-                bool is_paraphrasal =
-                    (base_para.count(util::make_sorted_pair(idx1, idx2)) > 0);
-                if (not is_paraphrasal and
-                    ((is_forward and not can_deduction) or
-                    (not is_forward and not can_abduction)))
-                    continue;
-
-                float dist_new(dist + it2->second); // DISTANCE idx1 ~ idx2
-                if (get_max_distance() < 0.0f or dist_new <= get_max_distance())
-                {
-                    std::tuple<arity_id_t, bool, bool> key =
-                        std::make_tuple(idx2, can_abduction, can_deduction);
-
-                    // ONCE DONE DEDUCTION, YOU CANNOT DO ABDUCTION!
-                    if (is_forward and not is_paraphrasal) std::get<1>(key) = false;
-
-                    bool do_add(false);
-                    auto found = processed.find(key);
-                    if (found == processed.end())  do_add = true;
-                    else if (dist_new < found->second) do_add = true;
-
-                    if (do_add)
-                    {
-                        next[key] = dist_new;
-                        processed[key] = dist_new;
-
-                        auto found_out = out->find(idx2);
-                        if (found_out == out->end())           (*out)[idx2] = dist_new;
-                        else if (dist_new < found_out->second) (*out)[idx2] = dist_new;
-                    }
-                }
-            }
-        };
-
-        for (auto it1 = current.begin(); it1 != current.end(); ++it1)
-        {
-            arity_id_t idx = std::get<0>(it1->first);
-            bool can_abduction = std::get<1>(it1->first);
-            bool can_deduction = std::get<2>(it1->first);
-
-            _process(idx, can_abduction, can_deduction, it1->second, false);
-            _process(idx, can_abduction, can_deduction, it1->second, true);
-        }
-
-        current = next;
-    }
+    process(target, true, true, 0.0f, true);
+    process(target, true, true, 0.0f, false);
 }
 
 // #define _DEV
@@ -2087,10 +2091,12 @@ bool basic_category_table_t::insert(const lf::logical_function_t &ax)
 
         assert(a1 != INVALID_ARITY_ID and a2 != INVALID_ARITY_ID);
 
-        m_table[a1][a2] = m_distance_scale;;
-        m_table[a2][a1] =
-            m_distance_scale *
-            (ax.is_operator(lf::OPR_IMPLICATION) ? 2.0f : 1.0f);
+#ifndef DISABLE_DEDUCTION
+        m_table[a1][a2] = m_distance_scale; // DEDUCTION
+#endif
+
+        if (ax.is_operator(lf::OPR_IMPLICATION))
+            m_table[a2][a1] = m_distance_scale; // ABDUCTION
 
         return true;
     }
@@ -2153,7 +2159,7 @@ bool basic_category_table_t::do_insert(
     const lf::logical_function_t &func) const
 {
     if (func.is_valid_as_implication() or
-        func.is_valid_as_paraphrase())
+        func.is_valid_as_hard_implication())
     {
         auto lhs = func.get_lhs();
         auto rhs = func.get_rhs();

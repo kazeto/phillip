@@ -506,6 +506,10 @@ template <class It> std::string join(
 template <class Container, class Function> std::string join_f(
     const Container &container, Function func, const std::string &delim);
 
+template <class Map, class Key, class Value, class Operator>
+inline bool find_then(
+    const Map &map, const Key &key, const Value &value, const Operator &opr);
+
 /** Returns whether set1 and set2 have any intersection. */
 template <class It> bool has_intersection(
     It s1_begin, It s1_end, It s2_begin, It s2_end);

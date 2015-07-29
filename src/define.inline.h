@@ -542,6 +542,16 @@ template <class Container, class Function> std::string join_f(
 }
 
 
+template <class Map, class Key, class Value, class Operator>
+inline bool find_then(
+    const Map &map, const Key &key, const Value &value, const Operator &opr)
+{
+    Map::const_iterator it = map.find(key);
+    if (it == map.end()) return false;
+    return opr(it->second, value);
+}
+
+
 template <class It> bool has_intersection(
     It s1_begin, It s1_end, It s2_begin, It s2_end)
 {
