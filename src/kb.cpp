@@ -1993,25 +1993,15 @@ namespace dist
 
 float basic_distance_provider_t::operator()(const lf::axiom_t &ax) const
 {
-    auto splitted = util::split(ax.func.param(), ":");
-    float dist;
-
-    for (auto s : splitted)
-    {
-        if (_sscanf(s.c_str(), "d%f", &dist) > 0)
-            return dist;
-    }
-
-    return 1.0f;
+    float out;
+    return ax.func.scan_parameter("d%f", &out) ? out : 1.0f;
 }
 
 
 float cost_based_distance_provider_t::operator()(const lf::axiom_t &ax) const
 {
-    const std::string &param = ax.func.param();
     float out(-1.0f);
-    _sscanf(param.substr(1).c_str(), "%f", &out);
-    return out;
+    return ax.func.scan_parameter("%f", &out) ? out : 1.0f;
 }
 
 }
