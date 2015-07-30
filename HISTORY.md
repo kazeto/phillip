@@ -1,3 +1,13 @@
+# 2015/07/30 (Phil.3.16)
+
+- Bugfix.
+- Modified tools/out2html.py.
+    - Added `--visjs` option to specify the path of a distribution of visjs.
+    - Literals are expressed in not s-expression but the format of `pred(x,y)`.
+- Added tools/summarize.py, which is a script to summarize Phillip's output.
+    - You can see the help by `python tools/summarize.py -h`.
+
+
 # 2015/07/18 (Phil.3.15)
 
 - Bugfix.
