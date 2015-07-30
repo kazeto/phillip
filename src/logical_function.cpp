@@ -161,7 +161,7 @@ bool logical_function_t::find_parameter(const std::string &query) const
 
 bool logical_function_t::scan_parameter(const std::string &format, ...) const
 {
-    if (m_param.empty()) return "";
+    if (m_param.empty()) return false;
 
     int idx1(1), idx2;
     while (idx1 > 0)
@@ -486,7 +486,7 @@ void logical_function_t::print(
         break;
     case OPR_HARD_IMPLICATION:
         m_branches[0].print(p_out_str, f_colored);
-        (*p_out_str) += " <=> ";
+        (*p_out_str) += " >> ";
         m_branches[1].print(p_out_str, f_colored);
         break;
     case OPR_INCONSISTENT:

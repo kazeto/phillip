@@ -1,6 +1,6 @@
 ; KNOWLEDGE BASE
 (B (name killing_is_criminal)
-   (=> (^ (kill-vb *e1) (nsubj *e1 x))
+   (>> (^ (kill-vb *e1) (nsubj *e1 x))
        (^ (criminal-jj *e2) (nsubj *e2 x))))
 (B (name criminal_is_arrested)
    (=> (^ (criminal-jj *e1) (nsubj *e1 x))
