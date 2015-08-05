@@ -133,11 +133,11 @@ def write(parsed):
 
         is_available = lambda e: e['state'] != 'not-available'
         filtered = filter(is_available, entities)
-        
+
+        n_true = len(filter(lambda e: e['answer'] == 'true', filtered))
+        n_false = len(filter(lambda e: e['answer'] == 'false', filtered))
         answer = '%d/%d/%d' % (
-            len(filter(lambda e: e['answer'] == 'true', filtered)),
-            len(filter(lambda e: e['answer'] == 'false', filtered)),
-            len(filter(lambda e: e['answer'] == 'none', filtered)))
+            n_true, n_false, len(entities) - (n_true + n_false))
         
         tab.set_footer([
             'all', '---', '---', answer,
@@ -149,10 +149,10 @@ def write(parsed):
             sum([e['time.ilp'] for e in filtered]) / len(filtered),
             sum([e['time.sol'] for e in filtered]) / len(filtered),
             sum([e['time.all'] for e in filtered]) / len(filtered),
-            len(filter(lambda e: e['t.o.lhs'] == 'yes', filtered)),
-            len(filter(lambda e: e['t.o.ilp'] == 'yes', filtered)),
-            len(filter(lambda e: e['t.o.sol'] == 'yes', filtered)),
-            len(filter(lambda e: e['t.o.all'] == 'yes', filtered))])
+            len(filter(lambda e: e['t.o.lhs'] == 'yes', entities)),
+            len(filter(lambda e: e['t.o.ilp'] == 'yes', entities)),
+            len(filter(lambda e: e['t.o.sol'] == 'yes', entities)),
+            len(filter(lambda e: e['t.o.all'] == 'yes', entities))])
 
         tab.print_table()
         print    

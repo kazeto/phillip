@@ -37,7 +37,7 @@ class SimpleTable(object):
 
     def _calc_maxes(self):
         array = [self.header] + self.rows + [self.footer]
-        return [max(self._unicode_width(s) for s in ss) \
+        return [max(self._unicode_width(s) for s in ss)
                 for ss in izip_longest(*array, fillvalue='')]
     
     def _unicode_width(self, s, width={'F': 2, 'H': 1, 'W': 2, 'Na': 1, 'A': 2, 'N': 1}):
@@ -52,39 +52,38 @@ class SimpleTable(object):
         else:
             return unicode(s).ljust(n)
         
-    def _get_printable_row(self, row):
-        maxes = self._calc_maxes()
+    def _get_printable_row(self, row, maxes):
         return '| ' + \
                ' | '.join([self._format(r, m)
                            for r, m in izip_longest(row, maxes, fillvalue='')]) + ' |'
 
-    def _get_printable_header(self):
-        return self._get_printable_row(self.header)
+    def _get_printable_header(self, maxes):
+        return self._get_printable_row(self.header, maxes)
     
-    def _get_printable_footer(self):
-        return self._get_printable_row(self.footer)
+    def _get_printable_footer(self, maxes):
+        return self._get_printable_row(self.footer, maxes)
         
-    def _get_printable_border(self):
-        maxes = self._calc_maxes()
+    def _get_printable_border(self, maxes):
         return '+-' + '-+-'.join(['-' * m for m in maxes]) + '-+'
 
     def get_table(self):
         lines = []
+        maxes = self._calc_maxes()
         
         if self.header:
-            lines.append(self._get_printable_border())
-            lines.append(self._get_printable_header())
+            lines.append(self._get_printable_border(maxes))
+            lines.append(self._get_printable_header(maxes))
             
-        lines.append(self._get_printable_border())
+        lines.append(self._get_printable_border(maxes))
         
         for row in self.rows:
-            lines.append(self._get_printable_row(row))
+            lines.append(self._get_printable_row(row, maxes))
             
         if self.footer:
-            lines.append(self._get_printable_border())
-            lines.append(self._get_printable_footer())
+            lines.append(self._get_printable_border(maxes))
+            lines.append(self._get_printable_footer(maxes))
             
-        lines.append(self._get_printable_border())
+        lines.append(self._get_printable_border(maxes))
         
         return lines
 
