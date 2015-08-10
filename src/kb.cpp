@@ -134,7 +134,6 @@ knowledge_base_t::knowledge_base_t(const std::string &filename, const phillip_ma
       m_filename(filename), m_version(KB_VERSION_1), 
       m_cdb_rhs(filename + ".rhs.cdb"),
       m_cdb_lhs(filename + ".lhs.cdb"),
-      m_cdb_axiom_group(filename + ".group.cdb"),
       m_cdb_arg_set(filename + ".args.cdb"),
       m_cdb_arity_patterns(filename + ".pattern.cdb"),
       m_cdb_pattern_to_ids(filename + ".search.cdb"),
@@ -190,7 +189,6 @@ void knowledge_base_t::prepare_compile()
         m_axioms.prepare_compile();
         m_cdb_rhs.prepare_compile();
         m_cdb_lhs.prepare_compile();
-        m_cdb_axiom_group.prepare_compile();
         m_cdb_arg_set.prepare_compile();
         m_cdb_arity_patterns.prepare_compile();
         m_cdb_pattern_to_ids.prepare_compile();
@@ -219,12 +217,12 @@ void knowledge_base_t::prepare_query()
     if (m_state == STATE_NULL)
     {
         read_config();
+        read_axiom_group();
         m_arity_db.read();
 
         m_axioms.prepare_query();
         m_cdb_rhs.prepare_query();
         m_cdb_lhs.prepare_query();
-        m_cdb_axiom_group.prepare_query();
         m_cdb_arg_set.prepare_query();
         m_cdb_arity_patterns.prepare_query();
         m_cdb_pattern_to_ids.prepare_query();
@@ -272,7 +270,7 @@ void knowledge_base_t::finalize()
 
         insert_cdb(m_rhs_to_axioms, &m_cdb_rhs);
         insert_cdb(m_lhs_to_axioms, &m_cdb_lhs);
-        insert_axiom_group_to_cdb();
+        write_axiom_group();
         insert_argument_set_to_cdb();
 
         m_rhs_to_axioms.clear();
@@ -317,7 +315,6 @@ void knowledge_base_t::finalize()
     m_axioms.finalize();
     m_cdb_rhs.finalize();
     m_cdb_lhs.finalize();
-    m_cdb_axiom_group.finalize();
     m_cdb_arg_set.finalize();
     m_cdb_arity_patterns.finalize();
     m_cdb_pattern_to_ids.finalize();
@@ -578,30 +575,12 @@ void knowledge_base_t::assert_stop_word(const arity_t &arity)
 
 hash_set<axiom_id_t> knowledge_base_t::search_axiom_group(axiom_id_t id) const
 {
-    if (not m_cdb_axiom_group.is_readable())
-    {
-        util::print_warning("kb-search: Kb-state is invalid.");
-        return hash_set<axiom_id_t>();
-    }
-
     hash_set<axiom_id_t> out{ id };
+    auto found = m_axiom_group.axiom_to_groups.find(id);
 
-    size_t value_size;
-    const char *value = (const char*)
-        m_cdb_axiom_group.get(&id, sizeof(axiom_id_t), &value_size);
-
-    if (value != NULL)
-    {
-        size_t size(0), num_id(0);
-        size += util::binary_to<size_t>(value + size, &num_id);
-
-        for (int j = 0; j < num_id; ++j)
-        {
-            axiom_id_t id;
-            size += util::binary_to<axiom_id_t>(value + size, &id);
-            out.insert(id);
-        }
-    }
+    if (found != m_axiom_group.axiom_to_groups.end())
+    for (auto grp : found->second)
+        out.insert(grp->begin(), grp->end());
 
     return out;
 }
@@ -736,37 +715,53 @@ float knowledge_base_t::get_distance(
 }
 
 
-void knowledge_base_t::insert_axiom_group_to_cdb()
+void knowledge_base_t::write_axiom_group()
 {
-    util::cdb_data_t &dat(m_cdb_axiom_group);
-    hash_map<axiom_id_t, hash_set<axiom_id_t> > muex_axioms;
+    std::ofstream fo(
+        m_filename + ".group.dat",
+        std::ios::binary | std::ios::trunc | std::ios::out);
 
-    IF_VERBOSE_1("starts writing " + dat.filename() + "...");
+    IF_VERBOSE_1("starts writing " + filename() + ".group.dat...");
+
+    size_t size = m_group_to_axioms.size();
+    fo.write((char*)&size, sizeof(size_t));
 
     for (auto p : m_group_to_axioms)
     {
-        for (auto it1 = p.second.begin(); it1 != p.second.end(); ++it1)
-        for (auto it2 = p.second.begin(); it2 != it1; ++it2)
+        size_t n = p.second.size();
+        fo.write((char*)&n, sizeof(size_t));
+
+        for (auto a : p.second)
+            fo.write((char*)&a, sizeof(axiom_id_t));
+    }
+
+    IF_VERBOSE_1("completed writing " + filename() + ".group.dat.");
+}
+
+
+void knowledge_base_t::read_axiom_group()
+{
+    std::ifstream fi(m_filename + ".group.dat", std::ios::binary | std::ios::in);
+
+    size_t size;
+    fi.read((char*)&size, sizeof(size_t));
+
+    for (size_t i = 0; i < size; ++i)
+    {
+        m_axiom_group.groups.push_back(hash_set<axiom_id_t>());
+        hash_set<axiom_id_t> &grp = m_axiom_group.groups.back();
+
+        size_t n;
+        fi.read((char*)&n, sizeof(size_t));
+
+        for (size_t j = 0; j < n; ++j)
         {
-            muex_axioms[*it1].insert(*it2);
-            muex_axioms[*it2].insert(*it1);
+            axiom_id_t id;
+            fi.read((char*)&id, sizeof(axiom_id_t));
+            grp.insert(id);
+            m_axiom_group.axiom_to_groups[id].push_back(&grp);
         }
     }
-
-    const int SIZE(512 * 512);
-    char buffer[SIZE];
-    
-    for (auto p : muex_axioms)
-    {
-        int size = util::to_binary<size_t>(p.second.size(), buffer);
-        for (auto id : p.second)
-            size += util::to_binary<axiom_id_t>(id, buffer + size);
-
-        assert(size < SIZE);
-        dat.put(&p.first, sizeof(axiom_id_t), buffer, size);
-    }
-
-    IF_VERBOSE_1("completed writing " + dat.filename() + ".");
 }
 
 

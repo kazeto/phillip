@@ -287,8 +287,9 @@ private:
     void write_config() const;
     void read_config();
 
-    /** Outputs m_group_to_axioms to m_cdb_axiom_group. */
-    void insert_axiom_group_to_cdb();
+    void write_axiom_group();
+    void read_axiom_group();
+
     void insert_argument_set_to_cdb();
 
     void set_stop_words();
@@ -336,11 +337,17 @@ private:
     } m_config_for_compile;
 
     util::cdb_data_t m_cdb_rhs, m_cdb_lhs;
-    util::cdb_data_t m_cdb_axiom_group, m_cdb_arg_set;
+    util::cdb_data_t m_cdb_arg_set;
     util::cdb_data_t m_cdb_arity_patterns, m_cdb_pattern_to_ids;
     axioms_database_t m_axioms;
     arity_database_t m_arity_db;
     reachable_matrix_t m_rm;
+
+    struct
+    {
+        hash_map<axiom_id_t, std::list<hash_set<axiom_id_t>*> > axiom_to_groups;
+        std::list<hash_set<axiom_id_t> > groups;
+    } m_axiom_group;
 
     hash_map<size_t, hash_map<size_t, float> > m_partial_reachable_matrix;
 
