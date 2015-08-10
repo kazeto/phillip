@@ -8,13 +8,6 @@ namespace kb
 {
 
 
-
-inline float knowledge_base_t::get_max_distance()
-{
-    return ms_max_distance;
-}
-
-
 inline lf::axiom_t knowledge_base_t::get_axiom(axiom_id_t id) const
 {
     if (id >= 0 and id < m_axioms.num_axioms())
@@ -67,7 +60,7 @@ inline version_e knowledge_base_t::version() const
 
 inline bool knowledge_base_t::is_valid_version() const
 {
-    return m_version == KB_VERSION_9;
+    return m_version == KB_VERSION_10;
 }
 
 
@@ -92,6 +85,12 @@ inline int knowledge_base_t::num_of_axioms() const
 inline const hash_set<std::string>& knowledge_base_t::stop_words() const
 {
     return m_stop_words;
+}
+
+
+inline float knowledge_base_t::get_max_distance() const
+{
+    return m_config_for_compile.max_distance;
 }
 
 

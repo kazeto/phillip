@@ -41,7 +41,7 @@ enum version_e
 {
     KB_VERSION_UNDERSPECIFIED,
     KB_VERSION_1, KB_VERSION_2, KB_VERSION_3, KB_VERSION_4, KB_VERSION_5,
-    KB_VERSION_6, KB_VERSION_7, KB_VERSION_8, KB_VERSION_9,
+    KB_VERSION_6, KB_VERSION_7, KB_VERSION_8, KB_VERSION_9, KB_VERSION_10,
     NUM_OF_KB_VERSION_TYPES
 };
 
@@ -53,6 +53,9 @@ class distance_provider_t
 public:
     virtual ~distance_provider_t() {}
     virtual float operator() (const lf::axiom_t &ax) const = 0;
+
+    virtual void read(std::ifstream *fi) = 0;
+    virtual void write(std::ofstream *fo) const = 0;
 
     virtual std::string repr() const = 0;
 };
@@ -66,6 +69,9 @@ public:
 
     category_table_t() : m_state(STATE_NULL) {}
     virtual ~category_table_t() {}
+
+    virtual void read(std::ifstream *fi) = 0;
+    virtual void write(std::ofstream *fo) const = 0;
 
     virtual void prepare_compile(const knowledge_base_t *base) = 0;
     virtual void prepare_query(const knowledge_base_t *base) = 0;
@@ -120,11 +126,8 @@ private:
 class knowledge_base_t
 {
 public:
+    static void initialize(std::string filename, const phillip_main_t *ph);
     static knowledge_base_t* instance();
-    static void setup(
-        std::string filename, float max_distance,
-        int thread_num_for_rm, bool do_disable_stop_word);
-    static inline float get_max_distance();
 
     ~knowledge_base_t();
 
@@ -161,8 +164,8 @@ public:
         const arity_pattern_t &query,
         std::list<std::pair<axiom_id_t, bool> > *out) const;
 
-    void set_distance_provider(const std::string &key, phillip_main_t *ph = NULL);
-    void set_category_table(const std::string &key, phillip_main_t *ph = NULL);
+    void set_distance_provider(const std::string &key, const phillip_main_t *ph = NULL);
+    void set_category_table(const std::string &key, const phillip_main_t *ph = NULL);
 
     /** Returns ditance between arity1 and arity2
      *  in a reachable-matrix in the current knowledge-base.
@@ -183,6 +186,7 @@ public:
     inline const std::string& filename() const;
     inline int num_of_axioms() const;
     inline const hash_set<std::string>& stop_words() const;
+    inline float get_max_distance() const;
 
     inline void clear_distance_cache();
 
@@ -277,7 +281,7 @@ private:
 
     enum kb_state_e { STATE_NULL, STATE_COMPILE, STATE_QUERY };
 
-    knowledge_base_t(const std::string &filename);
+    knowledge_base_t(const std::string &filename, const phillip_main_t *ph);
 
     void write_config() const;
     void read_config();
@@ -315,16 +319,20 @@ private:
         arity_id_t arity_id, const util::cdb_data_t *dat) const;
 
     static std::unique_ptr<knowledge_base_t, util::deleter_t<knowledge_base_t> > ms_instance;
-    static std::string ms_filename;
-    static float ms_max_distance;
-    static int ms_thread_num_for_rm;
-    static bool ms_do_disable_stop_word;
     static std::mutex ms_mutex_for_cache;
     static std::mutex ms_mutex_for_rm;
 
     kb_state_e m_state;
     std::string m_filename;
     version_e m_version;
+
+    struct
+    {
+        float max_distance;
+        int thread_num;
+        bool do_disable_stop_word;
+        bool do_disable_deduction;
+    } m_config_for_compile;
 
     util::cdb_data_t m_cdb_rhs, m_cdb_lhs;
     util::cdb_data_t m_cdb_axiom_group, m_cdb_arg_set;
@@ -374,10 +382,13 @@ class basic_distance_provider_t : public distance_provider_t
 public:
     struct generator_t : public component_generator_t<distance_provider_t>
     {
-        virtual distance_provider_t* operator()(phillip_main_t*) const override
+        virtual distance_provider_t* operator()(const phillip_main_t*) const override
             { return new basic_distance_provider_t(); }
     };
-    
+
+    virtual void read(std::ifstream *fi) {}
+    virtual void write(std::ofstream *fo) const {}
+
     virtual float operator() (const lf::axiom_t&) const;
     virtual std::string repr() const { return "Basic"; };
 };
@@ -388,10 +399,13 @@ class cost_based_distance_provider_t : public distance_provider_t
 public:
     struct generator_t : public component_generator_t<distance_provider_t>
     {
-        virtual distance_provider_t* operator()(phillip_main_t*) const override
+        virtual distance_provider_t* operator()(const phillip_main_t*) const override
             { return new cost_based_distance_provider_t(); }
     };
-    
+
+    virtual void read(std::ifstream *fi) {}
+    virtual void write(std::ofstream *fo) const {}
+
     virtual float operator()(const lf::axiom_t&) const;
     virtual std::string repr() const { return "CostBased"; }
 };
@@ -410,10 +424,13 @@ public:
     class generator_t : public component_generator_t<category_table_t>
     {
     public:
-        virtual category_table_t* operator() (phillip_main_t*) const override
+        virtual category_table_t* operator() (const phillip_main_t*) const override
             { return new null_category_table_t(); }
     };
-    
+
+    virtual void read(std::ifstream *fi) {}
+    virtual void write(std::ofstream *fo) const {}
+
     virtual void prepare_compile(const knowledge_base_t*) override {}
     virtual bool insert(const lf::logical_function_t&) override;
 
@@ -435,11 +452,14 @@ class basic_category_table_t : public category_table_t
 public:
     struct generator_t : public component_generator_t<category_table_t>
     {
-        virtual category_table_t* operator() (phillip_main_t*) const override;
+        virtual category_table_t* operator() (const phillip_main_t*) const override;
     };
 
     basic_category_table_t(int max_depth, float dist_scale);
-    
+
+    virtual void read(std::ifstream *fi);
+    virtual void write(std::ofstream *fo) const;
+
     virtual void prepare_compile(const knowledge_base_t*) override;
     virtual bool insert(const lf::logical_function_t &ax) override;
 

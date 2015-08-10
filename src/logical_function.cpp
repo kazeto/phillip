@@ -20,7 +20,6 @@ const std::string OPR_STR_NAME = "name";
 const std::string OPR_STR_AND = "^";
 const std::string OPR_STR_OR = "v";
 const std::string OPR_STR_IMPLICATION = "=>";
-const std::string OPR_STR_HARD_IMPLICATION = ">>";
 const std::string OPR_STR_INCONSISTENT = "xor";
 const std::string OPR_STR_REQUIREMENT = "req";
 const std::string OPR_STR_UNIPP = "unipp";
@@ -43,12 +42,6 @@ logical_function_t::logical_function_t(const sexp::stack_t &s)
     if (s.is_functor(OPR_STR_IMPLICATION))
     {
         m_operator = OPR_IMPLICATION;
-        m_branches.push_back(logical_function_t(*(s.children[1])));
-        m_branches.push_back(logical_function_t(*(s.children[2])));
-    }
-    else if (s.is_functor(OPR_STR_HARD_IMPLICATION))
-    {
-        m_operator = OPR_HARD_IMPLICATION;
         m_branches.push_back(logical_function_t(*(s.children[1])));
         m_branches.push_back(logical_function_t(*(s.children[2])));
     }
@@ -209,34 +202,6 @@ bool logical_function_t::is_valid_as_implication() const
 }
 
 
-bool logical_function_t::is_valid_as_hard_implication() const
-{
-    if (not is_operator(OPR_HARD_IMPLICATION))
-        return false;
-    if (branches().size() != 2)
-        return false;
-
-    // CHECKING LHS & RHS
-    for (int i = 0; i < 2; ++i)
-    {
-        const logical_function_t &br = branch(i);
-
-        if (br.is_operator(OPR_LITERAL))
-            continue;
-        else if (br.is_operator(OPR_AND))
-        {
-            for (auto it = br.branches().begin(); it != br.branches().end(); ++it)
-            if (not it->is_operator(OPR_LITERAL))
-                return false;
-        }
-        else
-            return false;
-    }
-
-    return true;
-}
-
-
 bool logical_function_t::is_valid_as_inconsistency() const
 {
     if (branches().size() != 2) return false;
@@ -351,7 +316,6 @@ void logical_function_t::get_all_literals_sub(
         p_out_list->push_back(&m_literal);
         break;
     case OPR_IMPLICATION:
-    case OPR_HARD_IMPLICATION:
     case OPR_INCONSISTENT:
         m_branches[0].get_all_literals_sub(p_out_list);
         m_branches[1].get_all_literals_sub(p_out_list);
@@ -378,7 +342,6 @@ void logical_function_t::enumerate_literal_branches(
         out->push_back(this);
         break;
     case OPR_IMPLICATION:
-    case OPR_HARD_IMPLICATION:
     case OPR_INCONSISTENT:
         m_branches[0].enumerate_literal_branches(out);
         m_branches[1].enumerate_literal_branches(out);
@@ -413,7 +376,6 @@ size_t logical_function_t::write_binary( char *bin ) const
             n += m_branches.at(i).write_binary( bin+n );
         break;
     case OPR_IMPLICATION:
-    case OPR_HARD_IMPLICATION:
     case OPR_INCONSISTENT:
         n += m_branches.at(0).write_binary( bin+n );
         n += m_branches.at(1).write_binary( bin+n );
@@ -452,7 +414,6 @@ size_t logical_function_t::read_binary( const char *bin )
             n += m_branches[i].read_binary(bin + n);
         break;
     case OPR_IMPLICATION:
-    case OPR_HARD_IMPLICATION:
     case OPR_INCONSISTENT:
         m_branches.assign(2, logical_function_t());
         n += m_branches[0].read_binary(bin + n);
@@ -482,11 +443,6 @@ void logical_function_t::print(
     case OPR_IMPLICATION:
         m_branches[0].print(p_out_str, f_colored);
         (*p_out_str) += " => ";
-        m_branches[1].print(p_out_str, f_colored);
-        break;
-    case OPR_HARD_IMPLICATION:
-        m_branches[0].print(p_out_str, f_colored);
-        (*p_out_str) += " >> ";
         m_branches[1].print(p_out_str, f_colored);
         break;
     case OPR_INCONSISTENT:

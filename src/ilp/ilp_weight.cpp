@@ -33,7 +33,7 @@ parse_string_to_weight_provider(const std::string &str)
 
 
 weighted_converter_t::weighted_converter_t(
-    phillip_main_t *main, double default_obs_cost,
+    const phillip_main_t *main, double default_obs_cost,
     weight_provider_t *ptr, bool is_logarithmic)
     : ilp_converter_t(main),
       m_default_observation_cost(default_obs_cost),
@@ -51,7 +51,7 @@ weighted_converter_t::~weighted_converter_t()
 }
 
 
-ilp_converter_t* weighted_converter_t::duplicate(phillip_main_t *ptr) const
+ilp_converter_t* weighted_converter_t::duplicate(const phillip_main_t *ptr) const
 {
     return new weighted_converter_t(
         ptr, m_default_observation_cost, m_weight_provider->duplicate());
@@ -299,7 +299,7 @@ std::string weighted_converter_t::repr() const
 
 
 ilp_converter_t* weighted_converter_t::
-generator_t::operator()(phillip_main_t *ph) const
+generator_t::operator()(const phillip_main_t *ph) const
 {
     const std::string &key = ph->param("weight_provider");
     return new weighted_converter_t(

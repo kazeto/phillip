@@ -35,7 +35,7 @@ parse_string_to_cost_provider(const std::string &str)
 }
 
 
-costed_converter_t::costed_converter_t(phillip_main_t *main, cost_provider_t *ptr)
+costed_converter_t::costed_converter_t(const phillip_main_t *main, cost_provider_t *ptr)
 : ilp_converter_t(main), m_cost_provider(ptr)
 {
     if (m_cost_provider == NULL)
@@ -49,7 +49,7 @@ costed_converter_t::~costed_converter_t()
 }
 
 
-ilp_converter_t* costed_converter_t::duplicate(phillip_main_t *ptr) const
+ilp_converter_t* costed_converter_t::duplicate(const phillip_main_t *ptr) const
 {
     return new costed_converter_t(ptr, m_cost_provider->duplicate());
 }
@@ -112,7 +112,7 @@ std::string costed_converter_t::repr() const
 
 
 ilp_converter_t* costed_converter_t::
-generator_t::operator()(phillip_main_t *ph) const
+generator_t::operator()(const phillip_main_t *ph) const
 {
     const std::string &param = ph->param("cost_provider");
     costed_converter_t::cost_provider_t *ptr =

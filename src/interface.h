@@ -29,10 +29,10 @@ class ilp_solution_t;
 class lhs_enumerator_t : public phillip_component_interface_t
 {
 public:
-    lhs_enumerator_t(phillip_main_t *ptr) : phillip_component_interface_t(ptr) {}
+    lhs_enumerator_t(const phillip_main_t *ptr) : phillip_component_interface_t(ptr) {}
 
     virtual ~lhs_enumerator_t() {}
-    virtual lhs_enumerator_t* duplicate(phillip_main_t *ptr) const = 0;
+    virtual lhs_enumerator_t* duplicate(const phillip_main_t *ptr) const = 0;
     virtual pg::proof_graph_t* execute() const = 0;
     
 protected:
@@ -54,10 +54,10 @@ public:
         virtual bool operator()(const pg::proof_graph_t*) const { return false; }
     };
 
-    ilp_converter_t(phillip_main_t *ptr) : phillip_component_interface_t(ptr) {}
+    ilp_converter_t(const phillip_main_t *ptr) : phillip_component_interface_t(ptr) {}
 
     virtual ~ilp_converter_t() {}
-    virtual ilp_converter_t* duplicate(phillip_main_t *ptr) const = 0;
+    virtual ilp_converter_t* duplicate(const phillip_main_t *ptr) const = 0;
     virtual ilp::ilp_problem_t* execute() const = 0;
 
     /** Tunes its own parameters from a system output and a gold output. */
@@ -76,10 +76,10 @@ protected:
 class ilp_solver_t : public phillip_component_interface_t
 {
 public:
-    ilp_solver_t(phillip_main_t *ptr) : phillip_component_interface_t(ptr) {}
+    ilp_solver_t(const phillip_main_t *ptr) : phillip_component_interface_t(ptr) {}
 
     virtual ~ilp_solver_t() {}
-    virtual ilp_solver_t* duplicate(phillip_main_t *ptr) const = 0;
+    virtual ilp_solver_t* duplicate(const phillip_main_t *ptr) const = 0;
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const = 0;
 
     virtual void solve(

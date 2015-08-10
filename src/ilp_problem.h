@@ -133,7 +133,7 @@ public:
     /** Merges with another ilp-problem. */
     void merge(const ilp_problem_t &prob);
 
-    inline phillip_main_t* phillip() const { return m_graph ? m_graph->phillip() : NULL; }
+    inline const phillip_main_t* phillip() const { return m_graph ? m_graph->phillip() : NULL; }
     inline void timeout(bool flag) { m_is_timeout = flag; }
     inline bool has_timed_out() const { return m_is_timeout; }
 
@@ -347,7 +347,7 @@ public:
 
     void merge(const ilp_solution_t &sol);
 
-    inline phillip_main_t* phillip() const { return problem() ? problem()->phillip() : NULL; }
+    inline const phillip_main_t* phillip() const { return problem() ? problem()->phillip() : NULL; }
     inline void timeout(bool flag) { m_is_timeout = flag; }
     inline bool has_timed_out() const { return m_is_timeout; }
 

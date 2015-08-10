@@ -15,12 +15,12 @@ class null_converter_t : public ilp_converter_t
 public:
     struct generator_t : public component_generator_t<ilp_converter_t>
     {
-        virtual ilp_converter_t* operator()(phillip_main_t*) const override;
+        virtual ilp_converter_t* operator()(const phillip_main_t*) const override;
     };
 
-    null_converter_t(phillip_main_t *ptr) : ilp_converter_t(ptr) {}
+    null_converter_t(const phillip_main_t *ptr) : ilp_converter_t(ptr) {}
 
-    virtual ilp_converter_t* duplicate(phillip_main_t *ptr) const override;
+    virtual ilp_converter_t* duplicate(const phillip_main_t *ptr) const override;
     virtual ilp::ilp_problem_t* execute() const override;
     virtual bool is_available(std::list<std::string>*) const override;
     virtual std::string repr() const override;
@@ -34,7 +34,7 @@ class weighted_converter_t : public ilp_converter_t
 public:
     struct generator_t : public component_generator_t<ilp_converter_t>
     {
-        virtual ilp_converter_t* operator()(phillip_main_t*) const override;
+        virtual ilp_converter_t* operator()(const phillip_main_t*) const override;
     };
 
     class weight_provider_t {
@@ -69,12 +69,12 @@ public:
     static weight_provider_t* parse_string_to_weight_provider(const std::string &str);
 
     weighted_converter_t(
-        phillip_main_t *main,
+        const phillip_main_t *main,
         double default_obs_cost = 10.0, weight_provider_t *ptr = NULL,
         bool is_logarithmic = false);
     ~weighted_converter_t();
 
-    virtual ilp_converter_t* duplicate(phillip_main_t *ptr) const override;
+    virtual ilp_converter_t* duplicate(const phillip_main_t *ptr) const override;
     virtual ilp::ilp_problem_t* execute() const override;
     virtual bool is_available(std::list<std::string>*) const override;
     virtual std::string repr() const override;
@@ -96,7 +96,7 @@ class costed_converter_t : public ilp_converter_t
 public:
     struct generator_t : public component_generator_t<ilp_converter_t>
     {
-        virtual ilp_converter_t* operator()(phillip_main_t*) const override;
+        virtual ilp_converter_t* operator()(const phillip_main_t*) const override;
     };
 
     class cost_provider_t {
@@ -120,10 +120,10 @@ public:
 
     static cost_provider_t* parse_string_to_cost_provider(const std::string&);
 
-    costed_converter_t(phillip_main_t *main, cost_provider_t *ptr = NULL);
+    costed_converter_t(const phillip_main_t *main, cost_provider_t *ptr = NULL);
     ~costed_converter_t();
 
-    virtual ilp_converter_t* duplicate(phillip_main_t *ptr) const override;
+    virtual ilp_converter_t* duplicate(const phillip_main_t *ptr) const override;
     virtual ilp::ilp_problem_t* execute() const override;
     virtual bool is_available(std::list<std::string>*) const override;
     virtual std::string repr() const override;

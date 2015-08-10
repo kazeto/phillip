@@ -436,7 +436,7 @@ void proof_graph_t::temporal_variables_t::clear()
 }
 
 
-proof_graph_t::proof_graph_t(phillip_main_t *main, const std::string &name)
+proof_graph_t::proof_graph_t(const phillip_main_t *main, const std::string &name)
 : m_phillip(main), m_name(name), m_is_timeout(false)
 {
     m_threshold_distance_for_soft_unify =

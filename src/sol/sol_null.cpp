@@ -12,7 +12,7 @@ void null_solver_t::execute(std::vector<ilp::ilp_solution_t> *out) const
 {}
 
 
-ilp_solver_t* null_solver_t::duplicate(phillip_main_t *ptr) const
+ilp_solver_t* null_solver_t::duplicate(const phillip_main_t *ptr) const
 {
     return new null_solver_t(ptr);
 }
@@ -31,7 +31,7 @@ std::string null_solver_t::repr() const
 }
 
 
-ilp_solver_t* null_solver_t::generator_t::operator()(phillip_main_t *ph) const
+ilp_solver_t* null_solver_t::generator_t::operator()(const phillip_main_t *ph) const
 {
     return new sol::null_solver_t(ph);
 }

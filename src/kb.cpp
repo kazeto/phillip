@@ -106,10 +106,6 @@ bool unification_postponement_t::do_postpone(
 
 const int BUFFER_SIZE = 512 * 512;
 std::unique_ptr<knowledge_base_t, util::deleter_t<knowledge_base_t> > knowledge_base_t::ms_instance;
-std::string knowledge_base_t::ms_filename = "kb";
-float knowledge_base_t::ms_max_distance = -1.0f;
-int knowledge_base_t::ms_thread_num_for_rm = 1;
-bool knowledge_base_t::ms_do_disable_stop_word = false;
 std::mutex knowledge_base_t::ms_mutex_for_cache;
 std::mutex knowledge_base_t::ms_mutex_for_rm;
 
@@ -117,31 +113,23 @@ std::mutex knowledge_base_t::ms_mutex_for_rm;
 knowledge_base_t* knowledge_base_t::instance()
 {
     if (not ms_instance)
-    {
-        util::mkdir(util::get_directory_name(ms_filename));
-        ms_instance.reset(new knowledge_base_t(ms_filename));
-    }
+        throw phillip_exception_t("An instance of knowledge-base has not been initialized.");
+
     return ms_instance.get();
 }
 
 
-void knowledge_base_t::setup(
-    std::string filename, float max_distance,
-    int thread_num_for_rm, bool do_disable_stop_word)
+void knowledge_base_t::initialize(std::string filename, const phillip_main_t *ph)
 {
     if (ms_instance != NULL)
         ms_instance.reset(NULL);
         
-    ms_filename = filename;
-    ms_max_distance = max_distance;
-    ms_thread_num_for_rm = thread_num_for_rm;
-    ms_do_disable_stop_word = do_disable_stop_word;
-
-    if (ms_thread_num_for_rm < 0) ms_thread_num_for_rm = 1;
+    util::mkdir(util::get_directory_name(filename));
+    ms_instance.reset(new knowledge_base_t(filename, ph));
 }
 
 
-knowledge_base_t::knowledge_base_t(const std::string &filename)
+knowledge_base_t::knowledge_base_t(const std::string &filename, const phillip_main_t *ph)
     : m_state(STATE_NULL),
       m_filename(filename), m_version(KB_VERSION_1), 
       m_cdb_rhs(filename + ".rhs.cdb"),
@@ -156,6 +144,20 @@ knowledge_base_t::knowledge_base_t(const std::string &filename)
 {
     m_distance_provider = { NULL, "" };
     m_category_table = { NULL, "" };
+
+    m_config_for_compile.max_distance = ph->param_float("kb_max_distance", -1.0);
+    m_config_for_compile.thread_num = ph->param_int("kb_thread_num", 1);
+    m_config_for_compile.do_disable_stop_word = ph->flag("disable_stop_word");
+    m_config_for_compile.do_disable_deduction = ph->flag("disable_deduction");
+
+    if (m_config_for_compile.thread_num < 1)
+        m_config_for_compile.thread_num = 1;
+
+    std::string dist_key = ph->param("distance_provider");
+    std::string tab_key = ph->param("category_table");
+
+    set_distance_provider(dist_key.empty() ? "basic" : dist_key, ph);
+    set_category_table(tab_key.empty() ? "null" : tab_key, ph);
 }
 
 
@@ -334,13 +336,15 @@ void knowledge_base_t::write_config() const
     char num_ct = m_category_table.key.length();
 
     fo.write(&version, sizeof(char));
-    fo.write((char*)&ms_max_distance, sizeof(float));
+    fo.write((char*)&m_config_for_compile.max_distance, sizeof(float));
 
     fo.write(&num_dp, sizeof(char));
     fo.write(m_distance_provider.key.c_str(), m_distance_provider.key.length());
+    m_distance_provider.instance->write(&fo);
 
     fo.write(&num_ct, sizeof(char));
     fo.write(m_category_table.key.c_str(), m_category_table.key.length());
+    m_category_table.instance->write(&fo);
 
     fo.close();
 }
@@ -368,17 +372,19 @@ void knowledge_base_t::read_config()
         throw phillip_exception_t(
         "This compiled knowledge base is too old. Please re-compile it.");
 
-    fi.read((char*)&ms_max_distance, sizeof(float));
+    fi.read((char*)&m_config_for_compile.max_distance, sizeof(float));
 
     fi.read(&num, sizeof(char));
     fi.read(key, num);
     key[num] = '\0';
     set_distance_provider(key);
+    m_distance_provider.instance->read(&fi);
 
     fi.read(&num, sizeof(char));
     fi.read(key, num);
     key[num] = '\0';
     set_category_table(key);
+    m_category_table.instance->read(&fi);
 
     fi.close();
 
@@ -390,10 +396,7 @@ axiom_id_t knowledge_base_t::insert_implication(
 {
     if (m_state == STATE_COMPILE)
     {
-        bool is_implication = func.is_valid_as_implication();
-        bool is_hard_implication = func.is_valid_as_hard_implication();
-
-        if (not is_implication and not is_hard_implication)
+        if (not func.is_valid_as_implication())
         {
             util::print_warning_fmt(
                 "Axiom \"%s\" is invalid and skipped.", func.to_string().c_str());
@@ -425,25 +428,23 @@ axiom_id_t knowledge_base_t::insert_implication(
         std::vector<const literal_t*> lhs(func.get_lhs());
 
         // ABDUCTION
-        if (not is_hard_implication)
-        {
-            for (auto it = rhs.begin(); it != rhs.end(); ++it)
-            if (not(*it)->is_equality())
-            {
-                arity_id_t arity_id = m_arity_db.add((*it)->get_arity());
-                m_rhs_to_axioms[arity_id].insert(id);
-            }
-        }
-
-        // DEDUCTION
-#ifndef DISABLE_DEDUCTION
-        for (auto it = lhs.begin(); it != lhs.end(); ++it)
+        for (auto it = rhs.begin(); it != rhs.end(); ++it)
         if (not(*it)->is_equality())
         {
             arity_id_t arity_id = m_arity_db.add((*it)->get_arity());
-            m_lhs_to_axioms[arity_id].insert(id);
+            m_rhs_to_axioms[arity_id].insert(id);
         }
-#endif
+
+        // DEDUCTION
+        if (not m_config_for_compile.do_disable_deduction)
+        {
+            for (auto it = lhs.begin(); it != lhs.end(); ++it)
+            if (not(*it)->is_equality())
+            {
+                arity_id_t arity_id = m_arity_db.add((*it)->get_arity());
+                m_lhs_to_axioms[arity_id].insert(id);
+            }
+        }
 
         return id;
     }
@@ -684,7 +685,7 @@ void knowledge_base_t::search_axioms_with_arity_pattern(
 
 
 void knowledge_base_t::set_distance_provider(
-    const std::string &key, phillip_main_t *ph)
+    const std::string &key, const phillip_main_t *ph)
 {
     if (m_distance_provider.instance != NULL)
         delete m_distance_provider.instance;
@@ -700,7 +701,7 @@ void knowledge_base_t::set_distance_provider(
 
 
 void knowledge_base_t::set_category_table(
-    const std::string &key, phillip_main_t *ph)
+    const std::string &key, const phillip_main_t *ph)
 {
     if (m_category_table.instance != NULL)
         delete m_category_table.instance;
@@ -810,7 +811,7 @@ void knowledge_base_t::set_stop_words()
 #endif
 
     if (not can_use_gurobi and not can_use_lpsolve) return;
-    if (ms_do_disable_stop_word) return;
+    if (m_config_for_compile.do_disable_stop_word) return;
 
     IF_VERBOSE_1("Setting stop-words...");
     m_axioms.prepare_query();
@@ -882,13 +883,12 @@ void knowledge_base_t::set_stop_words()
         lf::axiom_t ax = m_axioms.get(id);
 
         if (ax.func.is_operator(lf::OPR_IMPLICATION))
+        {
+            if (not m_config_for_compile.do_disable_deduction)
+                proc(ax, false); // DEDUCTION
             proc(ax, true);  // ABDUCTION
+        }
 
-#ifndef DISABLE_DEDUCTION
-        if (ax.func.is_operator(lf::OPR_IMPLICATION) or
-            ax.func.is_operator(lf::OPR_HARD_IMPLICATION))
-            proc(ax, false); // DEDUCTION
-#endif
 
         if (id % 10 == 0 and phillip_main_t::verbose() >= VERBOSE_1)
         {
@@ -975,7 +975,7 @@ void knowledge_base_t::set_stop_words()
     }
 
     ilp_solver_t *solver = NULL;
-    if (can_use_gurobi) solver = new sol::gurobi_t(NULL, ms_thread_num_for_rm, false);
+    if (can_use_gurobi) solver = new sol::gurobi_t(NULL, m_config_for_compile.thread_num, false);
     else solver = new sol::lp_solve_t(NULL);
 
     std::vector<ilp::ilp_solution_t> solutions;
@@ -1071,13 +1071,11 @@ void knowledge_base_t::create_query_map()
         lf::axiom_t ax = get_axiom(i);
 
         if (ax.func.is_operator(lf::OPR_IMPLICATION))
+        {
+            if (not m_config_for_compile.do_disable_deduction)
+                proc(ax, false); // DEDUCTION
             proc(ax, true);  // ABDUCTION
-
-#ifndef DISABLE_DEDUCTION
-        if (ax.func.is_operator(lf::OPR_IMPLICATION) or
-            ax.func.is_operator(lf::OPR_HARD_IMPLICATION))
-            proc(ax, false); // DEDUCTION
-#endif
+        }
 
         if (i % 10 == 0 and phillip_main_t::verbose() >= VERBOSE_1)
         {
@@ -1168,7 +1166,7 @@ void knowledge_base_t::create_reachable_matrix()
     IF_VERBOSE_3(util::format("  num of axioms = %d", m_axioms.num_axioms()));
     IF_VERBOSE_3(util::format("  num of arities = %d", m_arity_db.arities().size()));
     IF_VERBOSE_3(util::format("  max distance = %.2f", get_max_distance()));
-    IF_VERBOSE_3(util::format("  num of parallel threads = %d", ms_thread_num_for_rm));
+    IF_VERBOSE_3(util::format("  num of parallel threads = %d", m_config_for_compile.thread_num));
     IF_VERBOSE_2("  computing distance of direct edges...");
 
     const std::vector<arity_t> &arities = m_arity_db.arities();
@@ -1189,7 +1187,8 @@ void knowledge_base_t::create_reachable_matrix()
     std::vector<std::thread> worker;
     int num_thread =
         std::min<int>(arities.size(),
-        std::min<int>(ms_thread_num_for_rm, std::thread::hardware_concurrency()));
+        std::min<int>(m_config_for_compile.thread_num,
+        std::thread::hardware_concurrency()));
     
     for (int th_id = 0; th_id < num_thread; ++th_id)
     {
@@ -1272,85 +1271,78 @@ void knowledge_base_t::_create_reachable_matrix_direct(
 
     for (axiom_id_t id = 0; id < m_axioms.num_axioms(); ++id)
     {
-        lf::axiom_t axiom = get_axiom(id);
-
-#ifndef DISABLE_DEDUCTION
-        if (axiom.func.is_operator(lf::OPR_IMPLICATION) or
-            axiom.func.is_operator(lf::OPR_HARD_IMPLICATION))
-#else
-        if (axiom.func.is_operator(lf::OPR_IMPLICATION))
-#endif
-        {
-            float dist = (*m_distance_provider.instance)(axiom);
-
-            if (dist >= 0.0f)
-            {
-                hash_set<arity_id_t> lhs_ids, rhs_ids;
-
-                {
-                    std::vector<const literal_t*> lhs = axiom.func.get_lhs();
-                    std::vector<const literal_t*> rhs = axiom.func.get_rhs();
-
-                    for (auto it_l = lhs.begin(); it_l != lhs.end(); ++it_l)
-                    {
-                        std::string arity = (*it_l)->get_arity();
-                        arity_id_t idx = search_arity_id(arity);
-
-                        if (idx != INVALID_ARITY_ID)
-                        if (ignored.count(idx) == 0)
-                            lhs_ids.insert(idx);
-                    }
-
-                    for (auto it_r = rhs.begin(); it_r != rhs.end(); ++it_r)
-                    {
-                        std::string arity = (*it_r)->get_arity();
-                        arity_id_t idx = search_arity_id(arity);
-
-                        if (idx != INVALID_ARITY_ID)
-                        if (ignored.count(idx) == 0)
-                            rhs_ids.insert(idx);
-                    }
-                }
-
-                for (auto it_l = lhs_ids.begin(); it_l != lhs_ids.end(); ++it_l)
-                {
-                    hash_map<arity_id_t, float> &target = (*out_lhs)[*it_l];
-                    for (auto it_r = rhs_ids.begin(); it_r != rhs_ids.end(); ++it_r)
-                    {
-                        auto found = target.find(*it_r);
-                        if (found == target.end())
-                            target[*it_r] = dist;
-                        else if (dist < found->second)
-                            target[*it_r] = dist;
-                    }
-                }
-
-                for (auto it_r = rhs_ids.begin(); it_r != rhs_ids.end(); ++it_r)
-                {
-                    hash_map<arity_id_t, float> &target = (*out_rhs)[*it_r];
-                    for (auto it_l = lhs_ids.begin(); it_l != lhs_ids.end(); ++it_l)
-                    {
-                        auto found = target.find(*it_l);
-                        if (found == target.end())
-                            target[*it_l] = dist;
-                        else if (dist < found->second)
-                            target[*it_l] = dist;
-                    }
-                }
-
-#ifndef DISABLE_DEDUCTION
-                if (axiom.func.is_operator(lf::OPR_IMPLICATION))
-                for (auto it_l = lhs_ids.begin(); it_l != lhs_ids.end(); ++it_l)
-                for (auto it_r = rhs_ids.begin(); it_r != rhs_ids.end(); ++it_r)
-                    out_para->insert(util::make_sorted_pair(*it_l, *it_r));
-#endif
-            }
-        }
-
         if (++num_processed % 10 == 0 and phillip_main_t::verbose() >= VERBOSE_1)
         {
             float progress = (float)(num_processed)* 100.0f / (float)m_axioms.num_axioms();
             std::cerr << util::format("processed %d axioms [%.4f%%]\r", num_processed, progress);
+        }
+
+        lf::axiom_t axiom = get_axiom(id);
+        if (not axiom.func.is_operator(lf::OPR_IMPLICATION)) continue;
+
+        float dist = (*m_distance_provider.instance)(axiom);
+
+        if (dist >= 0.0f)
+        {
+            hash_set<arity_id_t> lhs_ids, rhs_ids;
+
+            {
+                std::vector<const literal_t*> lhs = axiom.func.get_lhs();
+                std::vector<const literal_t*> rhs = axiom.func.get_rhs();
+
+                for (auto it_l = lhs.begin(); it_l != lhs.end(); ++it_l)
+                {
+                    std::string arity = (*it_l)->get_arity();
+                    arity_id_t idx = search_arity_id(arity);
+
+                    if (idx != INVALID_ARITY_ID)
+                    if (ignored.count(idx) == 0)
+                        lhs_ids.insert(idx);
+                }
+
+                for (auto it_r = rhs.begin(); it_r != rhs.end(); ++it_r)
+                {
+                    std::string arity = (*it_r)->get_arity();
+                    arity_id_t idx = search_arity_id(arity);
+
+                    if (idx != INVALID_ARITY_ID)
+                    if (ignored.count(idx) == 0)
+                        rhs_ids.insert(idx);
+                }
+            }
+
+            for (auto it_l = lhs_ids.begin(); it_l != lhs_ids.end(); ++it_l)
+            {
+                hash_map<arity_id_t, float> &target = (*out_lhs)[*it_l];
+                for (auto it_r = rhs_ids.begin(); it_r != rhs_ids.end(); ++it_r)
+                {
+                    auto found = target.find(*it_r);
+                    if (found == target.end())
+                        target[*it_r] = dist;
+                    else if (dist < found->second)
+                        target[*it_r] = dist;
+                }
+            }
+
+            for (auto it_r = rhs_ids.begin(); it_r != rhs_ids.end(); ++it_r)
+            {
+                hash_map<arity_id_t, float> &target = (*out_rhs)[*it_r];
+                for (auto it_l = lhs_ids.begin(); it_l != lhs_ids.end(); ++it_l)
+                {
+                    auto found = target.find(*it_l);
+                    if (found == target.end())
+                        target[*it_l] = dist;
+                    else if (dist < found->second)
+                        target[*it_l] = dist;
+                }
+            }
+
+            if (not m_config_for_compile.do_disable_deduction)
+            {
+                for (auto it_l = lhs_ids.begin(); it_l != lhs_ids.end(); ++it_l)
+                for (auto it_r = rhs_ids.begin(); it_r != rhs_ids.end(); ++it_r)
+                    out_para->insert(util::make_sorted_pair(*it_l, *it_r));
+            }
         }
     }    
 }
@@ -1395,15 +1387,9 @@ void knowledge_base_t::_create_reachable_matrix_indirect(
             std::tuple<arity_id_t, bool, bool> key =
                 std::make_tuple(idx2, can_abduction, can_deduction);
 
-#ifndef DISABLE_DEDUCTION
-            // ONCE DONE ABDUCTION WITH HARD-IMPLICATION,
-            // THEN IT CANNOT DO DEDUCTION ANY MORE.
-            if (is_backward and not is_paraphrasal)
-                std::get<2>(key) = false;
-#else
             // ONCE DONE DEDUCTION, THEN IT CANNOT DO ABDUCTION ANY MORE.
-            if (is_forward) std::get<1>(key) = false;
-#endif
+            if (m_config_for_compile.do_disable_deduction and is_forward)
+                std::get<1>(key) = false;
 
             if (not util::find_then(
                 processed, key, dist_new, std::less_equal<float>()))
@@ -2010,6 +1996,7 @@ float cost_based_distance_provider_t::operator()(const lf::axiom_t &ax) const
 namespace ct
 {
 
+
 bool null_category_table_t::insert(const lf::logical_function_t&)
 {
     return false;
@@ -2036,7 +2023,7 @@ bool null_category_table_t::do_target(const arity_t&) const
 
 
 category_table_t* basic_category_table_t::
-generator_t::operator() (phillip_main_t *ph) const
+generator_t::operator() (const phillip_main_t *ph) const
 {
     // NOTE: Currently ph is always NULL.
 
@@ -2053,6 +2040,18 @@ basic_category_table_t::basic_category_table_t(int max_depth, float dist_scale)
     : m_max_depth(max_depth), m_distance_scale(dist_scale)
 {
     assert(m_distance_scale > 0.0f);
+}
+
+
+void basic_category_table_t::read(std::ifstream *fi)
+{
+    fi->read((char*)&m_distance_scale, sizeof(float));
+}
+
+
+void basic_category_table_t::write(std::ofstream *fo) const
+{
+    fo->write((char*)&m_distance_scale, sizeof(float));
 }
 
 
@@ -2080,13 +2079,8 @@ bool basic_category_table_t::insert(const lf::logical_function_t &ax)
         arity_id_t a2 = kb()->search_arity_id(rhs.front()->literal().get_arity());
 
         assert(a1 != INVALID_ARITY_ID and a2 != INVALID_ARITY_ID);
-
-#ifndef DISABLE_DEDUCTION
         m_table[a1][a2] = m_distance_scale; // DEDUCTION
-#endif
-
-        if (ax.is_operator(lf::OPR_IMPLICATION))
-            m_table[a2][a1] = m_distance_scale; // ABDUCTION
+        m_table[a2][a1] = m_distance_scale; // ABDUCTION
 
         return true;
     }
@@ -2148,8 +2142,7 @@ void basic_category_table_t::gets(
 bool basic_category_table_t::do_insert(
     const lf::logical_function_t &func) const
 {
-    if (func.is_valid_as_implication() or
-        func.is_valid_as_hard_implication())
+    if (func.is_valid_as_implication())
     {
         auto lhs = func.get_lhs();
         auto rhs = func.get_rhs();
@@ -2193,7 +2186,7 @@ void basic_category_table_t::finalize()
 
 void basic_category_table_t::combinate()
 {
-    const float max_dist = knowledge_base_t::get_max_distance();
+    const float max_dist = kb()->get_max_distance();
     
     auto search = [this](arity_id_t a1, arity_id_t a2) -> float
     {
@@ -2213,7 +2206,10 @@ void basic_category_table_t::combinate()
         if (m_max_depth >= 0 and depth >= m_max_depth)
             return;
         
-        for (auto p : m_table.at(a2))
+        auto it = m_table.find(a2);
+        if (it == m_table.end()) return;
+
+        for (auto p : it->second)
         {
             if (p.first != a1)
             {

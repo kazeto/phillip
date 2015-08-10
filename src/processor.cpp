@@ -86,9 +86,7 @@ void compile_kb_t::process( const sexp::reader_t *reader )
     _assert_syntax(reader->is_root(), (*reader), "Function B should be root.");
 
     /* IDENTIFY THE LOGICAL FORM PART. */
-    index_t idx_lf = std::max(
-        stack->find_functor(lf::OPR_STR_IMPLICATION),
-        stack->find_functor(lf::OPR_STR_HARD_IMPLICATION));
+    index_t idx_lf = stack->find_functor(lf::OPR_STR_IMPLICATION);
     index_t idx_inc = stack->find_functor(lf::OPR_STR_INCONSISTENT);
     index_t idx_pp = stack->find_functor(lf::OPR_STR_UNIPP);
     index_t idx_as = stack->find_functor(lf::OPR_STR_EXARGSET);

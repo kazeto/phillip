@@ -20,7 +20,7 @@ namespace sol
 std::mutex g_mutex_gurobi;
 
 
-gurobi_t::gurobi_t(phillip_main_t *ptr, int thread_num, bool do_output_log)
+gurobi_t::gurobi_t(const phillip_main_t *ptr, int thread_num, bool do_output_log)
     : ilp_solver_t(ptr), m_thread_num(thread_num), m_do_output_log(do_output_log)
 {
     if (m_thread_num <= 0)
@@ -28,7 +28,7 @@ gurobi_t::gurobi_t(phillip_main_t *ptr, int thread_num, bool do_output_log)
 }
 
 
-ilp_solver_t* gurobi_t::duplicate(phillip_main_t *ptr) const
+ilp_solver_t* gurobi_t::duplicate(const phillip_main_t *ptr) const
 {
     return new gurobi_t(ptr, m_thread_num, m_do_output_log);
 }
@@ -285,7 +285,7 @@ ilp::ilp_solution_t gurobi_t::convert(
 #endif
 
 
-ilp_solver_t* gurobi_t::generator_t::operator()(phillip_main_t *ph) const
+ilp_solver_t* gurobi_t::generator_t::operator()(const phillip_main_t *ph) const
 {
     return new sol::gurobi_t(
         ph,

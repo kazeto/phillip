@@ -13,13 +13,14 @@ namespace lhs
 
 
 a_star_based_enumerator_t::a_star_based_enumerator_t(
-    phillip_main_t *ptr, float max_dist, int max_depth)
+    const phillip_main_t *ptr, float max_dist, int max_depth)
     : lhs_enumerator_t(ptr),
       m_max_distance(max_dist), m_max_depth(max_depth)
 {}
 
 
-lhs_enumerator_t* a_star_based_enumerator_t::duplicate(phillip_main_t *ptr) const
+lhs_enumerator_t* a_star_based_enumerator_t
+::duplicate(const phillip_main_t *ptr) const
 {
     return new a_star_based_enumerator_t(ptr, m_max_distance, m_max_depth);
 }
@@ -207,7 +208,7 @@ std::string a_star_based_enumerator_t::repr() const
 
 
 lhs_enumerator_t* a_star_based_enumerator_t::
-generator_t::operator()(phillip_main_t *ph) const
+generator_t::operator()(const phillip_main_t *ph) const
 {
     return new lhs::a_star_based_enumerator_t(
         ph,

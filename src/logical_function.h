@@ -20,7 +20,6 @@ enum logical_operator_t
     OPR_AND,              /// And (as "^")
     OPR_OR,               /// Or (as "v")
     OPR_IMPLICATION,      /// Implication (as "=>")
-    OPR_HARD_IMPLICATION, /// Paraphrase (as "<=>")
     OPR_INCONSISTENT,     /// Inconsistent (as "xor")
     OPR_REQUIREMENT,      /// Requirement (as "require")
     OPR_UNIPP,            /// Unification-Postponement (as "unipp")
@@ -31,7 +30,6 @@ extern const std::string OPR_STR_NAME;
 extern const std::string OPR_STR_AND;
 extern const std::string OPR_STR_OR;
 extern const std::string OPR_STR_IMPLICATION;
-extern const std::string OPR_STR_HARD_IMPLICATION;
 extern const std::string OPR_STR_INCONSISTENT;
 extern const std::string OPR_STR_REQUIREMENT;
 extern const std::string OPR_STR_UNIPP;
@@ -68,7 +66,6 @@ public:
     bool scan_parameter(const std::string &format, ...) const;
 
     bool is_valid_as_implication() const;
-    bool is_valid_as_hard_implication() const;
     bool is_valid_as_inconsistency() const;
     bool is_valid_as_unification_postponement() const;
     bool is_valid_as_argument_set() const;

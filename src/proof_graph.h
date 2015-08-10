@@ -276,9 +276,9 @@ public:
         std::list<std::list<edge_idx_t>> m_loops;
     };
 
-    proof_graph_t(phillip_main_t *main, const std::string &name = "");
+    proof_graph_t(const phillip_main_t *main, const std::string &name = "");
 
-    inline phillip_main_t* phillip() const { return m_phillip; }
+    inline const phillip_main_t* phillip() const { return m_phillip; }
     inline void timeout(bool flag) { m_is_timeout = flag; }
     inline bool has_timed_out() const { return m_is_timeout; }
     inline const std::string& name() const { return m_name; }
@@ -596,7 +596,7 @@ protected:
 
     // ---- VARIABLES
 
-    phillip_main_t *m_phillip;
+    const phillip_main_t *m_phillip;
     
     std::string m_name;
     bool m_is_timeout; /// For timeout.

@@ -336,12 +336,12 @@ bool _interpret_option(
             }
             if (type == "dist")
             {
-                config->dist_key = key;
+                phillip->set_param("distance_provider", key);
                 return true;
             }
             if (type == "tab")
             {
-                config->tab_key = key;
+                phillip->set_param("category_table", key);
                 return true;
             }
         }
@@ -535,44 +535,32 @@ bool _interpret_option(
 }
 
 
-bool preprocess(const execution_configure_t &config, phillip_main_t *phillip)
+bool preprocess(const execution_configure_t &config, phillip_main_t *ph)
 {
     if (config.mode == EXE_MODE_UNDERSPECIFIED)
         throw phillip_exception_t("Execution mode is underspecified.", true);
 
-    float max_dist = phillip->param_float("kb_max_distance", -1.0);
-    int thread_num = phillip->param_int("kb_thread_num", 1);
-    bool disable_stop_word = phillip->flag("disable_stop_word");
-    std::string dist_key = config.dist_key.empty() ? "basic" : config.dist_key;
-    std::string tab_key = config.tab_key.empty() ? "null" : config.tab_key;
-
     for (auto n : config.target_obs_names)
-        phillip->add_target(n);
+        ph->add_target(n);
     for (auto n : config.excluded_obs_names)
-        phillip->add_exclusion(n);
+        ph->add_exclusion(n);
 
     lhs_enumerator_t *lhs =
-        lhs_enumerator_library_t::instance()->
-        generate(config.lhs_key, phillip);
+        lhs_enumerator_library_t::instance()->generate(config.lhs_key, ph);
     ilp_converter_t *ilp =
-        ilp_converter_library_t::instance()->
-        generate(config.ilp_key, phillip);
+        ilp_converter_library_t::instance()->generate(config.ilp_key, ph);
     ilp_solver_t *sol =
-        ilp_solver_library_t::instance()->
-        generate(config.sol_key, phillip);
+        ilp_solver_library_t::instance()->generate(config.sol_key, ph);
 
-    kb::knowledge_base_t::setup(
-        config.kb_name, max_dist, thread_num, disable_stop_word);
-    kb::knowledge_base_t::instance()->set_distance_provider(dist_key, phillip);
-    kb::knowledge_base_t::instance()->set_category_table(tab_key, phillip);
+    kb::knowledge_base_t::initialize(config.kb_name, ph);
 
     switch (config.mode)
     {
     case EXE_MODE_INFERENCE:
     case EXE_MODE_LEARNING:
-        if (lhs != NULL) phillip->set_lhs_enumerator(lhs);
-        if (ilp != NULL) phillip->set_ilp_convertor(ilp);
-        if (sol != NULL) phillip->set_ilp_solver(sol);
+        if (lhs != NULL) ph->set_lhs_enumerator(lhs);
+        if (ilp != NULL) ph->set_ilp_convertor(ilp);
+        if (sol != NULL) ph->set_ilp_solver(sol);
         return true;
     case EXE_MODE_COMPILE_KB:
         return true;

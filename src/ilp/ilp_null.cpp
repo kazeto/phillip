@@ -10,7 +10,7 @@ namespace cnv
 {
 
 
-ilp_converter_t* null_converter_t::duplicate(phillip_main_t *ptr) const
+ilp_converter_t* null_converter_t::duplicate(const phillip_main_t *ptr) const
 {
     return new null_converter_t(ptr);
 }
@@ -38,7 +38,7 @@ std::string null_converter_t::repr() const
 
 
 ilp_converter_t* null_converter_t::
-generator_t::operator()(phillip_main_t *ph) const
+generator_t::operator()(const phillip_main_t *ph) const
 {
     return new null_converter_t(ph);
 }

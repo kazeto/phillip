@@ -215,7 +215,7 @@ private:
 class phillip_component_interface_t
 {
 public:
-    phillip_component_interface_t(phillip_main_t *master) : m_phillip(master) {};
+    phillip_component_interface_t(const phillip_main_t *master) : m_phillip(master) {};
     virtual ~phillip_component_interface_t() {}
 
     /** Returns whether this component can be used on current setting.
@@ -229,10 +229,10 @@ public:
      *  when this component has timed out. */
     virtual bool do_keep_validity_on_timeout() const = 0;
 
-    phillip_main_t *phillip() const { return m_phillip; }
+    const phillip_main_t *phillip() const { return m_phillip; }
 
 protected:
-    phillip_main_t *m_phillip;
+    const phillip_main_t *m_phillip;
 };
 
 
@@ -250,7 +250,7 @@ private:
 template <class T> class component_generator_t
 {
 public:
-    virtual T* operator()(phillip_main_t*) const { return NULL; }
+    virtual T* operator()(const phillip_main_t*) const { return NULL; }
 };
 
 

@@ -10,14 +10,13 @@ namespace sol
 {
 
 
-ilp_solver_t* lp_solve_t::duplicate(phillip_main_t *ptr) const
+ilp_solver_t* lp_solve_t::duplicate(const phillip_main_t *ptr) const
 {
     return new lp_solve_t(ptr);
 }
 
 
-void lp_solve_t::execute(
-    std::vector<ilp::ilp_solution_t> *out ) const
+void lp_solve_t::execute(std::vector<ilp::ilp_solution_t> *out) const
 {
 #ifdef USE_LP_SOLVE
     const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
@@ -196,7 +195,7 @@ void lp_solve_t::add_constraint(
 #endif
 
 
-ilp_solver_t* lp_solve_t::generator_t::operator()(phillip_main_t *ph) const
+ilp_solver_t* lp_solve_t::generator_t::operator()(const phillip_main_t *ph) const
 {
     return new sol::lp_solve_t(ph);
 }

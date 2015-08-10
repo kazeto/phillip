@@ -13,12 +13,13 @@ namespace lhs
 
 
 depth_based_enumerator_t::depth_based_enumerator_t(
-    phillip_main_t *ptr, int max_depth)
+    const phillip_main_t *ptr, int max_depth)
     : lhs_enumerator_t(ptr), m_depth_max(max_depth)
 {}
 
 
-lhs_enumerator_t* depth_based_enumerator_t::duplicate(phillip_main_t *ptr) const
+lhs_enumerator_t* depth_based_enumerator_t
+::duplicate(const phillip_main_t *ptr) const
 {
     return new depth_based_enumerator_t(ptr, m_depth_max);
 }
@@ -94,7 +95,7 @@ std::string depth_based_enumerator_t::repr() const
 
 
 lhs_enumerator_t* depth_based_enumerator_t::
-generator_t::operator()(phillip_main_t *ph) const
+generator_t::operator()(const phillip_main_t *ph) const
 {
     return new lhs::depth_based_enumerator_t(ph, ph->param_int("max_depth"));
 }
