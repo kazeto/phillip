@@ -64,15 +64,7 @@ public:
     T* generate(const std::string &key, const phillip_main_t *ph) const
     {
         auto found = this->find(key);
-        if (found != this->end())
-            return (*found->second)(ph);
-        else
-        {
-            std::string disp = util::format(
-                "Invalid key was given to component generator: \"%s\"",
-                key.c_str());
-            throw phillip_exception_t(disp);
-        }
+        return (found != this->end()) ? (*found->second)(ph) : NULL;
     }
 };
 
