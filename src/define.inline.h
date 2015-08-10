@@ -546,7 +546,7 @@ template <class Map, class Key, class Value, class Operator>
 inline bool find_then(
     const Map &map, const Key &key, const Value &value, const Operator &opr)
 {
-    Map::const_iterator it = map.find(key);
+    auto it = map.find(key);
     if (it == map.end()) return false;
     return opr(it->second, value);
 }
