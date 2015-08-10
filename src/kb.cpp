@@ -148,7 +148,7 @@ knowledge_base_t::knowledge_base_t(const std::string &filename, const phillip_ma
     m_config_for_compile.max_distance = ph->param_float("kb_max_distance", -1.0);
     m_config_for_compile.thread_num = ph->param_int("kb_thread_num", 1);
     m_config_for_compile.do_disable_stop_word = ph->flag("disable_stop_word");
-    m_config_for_compile.do_disable_deduction = ph->flag("disable_deduction");
+    m_config_for_compile.can_deduction = ph->flag("enable_deduction");
 
     if (m_config_for_compile.thread_num < 1)
         m_config_for_compile.thread_num = 1;
@@ -436,7 +436,7 @@ axiom_id_t knowledge_base_t::insert_implication(
         }
 
         // DEDUCTION
-        if (not m_config_for_compile.do_disable_deduction)
+        if (m_config_for_compile.can_deduction)
         {
             for (auto it = lhs.begin(); it != lhs.end(); ++it)
             if (not(*it)->is_equality())
@@ -578,31 +578,29 @@ void knowledge_base_t::assert_stop_word(const arity_t &arity)
 
 hash_set<axiom_id_t> knowledge_base_t::search_axiom_group(axiom_id_t id) const
 {
-    std::string key = util::format("#%lu", id);
-
     if (not m_cdb_axiom_group.is_readable())
     {
         util::print_warning("kb-search: Kb-state is invalid.");
         return hash_set<axiom_id_t>();
     }
 
+    hash_set<axiom_id_t> out{ id };
+
     size_t value_size;
     const char *value = (const char*)
-        m_cdb_axiom_group.get(key.c_str(), key.length(), &value_size);
+        m_cdb_axiom_group.get(&id, sizeof(axiom_id_t), &value_size);
 
-    if (value == NULL) return hash_set<axiom_id_t>(id);
-
-    hash_set<axiom_id_t> out(id);
-    size_t size(0), num_grp(0);
-    size += util::binary_to<size_t>(value + size, &num_grp);
-
-    for (int i = 0; i < num_grp; ++i)
+    if (value != NULL)
     {
-        std::string grp;
-        size += util::binary_to_string(value + size, &grp);
+        size_t size(0), num_id(0);
+        size += util::binary_to<size_t>(value + size, &num_id);
 
-        auto ids = search_id_list(grp, &m_cdb_axiom_group);
-        out.insert(ids.begin(), ids.end());
+        for (int j = 0; j < num_id; ++j)
+        {
+            axiom_id_t id;
+            size += util::binary_to<axiom_id_t>(value + size, &id);
+            out.insert(id);
+        }
     }
 
     return out;
@@ -741,42 +739,31 @@ float knowledge_base_t::get_distance(
 void knowledge_base_t::insert_axiom_group_to_cdb()
 {
     util::cdb_data_t &dat(m_cdb_axiom_group);
-    const hash_map<std::string, hash_set<axiom_id_t> >& map(m_group_to_axioms);
-    hash_map<axiom_id_t, hash_set<std::string> > axiom_to_group;
+    hash_map<axiom_id_t, hash_set<axiom_id_t> > muex_axioms;
 
     IF_VERBOSE_1("starts writing " + dat.filename() + "...");
 
-    for (auto it = map.begin(); it != map.end(); ++it)
+    for (auto p : m_group_to_axioms)
     {
-        size_t byte_size = sizeof(size_t)+sizeof(axiom_id_t)* it->second.size();
-        char *buffer = new char[byte_size];
-
-        int size = util::to_binary<size_t>(it->second.size(), buffer);
-        for (auto id = it->second.begin(); id != it->second.end(); ++id)
+        for (auto it1 = p.second.begin(); it1 != p.second.end(); ++it1)
+        for (auto it2 = p.second.begin(); it2 != it1; ++it2)
         {
-            size += util::to_binary<axiom_id_t>(*id, buffer + size);
-            axiom_to_group[*id].insert(it->first);
+            muex_axioms[*it1].insert(*it2);
+            muex_axioms[*it2].insert(*it1);
         }
-
-        assert(byte_size == size);
-        
-        dat.put(it->first.c_str(), it->first.length(), buffer, size);
-        delete [] buffer;
     }
 
     const int SIZE(512 * 512);
     char buffer[SIZE];
     
-    for (auto it = axiom_to_group.begin(); it != axiom_to_group.end(); ++it)
+    for (auto p : muex_axioms)
     {
-        int size = util::to_binary<size_t>(it->second.size(), buffer);
-        for (auto grp : it->second)
-            size += util::string_to_binary(grp, buffer + size);
+        int size = util::to_binary<size_t>(p.second.size(), buffer);
+        for (auto id : p.second)
+            size += util::to_binary<axiom_id_t>(id, buffer + size);
 
         assert(size < SIZE);
-
-        std::string key = util::format("#%lu", it->first);
-        dat.put(key.c_str(), key.length(), buffer, size);
+        dat.put(&p.first, sizeof(axiom_id_t), buffer, size);
     }
 
     IF_VERBOSE_1("completed writing " + dat.filename() + ".");
@@ -884,7 +871,7 @@ void knowledge_base_t::set_stop_words()
 
         if (ax.func.is_operator(lf::OPR_IMPLICATION))
         {
-            if (not m_config_for_compile.do_disable_deduction)
+            if (m_config_for_compile.can_deduction)
                 proc(ax, false); // DEDUCTION
             proc(ax, true);  // ABDUCTION
         }
@@ -1072,7 +1059,7 @@ void knowledge_base_t::create_query_map()
 
         if (ax.func.is_operator(lf::OPR_IMPLICATION))
         {
-            if (not m_config_for_compile.do_disable_deduction)
+            if (m_config_for_compile.can_deduction)
                 proc(ax, false); // DEDUCTION
             proc(ax, true);  // ABDUCTION
         }
@@ -1337,7 +1324,7 @@ void knowledge_base_t::_create_reachable_matrix_direct(
                 }
             }
 
-            if (not m_config_for_compile.do_disable_deduction)
+            if (m_config_for_compile.can_deduction)
             {
                 for (auto it_l = lhs_ids.begin(); it_l != lhs_ids.end(); ++it_l)
                 for (auto it_r = rhs_ids.begin(); it_r != rhs_ids.end(); ++it_r)
@@ -1388,7 +1375,7 @@ void knowledge_base_t::_create_reachable_matrix_indirect(
                 std::make_tuple(idx2, can_abduction, can_deduction);
 
             // ONCE DONE DEDUCTION, THEN IT CANNOT DO ABDUCTION ANY MORE.
-            if (m_config_for_compile.do_disable_deduction and is_forward)
+            if (not m_config_for_compile.can_deduction and is_forward)
                 std::get<1>(key) = false;
 
             if (not util::find_then(

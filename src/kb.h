@@ -331,7 +331,7 @@ private:
         float max_distance;
         int thread_num;
         bool do_disable_stop_word;
-        bool do_disable_deduction;
+        bool can_deduction;
     } m_config_for_compile;
 
     util::cdb_data_t m_cdb_rhs, m_cdb_lhs;
