@@ -1263,7 +1263,6 @@ void knowledge_base_t::_create_reachable_matrix_direct(
         if (not axiom.func.is_operator(lf::OPR_IMPLICATION)) continue;
 
         float dist = (*m_distance_provider.instance)(axiom);
-
         if (dist >= 0.0f)
         {
             hash_set<arity_id_t> lhs_ids, rhs_ids;
@@ -1373,13 +1372,11 @@ void knowledge_base_t::_create_reachable_matrix_indirect(
             if (not m_config_for_compile.can_deduction and is_forward)
                 std::get<1>(key) = false;
 
-            if (not util::find_then(
-                processed, key, dist_new, std::less_equal<float>()))
+            if (not util::find_then(processed, key, dist_new, std::less_equal<float>()))
             {
                 processed[key] = dist_new;
 
-                if (not util::find_then(
-                    *out, idx2, dist_new, std::less_equal<float>()))
+                if (not util::find_then(*out, idx2, dist_new, std::less_equal<float>()))
                     (*out)[idx2] = dist_new;
 
                 process(std::get<0>(key), std::get<1>(key), std::get<2>(key), dist_new, true);

@@ -157,18 +157,24 @@ bool logical_function_t::scan_parameter(const std::string &format, ...) const
     if (m_param.empty()) return false;
 
     int idx1(1), idx2;
-    while (idx1 > 0)
+    while (idx1 < m_param.size())
     {
-        va_list arg;
-        idx2 = m_param.find(':');
+        idx2 = m_param.find(':', idx1);
+        std::string sub =
+            (idx2 != std::string::npos) ?
+            m_param.substr(idx1, idx2 - idx1) : m_param.substr(idx1);
 
+        va_list arg;
         va_start(arg, format);
-        int ret = _vsscanf(
-            m_param.substr(idx1, idx2 - idx1).c_str(), format.c_str(), arg);
+        int ret = _vsscanf(sub.c_str(), format.c_str(), arg);
         va_end(arg);
 
-        if (ret != EOF) return true;
-        idx1 = idx2 + 1;
+        if (ret > 0) return true;
+
+        if (idx2 != std::string::npos)
+            idx1 = idx2 + 1;
+        else
+            break;
     }
     return false;
 }
