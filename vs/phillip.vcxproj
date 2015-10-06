@@ -105,6 +105,7 @@
     <ClCompile Include="..\src\processor.cpp" />
     <ClCompile Include="..\src\proof_graph.cpp" />
     <ClCompile Include="..\src\sol\sol_gurobi.cpp" />
+    <ClCompile Include="..\src\sol\sol_gurobi_kbest.cpp" />
     <ClCompile Include="..\src\sol\sol_lpsolve.cpp" />
     <ClCompile Include="..\src\sol\sol_null.cpp" />
     <ClCompile Include="..\src\s_expression.cpp" />

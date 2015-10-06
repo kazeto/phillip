@@ -78,6 +78,9 @@
     <ClCompile Include="..\src\sol\sol_null.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\sol\sol_gurobi_kbest.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\binary.h">
