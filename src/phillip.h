@@ -107,7 +107,12 @@ public:
     inline bool check_validity() const;
     
     void write_header() const;
+    void write_header(std::ostream *os) const;
+    void write_header(const std::string &filename) const;
+    
     void write_footer() const;
+    void write_footer(std::ostream *os) const;
+    void write_footer(const std::string &filename) const;
 
 protected:
     inline void reset_for_inference();

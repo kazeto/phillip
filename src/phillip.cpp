@@ -237,13 +237,21 @@ void phillip_main_t::execute_solver(
 
 void phillip_main_t::write_header() const
 {
-    auto write = [this](std::ostream *os)
-    {
-        (*os) << "<phillip>" << std::endl;
-        (*os) << "<configure>" << std::endl;
-        (*os) << "<version>" << VERSION << "</version>" << std::endl;
+    write_header(param("path_lhs_out"));
+    write_header(param("path_ilp_out"));
+    write_header(param("path_sol_out"));
+    write_header(param("path_out"));
+    write_header(&std::cout);
+}
 
-        auto get_time_stamp_exe = []() -> std::string
+
+void phillip_main_t::write_header(std::ostream *os) const
+{
+    (*os) << "<phillip>" << std::endl;
+    (*os) << "<configure>" << std::endl;
+    (*os) << "<version>" << VERSION << "</version>" << std::endl;
+
+    auto get_time_stamp_exe = []() -> std::string
         {
             int year, month, day, hour, min, sec;
             std::string out;
@@ -267,90 +275,88 @@ void phillip_main_t::write_header() const
             return out + util::format(" %2d %4d %02d:%02d:%02d", day, year, hour, min, sec);
         };
         
-        (*os)
-            << "<time_stamp compiled=\"" << util::format("%s %s", __DATE__, __TIME__)
-            << "\" executed=\"" << get_time_stamp_exe()
-            << "\"></time_stamp>" << std::endl;
+    (*os)
+        << "<time_stamp compiled=\"" << util::format("%s %s", __DATE__, __TIME__)
+        << "\" executed=\"" << get_time_stamp_exe()
+        << "\"></time_stamp>" << std::endl;
 
-        (*os)
-            << "<components lhs=\"" << m_lhs_enumerator->repr()
-            << "\" ilp=\"" << m_ilp_convertor->repr()
-            << "\" sol=\"" << m_ilp_solver->repr()
-            << "\"></components>" << std::endl;
+    (*os)
+        << "<components lhs=\"" << m_lhs_enumerator->repr()
+        << "\" ilp=\"" << m_ilp_convertor->repr()
+        << "\" sol=\"" << m_ilp_solver->repr()
+        << "\"></components>" << std::endl;
 
-        const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
-        (*os)
-            << "<knowledge_base path=\"" << base->filename()
-            << "\" size=\"" << base->num_of_axioms()
-            << "\" max_distance=\"" << base->get_max_distance()
-            << "\"></knowledge_base>" << std::endl;
+    const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
+    (*os)
+        << "<knowledge_base path=\"" << base->filename()
+        << "\" size=\"" << base->num_of_axioms()
+        << "\" max_distance=\"" << base->get_max_distance()
+        << "\"></knowledge_base>" << std::endl;
 
-        (*os)
-            << "<params timeout_lhs=\"" << timeout_lhs().get()
-            << "\" timeout_ilp=\"" << timeout_ilp().get()
-            << "\" timeout_sol=\"" << timeout_sol().get()
-            << "\" timeout_all=\"" << timeout_all().get()
-            << "\" verbose=\"" << verbose();
+    (*os)
+        << "<params timeout_lhs=\"" << timeout_lhs().get()
+        << "\" timeout_ilp=\"" << timeout_ilp().get()
+        << "\" timeout_sol=\"" << timeout_sol().get()
+        << "\" timeout_all=\"" << timeout_all().get()
+        << "\" verbose=\"" << verbose();
 
-        for (auto it = m_params.begin(); it != m_params.end(); ++it)
-            (*os) << "\" " << it->first << "=\"" << it->second;
+    for (auto it = m_params.begin(); it != m_params.end(); ++it)
+        (*os) << "\" " << it->first << "=\"" << it->second;
 
-        for (auto it = m_flags.begin(); it != m_flags.end(); ++it)
-            (*os) << "\" " << (*it) << "=\"yes";
+    for (auto it = m_flags.begin(); it != m_flags.end(); ++it)
+        (*os) << "\" " << (*it) << "=\"yes";
 
 #ifdef DISABLE_CANCELING
-        (*os) << "\" disable_canceling=\"yes";
+    (*os) << "\" disable_canceling=\"yes";
 #endif
 
 #ifdef DISABLE_HARD_TERM
-        (*os) << "\" disable_hard_term=\"yes";
+    (*os) << "\" disable_hard_term=\"yes";
 #endif
 
-        (*os) << "\"></params>" << std::endl;
+    (*os) << "\"></params>" << std::endl;
 
-        (*os) << "</configure>" << std::endl;
-    };
+    (*os) << "</configure>" << std::endl;
+}
 
-    auto f_write = [&](const std::string &key)
+
+void phillip_main_t::write_header(const std::string &filename) const
+{
+    std::ofstream *fo(NULL);
+    if ((fo = _open_file(filename, (std::ios::out | std::ios::trunc))) != NULL)
     {
-        std::ofstream *fo(NULL);
-        if ((fo = _open_file(param(key), (std::ios::out | std::ios::trunc))) != NULL)
-        {
-            write(fo);
-            delete fo;
-        }
-    };
-
-    f_write("path_lhs_out");
-    f_write("path_ilp_out");
-    f_write("path_sol_out");
-    f_write("path_out");
-    write(&std::cout);
+        write_header(fo);
+        delete fo;
+    }
 }
 
 
 void phillip_main_t::write_footer() const
 {
-    auto write = [this](std::ostream *os)
-    {
-        (*os) << "</phillip>" << std::endl;
-    };
-    auto f_write = [&](const std::string &key)
-    {
-        std::ofstream *fo(NULL);
-        if ((fo = _open_file(param(key), (std::ios::out | std::ios::app))) != NULL)
-        {
-            write(fo);
-            delete fo;
-        }
-    };
-
-    f_write("path_lhs_out");
-    f_write("path_ilp_out");
-    f_write("path_sol_out");
-    f_write("path_out");
-    write(&std::cout);
+    write_footer("path_lhs_out");
+    write_footer("path_ilp_out");
+    write_footer("path_sol_out");
+    write_footer("path_out");
+    write_footer(&std::cout);
 }
+
+
+void phillip_main_t::write_footer(std::ostream *os) const
+{
+    (*os) << "</phillip>" << std::endl;
+}
+
+
+void phillip_main_t::write_footer(const std::string &filename) const
+{
+    std::ofstream *fo(NULL);
+    if ((fo = _open_file(filename, (std::ios::out | std::ios::app))) != NULL)
+    {
+        write_footer(fo);
+        delete fo;
+    }
+}
+
 
 
 }
