@@ -112,7 +112,7 @@ void gurobi_t::solve(
     size_t num_loop(0);
     while (true)
     {
-        if (do_cpi)
+        if (do_cpi and phillip_main_t::verbose() >= VERBOSE_1)
             util::print_console_fmt("begin: Cutting-Plane-Inference #%d", (num_loop++));
 
         GRBEXECUTE(model.optimize());
