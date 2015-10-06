@@ -119,14 +119,14 @@ def write(parsed):
         print 'Summary of', path
 
         tab = util.SimpleTable(header=[
-            'idx', 'name', 'state', 'answer',
+            'idx', 'name', 'state', 'answer', 'objective',
             'obs#', 'hyp#', 'chain#', 'unify#',
             'time(lhs)', 'time(ilp)', 'time(sol)', 'time(all)',
             't.o.(lhs)', 't.o.(ilp)', 't.o.(sol)', 't.o.(all)'])
 
         for e in entities:
             tab.add_row([
-                e['index'], e['name'], e['state'], e['answer'],
+                e['index'], e['name'], e['state'], e['answer'], e['objective'],
                 e['observations'], e['hypotheses'], e['explanations'], e['unifications'],
                 e['time.lhs'], e['time.ilp'], e['time.sol'], e['time.all'],
                 e['t.o.lhs'], e['t.o.ilp'], e['t.o.sol'], e['t.o.all']])
@@ -140,7 +140,7 @@ def write(parsed):
             n_true, n_false, len(entities) - (n_true + n_false))
         
         tab.set_footer([
-            'all', '---', '---', answer,
+            'all', '---', '---', answer, '---',
             sum([e['observations'] for e in filtered]) / len(filtered),
             sum([e['hypotheses'] for e in filtered]) / len(filtered),
             sum([e['explanations'] for e in filtered]) / len(filtered),
