@@ -71,17 +71,16 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
                     if (static_cast<pg::chain_candidate_t>(cand)
                         == static_cast<pg::chain_candidate_t>(rc))
                     {
-                        float d = rc.dist_from;
-                        auto found = from2goals.find(rc.node_to);
+                        auto found = from2goals.find(rc.node_from);
 
                         if (found == from2goals.end())
                         {
                             hash_set<pg::node_idx_t> set{ rc.node_to };
-                            from2goals[rc.node_from] = std::make_pair(d, set);
+                            from2goals[rc.node_from] = std::make_pair(rc.dist_from, set);
                         }
                         else
                         {
-                            assert(found->second.first == d);
+                            assert(found->second.first == rc.dist_from);
                             found->second.second.insert(rc.node_to);
                         }
                     }
