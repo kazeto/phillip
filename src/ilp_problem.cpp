@@ -1146,12 +1146,9 @@ void ilp_solution_t::enumerate_unified_terms_sets(std::list<hash_set<term_t> > *
     assert(out->empty()); // ON BEGINNING, OUT MUST BE EMPTY.
 
     for (auto n : graph->nodes())
-    if (n.is_equality_node())
     {
-        variable_idx_t v = problem()->find_variable_with_node(n.index());
-
-        if (v >= 0)
-        if (variable_is_active(v))
+        if (n.is_equality_node())
+        if (prob->node_is_active(*this, n.index()))
         {
             const std::vector<term_t> &unified = n.literal().terms;
             auto it_set = out->begin();
@@ -1219,8 +1216,7 @@ void ilp_solution_t::print_human_readable_hypothesis(std::ostream *os) const
     {
         variable_idx_t v = problem()->find_variable_with_node(n.index());
 
-        if (v >= 0)
-        if (variable_is_active(v))
+        if (prob->node_is_active(*this, n.index()))
         {
             if (n.is_non_equality_node())
                 literals.insert(reguralized(terms, n.literal()));

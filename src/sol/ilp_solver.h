@@ -113,7 +113,7 @@ protected:
         std::chrono::time_point<std::chrono::system_clock> begin;
         const ilp::ilp_problem_t *prob;
         std::unique_ptr<GRBModel> model;
-        GRBEnv env;
+        std::unique_ptr<GRBEnv> env;
         hash_map<ilp::variable_idx_t, GRBVar> vars;
         hash_set<ilp::constraint_idx_t> lazy_cons;
         bool do_cpi;

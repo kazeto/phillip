@@ -79,8 +79,8 @@ void gurobi_t::prepare(model_t &m) const
 
     g_mutex_gurobi.lock();
     {
-        m.env = GRBEnv();
-        m.model.reset(new GRBModel(m.env));
+        m.env.reset(new GRBEnv());
+        m.model.reset(new GRBModel(*m.env));
         m.lazy_cons = m.prob->get_lazy_constraints();
         m.do_cpi = (not m.lazy_cons.empty());
     }

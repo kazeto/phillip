@@ -88,14 +88,14 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
                 }
 
                 for (auto p : from2goals)
+                for (auto n : nodes_new)
                 {
-                    float dist = p.second.first + base->get_distance(axiom);
+                    const pg::node_idx_t &node_from = p.first;
+                    const float &dist_from = p.second.first;
+                    const hash_set<pg::node_idx_t> &nodes_to = p.second.second;
 
-                    for (auto n : nodes_new)
-                    {
-                        add_reachability(
-                            graph, p.first, n, dist, p.second.second, &rm);
-                    }
+                    add_reachability(
+                        graph, node_from, n, dist_from, nodes_to, &rm);
                 }
             }
 

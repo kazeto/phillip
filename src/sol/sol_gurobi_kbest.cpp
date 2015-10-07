@@ -35,14 +35,24 @@ void gurobi_k_best_t::solve(
     const ilp::ilp_problem_t *prob,
     std::vector<ilp::ilp_solution_t> *out) const
 {
-    const pg::proof_graph_t *graph = prob->proof_graph();
-
 #ifdef USE_GUROBI
+    if (phillip_main_t::verbose() >= VERBOSE_3)
+    {
+        util::print_console("K-best optimization mode:");
+        util::print_console_fmt("    max solutions num = %d", m_max_num);
+        util::print_console_fmt("    threshold = %02f", m_threshold);
+        util::print_console_fmt("    margin = %d", m_margin);
+        std::cerr << std::endl;
+    }
+
+    const pg::proof_graph_t *graph = prob->proof_graph();
     model_t m(prob);
     prepare(m);
 
     while (out->size() < m_max_num)
     {
+        IF_VERBOSE_1(util::format("Optimization #%d", out->size() + 1));
+
         if (not out->empty())
         {
             ilp::constraint_t con(
@@ -50,12 +60,15 @@ void gurobi_k_best_t::solve(
             const ilp::ilp_solution_t &sol = out->back();
             int count(0);
 
-            for (pg::node_idx_t i = 0; i < graph->nodes().size(); ++i)
+            for (auto n : graph->nodes())
+            if (n.type() == pg::NODE_HYPOTHESIS
+                and not n.is_equality_node()
+                and not n.is_non_equality_node())
             {
-                ilp::variable_idx_t v = prob->find_variable_with_node(i);
+                ilp::variable_idx_t v = prob->find_variable_with_node(n.index());
                 if (v >= 0)
                 {
-                    if (prob->node_is_active(sol, i))
+                    if (prob->node_is_active(sol, n.index()))
                     {
                         con.add_term(v, -1.0);
                         ++count;
@@ -71,7 +84,7 @@ void gurobi_k_best_t::solve(
 
         ilp::ilp_solution_t sol = optimize(m);
 
-        if (out->empty())
+        if (not out->empty())
         {
             if (sol.type() == ilp::SOLUTION_NOT_AVAILABLE)
                 break;
@@ -90,8 +103,7 @@ void gurobi_k_best_t::solve(
         out->push_back(sol);
 
         if (sol.type() == ilp::SOLUTION_NOT_AVAILABLE) break;
-
-        // TODO: ‰½‚à„˜_‚µ‚È‚¢ó‘Ô‚æ‚è‚à•]‰¿’l‚ª¬‚³‚¢ê‡‚ÍŠü‹p
+        if (sol.has_timed_out()) break;
     }
 
 #endif
@@ -127,8 +139,8 @@ ilp_solver_t* gurobi_k_best_t::generator_t::operator()(const phillip_main_t *ph)
         ph,
         ph->param_int("gurobi_thread_num"),
         ph->flag("activate_gurobi_log"),
-        ph->param_int("max_sols_num", 1),
-        ph->param_float("sols_threshold"),
+        ph->param_int("max_sols_num", 5),
+        ph->param_float("sols_threshold", 10.0),
         ph->param_int("sols_margin", 1));
 }
 

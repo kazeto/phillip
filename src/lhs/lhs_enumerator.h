@@ -47,7 +47,7 @@ private:
 
         pg::node_idx_t node_from; // The start node.
         pg::node_idx_t node_to;   // The goal node.
-        float dist_from; // Distance from the start node new nodes.
+        float dist_from; // Distance from the start node to new nodes.
         float dist_to;   // Distance from new node to the goal node.
     };
 

@@ -333,10 +333,10 @@ void phillip_main_t::write_header(const std::string &filename) const
 
 void phillip_main_t::write_footer() const
 {
-    write_footer("path_lhs_out");
-    write_footer("path_ilp_out");
-    write_footer("path_sol_out");
-    write_footer("path_out");
+    write_footer(param("path_lhs_out"));
+    write_footer(param("path_ilp_out"));
+    write_footer(param("path_sol_out"));
+    write_footer(param("path_out"));
     write_footer(&std::cout);
 }
 
