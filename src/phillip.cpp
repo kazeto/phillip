@@ -132,7 +132,7 @@ void phillip_main_t::learn(const lf::input_t &input)
         get_path_for_gold("path_sol_out"));
 
     util::xml_element_t elem("learn", "");
-    m_ilp_convertor->tune(m_sol.front(), m_sol_gold.front(), &elem);
+    m_ilp_convertor->train(m_sol.front(), m_sol_gold.front(), &elem);
 
     m_time_for_learn = util::duration_time(begin);
 

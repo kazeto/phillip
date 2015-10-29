@@ -61,7 +61,7 @@ public:
     virtual ilp::ilp_problem_t* execute() const = 0;
 
     /** Tunes its own parameters from a system output and a gold output. */
-    virtual void tune(
+    virtual void train(
         const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold,
         util::xml_element_t *out) {};
 
