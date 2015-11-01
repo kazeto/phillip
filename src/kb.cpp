@@ -334,7 +334,7 @@ void knowledge_base_t::write_config() const
 
     if (not fo)
         throw phillip_exception_t(
-        util::format("Cannot open KB-configuration file: \"%s\""), filename.c_str());
+        util::format("Cannot open KB-configuration file: \"%s\"", filename.c_str()));
 
     fo.write(&version, sizeof(char));
     fo.write((char*)&m_config_for_compile.max_distance, sizeof(float));
@@ -360,7 +360,7 @@ void knowledge_base_t::read_config()
 
     if (not fi)
         throw phillip_exception_t(
-        util::format("Cannot open KB-configuration file: \"%s\""), filename.c_str());
+        util::format("Cannot open KB-configuration file: \"%s\"", filename.c_str()));
 
     fi.read(&version, sizeof(char));
 
