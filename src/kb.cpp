@@ -333,6 +333,10 @@ void knowledge_base_t::write_config() const
     char num_dp = m_distance_provider.key.length();
     char num_ct = m_category_table.key.length();
 
+    if (not fo)
+        throw phillip_exception_t(
+        util::format("Cannot open KB-configuration file: \"%s\""), filename.c_str());
+
     fo.write(&version, sizeof(char));
     fo.write((char*)&ms_max_distance, sizeof(float));
 
@@ -352,6 +356,10 @@ void knowledge_base_t::read_config()
     std::ifstream fi(filename.c_str(), std::ios::in | std::ios::binary);
     char version, num;
     char key[256];
+
+    if (not fi)
+        throw phillip_exception_t(
+        util::format("Cannot open KB-configuration file: \"%s\""), filename.c_str());
 
     fi.read(&version, sizeof(char));
 
