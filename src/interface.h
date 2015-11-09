@@ -38,10 +38,14 @@ public:
 protected:
     static bool do_include_requirement(
         const pg::proof_graph_t *graph, const std::vector<index_t> &nodes);
+    static bool do_exceed_max_lhs_size(
+        const pg::proof_graph_t *graph, int max_nodes_num);
 
     /** Add nodes of observations in phillip_main_t to LHS. */
     void add_observations(pg::proof_graph_t *target) const;
     bool do_time_out(const std::chrono::system_clock::time_point &begin) const;
+
+    int get_max_lhs_size() const;
 };
 
 

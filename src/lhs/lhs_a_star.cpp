@@ -32,7 +32,9 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
     pg::proof_graph_t *graph =
         new pg::proof_graph_t(phillip(), phillip()->get_input()->name);
     std::map<pg::chain_candidate_t, pg::hypernode_idx_t> considered;
-    
+
+    int max_size = get_max_lhs_size();
+
     auto begin = std::chrono::system_clock::now();
     add_observations(graph);
 
@@ -51,6 +53,10 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
             graph->timeout(true);
             break;
         }
+
+        // CHECK LHS-SIZE
+        if (do_exceed_max_lhs_size(graph, max_size))
+            break;
 
         if (considered.count(static_cast<pg::chain_candidate_t>(cand)) == 0)
         {

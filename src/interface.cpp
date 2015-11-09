@@ -16,6 +16,21 @@ bool lhs_enumerator_t::do_include_requirement(
 }
 
 
+bool lhs_enumerator_t::do_exceed_max_lhs_size(
+    const pg::proof_graph_t *graph, int max_nodes_num)
+{
+    if (max_nodes_num > 0 and graph->nodes().size() >= max_nodes_num)
+    {
+        IF_VERBOSE_3("The number of literals exceeds the limitation!");
+        IF_VERBOSE_4(util::format("    now: %d", graph->nodes().size()));
+        IF_VERBOSE_4(util::format("    max: %d", max_nodes_num));
+        return true;
+    }
+    else
+        return false;
+}
+
+
 void lhs_enumerator_t::add_observations(pg::proof_graph_t *target) const
 {
     std::vector<const literal_t*> obs =
@@ -40,6 +55,11 @@ bool lhs_enumerator_t::do_time_out(const std::chrono::system_clock::time_point &
         phillip()->timeout_all().do_time_out(begin);
 }
 
+
+int lhs_enumerator_t::get_max_lhs_size() const
+{
+    return phillip()->param_int("max_lhs_size");
+}
 
 
 void ilp_converter_t::convert_proof_graph(ilp::ilp_problem_t *prob) const

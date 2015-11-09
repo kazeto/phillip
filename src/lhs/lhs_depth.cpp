@@ -32,6 +32,8 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
         new pg::proof_graph_t(phillip(), phillip()->get_input()->name);
     pg::proof_graph_t::chain_candidate_generator_t gen(graph);
 
+    int max_size = get_max_lhs_size();
+
     auto begin = std::chrono::system_clock::now();
     add_observations(graph);
 
@@ -69,15 +71,18 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
                     graph->backward_chain(c.nodes, axiom);
             }
 
+            if (do_exceed_max_lhs_size(graph, max_size))
+                goto ABORT_GEN;
+
             if (do_time_out(begin))
             {
                 graph->timeout(true);
-                goto TIMED_OUT;
+                goto ABORT_GEN;
             }
         }
     }
 
-    TIMED_OUT:
+    ABORT_GEN:
 
     graph->post_process();
     return graph;
