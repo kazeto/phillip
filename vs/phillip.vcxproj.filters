@@ -81,6 +81,9 @@
     <ClCompile Include="..\src\sol\sol_gurobi_kbest.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\optimization.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\binary.h">
@@ -159,6 +162,9 @@
       <Filter>header</Filter>
     </ClInclude>
     <ClInclude Include="..\src\s_expression.inline.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\optimization.h">
       <Filter>header</Filter>
     </ClInclude>
   </ItemGroup>

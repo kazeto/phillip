@@ -45,12 +45,15 @@ public:
     class cost_provider_t
     {
     public:
+        virtual ~cost_provider_t() {}
+
         virtual hash_map<pg::node_idx_t, double> operator()(const pg::proof_graph_t *g) const = 0;
         virtual cost_provider_t* duplicate() const = 0;
 
         virtual void train(
             const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold,
             util::xml_element_t *out) = 0;
+        virtual bool is_trainable() const = 0;
 
         virtual std::string repr() const = 0;
 
@@ -66,7 +69,8 @@ public:
         static std::vector<double> get_axiom_weights(const pg::proof_graph_t*, pg::edge_idx_t, double);
     };
 
-    /** A super class of cost_provider_t, which is basic. */
+    /** A super class of cost_provider_t.
+     *  This is based on traditional weighted abduction in [Hobbs, 93]. */
     class basic_cost_provider_t : public cost_provider_t
     {
     public:
@@ -75,11 +79,12 @@ public:
             const std::string &name);
 
         virtual hash_map<pg::node_idx_t, double> operator()(const pg::proof_graph_t *g) const override;
-        virtual cost_provider_t*duplicate() const;
+        virtual cost_provider_t* duplicate() const override;
         virtual void train(
             const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold,
-            util::xml_element_t *out) {}
-        virtual std::string repr() const { return "basic"; }
+            util::xml_element_t *out) override {}
+        virtual bool is_trainable() const override { return false; }
+        virtual std::string repr() const override { return "basic"; }
 
     protected:
         std::string m_name;
@@ -94,16 +99,18 @@ public:
     {
     public:
         typedef hash_map<std::string, double> feature_weights_t;
+
         parameterized_cost_provider_t();
         parameterized_cost_provider_t(const std::string &filename);
         parameterized_cost_provider_t(const feature_weights_t &weights);
 
         virtual hash_map<pg::node_idx_t, double> operator()(const pg::proof_graph_t *g) const override;
-        virtual cost_provider_t*duplicate() const;
+        virtual cost_provider_t* duplicate() const override;
         virtual void train(
             const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold,
-            util::xml_element_t *out);
-        virtual std::string repr() const { return "parameterized"; }
+            util::xml_element_t *out) override;
+        virtual bool is_trainable() const override { return false; }
+        virtual std::string repr() const override { return "parameterized"; }
 
         void write(const std::string &filename) const; /// Outputs the feature weights.
 

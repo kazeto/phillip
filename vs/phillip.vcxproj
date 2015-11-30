@@ -101,6 +101,7 @@
     <ClCompile Include="..\src\lib\getopt_win.cpp" />
     <ClCompile Include="..\src\logical_function.cpp" />
     <ClCompile Include="..\src\main.cpp" />
+    <ClCompile Include="..\src\optimization.cpp" />
     <ClCompile Include="..\src\phillip.cpp" />
     <ClCompile Include="..\src\processor.cpp" />
     <ClCompile Include="..\src\proof_graph.cpp" />
@@ -129,6 +130,7 @@
     <ClInclude Include="..\src\lib\getopt_win.h" />
     <ClInclude Include="..\src\logical_function.h" />
     <ClInclude Include="..\src\logical_function.inline.h" />
+    <ClInclude Include="..\src\optimization.h" />
     <ClInclude Include="..\src\phillip.h" />
     <ClInclude Include="..\src\phillip.inline.h" />
     <ClInclude Include="..\src\processor.h" />
