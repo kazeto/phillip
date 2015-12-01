@@ -38,7 +38,6 @@ public:
     };
 
     null_solver_t(const phillip_main_t *ptr) : ilp_solver_t(ptr) {}
-    virtual ilp_solver_t* duplicate(const phillip_main_t *ptr) const;
 
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const;
     virtual void solve(
@@ -61,7 +60,6 @@ public:
     };
 
     lp_solve_t(const phillip_main_t *ptr) : ilp_solver_t(ptr) {}
-    virtual ilp_solver_t* duplicate(const phillip_main_t *ptr) const;
 
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const;
     virtual void solve(
@@ -93,7 +91,6 @@ public:
     };
 
     gurobi_t(const phillip_main_t *ptr, int thread_num, bool do_output_log);
-    virtual ilp_solver_t* duplicate(const phillip_main_t *ptr) const;
 
     virtual void execute(std::vector<ilp::ilp_solution_t> *out) const;
     virtual void solve(

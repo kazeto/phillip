@@ -42,12 +42,6 @@ weighted_converter_t::weighted_converter_t(
 {}
 
 
-ilp_converter_t* weighted_converter_t::duplicate(const phillip_main_t *ptr) const
-{
-    return new weighted_converter_t(ptr, m_cost_provider->duplicate());
-}
-
-
 ilp::ilp_problem_t* weighted_converter_t::execute() const
 {
     auto begin = std::chrono::system_clock::now();
@@ -376,13 +370,6 @@ weighted_converter_t::basic_cost_provider_t::operator()(const pg::proof_graph_t 
 }
 
 
-weighted_converter_t::cost_provider_t*
-weighted_converter_t::basic_cost_provider_t::duplicate() const
-{
-    return new basic_cost_provider_t(
-        m_cost_operator, m_default_observation_cost, m_default_axiom_weight, m_name);
-}
-
 
 /* -------- Methods of parameterized_cost_provider_t -------- */
 
@@ -391,29 +378,9 @@ weighted_converter_t::parameterized_cost_provider_t::parameterized_cost_provider
 {}
 
 
-weighted_converter_t::parameterized_cost_provider_t::parameterized_cost_provider_t(const std::string &filename)
-{
-    std::ifstream fin(filename);
-    char line[256];
-
-    while (fin.good() and not fin.eof())
-    {
-        fin.getline(line, 256);
-        auto splitted = util::split(line, "\t");
-
-        if (splitted.size() == 2)
-        {
-            double w;
-            _sscanf(splitted.back().c_str(), "%lf", &w);
-            m_weights[splitted.front()] = w;
-        }
-    }
-}
-
-
 weighted_converter_t::parameterized_cost_provider_t::
-parameterized_cost_provider_t(const feature_weights_t &weights)
-: m_weights(weights)
+parameterized_cost_provider_t(const parameterized_cost_provider_t &p)
+: m_weights(p.m_weights)
 {}
 
 
@@ -431,12 +398,6 @@ parameterized_cost_provider_t::operator()(const pg::proof_graph_t *g) const
 }
 
 
-weighted_converter_t::cost_provider_t* weighted_converter_t::parameterized_cost_provider_t::duplicate() const
-{
-    return new parameterized_cost_provider_t(m_weights);
-}
-
-
 void weighted_converter_t::parameterized_cost_provider_t::train(
     const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold,
     util::xml_element_t *out)
@@ -445,11 +406,54 @@ void weighted_converter_t::parameterized_cost_provider_t::train(
 }
 
 
+void weighted_converter_t::parameterized_cost_provider_t::load(const std::string &filename)
+{
+    m_weights.clear();
+
+    std::ifstream fin(filename);
+    char line[256];
+
+    if (not fin)
+    {
+        util::print_warning_fmt(
+            "cannot open feature-weight file: \"%s\"", filename.c_str());
+        return;
+    }
+
+    while (fin.good() and not fin.eof())
+    {
+        fin.getline(line, 256);
+        auto splitted = util::split(line, "\t");
+
+        if (splitted.size() == 2)
+        {
+            double w;
+            _sscanf(splitted.back().c_str(), "%lf", &w);
+            m_weights[splitted.front()] = w;
+        }
+    }
+}
+
+
+void weighted_converter_t::parameterized_cost_provider_t::load(const feature_weights_t &weights)
+{
+    m_weights = weights;
+}
+
+
 void weighted_converter_t::parameterized_cost_provider_t::write(const std::string &filename) const
 {
     std::ofstream fout(filename);
+
+    if (not fout)
+    {
+        util::print_warning_fmt(
+            "cannot open feature-weight file: \"%s\"", filename.c_str());
+        return;
+    }
+
     for (auto p : m_weights)
-        fout << p.first << '\t' << p.second;
+        fout << p.first << '\t' << p.second << std::endl;
 }
 
 

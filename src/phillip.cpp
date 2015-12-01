@@ -36,23 +36,6 @@ phillip_main_t::~phillip_main_t()
 }
 
 
-phillip_main_t* phillip_main_t::duplicate() const
-{
-    phillip_main_t *out = new phillip_main_t();
-    out->set_lhs_enumerator(m_lhs_enumerator->duplicate(out));
-    out->set_ilp_convertor(m_ilp_convertor->duplicate(out));
-    out->set_ilp_solver(m_ilp_solver->duplicate(out));
-
-    out->m_params.insert(m_params.begin(), m_params.end());
-    out->m_flags.insert(m_flags.begin(), m_flags.end());
-    out->m_timeout_lhs = m_timeout_lhs;
-    out->m_timeout_ilp = m_timeout_ilp;
-    out->m_timeout_sol = m_timeout_sol;
-
-    return out;
-}
-
-
 std::ofstream* _open_file(const std::string &path, std::ios::openmode mode)
 {
     if (not path.empty())

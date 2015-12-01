@@ -10,12 +10,6 @@ namespace sol
 {
 
 
-ilp_solver_t* lp_solve_t::duplicate(const phillip_main_t *ptr) const
-{
-    return new lp_solve_t(ptr);
-}
-
-
 void lp_solve_t::execute(std::vector<ilp::ilp_solution_t> *out) const
 {
 #ifdef USE_LP_SOLVE

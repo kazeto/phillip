@@ -1,3 +1,5 @@
+#pragma once
+
 #include <functional>
 #include <memory>
 #include <algorithm>
@@ -23,15 +25,15 @@ typedef std::function<rate_t(epoch_t)> scheduler_t;
 
 namespace norm /// Namespace for normalizer.
 {
-    double l1_norm(weight_t w, rate_t r) { return r; }
-    double l2_norm(weight_t w, rate_t r) { return w * r; }
+double l1_norm(weight_t w, rate_t r);
+double l2_norm(weight_t w, rate_t r);
 }
 
 
 namespace lr /// Namespace for schedulers of learning rate.
 {
-    rate_t linear(rate_t r0, rate_t d, epoch_t e) { return std::max(0.0, r0 - e * d); }
-    rate_t exponential(rate_t r0, rate_t d, epoch_t e) { return r0 * std::pow(d, e); }
+rate_t linear(rate_t r0, rate_t d, epoch_t e);
+rate_t exponential(rate_t r0, rate_t d, epoch_t e);
 }
 
 

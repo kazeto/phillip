@@ -38,8 +38,6 @@ public:
 
     phillip_main_t();
     ~phillip_main_t();
-
-    phillip_main_t* duplicate() const;
     
     /** Infer a explanation to given observation.
      *  You can get the results via accesser functions.
@@ -134,6 +132,8 @@ protected:
         const std::string &path_out_xml);
 
 private:
+    phillip_main_t(const phillip_main_t &) {} /// COPY IS PROHIBITED.
+
     static int ms_verboseness;
 
     // ---- FUNCTION CLASS OF EACH PROCEDURE

@@ -2,7 +2,9 @@
 
 #include <memory>
 #include <functional>
+
 #include "../phillip.h"
+#include "../optimization.h"
 
 namespace phil
 {
@@ -22,7 +24,6 @@ public:
 
     null_converter_t(const phillip_main_t *ptr) : ilp_converter_t(ptr) {}
 
-    virtual ilp_converter_t* duplicate(const phillip_main_t *ptr) const override;
     virtual ilp::ilp_problem_t* execute() const override;
     virtual bool is_available(std::list<std::string>*) const override;
     virtual std::string repr() const override;
@@ -48,7 +49,6 @@ public:
         virtual ~cost_provider_t() {}
 
         virtual hash_map<pg::node_idx_t, double> operator()(const pg::proof_graph_t *g) const = 0;
-        virtual cost_provider_t* duplicate() const = 0;
 
         virtual void train(
             const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold,
@@ -79,7 +79,6 @@ public:
             const std::string &name);
 
         virtual hash_map<pg::node_idx_t, double> operator()(const pg::proof_graph_t *g) const override;
-        virtual cost_provider_t* duplicate() const override;
         virtual void train(
             const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold,
             util::xml_element_t *out) override {}
@@ -101,23 +100,24 @@ public:
         typedef hash_map<std::string, double> feature_weights_t;
 
         parameterized_cost_provider_t();
-        parameterized_cost_provider_t(const std::string &filename);
-        parameterized_cost_provider_t(const feature_weights_t &weights);
+        parameterized_cost_provider_t(const parameterized_cost_provider_t &p);
 
         virtual hash_map<pg::node_idx_t, double> operator()(const pg::proof_graph_t *g) const override;
-        virtual cost_provider_t* duplicate() const override;
         virtual void train(
             const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold,
             util::xml_element_t *out) override;
         virtual bool is_trainable() const override { return false; }
         virtual std::string repr() const override { return "parameterized"; }
 
+        void load(const std::string &filename);
+        void load(const feature_weights_t &weights);
         void write(const std::string &filename) const; /// Outputs the feature weights.
 
     protected:
         static std::vector<double> get_weights(const pg::proof_graph_t*, pg::edge_idx_t, feature_weights_t*);
 
         mutable feature_weights_t m_weights; /// Feature weights learned.
+        std::unique_ptr<opt::optimization_method_t> m_optimizer;
     };
 
     class xml_decorator_t : public ilp::solution_xml_decorator_t
@@ -136,7 +136,6 @@ public:
 
     weighted_converter_t(const phillip_main_t *main, cost_provider_t *ptr);
 
-    virtual ilp_converter_t* duplicate(const phillip_main_t *ptr) const override;
     virtual ilp::ilp_problem_t* execute() const override;
     virtual bool is_available(std::list<std::string>*) const override;
     virtual std::string repr() const override;
@@ -159,7 +158,6 @@ public:
     class cost_provider_t {
     public:
         virtual ~cost_provider_t() {}
-        virtual cost_provider_t* duplicate() const = 0;
         virtual double edge_cost(const pg::proof_graph_t*, pg::edge_idx_t) const = 0;
         virtual double node_cost(const pg::proof_graph_t*, pg::node_idx_t) const = 0;
     };
@@ -168,7 +166,6 @@ public:
     public:
         basic_cost_provider_t(
             double default_cost, double literal_unify_cost, double term_unify_cost);
-        virtual cost_provider_t* duplicate() const;
         virtual double edge_cost(const pg::proof_graph_t*, pg::edge_idx_t) const;
         virtual double node_cost(const pg::proof_graph_t*, pg::node_idx_t) const;
     private:
@@ -180,7 +177,6 @@ public:
     costed_converter_t(const phillip_main_t *main, cost_provider_t *ptr = NULL);
     ~costed_converter_t();
 
-    virtual ilp_converter_t* duplicate(const phillip_main_t *ptr) const override;
     virtual ilp::ilp_problem_t* execute() const override;
     virtual bool is_available(std::list<std::string>*) const override;
     virtual std::string repr() const override;

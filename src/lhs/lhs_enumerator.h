@@ -25,9 +25,7 @@ public:
         virtual lhs_enumerator_t* operator()(const phillip_main_t*) const override;
     };
 
-    a_star_based_enumerator_t(
-        const phillip_main_t *ptr, float max_dist, int max_depth = -1);
-    virtual lhs_enumerator_t* duplicate(const phillip_main_t *ptr) const;
+    a_star_based_enumerator_t(const phillip_main_t *ptr, float max_dist, int max_depth = -1);
 
     virtual pg::proof_graph_t* execute() const;
 
@@ -83,7 +81,6 @@ public:
     };
 
     depth_based_enumerator_t(const phillip_main_t *ptr, int max_depth);
-    virtual lhs_enumerator_t* duplicate(const phillip_main_t *ptr) const;
 
     virtual pg::proof_graph_t* execute() const;
 

@@ -49,12 +49,6 @@ costed_converter_t::~costed_converter_t()
 }
 
 
-ilp_converter_t* costed_converter_t::duplicate(const phillip_main_t *ptr) const
-{
-    return new costed_converter_t(ptr, m_cost_provider->duplicate());
-}
-
-
 ilp::ilp_problem_t* costed_converter_t::execute() const
 {
     auto begin = std::chrono::system_clock::now();
@@ -128,14 +122,6 @@ costed_converter_t::basic_cost_provider_t::basic_cost_provider_t(
       m_literal_unifying_cost(literal_unify_cost),
       m_term_unifying_cost(term_unify_cost)
 {}
-
-
-costed_converter_t::cost_provider_t*
-costed_converter_t::basic_cost_provider_t::duplicate() const
-{
-    return new basic_cost_provider_t(
-        m_default_axiom_cost, m_literal_unifying_cost, m_term_unifying_cost);
-}
 
 
 double costed_converter_t::basic_cost_provider_t::edge_cost(

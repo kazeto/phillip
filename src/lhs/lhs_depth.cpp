@@ -18,13 +18,6 @@ depth_based_enumerator_t::depth_based_enumerator_t(
 {}
 
 
-lhs_enumerator_t* depth_based_enumerator_t
-::duplicate(const phillip_main_t *ptr) const
-{
-    return new depth_based_enumerator_t(ptr, m_depth_max);
-}
-
-
 pg::proof_graph_t* depth_based_enumerator_t::execute() const
 {
     const kb::knowledge_base_t *base(kb::knowledge_base_t::instance());
