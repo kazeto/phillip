@@ -227,10 +227,11 @@ void execute(
                 {
                     proc(ipt);
                 }
-                catch (...)
+                catch (const std::exception &e)
                 {
                     util::print_warning_fmt(
                         "Some exception was caught and then the observation \"%s\" was skipped.", obs_name.c_str());
+                    util::print_warning_fmt("  -> what(): %s", e.what());
                     continue;
                 }
 #endif
