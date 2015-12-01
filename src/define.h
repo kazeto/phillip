@@ -193,6 +193,7 @@ public:
     inline std::string to_string(bool f_colored = false) const;
     inline std::string get_arity() const;
 
+    inline bool is_valid() const;
     inline bool is_equality() const { return predicate == "="; }
 
     size_t write_binary(char *bin) const;

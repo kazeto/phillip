@@ -9,14 +9,27 @@
 namespace phil
 {
 
-    namespace proc
-    {
+namespace proc
+{
 
+
+#ifdef SKIP_SYNTAX_ERROR
 
 #define _assert_syntax(x, s, e) \
-        if (not(x)) throw phillip_exception_t( \
-        util::format("Syntax error at line %d:", s.get_line_num()) \
-        + e + "\n" + s.get_stack()->to_string()); \
+    if (not(x)){ \
+        util::print_warning(\
+            util::format("Syntax error at line %d: ", s.get_line_num()) \
+            + e + "\n" + s.get_stack()->to_string()); \
+        return; }
+
+#else
+
+#define _assert_syntax(x, s, e) \
+    if (not(x)) throw phillip_exception_t(\
+    util::format("Syntax error at line %d: ", s.get_line_num()) \
+    + e + "\n" + s.get_stack()->to_string());
+
+#endif
 
 
 void parse_obs_t::process(const sexp::reader_t *reader)
@@ -37,11 +50,13 @@ void parse_obs_t::process(const sexp::reader_t *reader)
     if (i_name >= 0)
         name = stack.children.at(i_name)->children.at(1)->get_string();
 
-    _assert_syntax((i_obs >= 0), (*reader), "Any input was not found:" + name);
+    _assert_syntax((i_obs >= 0), (*reader), "Any input was not found: " + name);
 
     lf::input_t data;
     data.name = reader->name() + "::" + name;
     data.obs = lf::logical_function_t(*stack.children.at(i_obs));
+
+    _assert_syntax(data.obs.is_valid_as_observation(), (*reader), "Invalid observation: \"" + name + "\"");
 
     if (i_req >= 0)
     {

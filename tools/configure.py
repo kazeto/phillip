@@ -39,7 +39,7 @@ def write_main(target_bin, do_use_lpsolve, do_use_gurobi):
             'OBJS_BIN = $(SRCS_BIN:.cpp=.o)',
             'OBJS_LIB = $(SRCS_LIB:.cpp=.lo)',
             '',
-            'OPTS = -O2 -std=c++11 -g',
+            'OPTS = -O2 -std=c++11 -DNDEBUG',
             'IDFLAGS =',
             'LDFLAGS =',
             '',

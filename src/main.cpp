@@ -15,6 +15,11 @@ int main(int argc, char* argv[])
     bin::execution_configure_t config;
     bin::inputs_t inputs;
 
+#ifdef _DEBUG
+    /* DO NOT HANDLE EXCEPTIONS TO LET THE DEBUGGER CATCH AN EXCEPTION. */
+    bin::prepare(argc, argv, &phillip, &config, &inputs);
+    bin::execute(&phillip, config, inputs);
+#else
     try
     {
         bin::prepare(argc, argv, &phillip, &config, &inputs);
@@ -25,5 +30,5 @@ int main(int argc, char* argv[])
         util::print_error(exception.what());
         if (exception.do_print_usage()) bin::print_usage();
     }
-
+#endif
 }
