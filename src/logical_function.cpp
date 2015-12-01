@@ -181,6 +181,22 @@ bool logical_function_t::scan_parameter(const std::string &format, ...) const
 }
 
 
+bool logical_function_t::is_valid_as_observation() const
+{
+    if (not is_operator(OPR_AND)) return false;
+
+    for (auto br : branches())
+    {
+        if (not br.is_operator(OPR_LITERAL))
+            return false;
+        else if (not br.literal().is_valid())
+            return false;
+    }
+
+    return true;
+}
+
+
 bool logical_function_t::is_valid_as_implication() const
 {
     if (not is_operator(OPR_IMPLICATION))

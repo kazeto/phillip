@@ -67,6 +67,7 @@ public:
     bool find_parameter(const std::string &query) const;
     bool scan_parameter(const std::string &format, ...) const;
 
+    bool is_valid_as_observation() const;
     bool is_valid_as_implication() const;
     bool is_valid_as_paraphrase() const;
     bool is_valid_as_inconsistency() const;

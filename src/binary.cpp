@@ -173,6 +173,14 @@ void execute(
         util::print_console("Completed to compile knowledge-base.");
     }
 
+    auto proc = [&](const lf::input_t &ipt)
+    {
+        if (config.mode == bin::EXE_MODE_INFERENCE)
+            phillip->infer(ipt);
+        else
+            phillip->learn(ipt);
+    };
+
     /* INFERENCE */
     if (config.mode == bin::EXE_MODE_INFERENCE or
         config.mode == bin::EXE_MODE_LEARNING)
@@ -192,6 +200,7 @@ void execute(
         kb::knowledge_base_t::instance()->prepare_query();
         phillip->check_validity();
 
+        // SOLVE EACH OBSERVATION
         for (int i = 0; i < parsed_inputs.size(); ++i)
         {
             const lf::input_t &ipt = parsed_inputs.at(i);
@@ -209,26 +218,26 @@ void execute(
                     flag_printing = true;
                 }
 
-                util::print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
-                kb::knowledge_base_t::instance()->clear_distance_cache();
-
-                if (config.mode == bin::EXE_MODE_INFERENCE)
+#ifdef _DEBUG
+                /* DO NOT HANDLE EXCEPTIONS TO LET THE DEBUGGER CATCH AN EXCEPTION. */
+                proc(ipt);
+#else
+                try
                 {
-                    phillip->infer(ipt);
-
-                    auto sols = phillip->get_solutions();
-                    for (auto sol = sols.begin(); sol != sols.end(); ++sol)
-                        sol->print_graph();
+                    proc(ipt);
                 }
-                else
+                catch (...)
                 {
-                    phillip->learn(ipt);
-
-                    auto sols = phillip->get_solutions();
-                    for (auto sol = sols.begin(); sol != sols.end(); ++sol)
-                        sol->print_graph();
+                    util::print_warning_fmt(
+                        "Some exception was caught and then the observation \"%s\" was skipped.", obs_name.c_str());
+                    continue;
                 }
+#endif
             }
+
+            auto sols = phillip->get_solutions();
+            for (auto sol = sols.begin(); sol != sols.end(); ++sol)
+                sol->print_graph();
         }
 
         if (flag_printing)

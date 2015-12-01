@@ -246,6 +246,12 @@ inline std::string literal_t::get_arity() const
 }
 
 
+inline bool literal_t::is_valid() const
+{
+    return not terms.empty() and not predicate.empty();
+}
+
+
 inline void literal_t::regularize()
 {
     if (is_equality())
