@@ -9,14 +9,27 @@
 namespace phil
 {
 
-    namespace proc
-    {
+namespace proc
+{
 
+
+#ifdef SKIP_SYNTAX_ERROR
 
 #define _assert_syntax(x, s, e) \
-        if (not(x)) throw phillip_exception_t( \
-        util::format("Syntax error at line %d: ", s.get_line_num()) \
-        + e + "\n" + s.get_stack()->to_string()); \
+    if (not(x)){ \
+        util::print_warning(\
+            util::format("Syntax error at line %d: ", s.get_line_num()) \
+            + e + "\n" + s.get_stack()->to_string()); \
+        return; }
+
+#else
+
+#define _assert_syntax(x, s, e) \
+    if (not(x)) throw phillip_exception_t(\
+    util::format("Syntax error at line %d: ", s.get_line_num()) \
+    + e + "\n" + s.get_stack()->to_string());
+
+#endif
 
 
 void parse_obs_t::process(const sexp::reader_t *reader)
