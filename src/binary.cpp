@@ -198,7 +198,7 @@ void execute(
         util::print_console("Completed to load observations.");
         util::print_console_fmt("    # of observations: %d", parsed_inputs.size());
 
-        kb::knowledge_base_t::instance()->prepare_query();
+        kb::kb()->prepare_query();
         phillip->check_validity();
 
         // SOLVE EACH OBSERVATION
@@ -218,6 +218,9 @@ void execute(
                     phillip->write_header();
                     flag_printing = true;
                 }
+
+                util::print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
+                kb::kb()->clear_distance_cache();
 
 #ifdef _DEBUG
                 /* DO NOT HANDLE EXCEPTIONS TO LET THE DEBUGGER CATCH AN EXCEPTION. */
