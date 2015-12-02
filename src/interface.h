@@ -70,7 +70,8 @@ public:
     /** Tunes its own parameters from a system output and a gold output, and returns the result. */
     virtual opt::training_result_t* train(
         opt::epoch_t epoch,
-        const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) {};
+        const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold);
+    virtual bool is_trainable() const { return false; };
 
 protected:
     /** Converts proof-graph's structure into ILP problem. */

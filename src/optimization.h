@@ -6,6 +6,7 @@
 #include <cmath>
 
 #include "./define.h"
+#include "./ilp_problem.h"
 
 
 namespace phil
@@ -15,17 +16,30 @@ namespace opt
 {
 
 
-namespace norm /// Namespace for normalizer.
+typedef std::function<gradient_t(weight_t)> normalizer_t;
+typedef std::function<rate_t(epoch_t)> scheduler_t;
+
+
+namespace norm /// A namespace for normalizer.
 {
-double l1_norm(weight_t w, rate_t r);
-double l2_norm(weight_t w, rate_t r);
+template <rate_t R> gradient_t l1_norm(weight_t w) { return R; }
+template <rate_t R> gradient_t l2_norm(weight_t w) { return R * w; }
 }
 
 
-namespace lr /// Namespace for schedulers of learning rate.
+namespace lr /// A namespace for schedulers of learning rate.
 {
-rate_t linear(rate_t r0, rate_t d, epoch_t e);
-rate_t exponential(rate_t r0, rate_t d, epoch_t e);
+
+template <rate_t R, rate_t D> rate_t linear(epoch_t e)
+{
+    return (std::max)(0.0, R - e * D);
+}
+
+template <rate_t R, rate_t D> rate_t exponential(epoch_t e)
+{
+    return R * std::pow(D, e);
+}
+
 }
 
 
@@ -40,6 +54,19 @@ public:
 protected:
     hash_map<std::string, std::pair<weight_t, weight_t> > m_weights_before_after;
 };
+
+
+
+/** The base class for error function. */
+class error_function_t
+{
+public:
+    virtual double get(double true_obj, double false_obj) const = 0;
+    virtual double gradient(
+        double true_obj, double false_obj,
+        double term, bool term_is_in_true_answer) const = 0;
+};
+
 
 
 class optimization_method_t

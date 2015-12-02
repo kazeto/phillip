@@ -226,13 +226,17 @@ std::string a_star_based_enumerator_t::reachability_t::to_string() const
 
 void a_star_based_enumerator_t::reachability_manager_t::push(const reachability_t& r)
 {
-    float d = r.distance();
+    float d1 = r.distance();
 
     for (auto it = begin(); it != end(); ++it)
-    if (d <= it->distance())
     {
-        insert(it, r);
-        return;
+        float d2 = it->distance();
+
+        if ((d1 < d2) or (d1 == d2 and r.dist_from > it->dist_from))
+        {
+            insert(it, r);
+            return;
+        }
     }
 
     push_back(r);

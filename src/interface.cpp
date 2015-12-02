@@ -133,6 +133,13 @@ void ilp_converter_t::convert_proof_graph(ilp::ilp_problem_t *prob) const
 }
 
 
+opt::training_result_t* ilp_converter_t::train(
+    opt::epoch_t epoch, const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold)
+{
+    return NULL;
+}
+
+
 bool ilp_converter_t::do_time_out(const std::chrono::system_clock::time_point &begin) const
 {
     duration_time_t t_ilp = util::duration_time(begin);
