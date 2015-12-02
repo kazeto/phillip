@@ -467,16 +467,11 @@ double get_random_weight()
 std::vector<double> weighted_converter_t::parameterized_cost_provider_t
 ::get_weights(const pg::proof_graph_t *g, pg::edge_idx_t idx, feature_weights_t *weights)
 {
-
     const pg::edge_t &edge = g->edge(idx);
     size_t size = g->hypernode(edge.head()).size();
 
-    lf::axiom_t axiom(kb::kb()->get_axiom(edge.axiom_id()));
-    lf::logical_function_t branch =
-        axiom.func.branch(edge.type() == pg::EDGE_HYPOTHESIZE ? 0 : 1);
-
     hash_set<std::string> features;
-    // TODO: ‘f«‚ğ—ñ‹“‚·‚é
+    get_features(g, idx, &features);
 
     double sum(0.0);
     for (auto f : features)
@@ -495,6 +490,23 @@ std::vector<double> weighted_converter_t::parameterized_cost_provider_t
 
     double weight = (2.0 + std::tanh(sum)) / (double)size;
     return std::vector<double>(size, weight);
+}
+
+
+void weighted_converter_t::parameterized_cost_provider_t
+::get_features(const pg::proof_graph_t *graph, pg::edge_idx_t idx, hash_set<std::string> *out)
+{
+    const pg::edge_t &edge = graph->edge(idx);
+    lf::axiom_t axiom(kb::kb()->get_axiom(edge.axiom_id()));
+    lf::logical_function_t branch =
+        axiom.func.branch(edge.type() == pg::EDGE_HYPOTHESIZE ? 0 : 1);
+
+    out->insert(util::format("_id:%d", edge.axiom_id()));
+
+    if (not axiom.func.param().empty())
+    for (auto p : util::split(axiom.func.param(), ":"))
+    {
+    }
 }
 
 

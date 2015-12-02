@@ -115,6 +115,7 @@ public:
 
     protected:
         static std::vector<double> get_weights(const pg::proof_graph_t*, pg::edge_idx_t, feature_weights_t*);
+        static void get_features(const pg::proof_graph_t*, pg::edge_idx_t, hash_set<std::string>*);
 
         mutable feature_weights_t m_weights; /// Feature weights learned.
         std::unique_ptr<opt::optimization_method_t> m_optimizer;

@@ -373,8 +373,12 @@ public:
         hash_set<constraint_idx_t> *targets,
         hash_set<constraint_idx_t> *filtered) const;
 
-    /** Check whether this satisfy given requirement. */
+    /** Returns whether this satisfy given requirement. */
+    bool do_satisfy_requirement(const pg::requirement_t &req) const;
     bool do_satisfy_requirement(const pg::requirement_t::element_t &req) const;
+
+    /** Returns whether this satisfies the gold requirement. */
+    bool is_positive_answer() const;
 
     std::string to_string() const;
     void print(std::ostream *os = &std::cout) const;

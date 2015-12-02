@@ -44,6 +44,7 @@ namespace phil
 
 class phillip_main_t;
 
+typedef unsigned char bits_t;
 typedef unsigned char small_size_t;
 typedef long int index_t;
 typedef long int axiom_id_t;
@@ -51,6 +52,7 @@ typedef small_size_t term_idx_t;
 typedef std::string predicate_t;
 typedef std::string arity_t;
 typedef float duration_time_t;
+
 
 namespace kb
 {
@@ -82,6 +84,7 @@ inline bool is_backward(std::pair<axiom_id_t, bool> &p)
 
 }
 
+
 namespace pg
 {
     typedef index_t entity_idx_t;
@@ -92,8 +95,19 @@ namespace pg
 }
 
 
+namespace opt
+{
+    typedef double weight_t;
+    typedef double gradient_t;
+    typedef double rate_t;
+    typedef int epoch_t;
+    typedef std::function<double(weight_t)> normalizer_t;
+    typedef std::function<rate_t(epoch_t)> scheduler_t;
+}
+
+
 /** Verboseness of debug printing */
-enum verboseness_t
+enum verboseness_e
 {
     NOT_VERBOSE,
     VERBOSE_1, VERBOSE_2, VERBOSE_3, VERBOSE_4,

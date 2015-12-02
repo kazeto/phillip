@@ -11,6 +11,16 @@ namespace phil
 {
 
 
+namespace wf
+{
+const bits_t WR_FGEN = (1);
+const bits_t WR_FCNV = (1 << 1);
+const bits_t WR_FSOL = (1 << 2);
+const bits_t WR_FOUT = (1 << 3);
+const bits_t WR_ALL = (WR_FGEN | WR_FCNV | WR_FSOL | WR_FOUT);
+}
+
+
 int phillip_main_t::ms_verboseness = VERBOSE_1;
 const std::string phillip_main_t::VERSION = "phil.3.17";
 
@@ -67,18 +77,10 @@ void phillip_main_t::infer(const lf::input_t &input)
     execute_solver();
 
     m_time_for_infer = util::duration_time(begin);
-
-    std::ofstream *fo(NULL);
-    if ((fo = _open_file(param("path_out"), std::ios::out | std::ios::app)) != NULL)
-    {
-        for (auto sol = m_sol.begin(); sol != m_sol.end(); ++sol)
-            sol->print_graph(fo);
-        delete fo;
-    }
 }
 
 
-void phillip_main_t::learn(const lf::input_t &input)
+void phillip_main_t::learn(const lf::input_t &input, opt::epoch_t epoch)
 {
     auto get_path_for_gold = [this](const std::string &key) -> std::string
     {
@@ -105,6 +107,9 @@ void phillip_main_t::learn(const lf::input_t &input)
     execute_convertor();
     execute_solver();
 
+    if (not m_sol.front().is_positive_answer())
+        return; // IF THE ANSWER WAS TRUE, TRAINING IS SKIPPED.
+
     set_flag("get_pseudo_positive");
 
     execute_convertor(
@@ -114,22 +119,10 @@ void phillip_main_t::learn(const lf::input_t &input)
         &m_sol_gold, &m_time_for_solve_gold,
         get_path_for_gold("path_sol_out"));
 
-    util::xml_element_t elem("learn", "");
-    m_ilp_convertor->train(m_sol.front(), m_sol_gold.front(), &elem);
+    std::unique_ptr<opt::training_result_t> result(
+        m_ilp_convertor->train(epoch, m_sol.front(), m_sol_gold.front()));
 
     m_time_for_learn = util::duration_time(begin);
-
-    std::ofstream *fo(NULL);
-    if ((fo = _open_file(param("path_out"), std::ios::out | std::ios::app)) != NULL)
-    {
-        if (not flag("omit_proof_graph_from_xml"))
-        {
-            m_sol.front().print_graph(fo);
-            m_sol_gold.front().print_graph(fo);
-        }
-        elem.print(fo);
-        delete fo;
-    }
 }
 
 
@@ -218,13 +211,32 @@ void phillip_main_t::execute_solver(
 }
 
 
+void phillip_main_t::write(const std::function<void(std::ostream*)> &writer, bits_t flags) const
+{
+    auto open_and_write = [&writer](const std::string &filename)
+    {
+        std::ofstream *fo(NULL);
+        if ((fo = _open_file(filename, (std::ios::out | std::ios::trunc))) != NULL)
+        {
+            writer(fo);
+            delete fo;
+        }
+    };
+
+    if (flags & wf::WR_FGEN) open_and_write(param("path_lhs_out"));
+    if (flags & wf::WR_FCNV) open_and_write(param("path_ilp_out"));
+    if (flags & wf::WR_FSOL) open_and_write(param("path_sol_out"));
+    if (flags & wf::WR_FOUT)
+    {
+        open_and_write(param("path_out"));
+        writer(&std::cout);
+    }
+}
+
+
 void phillip_main_t::write_header() const
 {
-    write_header(param("path_lhs_out"));
-    write_header(param("path_ilp_out"));
-    write_header(param("path_sol_out"));
-    write_header(param("path_out"));
-    write_header(&std::cout);
+    write([this](std::ostream *os){ write_header(os); });
 }
 
 
@@ -303,41 +315,15 @@ void phillip_main_t::write_header(std::ostream *os) const
 }
 
 
-void phillip_main_t::write_header(const std::string &filename) const
-{
-    std::ofstream *fo(NULL);
-    if ((fo = _open_file(filename, (std::ios::out | std::ios::trunc))) != NULL)
-    {
-        write_header(fo);
-        delete fo;
-    }
-}
-
-
 void phillip_main_t::write_footer() const
 {
-    write_footer(param("path_lhs_out"));
-    write_footer(param("path_ilp_out"));
-    write_footer(param("path_sol_out"));
-    write_footer(param("path_out"));
-    write_footer(&std::cout);
+    write([this](std::ostream *os){ write_footer(os); });
 }
 
 
 void phillip_main_t::write_footer(std::ostream *os) const
 {
     (*os) << "</phillip>" << std::endl;
-}
-
-
-void phillip_main_t::write_footer(const std::string &filename) const
-{
-    std::ofstream *fo(NULL);
-    if ((fo = _open_file(filename, (std::ios::out | std::ios::app))) != NULL)
-    {
-        write_footer(fo);
-        delete fo;
-    }
 }
 
 

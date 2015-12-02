@@ -228,7 +228,7 @@ void processor_t::process( std::vector<std::string> inputs )
                 
         for( ; not reader.is_end(); reader.read() )
         {
-            if( file_size != 0 )
+            if( file_size != 0 and phillip_main_t::verbose() != NOT_VERBOSE )
             {
                 size_t read_bytes(reader.get_read_bytes());
                 int progress( 100 * read_bytes / file_size );

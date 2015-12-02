@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include "./s_expression.h"
 #include "./define.h"
 

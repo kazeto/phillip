@@ -22,6 +22,16 @@ class ilp_converter_t;
 class ilp_solver_t;
 
 
+namespace wf /// Flags for writing.
+{
+    extern const bits_t WR_FGEN; /// Write to path-lhs.
+    extern const bits_t WR_FCNV; /// Write to path-ilp.
+    extern const bits_t WR_FSOL; /// Write to path-sol.
+    extern const bits_t WR_FOUT; /// Write to path-out and stdout.
+    extern const bits_t WR_ALL;
+}
+
+
 /** Main class of Phillip.
  *  The procedure of inference is following:
  *   - Create an instance of phillip_main_t.
@@ -46,7 +56,7 @@ public:
     void infer(const lf::input_t &input);
 
     /** Do learning on given observation. */
-    void learn(const lf::input_t &input);
+    void learn(const lf::input_t &input, opt::epoch_t epoch);
 
     inline const lhs_enumerator_t* lhs_enumerator() const;
     inline lhs_enumerator_t* lhs_enumerator();
@@ -103,14 +113,14 @@ public:
     inline void clear_exclusions();
     inline bool is_excluded(const std::string &name) const;
     inline bool check_validity() const;
+
+    void write(const std::function<void(std::ostream*)> &writer, bits_t flags = wf::WR_ALL) const;
     
     void write_header() const;
     void write_header(std::ostream *os) const;
-    void write_header(const std::string &filename) const;
     
     void write_footer() const;
     void write_footer(std::ostream *os) const;
-    void write_footer(const std::string &filename) const;
 
 protected:
     inline void reset_for_inference();
@@ -164,6 +174,9 @@ private:
         m_time_for_solve, m_time_for_solve_gold,
         m_time_for_learn, m_time_for_infer;
 };
+
+
+inline bool is_verbose(verboseness_e v) { return phillip_main_t::verbose() >= v; }
 
 
 }

@@ -24,6 +24,11 @@ class ilp_problem_t;
 class ilp_solution_t;
 }
 
+namespace opt
+{
+class training_result_t;
+}
+
 
 /** An interface of function class to make latent-hypotheses-set(LHS). */
 class lhs_enumerator_t : public phillip_component_interface_t
@@ -62,10 +67,10 @@ public:
     virtual ~ilp_converter_t() {}
     virtual ilp::ilp_problem_t* execute() const = 0;
 
-    /** Tunes its own parameters from a system output and a gold output. */
-    virtual void train(
-        const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold,
-        util::xml_element_t *out) {};
+    /** Tunes its own parameters from a system output and a gold output, and returns the result. */
+    virtual opt::training_result_t* train(
+        opt::epoch_t epoch,
+        const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) {};
 
 protected:
     /** Converts proof-graph's structure into ILP problem. */

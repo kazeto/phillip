@@ -1258,6 +1258,18 @@ void ilp_solution_t::filter_unsatisfied_constraints(
 }
 
 
+bool ilp_solution_t::do_satisfy_requirement(const pg::requirement_t &req) const
+{
+    for (auto e : req.conjunction)
+    {
+        if (not do_satisfy_requirement(e))
+            return false;
+    }
+
+    return true;
+}
+
+
 bool ilp_solution_t::do_satisfy_requirement(
     const pg::requirement_t::element_t &req) const
 {
@@ -1269,6 +1281,26 @@ bool ilp_solution_t::do_satisfy_requirement(
         return true;
 
     return false;
+}
+
+
+bool ilp_solution_t::is_positive_answer() const
+{
+    auto reqs = proof_graph()->requirements();
+    if (reqs.empty()) return false;
+
+    bool is_labeling_task = (reqs.size() > 1);
+
+    if (is_labeling_task)
+    {
+        for (auto req : reqs)
+        if (req.is_gold)
+            return do_satisfy_requirement(req);
+
+        return false;
+    }
+    else
+        return do_satisfy_requirement(reqs.front());
 }
 
 

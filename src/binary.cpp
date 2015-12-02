@@ -145,7 +145,7 @@ void prepare(
 
 
 void execute(
-    phillip_main_t *phillip,
+    phillip_main_t *ph,
     const execution_configure_t &config, const inputs_t &inputs)
 {
     if (config.mode == bin::EXE_MODE_HELP)
@@ -156,7 +156,7 @@ void execute(
 
     bool do_compile =
         (config.mode == bin::EXE_MODE_COMPILE_KB) or
-        phillip->flag("do_compile_kb");
+        ph->flag("do_compile_kb");
 
     /* COMPILING KNOWLEDGE-BASE */
     if (do_compile)
@@ -174,12 +174,24 @@ void execute(
         util::print_console("Completed to compile knowledge-base.");
     }
 
-    auto proc = [&](const lf::input_t &ipt)
+    auto proc = [&](const lf::input_t &ipt, opt::epoch_t epoch)
     {
         if (config.mode == bin::EXE_MODE_INFERENCE)
-            phillip->infer(ipt);
+        {
+            ph->infer(ipt);
+
+            // WRITE RESULTS
+            ph->write([&](std::ostream *os)
+            {
+                auto sols = ph->get_solutions();
+                for (auto sol = sols.begin(); sol != sols.end(); ++sol)
+                    sol->print_graph(os);
+            }, wf::WR_FOUT);
+        }
         else
-            phillip->learn(ipt);
+        {
+            ph->learn(ipt, epoch);
+        }
     };
 
     /* INFERENCE */
@@ -188,7 +200,7 @@ void execute(
     {
         std::vector<lf::input_t> parsed_inputs;
         proc::processor_t processor;
-        bool flag_printing(false);
+        bool is_training(config.mode == bin::EXE_MODE_LEARNING);
 
         util::print_console("Loading observations ...");
 
@@ -199,54 +211,65 @@ void execute(
         util::print_console_fmt("    # of observations: %d", parsed_inputs.size());
 
         kb::kb()->prepare_query();
-        phillip->check_validity();
+        ph->check_validity();
+        ph->write_header();
 
-        // SOLVE EACH OBSERVATION
-        for (int i = 0; i < parsed_inputs.size(); ++i)
+        int max_epoch = is_training ? ph->param_int("max-epoch", 100) : 1;
+
+        for (int epoch = 0; epoch < max_epoch; ++epoch)
         {
-            const lf::input_t &ipt = parsed_inputs.at(i);
+            if (is_training and is_verbose(VERBOSE_1))
+                util::print_console_fmt("    -------- Training epoch #%d --------", epoch + 1);
 
-            std::string obs_name = ipt.name;
-            if (obs_name.rfind("::") != std::string::npos)
-                obs_name = obs_name.substr(obs_name.rfind("::") + 2);
-
-            if (phillip->is_target(obs_name) and
-                not phillip->is_excluded(obs_name))
+            // PRINT CURRENT EPOCH TO OUTPUT STREAMS
+            ph->write([&](std::ostream *os)
             {
-                if (not flag_printing)
-                {
-                    phillip->write_header();
-                    flag_printing = true;
-                }
+                (*os) << "<inference "
+                    << util::format("epoch=\"%d\"", epoch)
+                    << ">" << std::endl;
+            });
 
-                util::print_console_fmt("Observation #%d: %s", i, ipt.name.c_str());
-                kb::kb()->clear_distance_cache();
+            // SOLVE EACH OBSERVATION
+            for (int i = 0; i < parsed_inputs.size(); ++i)
+            {
+                const lf::input_t &ipt = parsed_inputs.at(i);
+
+                std::string obs_name = ipt.name;
+                if (obs_name.rfind("::") != std::string::npos)
+                    obs_name = obs_name.substr(obs_name.rfind("::") + 2);
+
+                if (ph->is_target(obs_name) and
+                    not ph->is_excluded(obs_name))
+                {
+                    IF_VERBOSE_1(util::format("Observation #%d: %s", i, ipt.name.c_str()));
+                    kb::kb()->clear_distance_cache();
 
 #ifdef _DEBUG
-                /* DO NOT HANDLE EXCEPTIONS TO LET THE DEBUGGER CATCH AN EXCEPTION. */
-                proc(ipt);
+                    /* DO NOT HANDLE EXCEPTIONS TO LET THE DEBUGGER CATCH AN EXCEPTION. */
+                    proc(ipt, epoch);
 #else
-                try
-                {
-                    proc(ipt);
-                }
-                catch (const std::exception &e)
-                {
-                    util::print_warning_fmt(
-                        "Some exception was caught and then the observation \"%s\" was skipped.", obs_name.c_str());
-                    util::print_warning_fmt("  -> what(): %s", e.what());
-                    continue;
-                }
+                    try
+                    {
+                        proc(ipt, epoch);
+                    }
+                    catch (const std::exception &e)
+                    {
+                        util::print_warning_fmt(
+                            "Some exception was caught and then the observation \"%s\" was skipped.", obs_name.c_str());
+                        util::print_warning_fmt("  -> what(): %s", e.what());
+                        continue;
+                    }
 #endif
+                }
             }
 
-            auto sols = phillip->get_solutions();
-            for (auto sol = sols.begin(); sol != sols.end(); ++sol)
-                sol->print_graph();
+            ph->write([&](std::ostream *os)
+            {
+                (*os) << util::format("<inference epoch=\"%d\">", epoch) << std::endl;
+            });
         }
 
-        if (flag_printing)
-            phillip->write_footer();
+        ph->write_footer();
     }
 }
 

@@ -15,14 +15,6 @@ namespace opt
 {
 
 
-typedef double weight_t;
-typedef double gradient_t;
-typedef double rate_t;
-typedef int epoch_t;
-typedef std::function<double(weight_t)> normalizer_t;
-typedef std::function<rate_t(epoch_t)> scheduler_t;
-
-
 namespace norm /// Namespace for normalizer.
 {
 double l1_norm(weight_t w, rate_t r);
@@ -35,6 +27,19 @@ namespace lr /// Namespace for schedulers of learning rate.
 rate_t linear(rate_t r0, rate_t d, epoch_t e);
 rate_t exponential(rate_t r0, rate_t d, epoch_t e);
 }
+
+
+class training_result_t
+{
+public:
+    training_result_t(int epoch);
+    virtual void write(std::ostream *os) const = 0; /// Output in XML-format.
+
+    void add(const std::string name, weight_t before, weight_t after);
+
+protected:
+    hash_map<std::string, std::pair<weight_t, weight_t> > m_weights_before_after;
+};
 
 
 class optimization_method_t
