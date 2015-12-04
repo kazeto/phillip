@@ -97,12 +97,11 @@ namespace pg
 
 namespace opt
 {
+    typedef double error_t;
     typedef double weight_t;
     typedef double gradient_t;
     typedef double rate_t;
     typedef int epoch_t;
-    typedef std::function<double(weight_t)> normalizer_t;
-    typedef std::function<rate_t(epoch_t)> scheduler_t;
 }
 
 

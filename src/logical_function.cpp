@@ -180,6 +180,13 @@ bool logical_function_t::scan_parameter(const std::string &format, ...) const
 }
 
 
+std::sregex_iterator logical_function_t::regex_scan_parameter(const std::string &query) const
+{
+    std::regex re(":" + query + ":?");
+    return std::sregex_iterator(m_param.cbegin(), m_param.cend(), re);
+}
+
+
 bool logical_function_t::is_valid_as_observation() const
 {
     if (not is_operator(OPR_AND)) return false;
@@ -501,6 +508,49 @@ void logical_function_t::print(
 void logical_function_t::add_branch(const logical_function_t &lf)
 {
     m_branches.push_back(lf);
+}
+
+
+
+/* -------- Methods of parameter_splitter_t -------- */
+
+parameter_splitter_t::parameter_splitter_t(const logical_function_t *master)
+: m_master(master), m_idx1(0), m_idx2(0)
+{
+    const std::string &p = m_master->param();
+    if (not is_end())
+    {
+        assert(p.at(0) == ':');
+        m_idx2 = p.find(':', 1);
+        m_substr = p.substr(1, m_idx2);
+    }
+}
+
+
+parameter_splitter_t::parameter_splitter_t(const parameter_splitter_t &m)
+: m_master(m.m_master), m_idx1(m.m_idx1), m_idx2(m.m_idx2)
+{}
+
+
+parameter_splitter_t& parameter_splitter_t::operator++()
+{
+    const std::string &p = m_master->param();
+    index_t idx = p.find(':', m_idx2 + 1);
+
+    m_idx1 = m_idx2;
+    m_idx2 = idx;
+    m_substr = p.substr(m_idx1 + 1, m_idx2 - m_idx1 - 1);
+
+    return (*this);
+}
+
+
+parameter_splitter_t parameter_splitter_t::operator++(int)
+{
+    parameter_splitter_t ret = (*this);
+
+    ++(*this);
+    return ret;
 }
 
 

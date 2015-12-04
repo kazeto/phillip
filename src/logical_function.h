@@ -1,5 +1,8 @@
 #pragma once
 
+#include <iterator>
+#include <regex>
+
 #include "./s_expression.h"
 #include "./define.h"
 
@@ -36,6 +39,7 @@ extern const std::string OPR_STR_EXARGSET; /// Exclusive argument set.
 extern const std::string OPR_STR_ASSERTION;
 
 
+
 /** A struct type of logical function with s-expression. */
 class logical_function_t
 {    
@@ -63,6 +67,8 @@ public:
 
     bool find_parameter(const std::string &query) const;
     bool scan_parameter(const std::string &format, ...) const;
+
+    std::sregex_iterator regex_scan_parameter(const std::string &query) const;
 
     bool is_valid_as_observation() const;
     bool is_valid_as_implication() const;
@@ -102,6 +108,25 @@ private:
     
     /** Optional parameters for each implements. */
     std::string m_param;
+};
+
+
+class parameter_splitter_t
+{
+public:
+    parameter_splitter_t(const logical_function_t*);
+    parameter_splitter_t(const parameter_splitter_t &it);
+
+    parameter_splitter_t& operator++();
+    parameter_splitter_t operator++(int);
+
+    inline const std::string& operator*() const { return m_substr; }
+    inline bool is_end() const { return m_idx1 >= m_master->param().size(); }
+
+private:
+    const logical_function_t *m_master;
+    index_t m_idx1, m_idx2;
+    std::string m_substr;
 };
 
 

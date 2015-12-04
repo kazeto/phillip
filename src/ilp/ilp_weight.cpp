@@ -198,6 +198,20 @@ std::string weighted_converter_t::repr() const
 }
 
 
+opt::training_result_t* weighted_converter_t::train(
+    opt::epoch_t epoch,
+    const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold)
+{
+    return m_cost_provider->train(epoch, sys, gold);
+}
+
+
+bool weighted_converter_t::is_trainable() const
+{
+    return m_cost_provider->is_trainable();
+}
+
+
 ilp_converter_t* weighted_converter_t::
 generator_t::operator()(const phillip_main_t *ph) const
 {
@@ -378,31 +392,22 @@ weighted_converter_t::parameterized_cost_provider_t::parameterized_cost_provider
 {}
 
 
-weighted_converter_t::parameterized_cost_provider_t::
-parameterized_cost_provider_t(const parameterized_cost_provider_t &p)
-: m_weights(p.m_weights)
+weighted_converter_t::parameterized_cost_provider_t::parameterized_cost_provider_t(
+    opt::optimization_method_t *optimizer, opt::error_function_t *error)
+    : m_optimizer(optimizer), m_error_function(error)
 {}
 
 
-hash_map<pg::node_idx_t, double> weighted_converter_t::
-parameterized_cost_provider_t::operator()(const pg::proof_graph_t *g) const
+opt::training_result_t* weighted_converter_t::parameterized_cost_provider_t::train(
+    opt::epoch_t epoch,
+    const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold)
 {
-    auto _get_weights =
-        std::bind(get_weights, std::placeholders::_1, std::placeholders::_2, &m_weights);
-
-    hash_map<pg::node_idx_t, double> node2cost;
-    get_observation_costs(g, 10.0, &node2cost);
-    get_hypothesis_costs(g, _get_weights, std::multiplies<double>(), &node2cost);
-
-    return node2cost;
 }
 
 
-void weighted_converter_t::parameterized_cost_provider_t::train(
-    const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold,
-    util::xml_element_t *out)
+bool weighted_converter_t::parameterized_cost_provider_t::is_trainable() const
 {
-    // TODO
+    return (bool)m_optimizer and (bool)m_error_function;
 }
 
 
@@ -501,13 +506,32 @@ void weighted_converter_t::parameterized_cost_provider_t
     lf::logical_function_t branch =
         axiom.func.branch(edge.type() == pg::EDGE_HYPOTHESIZE ? 0 : 1);
 
-    out->insert(util::format("_id:%d", edge.axiom_id()));
+    out->insert(util::format("id/%d", edge.axiom_id()));
 
-    if (not axiom.func.param().empty())
-    for (auto p : util::split(axiom.func.param(), ":"))
-    {
-    }
+    for (auto l1 : axiom.func.get_lhs())
+    for (auto l2 : axiom.func.get_rhs())
+        out->insert("p/" + l1->get_arity() + "/" + l2->get_arity());
+
+    auto it = axiom.func.regex_scan_parameter(R"(f/([^:]+))");
+    auto end = std::sregex_iterator();
+    for (; it != end; ++it)
+        out->insert(it->str());
 }
+
+
+hash_map<pg::node_idx_t, double> weighted_converter_t::
+parameterized_linear_cost_provider_t::operator()(const pg::proof_graph_t *g) const
+{
+    auto _get_weights =
+        std::bind(get_weights, std::placeholders::_1, std::placeholders::_2, &m_weights);
+
+    hash_map<pg::node_idx_t, double> node2cost;
+    get_observation_costs(g, 10.0, &node2cost);
+    get_hypothesis_costs(g, _get_weights, std::plus<double>(), &node2cost);
+
+    return node2cost;
+}
+
 
 
 

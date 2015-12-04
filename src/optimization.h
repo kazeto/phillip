@@ -22,22 +22,22 @@ typedef std::function<rate_t(epoch_t)> scheduler_t;
 
 namespace norm /// A namespace for normalizer.
 {
-template <rate_t R> gradient_t l1_norm(weight_t w) { return R; }
-template <rate_t R> gradient_t l2_norm(weight_t w) { return R * w; }
+gradient_t l1_norm(weight_t w, rate_t r) { return r; }
+gradient_t l2_norm(weight_t w, rate_t r) { return r * w; }
 }
 
 
 namespace lr /// A namespace for schedulers of learning rate.
 {
 
-template <rate_t R, rate_t D> rate_t linear(epoch_t e)
+rate_t linear(epoch_t e, rate_t r, rate_t d)
 {
-    return (std::max)(0.0, R - e * D);
+    return (std::max)(0.0, r - e * d);
 }
 
-template <rate_t R, rate_t D> rate_t exponential(epoch_t e)
+rate_t exponential(epoch_t e, rate_t r, rate_t d)
 {
-    return R * std::pow(D, e);
+    return r * std::pow(d, e);
 }
 
 }

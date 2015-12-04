@@ -50,9 +50,9 @@ public:
 
         virtual hash_map<pg::node_idx_t, double> operator()(const pg::proof_graph_t *g) const = 0;
 
-        virtual void train(
-            const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold,
-            util::xml_element_t *out) = 0;
+        virtual opt::training_result_t* train(
+            opt::epoch_t epoch,
+            const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) = 0;
         virtual bool is_trainable() const = 0;
 
         virtual std::string repr() const = 0;
@@ -79,10 +79,11 @@ public:
             const std::string &name);
 
         virtual hash_map<pg::node_idx_t, double> operator()(const pg::proof_graph_t *g) const override;
-        virtual void train(
-            const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold,
-            util::xml_element_t *out) override {}
+        virtual opt::training_result_t* train(
+            opt::epoch_t epoch,
+            const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) override { return NULL; }
         virtual bool is_trainable() const override { return false; }
+
         virtual std::string repr() const override { return "basic"; }
 
     protected:
@@ -100,13 +101,13 @@ public:
         typedef hash_map<std::string, double> feature_weights_t;
 
         parameterized_cost_provider_t();
-        parameterized_cost_provider_t(const parameterized_cost_provider_t &p);
+        parameterized_cost_provider_t(
+            opt::optimization_method_t *optimizer, opt::error_function_t *error);
 
-        virtual hash_map<pg::node_idx_t, double> operator()(const pg::proof_graph_t *g) const override;
-        virtual void train(
-            const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold,
-            util::xml_element_t *out) override;
-        virtual bool is_trainable() const override { return false; }
+        virtual opt::training_result_t* train(
+            opt::epoch_t epoch,
+            const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) override;
+        virtual bool is_trainable() const override;
         virtual std::string repr() const override { return "parameterized"; }
 
         void load(const std::string &filename);
@@ -117,10 +118,33 @@ public:
         static std::vector<double> get_weights(const pg::proof_graph_t*, pg::edge_idx_t, feature_weights_t*);
         static void get_features(const pg::proof_graph_t*, pg::edge_idx_t, hash_set<std::string>*);
 
+        parameterized_cost_provider_t(const parameterized_cost_provider_t &p);
+
+        virtual hash_map<pg::node_idx_t, opt::gradient_t> get_gradients(const pg::proof_graph_t*) = 0;
+
         mutable feature_weights_t m_weights; /// Feature weights learned.
+
         std::unique_ptr<opt::optimization_method_t> m_optimizer;
+        std::unique_ptr<opt::error_function_t> m_error_function;
     };
 
+
+    class parameterized_linear_cost_provider_t : public parameterized_cost_provider_t
+    {
+    public:
+        parameterized_linear_cost_provider_t();
+        parameterized_linear_cost_provider_t(
+            opt::optimization_method_t *optimizer, opt::error_function_t *error);
+
+        virtual hash_map<pg::node_idx_t, double> operator()(const pg::proof_graph_t *g) const override;
+        virtual std::string repr() const override { return "parameterized-linear"; }
+
+    private:
+        virtual hash_map<pg::node_idx_t, opt::gradient_t> get_gradients(const pg::proof_graph_t*); // TODO
+    };
+
+
+    /** A xml-decorator to add the information of the cost of each literal to XML file. */
     class xml_decorator_t : public ilp::solution_xml_decorator_t
     {
     public:
@@ -141,6 +165,11 @@ public:
     virtual bool is_available(std::list<std::string>*) const override;
     virtual std::string repr() const override;
     virtual bool do_keep_validity_on_timeout() const override { return false; }
+
+    virtual opt::training_result_t* train(
+        opt::epoch_t epoch,
+        const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) override;
+    virtual bool is_trainable() const override;
 
 protected:
     std::unique_ptr<cost_provider_t> m_cost_provider;
