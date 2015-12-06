@@ -97,11 +97,13 @@ namespace pg
 
 namespace opt
 {
+    typedef std::string feature_t;
     typedef double error_t;
     typedef double weight_t;
     typedef double gradient_t;
     typedef double rate_t;
     typedef int epoch_t;
+    typedef hash_map<feature_t, double> feature_weights_t;
 }
 
 

@@ -98,8 +98,6 @@ public:
     class parameterized_cost_provider_t : public cost_provider_t
     {
     public:
-        typedef hash_map<std::string, double> feature_weights_t;
-
         parameterized_cost_provider_t();
         parameterized_cost_provider_t(
             opt::optimization_method_t *optimizer, opt::error_function_t *error);
@@ -111,18 +109,25 @@ public:
         virtual std::string repr() const override { return "parameterized"; }
 
         void load(const std::string &filename);
-        void load(const feature_weights_t &weights);
+        void load(const opt::feature_weights_t &weights);
         void write(const std::string &filename) const; /// Outputs the feature weights.
 
     protected:
-        static std::vector<double> get_weights(const pg::proof_graph_t*, pg::edge_idx_t, feature_weights_t*);
-        static void get_features(const pg::proof_graph_t*, pg::edge_idx_t, hash_set<std::string>*);
+        static std::vector<double> get_weights(
+            const pg::proof_graph_t*, pg::edge_idx_t, opt::feature_weights_t*);
 
         parameterized_cost_provider_t(const parameterized_cost_provider_t &p);
 
-        virtual hash_map<pg::node_idx_t, opt::gradient_t> get_gradients(const pg::proof_graph_t*) = 0;
+        virtual hash_map<opt::feature_t, opt::gradient_t> get_gradients(
+            opt::epoch_t epoch,
+            const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) const = 0;
+        void get_features(
+            const pg::proof_graph_t *graph, pg::edge_idx_t idx,
+            hash_set<opt::feature_t> *out) const;
 
-        mutable feature_weights_t m_weights; /// Feature weights learned.
+        opt::feature_weights_t m_weights; /// Feature weights learned.
+
+        mutable hash_map<axiom_id_t, hash_set<opt::feature_t> > m_ax2ft; /// Memory.
 
         std::unique_ptr<opt::optimization_method_t> m_optimizer;
         std::unique_ptr<opt::error_function_t> m_error_function;
@@ -140,7 +145,9 @@ public:
         virtual std::string repr() const override { return "parameterized-linear"; }
 
     private:
-        virtual hash_map<pg::node_idx_t, opt::gradient_t> get_gradients(const pg::proof_graph_t*); // TODO
+        virtual hash_map<opt::feature_t, opt::gradient_t> get_gradients(
+            opt::epoch_t epoch,
+            const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) const override; // TODO
     };
 
 

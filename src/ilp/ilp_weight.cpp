@@ -402,6 +402,7 @@ opt::training_result_t* weighted_converter_t::parameterized_cost_provider_t::tra
     opt::epoch_t epoch,
     const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold)
 {
+    hash_map<opt::feature_t, opt::gradient_t> grads = get_gradients(epoch, sys, gold);
 }
 
 
@@ -440,7 +441,7 @@ void weighted_converter_t::parameterized_cost_provider_t::load(const std::string
 }
 
 
-void weighted_converter_t::parameterized_cost_provider_t::load(const feature_weights_t &weights)
+void weighted_converter_t::parameterized_cost_provider_t::load(const opt::feature_weights_t &weights)
 {
     m_weights = weights;
 }
@@ -470,7 +471,7 @@ double get_random_weight()
 
 
 std::vector<double> weighted_converter_t::parameterized_cost_provider_t
-::get_weights(const pg::proof_graph_t *g, pg::edge_idx_t idx, feature_weights_t *weights)
+::get_weights(const pg::proof_graph_t *g, pg::edge_idx_t idx, opt::feature_weights_t *weights)
 {
     const pg::edge_t &edge = g->edge(idx);
     size_t size = g->hypernode(edge.head()).size();
@@ -498,24 +499,34 @@ std::vector<double> weighted_converter_t::parameterized_cost_provider_t
 }
 
 
-void weighted_converter_t::parameterized_cost_provider_t
-::get_features(const pg::proof_graph_t *graph, pg::edge_idx_t idx, hash_set<std::string> *out)
+void weighted_converter_t::parameterized_cost_provider_t::get_features(
+    const pg::proof_graph_t *graph, pg::edge_idx_t idx, hash_set<opt::feature_t> *out) const
 {
     const pg::edge_t &edge = graph->edge(idx);
     lf::axiom_t axiom(kb::kb()->get_axiom(edge.axiom_id()));
-    lf::logical_function_t branch =
-        axiom.func.branch(edge.type() == pg::EDGE_HYPOTHESIZE ? 0 : 1);
 
-    out->insert(util::format("id/%d", edge.axiom_id()));
+    // CHECK MEMORY
+    {
+        auto found = m_ax2ft.find(edge.axiom_id());
+        if (found != m_ax2ft.end())
+            out->insert(found->second.begin(), found->second.end());
+        return;
+    }
+
+    hash_set<opt::feature_t> &feats = m_ax2ft[edge.axiom_id()];
+
+    feats.insert(util::format("id/%d", edge.axiom_id()));
 
     for (auto l1 : axiom.func.get_lhs())
     for (auto l2 : axiom.func.get_rhs())
-        out->insert("p/" + l1->get_arity() + "/" + l2->get_arity());
+        feats.insert("p/" + l1->get_arity() + "/" + l2->get_arity());
 
     auto it = axiom.func.regex_scan_parameter(R"(f/([^:]+))");
     auto end = std::sregex_iterator();
     for (; it != end; ++it)
-        out->insert(it->str());
+        feats.insert(it->str());
+
+    out->insert(feats.begin(), feats.end());
 }
 
 
