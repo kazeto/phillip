@@ -656,27 +656,67 @@ std::string indexize_path(std::string str, int idx)
 bool parse_string_as_function_call(
     const std::string &str, std::string *pred, std::vector<std::string> *terms)
 {
-    if (not str.empty())
-    {
-        int br_begin = str.find('(');
-        int br_end = str.find(')');
+    int num_open(0), num_close(0);
+    int idx_open(-1), idx_close(-1);
+    std::list<int> commas;
 
-        if (br_begin < 0 and br_end < 0)
+    for (int i = 0; i < str.size(); ++i)
+    {
+        char c = str.at(i);
+
+        if (c == '(')
         {
-            *pred = str;
-            return true;
+            ++num_open;
+            if (num_open == 1)
+                idx_open = i;
         }
-        else if (br_begin > 0 and br_end > br_begin)
+        
+        if (c == ')')
         {
-            *pred = str.substr(0, br_begin);
-            *terms = split(str.substr(br_begin + 1, br_end - br_begin - 1), ",");
-            for (auto it = terms->begin(); it != terms->end(); ++it)
-                (*it) = strip(*it, " ");
-            return true;
+            ++num_close;
+            if (num_open == num_close)
+                idx_close = i;
+            if (num_open < num_close)
+                return false; // INVALID FORMAT
+        }
+
+        if (c == ',')
+        {
+            if (num_open == num_close + 1)
+                commas.push_back(i);
         }
     }
 
-    return false;
+    if (idx_open >= 0 and idx_close >= 0)
+    {
+        (*pred) = util::strip(str.substr(0, idx_open), " ");
+        terms->clear();
+
+        if (commas.empty())
+        {
+            if (idx_close - idx_open > 1)
+            {
+                std::string s = util::strip(str.substr(idx_open + 1, idx_close - idx_open - 1), " ");
+                if (not s.empty())
+                    terms->push_back(s);
+            }
+        }
+        else
+        {
+            terms->push_back(
+                util::strip(str.substr(idx_open + 1, commas.front() - idx_open - 1), " "));
+            for (auto it = commas.begin(); std::next(it) != commas.end(); ++it)
+                terms->push_back(
+                util::strip(str.substr((*it) + 1, (*std::next(it)) - (*it) - 1), " "));
+            terms->push_back(
+                util::strip(str.substr(commas.back() + 1, idx_close - commas.back() - 1), " "));
+        }
+    }
+
+    if (pred->empty()) return false;
+    for (auto t : (*terms)) if (t.empty()) return false;
+
+    return true;
 }
 
 

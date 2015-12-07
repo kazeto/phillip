@@ -103,7 +103,6 @@ namespace opt
     typedef double gradient_t;
     typedef double rate_t;
     typedef int epoch_t;
-    typedef hash_map<feature_t, double> feature_weights_t;
 }
 
 

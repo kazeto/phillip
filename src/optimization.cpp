@@ -1,4 +1,6 @@
+#include <random>
 #include "./optimization.h"
+#include "./phillip.h"
 
 
 namespace phil
@@ -6,6 +8,180 @@ namespace phil
 
 namespace opt
 {
+
+
+double feature_weights_t::get(const feature_t &f)
+{
+    auto found = find(f);
+
+    if (found == end())
+    {
+        double init = get_random_weight();
+        (*this)[f] = init;
+        return init;
+    }
+    else
+        return found->second;
+}
+
+
+void feature_weights_t::load(const std::string &filename)
+{
+    clear();
+
+    std::ifstream fin(filename);
+    char line[256];
+
+    if (not fin)
+    {
+        util::print_warning_fmt(
+            "cannot open feature-weight file: \"%s\"", filename.c_str());
+        return;
+    }
+
+    while (fin.good() and not fin.eof())
+    {
+        fin.getline(line, 256);
+        auto splitted = util::split(line, "\t");
+
+        if (splitted.size() == 2)
+        {
+            double w;
+            _sscanf(splitted.back().c_str(), "%lf", &w);
+            (*this)[splitted.front()] = w;
+        }
+    }
+}
+
+
+void feature_weights_t::load(const opt::feature_weights_t &weights)
+{
+    clear();
+    insert(weights.begin(), weights.end());
+}
+
+
+void feature_weights_t::write(const std::string &filename) const
+{
+    std::ofstream fout(filename);
+
+    if (not fout)
+    {
+        util::print_warning_fmt(
+            "cannot open feature-weight file: \"%s\"", filename.c_str());
+        return;
+    }
+
+    for (auto p : (*this))
+        fout << p.first << '\t' << p.second << std::endl;
+}
+
+
+double feature_weights_t::get_random_weight()
+{
+    static std::mt19937 mt(std::random_device().operator()());
+    return std::uniform_real_distribution<double>(-1.0, 1.0).operator()(mt);
+}
+
+
+training_result_t::training_result_t(epoch_t epoch)
+    : m_epoch(epoch)
+{}
+
+
+void training_result_t::write(std::ostream *os) const
+{
+    (*os) << "<train epoch=\"" << m_epoch << "\">" << std::endl;
+
+    for (auto p : m_update_log)
+    {
+        (*os)
+            << "<weight feature=\"" << p.first
+            << "\" gradient=\"" << std::get<0>(p.second)
+            << "\" before=\"" << std::get<1>(p.second)
+            << "\" after=\"" << std::get<2>(p.second)
+            << "\"></weight>" << std::endl;
+    }
+
+    (*os) << "</train>" << std::endl;
+}
+
+
+void training_result_t::add(const feature_t &name, gradient_t gradient, weight_t before, weight_t after)
+{
+    m_update_log[name] = std::make_tuple(gradient, before, after);
+}
+
+
+double sigmoid_t::operate(const hash_set<feature_t> fs, feature_weights_t &ws) const
+{
+    double sum(0.0);
+    for (auto f : fs) sum += ws.get(f);
+    return (std::tanh(m_gain * sum / 2.0) + 1.0) / 2.0;
+}
+
+
+void sigmoid_t::backpropagate(
+    const hash_set<feature_t> fs, feature_weights_t &ws, gradient_t g,
+    hash_map<feature_t, gradient_t> *out) const
+{
+    double s = operate(fs, ws);
+    double g2 =  m_gain * s * (1 - s);
+
+    for (auto f : fs)
+    {
+        if (out->count(f) == 0)
+            (*out)[f] = ws.at(f) * g;
+        else
+            (*out)[f] += ws.at(f) * g;
+    }
+}
+
+
+
+double linear_loss_t::get(double true_obj, double false_obj) const
+{
+    return (false_obj - true_obj) * (m_do_maximize ? 1 : -1);
+}
+
+
+double linear_loss_t::gradient_true(double true_obj, double false_obj) const
+{
+    return (m_do_maximize ? -1.0 : 1.0);
+}
+
+
+double linear_loss_t::gradient_false(double true_obj, double false_obj) const
+{
+    return (m_do_maximize ? 1.0 : -1.0);
+}
+
+
+
+squared_loss_t::squared_loss_t(bool do_maximize, double margin)
+: m_do_maximize(do_maximize), m_margin(margin)
+{}
+
+
+double squared_loss_t::get(double true_obj, double false_obj) const
+{
+    double d = std::abs(false_obj - true_obj) + m_margin;
+    return d * d;
+}
+
+
+double squared_loss_t::gradient_true(double true_obj, double false_obj) const
+{
+    double d = std::abs(false_obj - true_obj) + m_margin;
+    return 2 * d * (m_do_maximize ? -1.0 : 1.0);
+}
+
+
+double squared_loss_t::gradient_false(double true_obj, double false_obj) const
+{
+    double d = std::abs(false_obj - true_obj) + m_margin;
+    return 2 * d * (m_do_maximize ? 1.0 : -1.0);
+}
 
 
 stochastic_gradient_descent_t::stochastic_gradient_descent_t(scheduler_t *eta)
@@ -18,6 +194,12 @@ weight_t stochastic_gradient_descent_t::update(weight_t *w, gradient_t g, epoch_
     weight_t old(*w);
     return ((*w) -= (g * (*m_eta)(e))) - old;
 }
+
+
+
+ada_grad_t::ada_grad_t(scheduler_t *eta, double s)
+: m_eta(eta), m_s(s)
+{}
 
 
 weight_t ada_grad_t::update(weight_t *w, gradient_t g, epoch_t e)
@@ -41,6 +223,12 @@ weight_t ada_grad_t::update(weight_t *w, gradient_t g, epoch_t e)
     r->second += g * g;
     return ((*w) -= (g * (*m_eta)(e) / (std::sqrt(r->second) + m_s))) - old;
 }
+
+
+
+ada_delta_t::ada_delta_t(rate_t d, double s)
+: m_d(d), m_s(s)
+{}
 
 
 weight_t ada_delta_t::update(weight_t *w, gradient_t g, epoch_t e)
@@ -70,6 +258,12 @@ weight_t ada_delta_t::update(weight_t *w, gradient_t g, epoch_t e)
     r->second.first = (m_d * r->second.first) + ((1 - m_d) * u * u);
     return ((*w) -= u) - old;
 }
+
+
+
+adam_t::adam_t(rate_t d1, rate_t d2, rate_t a, double s)
+: m_d1(d1), m_d2(d2), m_a(a), m_s(s)
+{}
 
 
 weight_t adam_t::update(weight_t *w, gradient_t g, epoch_t e)
@@ -106,6 +300,135 @@ weight_t adam_t::update(weight_t *w, gradient_t g, epoch_t e)
 
     return ((*w) -= u) - old;
 }
+
+
+normalizer_t* generate_normalizer(const phillip_main_t *ph)
+{
+    const std::string key = ph->param("normalizer");
+    std::string pred;
+    std::vector<std::string> terms;
+
+    util::parse_string_as_function_call(key, &pred, &terms);
+
+    if (pred == "l1" and terms.size() >= 1)
+    {
+        double r(0.01);
+        _sscanf(terms.at(0).c_str(), "%lf", &r);
+        return new norm::l1_norm(r);
+    }
+
+    if (pred == "l2" and terms.size() >= 1)
+    {
+        double r(0.01);
+        _sscanf(terms.at(0).c_str(), "%lf", &r);
+        return new norm::l2_norm(r);
+    }
+
+    return NULL;
+}
+
+
+scheduler_t* generate_scheduler(const std::string &key)
+{
+    std::string pred;
+    std::vector<std::string> terms;
+
+    util::parse_string_as_function_call(key, &pred, &terms);
+
+    if (pred == "linear")
+    {
+        double r(0.1), d(0.005);
+        if (terms.size() >= 1) _sscanf(terms.at(0).c_str(), "%lf", &r);
+        if (terms.size() >= 2) _sscanf(terms.at(1).c_str(), "%lf", &d);
+        return new lr::linear(r, d);
+    }
+
+    if (pred == "exponential" or pred == "exp")
+    {
+        double r(0.1), d(0.005);
+        if (terms.size() >= 1) _sscanf(terms.at(0).c_str(), "%lf", &r);
+        if (terms.size() >= 2) _sscanf(terms.at(1).c_str(), "%lf", &d);
+        return new lr::exponential(r, d);
+    }
+
+    return NULL;
+}
+
+
+activation_function_t* generate_activation_function(const std::string &key)
+{
+    std::string pred;
+    std::vector<std::string> terms;
+
+    util::parse_string_as_function_call(key, &pred, &terms);
+
+    if (pred == "sigmoid")
+    {
+        double g(1.0), o(0.0);
+        if (terms.size() >= 1) _sscanf(terms.at(0).c_str(), "%lf", &g);
+        if (terms.size() >= 2) _sscanf(terms.at(1).c_str(), "%lf", &o);
+        return new sigmoid_t(g, o);
+    }
+
+    return NULL;
+}
+
+
+loss_function_t* generate_loss_function(const std::string &key, bool do_maximize)
+{
+    std::string pred;
+    std::vector<std::string> terms;
+
+    util::parse_string_as_function_call(key, &pred, &terms);
+
+    if (pred == "square")
+    {
+        double m(0.0);
+        if (terms.size() >= 1) _sscanf(terms.at(0).c_str(), "%lf", &m);
+        return new squared_loss_t(do_maximize, m);
+    }
+
+    return NULL;
+}
+
+
+optimization_method_t* generate_optimizer(const std::string &key)
+{
+    std::string pred;
+    std::vector<std::string> terms;
+    util::parse_string_as_function_call(key, &pred, &terms);
+
+    if (pred == "sgd" and terms.size() >= 1)
+        return new stochastic_gradient_descent_t(generate_scheduler(terms.at(0)));
+
+    if (pred == "adagrad" and terms.size() >= 1)
+    {
+        double s(1.0);
+        if (terms.size() >= 2) _sscanf(terms.at(1).c_str(), "%lf", &s);
+        return new ada_grad_t(generate_scheduler(terms.at(0)), s);
+    }
+
+    if (pred == "adadelta" and terms.size() >= 1)
+    {
+        double d, s(1.0);
+        _sscanf(terms.at(0).c_str(), "%lf", &d);
+        if (terms.size() >= 2) _sscanf(terms.at(1).c_str(), "%lf", &s);
+        return new ada_delta_t(d, s);
+    }
+
+    if (pred == "adam" and terms.size() >= 3)
+    {
+        double d1, d2, a, s(10e-8);
+        _sscanf(terms.at(0).c_str(), "%lf", &d1);
+        _sscanf(terms.at(1).c_str(), "%lf", &d2);
+        _sscanf(terms.at(2).c_str(), "%lf", &a);
+        if (terms.size() >= 4) _sscanf(terms.at(3).c_str(), "%lf", &s);
+        return new adam_t(d1, d2, a, s);
+    }
+
+    return NULL;
+}
+
 
 
 }

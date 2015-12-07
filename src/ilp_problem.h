@@ -6,6 +6,7 @@
 
 #include <string>
 #include <climits>
+#include <memory>
 
 #include "./define.h"
 #include "./proof_graph.h"
@@ -128,7 +129,6 @@ public:
 
     inline ilp_problem_t(
         const pg::proof_graph_t* lhs, solution_interpreter_t *si, bool do_maximize);
-    virtual ~ilp_problem_t();
 
     /** Merges with another ilp-problem. */
     void merge(const ilp_problem_t &prob);
@@ -324,7 +324,7 @@ protected:
 
     hash_map<std::string, std::string> m_attributes;
     solution_interpreter_t *m_solution_interpreter;
-    std::list<solution_xml_decorator_t*> m_xml_decorators;
+    std::list<std::unique_ptr<solution_xml_decorator_t>> m_xml_decorators;
 };
 
 

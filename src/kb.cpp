@@ -1728,7 +1728,6 @@ void knowledge_base_t::arity_database_t::read()
 void knowledge_base_t::arity_database_t::write() const
 {
     std::ofstream fo(m_filename.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);
-    char line[256];
 
     if (fo.bad())
         throw phillip_exception_t("Failed to open " + m_filename);

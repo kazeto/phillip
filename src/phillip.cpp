@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "./phillip.h"
+#include "./optimization.h"
 
 
 namespace phil

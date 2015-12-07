@@ -53,14 +53,6 @@ void constraint_t::print(
 }
 
 
-ilp_problem_t::~ilp_problem_t()
-{
-    delete m_solution_interpreter;
-    for (auto it = m_xml_decorators.begin(); it != m_xml_decorators.end(); ++it)
-        delete *it;
-}
-
-
 void ilp_problem_t::merge(const ilp_problem_t &prob)
 {
 #define foreach(it, con) for(auto it = con.begin(); it != con.end(); ++it)

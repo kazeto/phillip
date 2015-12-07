@@ -190,7 +190,8 @@ inline ilp_problem_t::ilp_problem_t(
 
 inline void ilp_problem_t::add_xml_decorator(solution_xml_decorator_t *p_dec)
 {
-    m_xml_decorators.push_back(p_dec);
+    m_xml_decorators.push_back(std::unique_ptr<solution_xml_decorator_t>());
+    m_xml_decorators.back().reset(p_dec);
 }
   
 

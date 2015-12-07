@@ -26,8 +26,18 @@ generate_cost_provider(const phillip_main_t *ph)
             return new basic_cost_provider_t(
             std::plus<double>(), def_cost, def_weight, "addition");
 
+        if (key == "parameterized-linear")
+        {
+            parameterized_linear_cost_provider_t *out =
+                new parameterized_linear_cost_provider_t(
+                opt::generate_optimizer(ph->param("optimizer")),
+                opt::generate_loss_function(ph->param("loss"), false),
+                opt::generate_activation_function(ph->param("activation")));
+            return out;
+        }
+
         throw phillip_exception_t(
-            "The parameter for weight-provider is invalid: " + key);
+            "The arguments for cost-provider are invalid: " + key);
     }
 
     // DEFAULT
@@ -47,43 +57,20 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
     auto begin = std::chrono::system_clock::now();
     
     const pg::proof_graph_t *graph = phillip()->get_latent_hypotheses_set();
-    ilp::ilp_problem_t *prob = new ilp::ilp_problem_t(
-        graph, new ilp::basic_solution_interpreter_t(), false);
+    ilp_problem_t *prob = new ilp_problem_t(graph);
 
     convert_proof_graph(prob);
     if (prob->has_timed_out()) return prob;
 
 #define _check_timeout if(do_time_out(begin)) { prob->timeout(true); return prob; }
     
-    // HYPOTHESIS COSTS ASSIGNED EACH NODE
-    hash_map<pg::node_idx_t, ilp::variable_idx_t> node2costvar;
-
-    auto add_variable_for_cost = [&, this](pg::node_idx_t idx, double cost)
-    {
-        ilp::variable_idx_t v(prob->find_variable_with_node(idx));
-        if (v >= 0)
-        {
-            std::string name = util::format("cost(n:%d)", idx);
-            ilp::variable_idx_t costvar =
-                prob->add_variable(ilp::variable_t(name, cost));
-            node2costvar[idx] = costvar;
-        }
-    };
-    
     for (auto p : (*m_cost_provider)(graph))
     {
-        add_variable_for_cost(p.first, p.second);
+        prob->add_variable_for_hypothesis_cost(p.first, p.second);
         if (do_time_out(begin)) break;
     }
 
-    auto get_cost_of_node = [&](pg::node_idx_t idx) -> double
-    {
-        auto find = node2costvar.find(idx);        
-        return (find != node2costvar.end()) ?
-            prob->variable(find->second).objective_coefficient() : 0.0;
-    };
-        
-    for (auto p : node2costvar)
+    for (auto p : prob->hypo_cost_map())
     {
         if (do_time_out(begin)) break;
             
@@ -131,8 +118,8 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
                         graph->node(from[1]).type() == pg::NODE_REQUIRED)
                         continue;
 
-                    double cost1 = get_cost_of_node(from[0]);
-                    double cost2 = get_cost_of_node(from[1]);
+                    double cost1 = prob->get_hypothesis_cost_of(from[0]);
+                    double cost2 = prob->get_hypothesis_cost_of(from[1]);
                     if ((n_idx == from[0]) == (cost1 > cost2))
                         edges.insert(e);
                 }
@@ -165,8 +152,8 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
         if (v_uni_tail < 0 or(e_uni.head() >= 0 and v_uni_head < 0)) continue;
 
         auto from = graph->hypernode(e_uni.tail());
-        double cost1 = get_cost_of_node(from[0]);
-        double cost2 = get_cost_of_node(from[1]);
+        double cost1 = prob->get_hypothesis_cost_of(from[0]);
+        double cost2 = prob->get_hypothesis_cost_of(from[1]);
         pg::node_idx_t
             explained((cost1 > cost2) ? from[0] : from[1]),
             explains((cost1 > cost2) ? from[1] : from[0]);
@@ -177,7 +164,6 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
         if (do_time_out(begin)) break;
     }
     
-    prob->add_xml_decorator(new xml_decorator_t(node2costvar));
     prob->add_attributes("converter", repr());
 
 #undef _check_timeout
@@ -217,6 +203,61 @@ generator_t::operator()(const phillip_main_t *ph) const
 {
     return new weighted_converter_t(
         ph, weighted_converter_t::generate_cost_provider(ph));
+}
+
+
+/* -------- Methods of ilp_problem_t -------- */
+
+weighted_converter_t::ilp_problem_t::ilp_problem_t(const pg::proof_graph_t *graph)
+: ilp::ilp_problem_t(graph, new ilp::basic_solution_interpreter_t(), false)
+{
+    add_xml_decorator(new xml_decorator_t(this));
+}
+
+
+ilp::variable_idx_t weighted_converter_t::ilp_problem_t::add_variable_for_hypothesis_cost(pg::node_idx_t idx, double cost)
+{
+    ilp::variable_idx_t v(find_variable_with_node(idx));
+    if (v >= 0)
+    {
+        std::string name = util::format("cost(n:%d)", idx);
+        ilp::variable_idx_t costvar =
+            add_variable(ilp::variable_t(name, cost));
+        m_hypo_cost_map[idx] = costvar;
+
+        return costvar;
+    }
+    else
+        return -1;
+}
+
+
+double weighted_converter_t::ilp_problem_t::get_hypothesis_cost_of(pg::node_idx_t idx) const
+{
+    auto find = m_hypo_cost_map.find(idx);
+    return (find != m_hypo_cost_map.end()) ? variable(find->second).objective_coefficient() : 0.0;
+}
+
+
+weighted_converter_t::ilp_problem_t::xml_decorator_t::xml_decorator_t(const ilp_problem_t *master)
+: m_master(master)
+{}
+
+
+void weighted_converter_t::ilp_problem_t::xml_decorator_t::get_literal_attributes(
+    const ilp::ilp_solution_t *sol, pg::node_idx_t idx,
+    hash_map<std::string, std::string> *out) const
+{
+    const hash_map<pg::node_idx_t, ilp::variable_idx_t> &map = m_master->hypo_cost_map();
+    auto find = map.find(idx);
+
+    if (find != map.end())
+    {
+        ilp::variable_idx_t costvar = find->second;
+        double cost(sol->problem()->variable(costvar).objective_coefficient());
+        (*out)["cost"] = util::format("%lf", cost);
+        (*out)["paid-cost"] = sol->variable_is_active(costvar) ? "yes" : "no";
+    }
 }
 
 
@@ -336,29 +377,6 @@ const pg::proof_graph_t *g, pg::edge_idx_t idx, double default_weight)
 }
 
 
-/* -------- Methods of xml_decorator_t -------- */
-
-
-weighted_converter_t::xml_decorator_t::xml_decorator_t(
-    const hash_map<pg::node_idx_t, ilp::variable_idx_t> &node2costvar)
-    : m_node2costvar(node2costvar)
-{}
-
-
-void weighted_converter_t::xml_decorator_t::get_literal_attributes(
-    const ilp::ilp_solution_t *sol, pg::node_idx_t idx,
-    hash_map<std::string, std::string> *out) const
-{
-    auto find = m_node2costvar.find(idx);
-    if (find != m_node2costvar.end())
-    {
-        ilp::variable_idx_t costvar = find->second;
-        double cost(sol->problem()->variable(costvar).objective_coefficient());
-        (*out)["cost"] = util::format("%lf", cost);
-        (*out)["paid-cost"] = sol->variable_is_active(costvar) ? "yes" : "no";
-    }
-}
-
 
 /* -------- Methods of basic_cost_provider_t -------- */
 
@@ -393,8 +411,10 @@ weighted_converter_t::parameterized_cost_provider_t::parameterized_cost_provider
 
 
 weighted_converter_t::parameterized_cost_provider_t::parameterized_cost_provider_t(
-    opt::optimization_method_t *optimizer, opt::error_function_t *error)
-    : m_optimizer(optimizer), m_error_function(error)
+    opt::optimization_method_t *optimizer, opt::loss_function_t *error,
+    opt::activation_function_t *hypo_cost_provider)
+    : m_optimizer(optimizer), m_loss_function(error),
+    m_hypothesis_cost_provider(hypo_cost_provider)
 {}
 
 
@@ -402,100 +422,41 @@ opt::training_result_t* weighted_converter_t::parameterized_cost_provider_t::tra
     opt::epoch_t epoch,
     const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold)
 {
+    opt::training_result_t *out = new opt::training_result_t(epoch);
     hash_map<opt::feature_t, opt::gradient_t> grads = get_gradients(epoch, sys, gold);
+
+    for (auto p : grads)
+    {
+        const opt::feature_t f = p.first;
+        const opt::gradient_t g = p.second;
+        opt::weight_t *w = &m_weights[f];
+        opt::weight_t w_old = (*w);
+
+        m_optimizer->update(w, g, epoch);
+        out->add(f, g, w_old, *w);
+    }
+
+    return out;
 }
 
 
 bool weighted_converter_t::parameterized_cost_provider_t::is_trainable() const
 {
-    return (bool)m_optimizer and (bool)m_error_function;
+    return (bool)m_optimizer and (bool)m_loss_function;
 }
 
 
-void weighted_converter_t::parameterized_cost_provider_t::load(const std::string &filename)
-{
-    m_weights.clear();
-
-    std::ifstream fin(filename);
-    char line[256];
-
-    if (not fin)
-    {
-        util::print_warning_fmt(
-            "cannot open feature-weight file: \"%s\"", filename.c_str());
-        return;
-    }
-
-    while (fin.good() and not fin.eof())
-    {
-        fin.getline(line, 256);
-        auto splitted = util::split(line, "\t");
-
-        if (splitted.size() == 2)
-        {
-            double w;
-            _sscanf(splitted.back().c_str(), "%lf", &w);
-            m_weights[splitted.front()] = w;
-        }
-    }
-}
-
-
-void weighted_converter_t::parameterized_cost_provider_t::load(const opt::feature_weights_t &weights)
-{
-    m_weights = weights;
-}
-
-
-void weighted_converter_t::parameterized_cost_provider_t::write(const std::string &filename) const
-{
-    std::ofstream fout(filename);
-
-    if (not fout)
-    {
-        util::print_warning_fmt(
-            "cannot open feature-weight file: \"%s\"", filename.c_str());
-        return;
-    }
-
-    for (auto p : m_weights)
-        fout << p.first << '\t' << p.second << std::endl;
-}
-
-
-double get_random_weight()
-{
-    static std::mt19937 mt(std::random_device().operator()());
-    return std::uniform_real_distribution<double>(-1.0, 1.0).operator()(mt);
-}
-
-
-std::vector<double> weighted_converter_t::parameterized_cost_provider_t
-::get_weights(const pg::proof_graph_t *g, pg::edge_idx_t idx, opt::feature_weights_t *weights)
+void weighted_converter_t::parameterized_cost_provider_t
+::get_weights(const pg::proof_graph_t *g, pg::edge_idx_t idx, std::vector<opt::weight_t> *out) const
 {
     const pg::edge_t &edge = g->edge(idx);
     size_t size = g->hypernode(edge.head()).size();
 
-    hash_set<std::string> features;
+    hash_set<opt::feature_t> features;
     get_features(g, idx, &features);
 
-    double sum(0.0);
-    for (auto f : features)
-    {
-        auto found = weights->find(f);
-
-        if (found == weights->end())
-        {
-            double init = get_random_weight();
-            (*weights)[f] = init;
-            sum += init;
-        }
-        else
-            sum += found->second;
-    }
-
-    double weight = (2.0 + std::tanh(sum)) / (double)size;
-    return std::vector<double>(size, weight);
+    double w = m_hypothesis_cost_provider->operate(features, m_weights);
+    out->assign(size, (w / (double)size));
 }
 
 
@@ -530,11 +491,23 @@ void weighted_converter_t::parameterized_cost_provider_t::get_features(
 }
 
 
+
+weighted_converter_t::parameterized_linear_cost_provider_t::parameterized_linear_cost_provider_t(
+    opt::optimization_method_t *optimizer, opt::loss_function_t *error,
+    opt::activation_function_t *hypo_cost_provider)
+    : parameterized_cost_provider_t(optimizer, error, hypo_cost_provider)
+{}
+
+
 hash_map<pg::node_idx_t, double> weighted_converter_t::
 parameterized_linear_cost_provider_t::operator()(const pg::proof_graph_t *g) const
 {
-    auto _get_weights =
-        std::bind(get_weights, std::placeholders::_1, std::placeholders::_2, &m_weights);
+    auto _get_weights = [this](const pg::proof_graph_t *g, pg::edge_idx_t i)
+    {
+        std::vector<double> out;
+        this->get_weights(g, i, &out);
+        return out;
+    };
 
     hash_map<pg::node_idx_t, double> node2cost;
     get_observation_costs(g, 10.0, &node2cost);
@@ -544,6 +517,44 @@ parameterized_linear_cost_provider_t::operator()(const pg::proof_graph_t *g) con
 }
 
 
+hash_map<opt::feature_t, opt::gradient_t>
+weighted_converter_t::parameterized_linear_cost_provider_t::get_gradients(
+    opt::epoch_t epoch, const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) const
+{
+    const ilp_problem_t *prob_sys = static_cast<const ilp_problem_t*>(sys.problem());
+    const ilp_problem_t *prob_gold = static_cast<const ilp_problem_t*>(gold.problem());
+    const pg::proof_graph_t *graph = sys.proof_graph();
+    double obj_sys = sys.value_of_objective_function();
+    double obj_gold = gold.value_of_objective_function();
+    hash_map<opt::feature_t, opt::gradient_t> out;
+
+    auto _get_gradients = [&](bool is_gold)
+    {
+        const ilp_problem_t *prob = (is_gold ? prob_gold : prob_sys);
+        hash_set<pg::edge_idx_t> chains;
+
+        for (auto p : prob->hypo_cost_map())
+        if (sys.variable_is_active(p.second))
+        {
+            hash_set<pg::edge_idx_t> c = graph->enumerate_dependent_edges(p.first);
+            chains.insert(c.begin(), c.end());
+        }
+
+        for (auto idx_e : chains)
+        {
+            const pg::edge_t edge = graph->edge(idx_e);
+            hash_set<opt::feature_t> feats;
+            opt::gradient_t g = is_gold ?
+                m_loss_function->gradient_true(obj_gold, obj_sys) :
+                m_loss_function->gradient_false(obj_gold, obj_sys);
+
+            get_features(graph, idx_e, &feats);
+            m_hypothesis_cost_provider->backpropagate(feats, m_weights, g, &out);
+        }
+    };
+
+    return out;
+}
 
 
 }
