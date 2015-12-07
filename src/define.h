@@ -237,8 +237,8 @@ public:
      *  @param[out] disp Error messages to be printed when this method returns false. */
     virtual bool is_available(std::list<std::string> *disp) const = 0;
 
-    /** Returns the name of this component. */
-    virtual std::string repr() const = 0;
+    /** Write the detail of this component in XML-format. */
+    virtual void write(std::ostream *os) const = 0;
 
     /** Returns whether the output is non-available or sub-optimal
      *  when this component has timed out. */

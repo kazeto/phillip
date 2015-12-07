@@ -199,9 +199,12 @@ bool a_star_based_enumerator_t::is_available(std::list<std::string>*) const
 { return true; }
 
 
-std::string a_star_based_enumerator_t::repr() const
+void a_star_based_enumerator_t::write(std::ostream *os) const
 {
-    return "A*BasedEnumerator";
+    (*os)
+        << "<generator name=\"a*\" max-distance=\"" << m_max_distance
+        << "\" max-depth=\"" << m_max_depth
+        << "\"></generator>" << std::endl;
 }
 
 

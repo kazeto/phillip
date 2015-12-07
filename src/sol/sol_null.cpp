@@ -19,9 +19,9 @@ bool null_solver_t::is_available(
 }
 
 
-std::string null_solver_t::repr() const
+void null_solver_t::write(std::ostream *os) const
 {
-    return "Null-Solver";
+    (*os) << "<solver name=\"null\"></solver>" << std::endl;
 }
 
 

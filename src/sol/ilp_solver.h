@@ -45,7 +45,7 @@ public:
         std::vector<ilp::ilp_solution_t> *out) const {};
 
     virtual bool is_available(std::list<std::string> *error_messages) const;
-    virtual std::string repr() const;
+    virtual void write(std::ostream *os) const override;
     virtual bool do_keep_validity_on_timeout() const override { return false; }
 };
 
@@ -67,7 +67,7 @@ public:
         std::vector<ilp::ilp_solution_t> *out) const;
 
     virtual bool is_available(std::list<std::string> *error_messages) const;
-    virtual std::string repr() const;
+    virtual void write(std::ostream *os) const override;
     virtual bool do_keep_validity_on_timeout() const override { return false; }
 
 #ifdef USE_LP_SOLVE
@@ -98,7 +98,7 @@ public:
         std::vector<ilp::ilp_solution_t> *out) const;
 
     virtual bool is_available(std::list<std::string> *error_messages) const;
-    virtual std::string repr() const { return "gurobi-optimizer"; }
+    virtual void write(std::ostream *os) const override;
     virtual bool do_keep_validity_on_timeout() const override { return false; }
 
 protected:
@@ -157,7 +157,7 @@ public:
         std::vector<ilp::ilp_solution_t> *out) const;
 
     virtual bool is_available(std::list<std::string> *error_messages) const;
-    virtual std::string repr() const { return "gurobi-k-best"; }
+    virtual void write(std::ostream *os) const override;
     virtual bool do_keep_validity_on_timeout() const override { return false; }
 
 private:

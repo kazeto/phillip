@@ -25,9 +25,9 @@ bool null_converter_t::is_available(std::list<std::string> *messages) const
 }
 
 
-std::string null_converter_t::repr() const
+void null_converter_t::write(std::ostream *os) const
 {
-    return "Plain-LP-Problem-Factory";
+    (*os) << "<converter name=\"null\"></converter>" << std::endl;
 }
 
 

@@ -99,9 +99,9 @@ bool costed_converter_t::is_available(std::list<std::string> *message) const
 }
 
 
-std::string costed_converter_t::repr() const
+void costed_converter_t::write(std::ostream *os) const
 {
-    return "CostedConverter";
+    (*os) << "<converter name=\"costed\"></converter>" << std::endl;
 }
 
 

@@ -65,6 +65,16 @@ bool gurobi_t::is_available(std::list<std::string> *err) const
 }
 
 
+void gurobi_t::write(std::ostream *os) const
+{
+    (*os)
+        << "<solver name=\"gurobi"
+        << "\" thread-num=\"" << m_thread_num
+        << "\" print-log=\"" << (m_do_output_log ? "yes" : "no")
+        << "\"></solver>" << std::endl;
+}
+
+
 #ifdef USE_GUROBI
 
 void gurobi_t::prepare(model_t &m) const

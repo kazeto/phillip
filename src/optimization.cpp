@@ -10,6 +10,54 @@ namespace opt
 {
 
 
+namespace norm
+{
+
+void l1_norm::write(std::ostream *os) const
+{
+    (*os)
+        << "<normalizer name=\"l1-norm\" r0=\"" << m_rate
+        << "\">" << util::format("%lf * W", m_rate)
+        << "</normalize>" << std::endl;
+}
+
+
+void l2_norm::write(std::ostream *os) const
+{
+    (*os)
+        << "<normalizer name=\"l2-norm\" r0=\"" << m_rate
+        << "\">" << util::format("%lf * (W ^ 2)", m_rate)
+        << "</normalize>" << std::endl;
+}
+
+}
+
+
+namespace lr
+{
+
+    void linear::write(std::ostream *os) const
+    {
+        (*os)
+            << "<scheduler name=\"linear\" r0=\"" << m_r
+            << "d=\"" << m_d
+            << "\">" << util::format("r0 - (d * t)")
+            << "</scheduler>" << std::endl;
+    }
+
+
+    void exponential::write(std::ostream *os) const
+    {
+        (*os)
+            << "<scheduler name=\"exponential\" r0=\"" << m_r
+            << "k=\"" << m_d
+            << "\">" << util::format("r0 * (k ^ t)")
+            << "</scheduler>" << std::endl;
+    }
+
+}
+
+
 double feature_weights_t::get(const feature_t &f)
 {
     auto found = find(f);
@@ -138,6 +186,16 @@ void sigmoid_t::backpropagate(
 }
 
 
+void sigmoid_t::write(const std::string &tag, std::ostream *os) const
+{
+    (*os)
+        << "<" << tag
+        << " name=\"sigoid\" gain=\"" << m_gain
+        << "\" offset=\"" << m_offset
+        << "\"></" << tag << ">" << std::endl;
+}
+
+
 
 double linear_loss_t::get(double true_obj, double false_obj) const
 {
@@ -154,6 +212,15 @@ double linear_loss_t::gradient_true(double true_obj, double false_obj) const
 double linear_loss_t::gradient_false(double true_obj, double false_obj) const
 {
     return (m_do_maximize ? 1.0 : -1.0);
+}
+
+
+void linear_loss_t::write(std::ostream *os) const
+{
+    (*os)
+        << "<loss name=\"linear\">"
+        << (m_do_maximize ? "Ef - Et" : "Et - Ef")
+        << "</loss>" << std::endl;
 }
 
 
@@ -184,6 +251,15 @@ double squared_loss_t::gradient_false(double true_obj, double false_obj) const
 }
 
 
+void squared_loss_t::write(std::ostream *os) const
+{
+    (*os)
+        << "<loss name=\"squared\" margin=\"" << m_margin << "\">"
+        << (m_do_maximize ? "(Ef - Et + margin)^2" : "(Et - Ef + margin)^2")
+        << "</loss>" << std::endl;
+}
+
+
 stochastic_gradient_descent_t::stochastic_gradient_descent_t(scheduler_t *eta)
 : m_eta(eta)
 {}
@@ -193,6 +269,14 @@ weight_t stochastic_gradient_descent_t::update(weight_t *w, gradient_t g, epoch_
 {
     weight_t old(*w);
     return ((*w) -= (g * (*m_eta)(e))) - old;
+}
+
+
+void stochastic_gradient_descent_t::write(std::ostream *os) const
+{
+    (*os) << "<optimizer name=\"stochastic-gradient-descent\">" << std::endl;
+    m_eta->write(os);
+    (*os) << "</optimizer>" << std::endl;
 }
 
 
@@ -223,6 +307,17 @@ weight_t ada_grad_t::update(weight_t *w, gradient_t g, epoch_t e)
     r->second += g * g;
     return ((*w) -= (g * (*m_eta)(e) / (std::sqrt(r->second) + m_s))) - old;
 }
+
+
+void ada_grad_t::write(std::ostream *os) const
+{
+    (*os)
+        << "<optimizer name=\"ada-grad\" stabilizer=\"" << m_s
+        << "\">" << std::endl;
+    m_eta->write(os);
+    (*os) << "</optimizer>" << std::endl;
+}
+
 
 
 
@@ -257,6 +352,16 @@ weight_t ada_delta_t::update(weight_t *w, gradient_t g, epoch_t e)
     double u = g * (std::sqrt(r->second.second) + m_s) / (std::sqrt(r->second.first) + m_s);
     r->second.first = (m_d * r->second.first) + ((1 - m_d) * u * u);
     return ((*w) -= u) - old;
+}
+
+
+void ada_delta_t::write(std::ostream *os) const
+{
+    (*os)
+        << "<optimizer name=\"ada-delta"
+        << "\" decay-rate=\"" << m_d
+        << "\" stabilizer=\"" << m_s
+        << "\"></optimizer>" << std::endl;
 }
 
 
@@ -300,6 +405,19 @@ weight_t adam_t::update(weight_t *w, gradient_t g, epoch_t e)
 
     return ((*w) -= u) - old;
 }
+
+
+void adam_t::write(std::ostream *os) const
+{
+    (*os)
+        << "<optimizer name=\"adam"
+        << "\" decay-rate-1=\"" << m_d1
+        << "\" decay-rate-2=\"" << m_d2
+        << "\" learning-rate=\"" << m_a
+        << "\" stabilizer=\"" << m_s
+        << "\"></optimizer>" << std::endl;
+}
+
 
 
 normalizer_t* generate_normalizer(const phillip_main_t *ph)

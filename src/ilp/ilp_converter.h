@@ -26,7 +26,7 @@ public:
 
     virtual ilp::ilp_problem_t* execute() const override;
     virtual bool is_available(std::list<std::string>*) const override;
-    virtual std::string repr() const override;
+    virtual void write(std::ostream *os) const override;
     virtual bool do_keep_validity_on_timeout() const override { return true; }
 };
 
@@ -81,7 +81,8 @@ public:
             const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) = 0;
         virtual bool is_trainable() const = 0;
 
-        virtual std::string repr() const = 0;
+        /** Write the detail of this in XML-format. */
+        virtual void write(std::ostream *os) const = 0;
 
     protected:
         typedef std::function<std::vector<double>(const pg::proof_graph_t*, pg::edge_idx_t)> weight_provider_t;
@@ -109,8 +110,7 @@ public:
             opt::epoch_t epoch,
             const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) override { return NULL; }
         virtual bool is_trainable() const override { return false; }
-
-        virtual std::string repr() const override { return "basic"; }
+        virtual void write(std::ostream *os) const override;
 
     protected:
         std::string m_name;
@@ -133,7 +133,6 @@ public:
             opt::epoch_t epoch,
             const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) override;
         virtual bool is_trainable() const override;
-        virtual std::string repr() const override { return "parameterized"; }
 
     protected:
         parameterized_cost_provider_t(const parameterized_cost_provider_t &p);
@@ -162,7 +161,7 @@ public:
             opt::activation_function_t *hypo_cost_provider);
 
         virtual hash_map<pg::node_idx_t, double> operator()(const pg::proof_graph_t *g) const override;
-        virtual std::string repr() const override { return "parameterized-linear"; }
+        virtual void write(std::ostream *os) const override;
 
     private:
         virtual hash_map<opt::feature_t, opt::gradient_t> get_gradients(
@@ -176,7 +175,7 @@ public:
 
     virtual ilp::ilp_problem_t* execute() const override;
     virtual bool is_available(std::list<std::string>*) const override;
-    virtual std::string repr() const override;
+    virtual void write(std::ostream *os) const override;
     virtual bool do_keep_validity_on_timeout() const override { return false; }
 
     virtual opt::training_result_t* train(
@@ -222,7 +221,7 @@ public:
 
     virtual ilp::ilp_problem_t* execute() const override;
     virtual bool is_available(std::list<std::string>*) const override;
-    virtual std::string repr() const override;
+    virtual void write(std::ostream *os) const override;
     virtual bool do_keep_validity_on_timeout() const override { return false; }
 
 protected:

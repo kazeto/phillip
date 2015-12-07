@@ -30,7 +30,7 @@ public:
     virtual pg::proof_graph_t* execute() const;
 
     virtual bool is_available(std::list<std::string>*) const;
-    virtual std::string repr() const;
+    virtual void write(std::ostream *os) const override;
     virtual bool do_keep_validity_on_timeout() const override { return true; }
 
 private:
@@ -85,7 +85,7 @@ public:
     virtual pg::proof_graph_t* execute() const;
 
     virtual bool is_available(std::list<std::string>*) const;
-    virtual std::string repr() const;
+    virtual void write(std::ostream *os) const override;
     virtual bool do_keep_validity_on_timeout() const override { return true; }
 
 private:

@@ -133,6 +133,19 @@ bool gurobi_k_best_t::is_available(std::list<std::string> *error_messages) const
 }
 
 
+void gurobi_k_best_t::write(std::ostream *os) const
+{
+    (*os)
+        << "<solver name=\"gurobi-k-best"
+        << "\" max-answer-num=\"" << m_max_num
+        << "\" threshold=\"" << m_threshold
+        << "\" margin=\"" << m_margin
+        << "\" thread-num=\"" << m_thread_num
+        << "\" print-log=\"" << (m_do_output_log ? "yes" : "no")
+        << "\"></solver>" << std::endl;
+}
+
+
 ilp_solver_t* gurobi_k_best_t::generator_t::operator()(const phillip_main_t *ph) const
 {
     return new sol::gurobi_k_best_t(

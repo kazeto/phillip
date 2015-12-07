@@ -80,9 +80,9 @@ bool lp_solve_t::is_available(std::list<std::string> *messages) const
 }
 
 
-std::string lp_solve_t::repr() const
+void lp_solve_t::write(std::ostream *os) const
 {
-    return "LP-Solve";
+    (*os) << "<solver name=\"lp-solve\"></solver>" << std::endl;
 }
 
 

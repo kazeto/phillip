@@ -86,9 +86,11 @@ bool depth_based_enumerator_t::is_available(std::list<std::string>*) const
 { return true; }
 
 
-std::string depth_based_enumerator_t::repr() const
+void depth_based_enumerator_t::write(std::ostream *os) const
 {
-    return "DepthBasedEnumerator";
+    (*os)
+        << "<generator name=\"depth\" max-depth=\"" << m_depth_max
+        << "\"><generator>" << std::endl;
 }
 
 

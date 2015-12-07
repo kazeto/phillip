@@ -276,11 +276,11 @@ void phillip_main_t::write_header(std::ostream *os) const
         << "\" executed=\"" << get_time_stamp_exe()
         << "\"></time_stamp>" << std::endl;
 
-    (*os)
-        << "<components lhs=\"" << m_lhs_enumerator->repr()
-        << "\" ilp=\"" << m_ilp_convertor->repr()
-        << "\" sol=\"" << m_ilp_solver->repr()
-        << "\"></components>" << std::endl;
+    (*os) << "<components>" << std::endl;
+    m_lhs_enumerator->write(os);
+    m_ilp_convertor->write(os);
+    m_ilp_solver->write(os);
+    (*os) << "</components>" << std::endl;
 
     const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
     (*os)

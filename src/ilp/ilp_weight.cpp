@@ -20,11 +20,11 @@ generate_cost_provider(const phillip_main_t *ph)
     {
         if (key == "basic")
             return new basic_cost_provider_t(
-            std::multiplies<double>(), def_cost, def_weight, "multiply");
+            std::multiplies<double>(), def_cost, def_weight, "basic-multiply");
 
         if (key == "linear")
             return new basic_cost_provider_t(
-            std::plus<double>(), def_cost, def_weight, "addition");
+            std::plus<double>(), def_cost, def_weight, "basic-addition");
 
         if (key == "parameterized-linear")
         {
@@ -163,8 +163,6 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
 
         if (do_time_out(begin)) break;
     }
-    
-    prob->add_attributes("converter", repr());
 
 #undef _check_timeout
     
@@ -178,11 +176,14 @@ bool weighted_converter_t::is_available(std::list<std::string> *message) const
 }
 
 
-std::string weighted_converter_t::repr() const
+void weighted_converter_t::write(std::ostream *os) const
 {
-    return "weighted-converter(" + m_cost_provider->repr() + ")";
-}
+    (*os) << "<converter name=\"weighted\">" << std::endl;
 
+    m_cost_provider->write(os);
+
+    (*os) << "</converter>" << std::endl;
+}
 
 opt::training_result_t* weighted_converter_t::train(
     opt::epoch_t epoch,
@@ -402,6 +403,16 @@ weighted_converter_t::basic_cost_provider_t::operator()(const pg::proof_graph_t 
 }
 
 
+void weighted_converter_t::basic_cost_provider_t::write(std::ostream *os) const
+{
+    (*os)
+        << "<cost-provider name=\"" << m_name
+        << "\" default-observation-cost=\"" << m_default_observation_cost
+        << "\" default-axiom-weight=\"" << m_default_axiom_weight
+        << "\"></cost-provider>" << std::endl;
+}
+
+
 
 /* -------- Methods of parameterized_cost_provider_t -------- */
 
@@ -515,6 +526,17 @@ parameterized_linear_cost_provider_t::operator()(const pg::proof_graph_t *g) con
 
     return node2cost;
 }
+
+
+void weighted_converter_t::parameterized_linear_cost_provider_t::write(std::ostream *os) const
+{
+    (*os) << "<converter name=\"parameterized-linear\">" << std::endl;
+    m_optimizer->write(os);
+    m_loss_function->write(os);
+    m_hypothesis_cost_provider->write("hypothesis-weight", os);
+    (*os) << "</converter>" << std::endl;
+}
+
 
 
 hash_map<opt::feature_t, opt::gradient_t>

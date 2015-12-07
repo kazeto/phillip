@@ -19,6 +19,7 @@ namespace opt
 struct normalizer_t
 {
     virtual gradient_t operator()(weight_t w) const = 0;
+    virtual void write(std::ostream *os) const = 0;
 };
 
 
@@ -30,6 +31,7 @@ class l1_norm : public normalizer_t
 public:
     l1_norm(rate_t r) : m_rate(r) {}
     virtual gradient_t operator()(weight_t w) const override { return m_rate; };
+    virtual void write(std::ostream *os) const;
 private:
     rate_t m_rate;
 };
@@ -40,6 +42,7 @@ class l2_norm : public normalizer_t
 public:
     l2_norm(rate_t r) : m_rate(r) {}
     virtual gradient_t operator()(weight_t w) const override { return m_rate * w; };
+    virtual void write(std::ostream *os) const;
 private:
     rate_t m_rate;
 };
@@ -50,6 +53,7 @@ private:
 struct scheduler_t
 {
     virtual rate_t operator()(epoch_t) const = 0;
+    virtual void write(std::ostream *os) const = 0;
 };
 
 
@@ -61,6 +65,7 @@ class linear : public scheduler_t
 public:
     linear(rate_t r, rate_t d) : m_r(r), m_d(d) {}
     virtual rate_t operator()(epoch_t e) const { return (std::max)(0.0, m_r - e * m_d); }
+    virtual void write(std::ostream *os) const override;
 private:
     rate_t m_r, m_d;
 };
@@ -71,6 +76,7 @@ class exponential : public scheduler_t
 public:
     exponential(rate_t r, rate_t d) : m_r(r), m_d(d) {}
     virtual rate_t operator()(epoch_t e) const { return m_r * std::pow(m_d, e); }
+    virtual void write(std::ostream *os) const override;
 private:
     rate_t m_r, m_d;
 };
@@ -116,6 +122,7 @@ public:
     virtual void backpropagate(
         const hash_set<feature_t> fs, feature_weights_t &ws, gradient_t g,
         hash_map<feature_t, gradient_t> *out) const = 0;
+    virtual void write(const std::string &tag, std::ostream *os) const = 0;
 };
 
 
@@ -127,6 +134,7 @@ public:
     virtual void backpropagate(
         const hash_set<feature_t> fs, feature_weights_t &ws, gradient_t g,
         hash_map<feature_t, gradient_t> *out) const override;
+    virtual void write(const std::string &tag, std::ostream *os) const override;
 private:
     double m_gain, m_offset;
 };
@@ -140,6 +148,7 @@ public:
     virtual double get(double true_obj, double false_obj) const = 0;
     virtual double gradient_true(double true_obj, double false_obj) const = 0;
     virtual double gradient_false(double true_obj, double false_obj) const = 0;
+    virtual void write(std::ostream *os) const = 0;
 };
 
 
@@ -150,6 +159,7 @@ public:
     virtual double get(double true_obj, double false_obj) const override;
     virtual double gradient_true(double true_obj, double false_obj) const override;
     virtual double gradient_false(double true_obj, double false_obj) const override;
+    virtual void write(std::ostream *os) const override;
 private:
     bool m_do_maximize;
 };
@@ -162,6 +172,8 @@ public:
     virtual double get(double true_obj, double false_obj) const override;
     virtual double gradient_true(double true_obj, double false_obj) const override;
     virtual double gradient_false(double true_obj, double false_obj) const override;
+    virtual void write(std::ostream *os) const override;
+
 private:
     bool m_do_maximize;
     double m_margin;
@@ -181,8 +193,8 @@ public:
      *  @reutrn Difference between the weight before/after updating. */
     virtual weight_t update(weight_t *w, gradient_t g, epoch_t e) = 0;
 
-    /** Returns the name of this optimization method itself. */
-    virtual std::string repr() const = 0;
+    /** Write the detail of this in XML-format. */
+    virtual void write(std::ostream *os) const = 0;
 };
 
 
@@ -192,7 +204,7 @@ public:
     stochastic_gradient_descent_t(scheduler_t *eta);
 
     virtual weight_t update(weight_t *w, gradient_t g, epoch_t e) override;
-    virtual std::string repr() const override { return "stochastic-gradient-descent"; }
+    virtual void write(std::ostream *os) const override;
 
 private:
     std::unique_ptr<scheduler_t> m_eta; /// Learning rate.
@@ -207,7 +219,7 @@ public:
     ada_grad_t(scheduler_t *eta, double s = 1.0);
 
     virtual weight_t update(weight_t *w, gradient_t g, epoch_t e) override;
-    virtual std::string repr() const override { return "ada-grad"; }
+    virtual void write(std::ostream *os) const override;
 
 private:
     hash_map<const weight_t*, double> m_accumulations;
@@ -224,7 +236,7 @@ public:
     ada_delta_t(rate_t d, double s = 1.0);
 
     virtual weight_t update(weight_t *w, gradient_t g, epoch_t e) override;
-    virtual std::string repr() const override { return "ada-delta"; }
+    virtual void write(std::ostream *os) const override;
 
 private:
     /** Accumulated gradient and update for each weight. */
@@ -242,7 +254,7 @@ public:
     adam_t(rate_t d1, rate_t d2, rate_t a, double s = 10e-8);
 
     virtual weight_t update(weight_t *w, gradient_t g, epoch_t e) override;
-    virtual std::string repr() const override { return "adam"; }
+    virtual void write(std::ostream *os) const override;
 
 private:
     hash_map<const weight_t*, std::pair<double, double> > m_accumulations;
