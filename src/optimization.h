@@ -101,7 +101,7 @@ private:
 class training_result_t
 {
 public:
-    training_result_t(epoch_t epoch);
+    training_result_t(epoch_t epoch, double loss);
     virtual ~training_result_t() {}
 
     virtual void write(std::ostream *os) const; /// Output in XML-format.
@@ -110,6 +110,7 @@ public:
 
 protected:
     epoch_t m_epoch;
+    double m_loss;
     hash_map<std::string, std::tuple<gradient_t, weight_t, weight_t> > m_update_log;
 };
 
@@ -126,6 +127,9 @@ public:
 };
 
 
+namespace af
+{
+
 class sigmoid_t : public activation_function_t
 {
 public:
@@ -135,10 +139,27 @@ public:
         const hash_set<feature_t> fs, feature_weights_t &ws, gradient_t g,
         hash_map<feature_t, gradient_t> *out) const override;
     virtual void write(const std::string &tag, std::ostream *os) const override;
+
 private:
     double m_gain, m_offset;
 };
 
+
+class relu_t : public activation_function_t
+{
+public:
+    relu_t(double offset) : m_offset(offset) {}
+    virtual double operate(const hash_set<feature_t> fs, feature_weights_t &ws) const override;
+    virtual void backpropagate(
+        const hash_set<feature_t> fs, feature_weights_t &ws, gradient_t g,
+        hash_map<feature_t, gradient_t> *out) const override;
+    virtual void write(const std::string &tag, std::ostream *os) const override;
+
+private:
+    double m_offset;
+};
+
+}
 
 
 /** The base class for error function. */

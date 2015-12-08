@@ -183,14 +183,36 @@ void execute(
             // WRITE RESULTS
             ph->write([&](std::ostream *os)
             {
-                auto sols = ph->get_solutions();
-                for (auto sol = sols.begin(); sol != sols.end(); ++sol)
-                    sol->print_graph(os);
+                for (auto sol : ph->get_solutions())
+                    sol.print_graph(os);
             }, wf::WR_FOUT);
         }
         else
         {
             ph->learn(ipt, epoch);
+
+            // WRITE RESULTS
+            ph->write([&](std::ostream *os)
+            {
+                if (ph->get_training_result())
+                    ph->get_training_result()->write(os);
+                else
+                {
+                    (*os)
+                        << "<train state=\"skipped\" epoch=\"" << epoch << "\">"
+                        << "</train>" << std::endl;
+                }
+
+                (*os) << "<positive>" << std::endl;
+                for (auto sol : ph->get_positive_answer())
+                    sol.print_graph(os);
+                (*os) << "</positive>" << std::endl;
+
+                (*os) << "<negative>" << std::endl;
+                for (auto sol : ph->get_solutions())
+                    sol.print_graph(os);
+                (*os) << "</negative>" << std::endl;
+            }, wf::WR_FOUT);
         }
     };
 
@@ -212,13 +234,17 @@ void execute(
 
         kb::kb()->prepare_query();
 
+        if (not ph->check_validity_for_infer())
+            throw phillip_exception_t(
+            "Cannot infer: There exists some problem in the current setting.");
+
         if (is_training)
         {
-            ph->ilp_convertor()->prepare_train();
-            ph->check_validity_for_train();
+            ph->converter()->prepare_train();
+            if (not ph->check_validity_for_train())
+                throw phillip_exception_t(
+                "Cannot train: There exists some problem in the current setting.");
         }
-        else
-            ph->check_validity_for_infer();
 
         ph->write_header();
 
@@ -271,12 +297,11 @@ void execute(
                 }
             }
 
-            ph->write([&](std::ostream *os)
-            {
-                (*os) << util::format("<inference epoch=\"%d\">", epoch) << std::endl;
-            });
+            ph->write([&](std::ostream *os){ (*os) << "</inference>" << std::endl; });
         }
 
+        if (is_training)
+            ph->converter()->postprocess_train();
         ph->write_footer();
     }
 }
@@ -422,7 +447,8 @@ bool _interpret_option(
                 config->mode = EXE_MODE_INFERENCE;
             else if (arg == "compile_kb" or arg == "compile")
                 config->mode = EXE_MODE_COMPILE_KB;
-            else if (arg == "learning" or arg == "learn")
+            else if (arg == "learning" or arg == "learn" or
+                arg == "training" or arg == "train")
                 config->mode = EXE_MODE_LEARNING;
             else
                 config->mode = EXE_MODE_UNDERSPECIFIED;
@@ -603,9 +629,9 @@ bool preprocess(const execution_configure_t &config, phillip_main_t *ph)
     {
     case EXE_MODE_INFERENCE:
     case EXE_MODE_LEARNING:
-        if (lhs != NULL) ph->set_lhs_enumerator(lhs);
-        if (ilp != NULL) ph->set_ilp_convertor(ilp);
-        if (sol != NULL) ph->set_ilp_solver(sol);
+        if (lhs != NULL) ph->generator().reset(lhs);
+        if (ilp != NULL) ph->converter().reset(ilp);
+        if (sol != NULL) ph->solver().reset(sol);
         return true;
     case EXE_MODE_COMPILE_KB:
         return true;

@@ -50,7 +50,7 @@ public:
 };
 
 
-/** A class of ilp_solver with LP-Solve. */
+/** A class of solver with LP-Solve. */
 class lp_solve_t : public ilp_solver_t
 {
 public:
@@ -81,7 +81,7 @@ private:
 };
 
 
-/** A class of ilp_solver with Gurobi-optimizer. */
+/** A class of solver with Gurobi-optimizer. */
 class gurobi_t : public ilp_solver_t
 {
 public:
@@ -138,7 +138,7 @@ protected:
 };
 
 
-/** A class of ilp_solver which outputs k-best solutions with Gurobi-optimizer. */
+/** A class of solver which outputs k-best solutions with Gurobi-optimizer. */
 class gurobi_k_best_t : public gurobi_t
 {
 public:

@@ -11,6 +11,7 @@
 #include "./logical_function.h"
 #include "./proof_graph.h"
 #include "./ilp_problem.h"
+#include "./optimization.h"
 
 
 /** A namespace of Henry.  */
@@ -28,7 +29,8 @@ namespace wf /// Flags for writing.
     extern const bits_t WR_FCNV; /// Write to path-ilp.
     extern const bits_t WR_FSOL; /// Write to path-sol.
     extern const bits_t WR_FOUT; /// Write to path-out and stdout.
-    extern const bits_t WR_ALL;
+    extern const bits_t WR_ALL;  /// Equals to (WR_FGEN | WR_FCNV | FSOL | FOUT).
+    extern const bits_t TRUNK;   /// Overwrite.
 }
 
 
@@ -58,16 +60,12 @@ public:
     /** Do learning on given observation. */
     void learn(const lf::input_t &input, opt::epoch_t epoch);
 
-    inline const lhs_enumerator_t* lhs_enumerator() const;
-    inline lhs_enumerator_t* lhs_enumerator();
-    inline const ilp_converter_t* ilp_convertor() const;
-    inline ilp_converter_t* ilp_convertor();
-    inline const ilp_solver_t* ilp_solver() const;
-    inline ilp_solver_t* ilp_solver();
-
-    inline void set_lhs_enumerator(lhs_enumerator_t*);
-    inline void set_ilp_convertor(ilp_converter_t*);
-    inline void set_ilp_solver(ilp_solver_t*);
+    inline const std::unique_ptr<lhs_enumerator_t>& generator() const { return m_lhs_enumerator; }
+    inline std::unique_ptr<lhs_enumerator_t>& generator() { return m_lhs_enumerator; }
+    inline const std::unique_ptr<ilp_converter_t>& converter() const { return m_ilp_convertor; }
+    inline std::unique_ptr<ilp_converter_t>& converter() { return m_ilp_convertor; }
+    inline const std::unique_ptr<ilp_solver_t>& solver() const { return m_ilp_solver; }
+    inline std::unique_ptr<ilp_solver_t>& solver() { return m_ilp_solver; }
 
     inline void set_timeout_lhs(duration_time_t t) { m_timeout_lhs.set(t); }
     inline void set_timeout_ilp(duration_time_t t) { m_timeout_ilp.set(t); }
@@ -86,6 +84,8 @@ public:
     inline const pg::proof_graph_t* get_latent_hypotheses_set() const;
     inline const ilp::ilp_problem_t* get_ilp_problem() const;
     inline const std::vector<ilp::ilp_solution_t>& get_solutions() const;
+    inline const std::vector<ilp::ilp_solution_t>& get_positive_answer() const;
+    inline const opt::training_result_t* get_training_result() const;
 
     inline const util::timeout_t& timeout_lhs() const { return m_timeout_lhs; }
     inline const util::timeout_t& timeout_ilp() const { return m_timeout_ilp; }
@@ -133,12 +133,13 @@ protected:
     inline void execute_solver();
     
     void execute_enumerator(
-        pg::proof_graph_t **out_lhs, duration_time_t *out_time,
+        std::unique_ptr<pg::proof_graph_t> *out_lhs, duration_time_t *out_time,
         const std::string &path_out_xml);
     void execute_convertor(
-        ilp::ilp_problem_t **out_ilp, duration_time_t *out_time,
+        std::unique_ptr<ilp::ilp_problem_t> *out_ilp, duration_time_t *out_time,
         const std::string &path_out_xml);
     void execute_solver(
+        const ilp::ilp_problem_t *prob,
         std::vector<ilp::ilp_solution_t> *out_sols,
         duration_time_t *out_clock,
         const std::string &path_out_xml);
@@ -149,9 +150,9 @@ private:
     static int ms_verboseness;
 
     // ---- FUNCTION CLASS OF EACH PROCEDURE
-    lhs_enumerator_t *m_lhs_enumerator;
-    ilp_converter_t  *m_ilp_convertor;
-    ilp_solver_t     *m_ilp_solver;
+    std::unique_ptr<lhs_enumerator_t> m_lhs_enumerator;
+    std::unique_ptr<ilp_converter_t>  m_ilp_convertor;
+    std::unique_ptr<ilp_solver_t>     m_ilp_solver;
 
     // ---- DATA, SETTING, ETC...
     hash_map<std::string, std::string> m_params;
@@ -162,12 +163,13 @@ private:
     hash_set<std::string> m_excluded_obs_names;
 
     // ---- PRODUCTS OF INFERENCE
-    lf::input_t *m_input;
-    pg::proof_graph_t *m_lhs;
-    ilp::ilp_problem_t *m_ilp;
-    ilp::ilp_problem_t *m_ilp_gold;
+    std::unique_ptr<lf::input_t> m_input;
+    std::unique_ptr<pg::proof_graph_t> m_lhs;
+    std::unique_ptr<ilp::ilp_problem_t> m_ilp;
+    std::unique_ptr<ilp::ilp_problem_t> m_ilp_gold;
     std::vector<ilp::ilp_solution_t> m_sol;
     std::vector<ilp::ilp_solution_t> m_sol_gold;
+    std::unique_ptr<opt::training_result_t> m_train_result;
 
     // ---- FOR MEASURE TIME
     duration_time_t

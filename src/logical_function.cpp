@@ -313,8 +313,8 @@ bool logical_function_t::is_valid_as_requirements() const
             continue;
         else if (br.is_operator(OPR_AND))
         {
-            for (auto _br : br.branches())
-            if (not br.is_operator(OPR_LITERAL))
+            for (auto br2 : br.branches())
+            if (not br2.is_operator(OPR_LITERAL))
                 return false;
         }
         else

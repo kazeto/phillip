@@ -179,7 +179,7 @@ ilp::solution_type_e ilp_solver_t::infer_solution_type(
         if (has_timed_out_lhs)
         {
             ilp::solution_type_e t =
-                phillip()->lhs_enumerator()->do_keep_validity_on_timeout() ?
+                phillip()->generator()->do_keep_validity_on_timeout() ?
                 ilp::SOLUTION_SUB_OPTIMAL : ilp::SOLUTION_NOT_AVAILABLE;
             if (out < t) out = t;
         }
@@ -187,7 +187,7 @@ ilp::solution_type_e ilp_solver_t::infer_solution_type(
         if (has_timed_out_ilp)
         {
             ilp::solution_type_e t =
-                phillip()->ilp_convertor()->do_keep_validity_on_timeout() ?
+                phillip()->converter()->do_keep_validity_on_timeout() ?
                 ilp::SOLUTION_SUB_OPTIMAL : ilp::SOLUTION_NOT_AVAILABLE;
             if (out < t) out = t;
         }
@@ -195,7 +195,7 @@ ilp::solution_type_e ilp_solver_t::infer_solution_type(
         if (has_timed_out_sol)
         {
             ilp::solution_type_e t =
-                phillip()->ilp_solver()->do_keep_validity_on_timeout() ?
+                phillip()->solver()->do_keep_validity_on_timeout() ?
                 ilp::SOLUTION_SUB_OPTIMAL : ilp::SOLUTION_NOT_AVAILABLE;
             if (out < t) out = t;
         }

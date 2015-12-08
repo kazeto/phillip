@@ -76,13 +76,15 @@ public:
 
         virtual hash_map<pg::node_idx_t, double> operator()(const pg::proof_graph_t *g) const = 0;
 
+        virtual bool is_available(std::list<std::string>*) const = 0;
+        virtual bool is_trainable(std::list<std::string>*) const = 0;
+
         virtual void prepare_train() {}
         virtual void postprocess_train() {}
 
         virtual opt::training_result_t* train(
             opt::epoch_t epoch,
             const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) = 0;
-        virtual bool is_trainable() const = 0;
 
         /** Write the detail of this in XML-format. */
         virtual void write(std::ostream *os) const = 0;
@@ -109,10 +111,13 @@ public:
             const std::string &name);
 
         virtual hash_map<pg::node_idx_t, double> operator()(const pg::proof_graph_t *g) const override;
+
+        virtual bool is_available(std::list<std::string>*) const override;
+        virtual bool is_trainable(std::list<std::string>*) const override { return false; }
+
         virtual opt::training_result_t* train(
             opt::epoch_t epoch,
             const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) override { return NULL; }
-        virtual bool is_trainable() const override { return false; }
         virtual void write(std::ostream *os) const override;
 
     protected:
@@ -124,25 +129,26 @@ public:
 
     /** A cost provider which compute axiom's weight from its feature weights.
      *  These feature weights can be trainable. */
-    class parameterized_cost_provider_t : public cost_provider_t
+    class virtual_parameterized_cost_provider_t : public cost_provider_t
     {
     public:
-        parameterized_cost_provider_t(
-            const std::string &model_path,
-            const std::string &model_path_for_retrain,
+        virtual_parameterized_cost_provider_t(
+            const file_path_t &model, const file_path_t &model_for_retrain,
             opt::optimization_method_t *optimizer, opt::loss_function_t *error,
             opt::activation_function_t *hypo_cost_provider);
 
         virtual void prepare_train();
         virtual void postprocess_train();
 
+        virtual bool is_available(std::list<std::string>*) const override;
+        virtual bool is_trainable(std::list<std::string>*) const override;
+
         virtual opt::training_result_t* train(
             opt::epoch_t epoch,
             const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) override;
-        virtual bool is_trainable() const override;
 
     protected:
-        parameterized_cost_provider_t(const parameterized_cost_provider_t &p);
+        virtual_parameterized_cost_provider_t(const virtual_parameterized_cost_provider_t &p);
 
         virtual hash_map<opt::feature_t, opt::gradient_t> get_gradients(
             opt::epoch_t epoch,
@@ -162,12 +168,11 @@ public:
         std::unique_ptr<opt::activation_function_t> m_hypothesis_cost_provider;
     };
 
-
-    class parameterized_linear_cost_provider_t : public parameterized_cost_provider_t
+    class parameterized_cost_provider_t : public virtual_parameterized_cost_provider_t
     {
     public:
-        parameterized_linear_cost_provider_t(
-            const std::string &model_path,
+        parameterized_cost_provider_t(
+            const file_path_t &model, const file_path_t &model_for_retrain,
             opt::optimization_method_t *optimizer, opt::loss_function_t *error,
             opt::activation_function_t *hypo_cost_provider);
 
@@ -177,7 +182,24 @@ public:
     private:
         virtual hash_map<opt::feature_t, opt::gradient_t> get_gradients(
             opt::epoch_t epoch,
-            const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) const override; // TODO
+            const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) const override;
+    };
+
+    class parameterized_linear_cost_provider_t : public virtual_parameterized_cost_provider_t
+    {
+    public:
+        parameterized_linear_cost_provider_t(
+            const file_path_t &model, const file_path_t &model_for_retrain,
+            opt::optimization_method_t *optimizer, opt::loss_function_t *error,
+            opt::activation_function_t *hypo_cost_provider);
+
+        virtual hash_map<pg::node_idx_t, double> operator()(const pg::proof_graph_t *g) const override;
+        virtual void write(std::ostream *os) const override;
+
+    private:
+        virtual hash_map<opt::feature_t, opt::gradient_t> get_gradients(
+            opt::epoch_t epoch,
+            const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) const override;
     };
 
     static cost_provider_t* generate_cost_provider(const phillip_main_t *ph);
@@ -195,7 +217,7 @@ public:
     virtual opt::training_result_t* train(
         opt::epoch_t epoch,
         const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) override;
-    virtual bool is_trainable() const override;
+    virtual bool is_trainable(std::list<std::string>*) const override;
 
 protected:
     std::unique_ptr<cost_provider_t> m_cost_provider;

@@ -40,7 +40,7 @@ namespace lr
     {
         (*os)
             << "<scheduler name=\"linear\" r0=\"" << m_r
-            << "d=\"" << m_d
+            << "\" d=\"" << m_d
             << "\">" << util::format("r0 - (d * t)")
             << "</scheduler>" << std::endl;
     }
@@ -50,7 +50,7 @@ namespace lr
     {
         (*os)
             << "<scheduler name=\"exponential\" r0=\"" << m_r
-            << "k=\"" << m_d
+            << "\" k=\"" << m_d
             << "\">" << util::format("r0 * (k ^ t)")
             << "</scheduler>" << std::endl;
     }
@@ -132,14 +132,17 @@ double feature_weights_t::get_random_weight()
 }
 
 
-training_result_t::training_result_t(epoch_t epoch)
-    : m_epoch(epoch)
+training_result_t::training_result_t(epoch_t epoch, double loss)
+: m_epoch(epoch), m_loss(loss)
 {}
 
 
 void training_result_t::write(std::ostream *os) const
 {
-    (*os) << "<train epoch=\"" << m_epoch << "\">" << std::endl;
+    (*os)
+        << "<train state=\"done\" epoch=\"" << m_epoch
+        << "\" loss=\"" << m_loss
+        << "\">" << std::endl;
 
     for (auto p : m_update_log)
     {
@@ -161,11 +164,14 @@ void training_result_t::add(const feature_t &name, gradient_t gradient, weight_t
 }
 
 
+namespace af
+{
+
 double sigmoid_t::operate(const hash_set<feature_t> fs, feature_weights_t &ws) const
 {
     double sum(0.0);
     for (auto f : fs) sum += ws.get(f);
-    return (std::tanh(m_gain * sum / 2.0) + 1.0) / 2.0;
+    return m_offset + (std::tanh(m_gain * sum / 2.0) + 1.0) / 2.0;
 }
 
 
@@ -173,15 +179,17 @@ void sigmoid_t::backpropagate(
     const hash_set<feature_t> fs, feature_weights_t &ws, gradient_t g,
     hash_map<feature_t, gradient_t> *out) const
 {
-    double s = operate(fs, ws);
-    double g2 =  m_gain * s * (1 - s);
+    double s = operate(fs, ws) - m_offset; // h(a)
+    double g2 =  m_gain * s * (1 - s);     // h'(a)
+
+    assert(g2 >= 0.0); // THE GRADIENT OF SIGMOID IS ALWAYS POSITIVE VALUE.
 
     for (auto f : fs)
     {
-        if (out->count(f) == 0)
-            (*out)[f] = ws.at(f) * g;
-        else
-            (*out)[f] += ws.at(f) * g;
+        gradient_t _g = ws.at(f) * g * g2;
+
+        if (out->count(f) == 0) (*out)[f] = _g;
+        else                    (*out)[f] += _g;
     }
 }
 
@@ -193,6 +201,42 @@ void sigmoid_t::write(const std::string &tag, std::ostream *os) const
         << " name=\"sigoid\" gain=\"" << m_gain
         << "\" offset=\"" << m_offset
         << "\"></" << tag << ">" << std::endl;
+}
+
+
+double relu_t::operate(const hash_set<feature_t> fs, feature_weights_t &ws) const
+{
+    double sum(0.0);
+    for (auto f : fs) sum += ws.get(f);
+    return m_offset + std::max(0.0, sum);
+}
+
+
+void relu_t::backpropagate(
+    const hash_set<feature_t> fs, feature_weights_t &ws, gradient_t g,
+    hash_map<feature_t, gradient_t> *out) const
+{
+    double x = operate(fs, ws) - m_offset; // h(a)
+    if (x == 0.0) return;
+
+    for (auto f : fs)
+    {
+        gradient_t _g = ws.at(f) * g;
+
+        if (out->count(f) == 0) (*out)[f] = _g;
+        else                    (*out)[f] += _g;
+    }
+}
+
+
+void relu_t::write(const std::string &tag, std::ostream *os) const
+{
+    (*os)
+        << "<" << tag
+        << " name=\"relu\" offset=\"" << m_offset
+        << "\"></" << tag << ">" << std::endl;
+}
+
 }
 
 
@@ -463,7 +507,7 @@ scheduler_t* generate_scheduler(const std::string &key)
 
     if (pred == "exponential" or pred == "exp")
     {
-        double r(0.1), d(0.005);
+        double r(0.1), d(0.95);
         if (terms.size() >= 1) _sscanf(terms.at(0).c_str(), "%lf", &r);
         if (terms.size() >= 2) _sscanf(terms.at(1).c_str(), "%lf", &d);
         return new lr::exponential(r, d);
@@ -485,7 +529,14 @@ activation_function_t* generate_activation_function(const std::string &key)
         double g(1.0), o(0.0);
         if (terms.size() >= 1) _sscanf(terms.at(0).c_str(), "%lf", &g);
         if (terms.size() >= 2) _sscanf(terms.at(1).c_str(), "%lf", &o);
-        return new sigmoid_t(g, o);
+        return new af::sigmoid_t(g, o);
+    }
+
+    if (pred == "relu")
+    {
+        double o(0.0);
+        if (terms.size() >= 1) _sscanf(terms.at(0).c_str(), "%lf", &o);
+        return new af::relu_t(o);
     }
 
     return NULL;

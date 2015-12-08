@@ -5,7 +5,6 @@
 #include <algorithm>
 
 #include "./phillip.h"
-#include "./optimization.h"
 
 
 namespace phil
@@ -19,6 +18,7 @@ const bits_t WR_FCNV = (1 << 1);
 const bits_t WR_FSOL = (1 << 2);
 const bits_t WR_FOUT = (1 << 3);
 const bits_t WR_ALL = (WR_FGEN | WR_FCNV | WR_FSOL | WR_FOUT);
+const bits_t TRUNK = (1 << 4);
 }
 
 
@@ -27,24 +27,14 @@ const std::string phillip_main_t::VERSION = "phil.3.17";
 
 
 phillip_main_t::phillip_main_t()
-: m_lhs_enumerator(NULL), m_ilp_convertor(NULL), m_ilp_solver(NULL),
-  m_input(NULL), m_lhs(NULL), m_ilp(NULL),
-  m_time_for_enumerate(0), m_time_for_convert(0), m_time_for_convert_gold(0),
+: m_time_for_enumerate(0), m_time_for_convert(0), m_time_for_convert_gold(0),
   m_time_for_solve(0), m_time_for_solve_gold(0),
   m_time_for_learn(0), m_time_for_infer(0)
 {}
 
 
 phillip_main_t::~phillip_main_t()
-{
-    if (m_lhs_enumerator != NULL) delete m_lhs_enumerator;
-    if (m_ilp_convertor != NULL)  delete m_ilp_convertor;
-    if (m_ilp_solver != NULL)     delete m_ilp_solver;
-
-    if (m_input != NULL) delete m_input;
-    if (m_lhs != NULL)   delete m_lhs;
-    if (m_ilp != NULL)   delete m_ilp;
-}
+{}
 
 
 std::ofstream* _open_file(const std::string &path, std::ios::openmode mode)
@@ -108,7 +98,7 @@ void phillip_main_t::learn(const lf::input_t &input, opt::epoch_t epoch)
     execute_convertor();
     execute_solver();
 
-    if (not m_sol.front().is_positive_answer())
+    if (m_sol.front().is_positive_answer())
         return; // IF THE ANSWER WAS TRUE, TRAINING IS SKIPPED.
 
     set_flag("get_pseudo_positive");
@@ -117,10 +107,14 @@ void phillip_main_t::learn(const lf::input_t &input, opt::epoch_t epoch)
         &m_ilp_gold, &m_time_for_convert_gold,
         get_path_for_gold("path_ilp_out"));
     execute_solver(
+        m_ilp_gold.get(),
         &m_sol_gold, &m_time_for_solve_gold,
         get_path_for_gold("path_sol_out"));
 
-    std::unique_ptr<opt::training_result_t> result(
+    if (not m_sol_gold.front().is_positive_answer())
+        return; // IF THERE IS NOT A POSITIVE ANSWER, TRAINING IS SKIPPED.
+
+    m_train_result.reset(
         m_ilp_convertor->train(epoch, m_sol.front(), m_sol_gold.front()));
 
     m_time_for_learn = util::duration_time(begin);
@@ -128,15 +122,13 @@ void phillip_main_t::learn(const lf::input_t &input, opt::epoch_t epoch)
 
 
 void phillip_main_t::execute_enumerator(
-    pg::proof_graph_t **out_lhs, duration_time_t *out_time,
+    std::unique_ptr<pg::proof_graph_t> *out_lhs, duration_time_t *out_time,
     const std::string &path_out_xml)
 {
     IF_VERBOSE_2("Generating latent-hypotheses-set...");
 
-    if ((*out_lhs) != NULL) delete m_lhs;
-
     auto begin = std::chrono::system_clock::now();
-    (*out_lhs) = m_lhs_enumerator->execute();
+    out_lhs->reset(m_lhs_enumerator->execute());
     (*out_time) = util::duration_time(begin);
 
     IF_VERBOSE_2(
@@ -158,13 +150,13 @@ void phillip_main_t::execute_enumerator(
 
 
 void phillip_main_t::execute_convertor(
-    ilp::ilp_problem_t **out_ilp, duration_time_t *out_time,
+    std::unique_ptr<ilp::ilp_problem_t> *out_ilp, duration_time_t *out_time,
     const std::string &path_out_xml)
 {
     IF_VERBOSE_2("Converting LHS into linear-programming-problems...");
 
     auto begin = std::chrono::system_clock::now();
-    (*out_ilp) = m_ilp_convertor->execute();
+    out_ilp->reset(m_ilp_convertor->execute());
     (*out_time) = util::duration_time(begin);
 
     IF_VERBOSE_2(
@@ -186,6 +178,7 @@ void phillip_main_t::execute_convertor(
 
 
 void phillip_main_t::execute_solver(
+    const ilp::ilp_problem_t *prob,
     std::vector<ilp::ilp_solution_t> *out_sols,
     duration_time_t *out_time,
     const std::string &path_out_xml)
@@ -193,7 +186,7 @@ void phillip_main_t::execute_solver(
     IF_VERBOSE_2("Solving...");
 
     auto begin = std::chrono::system_clock::now();
-    m_ilp_solver->execute(out_sols);
+    m_ilp_solver->solve(prob, out_sols);
     (*out_time) = util::duration_time(begin);
 
     IF_VERBOSE_2("Completed inference.");
@@ -221,30 +214,34 @@ bool phillip_main_t::check_validity_for_infer() const
 
     if (not can_infer)
     {
-        if (lhs_enumerator() == NULL)
+        if (not generator())
             util::print_warning("Phillip lacks a generator.");
-        if (ilp_convertor() == NULL)
+        if (not converter())
             util::print_warning("Phillip lacks a converter.");
-        if (ilp_solver() == NULL)
+        if (not solver())
             util::print_warning("Phillip lacks a solver.");
     }
 
     std::list<std::string> disp;
-    auto check_availability = [&](const phillip_component_interface_t *ptr) -> bool
+    auto check_availability = [&](
+        const phillip_component_interface_t *ptr,
+        const std::string &message_on_unable) -> bool
     {
         bool available = ptr->is_available(&disp);
         if (not available)
         {
+            util::print_warning(message_on_unable);
             for (auto s : disp)
-                util::print_warning(s);
+                util::print_warning("  -> " + s);
         }
         return available;
     };
 
     can_infer =
-        check_availability(lhs_enumerator()) and
-        check_availability(ilp_convertor()) and
-        check_availability(ilp_solver());
+        can_infer and
+        check_availability(generator().get(), "The generator is not available.") and
+        check_availability(converter().get(), "The converter is not available.") and
+        check_availability(solver().get(), "The solver is not available.");
 
     return can_infer;
 }
@@ -254,9 +251,13 @@ bool phillip_main_t::check_validity_for_train() const
 {
     if (not check_validity_for_infer()) return false;
 
-    if (not ilp_convertor()->is_trainable())
+    std::list<std::string> disp;
+
+    if (not converter()->is_trainable(&disp))
     {
         util::print_warning("The converter used is not trainable.");
+        for (auto s : disp)
+            util::print_warning("  -> " + s);
         return false;
     }
 
@@ -266,10 +267,13 @@ bool phillip_main_t::check_validity_for_train() const
 
 void phillip_main_t::write(const std::function<void(std::ostream*)> &writer, bits_t flags) const
 {
-    auto open_and_write = [&writer](const std::string &filename)
+    auto open_and_write = [&](const std::string &filename)
     {
         std::ofstream *fo(NULL);
-        if ((fo = _open_file(filename, (std::ios::out | std::ios::trunc))) != NULL)
+        std::ios::openmode mode =
+            std::ios::out | ((flags & wf::TRUNK) ? std::ios::trunc : std::ios::app);
+
+        if ((fo = _open_file(filename, mode)) != NULL)
         {
             writer(fo);
             delete fo;
@@ -289,12 +293,14 @@ void phillip_main_t::write(const std::function<void(std::ostream*)> &writer, bit
 
 void phillip_main_t::write_header() const
 {
-    write([this](std::ostream *os){ write_header(os); });
+    write([this](std::ostream *os){ write_header(os); }, (wf::WR_ALL | wf::TRUNK));
 }
 
 
 void phillip_main_t::write_header(std::ostream *os) const
 {
+    (*os) << "<?xml version=\"1.0\"?>" << std::endl << std::endl;
+
     (*os) << "<phillip>" << std::endl;
     (*os) << "<configure>" << std::endl;
     (*os) << "<version>" << VERSION << "</version>" << std::endl;

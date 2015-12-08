@@ -74,7 +74,7 @@ public:
     virtual opt::training_result_t* train(
         opt::epoch_t epoch,
         const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold);
-    virtual bool is_trainable() const { return false; };
+    virtual bool is_trainable(std::list<std::string>*) const { return false; };
 
 protected:
     /** Converts proof-graph's structure into ILP problem. */

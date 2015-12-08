@@ -44,9 +44,11 @@ namespace phil
 
 class phillip_main_t;
 
-typedef unsigned char bits_t;
+typedef unsigned int bits_t;
 typedef unsigned char small_size_t;
 typedef long int index_t;
+typedef std::string file_path_t;
+
 typedef long int axiom_id_t;
 typedef small_size_t term_idx_t;
 typedef std::string predicate_t;

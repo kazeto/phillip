@@ -713,6 +713,9 @@ bool parse_string_as_function_call(
         }
     }
 
+    if (idx_open < 0 and idx_close < 0)
+        (*pred) = str;
+
     if (pred->empty()) return false;
     for (auto t : (*terms)) if (t.empty()) return false;
 

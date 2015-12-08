@@ -30,7 +30,7 @@ generate_cost_provider(const phillip_main_t *ph)
         {
             parameterized_linear_cost_provider_t *out =
                 new parameterized_linear_cost_provider_t(
-                ph->param("model"),
+                ph->param("model"), ph->param("retrain"),
                 opt::generate_optimizer(ph->param("optimizer")),
                 opt::generate_loss_function(ph->param("loss"), false),
                 opt::generate_activation_function(ph->param("activation")));
@@ -173,7 +173,7 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
 
 bool weighted_converter_t::is_available(std::list<std::string> *message) const
 {
-    return true;
+    return m_cost_provider->is_available(message);
 }
 
 
@@ -195,9 +195,9 @@ opt::training_result_t* weighted_converter_t::train(
 }
 
 
-bool weighted_converter_t::is_trainable() const
+bool weighted_converter_t::is_trainable(std::list<std::string> *messages) const
 {
-    return m_cost_provider->is_trainable();
+    return m_cost_provider->is_trainable(messages);
 }
 
 
@@ -405,6 +405,12 @@ weighted_converter_t::basic_cost_provider_t::operator()(const pg::proof_graph_t 
 }
 
 
+bool weighted_converter_t::basic_cost_provider_t::is_available(std::list<std::string> *message) const
+{
+    return true;
+}
+
+
 void weighted_converter_t::basic_cost_provider_t::write(std::ostream *os) const
 {
     (*os)
@@ -416,21 +422,21 @@ void weighted_converter_t::basic_cost_provider_t::write(std::ostream *os) const
 
 
 
-/* -------- Methods of parameterized_cost_provider_t -------- */
+/* -------- Methods of virtual_parameterized_cost_provider_t -------- */
 
 
-weighted_converter_t::parameterized_cost_provider_t::parameterized_cost_provider_t(
-    const std::string &model_path,
-    const std::string &model_path_for_retrain,
+weighted_converter_t::virtual_parameterized_cost_provider_t::virtual_parameterized_cost_provider_t(
+    const file_path_t &model, const file_path_t &model_for_retrain,
     opt::optimization_method_t *optimizer,
     opt::loss_function_t *error,
     opt::activation_function_t *hypo_cost_provider)
-    : m_optimizer(optimizer), m_loss_function(error),
+    : m_model_path(model), m_model_path_for_retrain(model_for_retrain),
+    m_optimizer(optimizer), m_loss_function(error),
     m_hypothesis_cost_provider(hypo_cost_provider)
 {}
 
 
-void weighted_converter_t::parameterized_cost_provider_t::prepare_train()
+void weighted_converter_t::virtual_parameterized_cost_provider_t::prepare_train()
 {
     m_weights.reset(new opt::feature_weights_t());
     if (not m_model_path_for_retrain.empty())
@@ -438,19 +444,21 @@ void weighted_converter_t::parameterized_cost_provider_t::prepare_train()
 }
 
 
-void weighted_converter_t::parameterized_cost_provider_t::postprocess_train()
+void weighted_converter_t::virtual_parameterized_cost_provider_t::postprocess_train()
 {
     m_weights->write(m_model_path);
 }
 
 
-opt::training_result_t* weighted_converter_t::parameterized_cost_provider_t::train(
+opt::training_result_t* weighted_converter_t::virtual_parameterized_cost_provider_t::train(
     opt::epoch_t epoch,
     const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold)
 {
-    opt::training_result_t *out = new opt::training_result_t(epoch);
-    hash_map<opt::feature_t, opt::gradient_t> grads = get_gradients(epoch, sys, gold);
+    double loss = m_loss_function->get(
+        gold.value_of_objective_function(), sys.value_of_objective_function());
+    opt::training_result_t *out = new opt::training_result_t(epoch, loss);
 
+    hash_map<opt::feature_t, opt::gradient_t> grads = get_gradients(epoch, sys, gold);
     for (auto p : grads)
     {
         const opt::feature_t f = p.first;
@@ -466,13 +474,53 @@ opt::training_result_t* weighted_converter_t::parameterized_cost_provider_t::tra
 }
 
 
-bool weighted_converter_t::parameterized_cost_provider_t::is_trainable() const
+bool weighted_converter_t::virtual_parameterized_cost_provider_t::
+is_available(std::list<std::string> *message) const
 {
-    return (bool)m_optimizer and (bool)m_loss_function;
+    bool out(true);
+
+    if (m_model_path.empty())
+    {
+        message->push_back(
+            "virtual_parameterized_cost_provider_t: The model path is not specified.");
+        out = false;
+    }
+
+    if (not m_hypothesis_cost_provider)
+    {
+        message->push_back(
+            "virtual_parameterized_cost_provider_t: The cost provider for hypothesis cost is lacked.");
+        out = false;
+    }
+
+    return out;
 }
 
 
-void weighted_converter_t::parameterized_cost_provider_t
+bool weighted_converter_t::virtual_parameterized_cost_provider_t::
+is_trainable(std::list<std::string> *messages) const
+{
+    bool out(true);
+
+    if (not m_optimizer)
+    {
+        messages->push_back(
+            "virtual_parameterized_cost_provider_t: The optimizer is lacked.");
+        out = false;
+    }
+
+    if (not m_loss_function)
+    {
+        messages->push_back(
+            "virtual_parameterized_cost_provider_t: The loss function is lacked.");
+        out = false;
+    }
+
+    return out;
+}
+
+
+void weighted_converter_t::virtual_parameterized_cost_provider_t
 ::get_weights(const pg::proof_graph_t *g, pg::edge_idx_t idx, std::vector<opt::weight_t> *out) const
 {
     const pg::edge_t &edge = g->edge(idx);
@@ -486,7 +534,7 @@ void weighted_converter_t::parameterized_cost_provider_t
 }
 
 
-void weighted_converter_t::parameterized_cost_provider_t::get_features(
+void weighted_converter_t::virtual_parameterized_cost_provider_t::get_features(
     const pg::proof_graph_t *graph, pg::edge_idx_t idx, hash_set<opt::feature_t> *out) const
 {
     const pg::edge_t &edge = graph->edge(idx);
@@ -496,14 +544,17 @@ void weighted_converter_t::parameterized_cost_provider_t::get_features(
     {
         auto found = m_ax2ft.find(edge.axiom_id());
         if (found != m_ax2ft.end())
+        {
             out->insert(found->second.begin(), found->second.end());
-        return;
+            return;
+        }
     }
 
     hash_set<opt::feature_t> &feats = m_ax2ft[edge.axiom_id()];
 
     feats.insert(util::format("id/%d", edge.axiom_id()));
 
+    /*
     for (auto l1 : axiom.func.get_lhs())
     for (auto l2 : axiom.func.get_rhs())
         feats.insert("p/" + l1->get_arity() + "/" + l2->get_arity());
@@ -512,17 +563,134 @@ void weighted_converter_t::parameterized_cost_provider_t::get_features(
     auto end = std::sregex_iterator();
     for (; it != end; ++it)
         feats.insert(it->str());
-
+    */
     out->insert(feats.begin(), feats.end());
 }
 
 
 
-weighted_converter_t::parameterized_linear_cost_provider_t::parameterized_linear_cost_provider_t(
-    const std::string &path,
+/* -------- Methods of parameterized_cost_provider_t -------- */
+
+
+weighted_converter_t::parameterized_cost_provider_t::parameterized_cost_provider_t(
+    const file_path_t &model, const file_path_t &model_for_retrain,
     opt::optimization_method_t *optimizer, opt::loss_function_t *error,
     opt::activation_function_t *hypo_cost_provider)
-    : parameterized_cost_provider_t(path, optimizer, error, hypo_cost_provider)
+    : virtual_parameterized_cost_provider_t(model, model_for_retrain, optimizer, error, hypo_cost_provider)
+{}
+
+
+hash_map<pg::node_idx_t, double> weighted_converter_t::
+parameterized_cost_provider_t::operator()(const pg::proof_graph_t *g) const
+{
+    auto _get_weights = [this](const pg::proof_graph_t *g, pg::edge_idx_t i)
+    {
+        std::vector<double> out;
+        this->get_weights(g, i, &out);
+        return out;
+    };
+
+    hash_map<pg::node_idx_t, double> node2cost;
+    get_observation_costs(g, 10.0, &node2cost);
+    get_hypothesis_costs(g, _get_weights, std::multiplies<double>(), &node2cost);
+
+    return node2cost;
+}
+
+
+void weighted_converter_t::parameterized_cost_provider_t::write(std::ostream *os) const
+{
+    (*os) << "<cost-provider name=\"parameterized\">" << std::endl;
+    m_optimizer->write(os);
+    m_loss_function->write(os);
+    m_hypothesis_cost_provider->write("hypothesis-weight", os);
+    (*os) << "</cost-provider>" << std::endl;
+}
+
+
+
+hash_map<opt::feature_t, opt::gradient_t>
+weighted_converter_t::parameterized_cost_provider_t::get_gradients(
+opt::epoch_t epoch, const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) const
+{
+    const ilp_problem_t *prob_sys = static_cast<const ilp_problem_t*>(sys.problem());
+    const ilp_problem_t *prob_gold = static_cast<const ilp_problem_t*>(gold.problem());
+    const pg::proof_graph_t *graph = sys.proof_graph();
+    double obj_sys = sys.value_of_objective_function();
+    double obj_gold = gold.value_of_objective_function();
+    hash_map<opt::feature_t, opt::gradient_t> out;
+
+    std::function<void(
+        const pg::proof_graph_t*, pg::node_idx_t, opt::gradient_t,
+        hash_map<pg::edge_idx_t, opt::gradient_t>*)> backpropagate;
+
+    backpropagate = [&](
+    const pg::proof_graph_t *graph, pg::node_idx_t target, opt::gradient_t grad,
+    hash_map<pg::edge_idx_t, opt::gradient_t> *out)
+    {
+        pg::hypernode_idx_t master = graph->node(target).master_hypernode();
+
+        hash_set<pg::edge_idx_t> edges;
+        auto hn = graph->hypernode(master);
+        graph->enumerate_parental_edges(master, &edges);
+
+        for (auto e : edges)
+        {
+            if (out->count(e) > 0) (*out)[e] += grad;
+            else                   (*out)[e] = grad;
+
+            std::vector<opt::weight_t> w;
+            get_weights(graph, e, &w);
+            assert(w.size() == hn.size());
+
+            for (int i = 0; i < hn.size(); ++i)
+            if (hn.at(i) == target)
+            {
+                opt::gradient_t g_p = grad * w.at(i);
+                auto parents = graph->hypernode(graph->edge(e).tail());
+                for (auto n : parents)
+                {
+                    backpropagate(graph, n, g_p, out);
+                }
+            }
+        }
+    };
+
+    for (int i = 0; i < 2; ++i)
+    {
+        bool is_gold(i == 0);
+        const ilp::ilp_solution_t &sol = (is_gold ? gold : sys);
+        const ilp_problem_t *prob = (is_gold ? prob_gold : prob_sys);
+        opt::gradient_t grad = is_gold ?
+            m_loss_function->gradient_true(obj_gold, obj_sys) :
+            m_loss_function->gradient_false(obj_gold, obj_sys);
+        hash_map<pg::edge_idx_t, opt::gradient_t> n2g;
+
+        for (auto p : prob->hypo_cost_map())
+        if (sol.variable_is_active(p.second))
+            backpropagate(graph, p.first, grad, &n2g);
+
+        for (auto p : n2g)
+        {
+            hash_set<opt::feature_t> feats;
+            get_features(graph, p.first, &feats);
+            m_hypothesis_cost_provider->backpropagate(feats, (*m_weights), p.second, &out);
+        }
+    }
+
+    return out;
+}
+
+
+
+/* -------- Methods of parameterized_linear_cost_provider_t -------- */
+
+
+weighted_converter_t::parameterized_linear_cost_provider_t::parameterized_linear_cost_provider_t(
+    const file_path_t &model, const file_path_t &model_for_retrain,
+    opt::optimization_method_t *optimizer, opt::loss_function_t *error,
+    opt::activation_function_t *hypo_cost_provider)
+    : virtual_parameterized_cost_provider_t(model, model_for_retrain, optimizer, error, hypo_cost_provider)
 {}
 
 
@@ -546,11 +714,11 @@ parameterized_linear_cost_provider_t::operator()(const pg::proof_graph_t *g) con
 
 void weighted_converter_t::parameterized_linear_cost_provider_t::write(std::ostream *os) const
 {
-    (*os) << "<converter name=\"parameterized-linear\">" << std::endl;
+    (*os) << "<cost-provider name=\"parameterized-linear\">" << std::endl;
     m_optimizer->write(os);
     m_loss_function->write(os);
     m_hypothesis_cost_provider->write("hypothesis-weight", os);
-    (*os) << "</converter>" << std::endl;
+    (*os) << "</cost-provider>" << std::endl;
 }
 
 
@@ -566,13 +734,15 @@ weighted_converter_t::parameterized_linear_cost_provider_t::get_gradients(
     double obj_gold = gold.value_of_objective_function();
     hash_map<opt::feature_t, opt::gradient_t> out;
 
-    auto _get_gradients = [&](bool is_gold)
+    for (int i = 0; i < 2; ++i)
     {
+        bool is_gold(i == 0);
+        const ilp::ilp_solution_t &sol = (is_gold ? gold : sys);
         const ilp_problem_t *prob = (is_gold ? prob_gold : prob_sys);
         hash_set<pg::edge_idx_t> chains;
 
         for (auto p : prob->hypo_cost_map())
-        if (sys.variable_is_active(p.second))
+        if (sol.variable_is_active(p.second))
         {
             hash_set<pg::edge_idx_t> c = graph->enumerate_dependent_edges(p.first);
             chains.insert(c.begin(), c.end());
@@ -589,7 +759,7 @@ weighted_converter_t::parameterized_linear_cost_provider_t::get_gradients(
             get_features(graph, idx_e, &feats);
             m_hypothesis_cost_provider->backpropagate(feats, (*m_weights), g, &out);
         }
-    };
+    }
 
     return out;
 }
