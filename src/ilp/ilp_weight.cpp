@@ -26,16 +26,21 @@ generate_cost_provider(const phillip_main_t *ph)
             return new basic_cost_provider_t(
             std::plus<double>(), def_cost, def_weight, "basic-addition");
 
+        if (key == "parameterized")
+            return
+            new parameterized_cost_provider_t(
+            ph->param("model"), ph->param("retrain"),
+            opt::generate_optimizer(ph->param("optimizer")),
+            opt::generate_loss_function(ph->param("loss"), false),
+            opt::generate_activation_function(ph->param("activation")));
+
         if (key == "parameterized-linear")
-        {
-            parameterized_linear_cost_provider_t *out =
-                new parameterized_linear_cost_provider_t(
-                ph->param("model"), ph->param("retrain"),
-                opt::generate_optimizer(ph->param("optimizer")),
-                opt::generate_loss_function(ph->param("loss"), false),
-                opt::generate_activation_function(ph->param("activation")));
-            return out;
-        }
+            return
+            new parameterized_linear_cost_provider_t(
+            ph->param("model"), ph->param("retrain"),
+            opt::generate_optimizer(ph->param("optimizer")),
+            opt::generate_loss_function(ph->param("loss"), false),
+            opt::generate_activation_function(ph->param("activation")));
 
         throw phillip_exception_t(
             "The arguments for cost-provider are invalid: " + key);
@@ -629,12 +634,14 @@ opt::epoch_t epoch, const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &g
     hash_map<pg::edge_idx_t, opt::gradient_t> *out)
     {
         pg::hypernode_idx_t master = graph->node(target).master_hypernode();
+        if (master < 0) return;
 
         hash_set<pg::edge_idx_t> edges;
         auto hn = graph->hypernode(master);
         graph->enumerate_parental_edges(master, &edges);
 
         for (auto e : edges)
+        if (graph->edge(e).is_chain_edge())
         {
             if (out->count(e) > 0) (*out)[e] += grad;
             else                   (*out)[e] = grad;
@@ -649,9 +656,8 @@ opt::epoch_t epoch, const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &g
                 opt::gradient_t g_p = grad * w.at(i);
                 auto parents = graph->hypernode(graph->edge(e).tail());
                 for (auto n : parents)
-                {
+                if (graph->node(n).type() == pg::NODE_HYPOTHESIS)
                     backpropagate(graph, n, g_p, out);
-                }
             }
         }
     };
@@ -664,13 +670,13 @@ opt::epoch_t epoch, const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &g
         opt::gradient_t grad = is_gold ?
             m_loss_function->gradient_true(obj_gold, obj_sys) :
             m_loss_function->gradient_false(obj_gold, obj_sys);
-        hash_map<pg::edge_idx_t, opt::gradient_t> n2g;
+        hash_map<pg::edge_idx_t, opt::gradient_t> e2g;
 
         for (auto p : prob->hypo_cost_map())
         if (sol.variable_is_active(p.second))
-            backpropagate(graph, p.first, grad, &n2g);
+            backpropagate(graph, p.first, grad, &e2g);
 
-        for (auto p : n2g)
+        for (auto p : e2g)
         {
             hash_set<opt::feature_t> feats;
             get_features(graph, p.first, &feats);

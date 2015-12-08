@@ -133,7 +133,7 @@ namespace af
 class sigmoid_t : public activation_function_t
 {
 public:
-    sigmoid_t(double gain, double offset) : m_gain(gain), m_offset(offset) {}
+    sigmoid_t(double gain, double offset, double scale) : m_gain(gain), m_offset(offset), m_scale(scale) {}
     virtual double operate(const hash_set<feature_t> fs, feature_weights_t &ws) const override;
     virtual void backpropagate(
         const hash_set<feature_t> fs, feature_weights_t &ws, gradient_t g,
@@ -141,7 +141,7 @@ public:
     virtual void write(const std::string &tag, std::ostream *os) const override;
 
 private:
-    double m_gain, m_offset;
+    double m_gain, m_offset, m_scale;
 };
 
 

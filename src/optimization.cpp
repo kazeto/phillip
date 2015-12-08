@@ -171,7 +171,7 @@ double sigmoid_t::operate(const hash_set<feature_t> fs, feature_weights_t &ws) c
 {
     double sum(0.0);
     for (auto f : fs) sum += ws.get(f);
-    return m_offset + (std::tanh(m_gain * sum / 2.0) + 1.0) / 2.0;
+    return m_offset + m_scale * (std::tanh(m_gain * sum / 2.0) + 1.0) / 2.0;
 }
 
 
@@ -179,17 +179,18 @@ void sigmoid_t::backpropagate(
     const hash_set<feature_t> fs, feature_weights_t &ws, gradient_t g,
     hash_map<feature_t, gradient_t> *out) const
 {
-    double s = operate(fs, ws) - m_offset; // h(a)
-    double g2 =  m_gain * s * (1 - s);     // h'(a)
+    // g: gradient of axiom weight
+
+    double s = (operate(fs, ws) - m_offset) / m_scale; // h(a)
+    double g2 = m_gain * s * (1 - s) * m_scale;        // h'(a)
 
     assert(g2 >= 0.0); // THE GRADIENT OF SIGMOID IS ALWAYS POSITIVE VALUE.
 
+    gradient_t gf = g * g2;
     for (auto f : fs)
     {
-        gradient_t _g = ws.at(f) * g * g2;
-
-        if (out->count(f) == 0) (*out)[f] = _g;
-        else                    (*out)[f] += _g;
+        if (out->count(f) == 0) (*out)[f] = gf;
+        else                    (*out)[f] += gf;
     }
 }
 
@@ -221,10 +222,8 @@ void relu_t::backpropagate(
 
     for (auto f : fs)
     {
-        gradient_t _g = ws.at(f) * g;
-
-        if (out->count(f) == 0) (*out)[f] = _g;
-        else                    (*out)[f] += _g;
+        if (out->count(f) == 0) (*out)[f] = g;
+        else                    (*out)[f] += g;
     }
 }
 
@@ -526,10 +525,11 @@ activation_function_t* generate_activation_function(const std::string &key)
 
     if (pred == "sigmoid")
     {
-        double g(1.0), o(0.0);
+        double g(1.0), o(0.0), s(1.0);
         if (terms.size() >= 1) _sscanf(terms.at(0).c_str(), "%lf", &g);
         if (terms.size() >= 2) _sscanf(terms.at(1).c_str(), "%lf", &o);
-        return new af::sigmoid_t(g, o);
+        if (terms.size() >= 3) _sscanf(terms.at(2).c_str(), "%lf", &s);
+        return new af::sigmoid_t(g, o, s);
     }
 
     if (pred == "relu")
