@@ -112,7 +112,9 @@ public:
     inline void add_exclusion(const std::string &name);
     inline void clear_exclusions();
     inline bool is_excluded(const std::string &name) const;
-    inline bool check_validity() const;
+    
+    bool check_validity_for_infer() const;
+    bool check_validity_for_train() const;
 
     void write(const std::function<void(std::ostream*)> &writer, bits_t flags = wf::WR_ALL) const;
     

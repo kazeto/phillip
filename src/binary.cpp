@@ -211,7 +211,15 @@ void execute(
         util::print_console_fmt("    # of observations: %d", parsed_inputs.size());
 
         kb::kb()->prepare_query();
-        ph->check_validity();
+
+        if (is_training)
+        {
+            ph->ilp_convertor()->prepare_train();
+            ph->check_validity_for_train();
+        }
+        else
+            ph->check_validity_for_infer();
+
         ph->write_header();
 
         int max_epoch = is_training ? ph->param_int("max-epoch", 100) : 1;

@@ -76,6 +76,9 @@ public:
 
         virtual hash_map<pg::node_idx_t, double> operator()(const pg::proof_graph_t *g) const = 0;
 
+        virtual void prepare_train() {}
+        virtual void postprocess_train() {}
+
         virtual opt::training_result_t* train(
             opt::epoch_t epoch,
             const ilp::ilp_solution_t &sys, const ilp::ilp_solution_t &gold) = 0;
@@ -124,10 +127,14 @@ public:
     class parameterized_cost_provider_t : public cost_provider_t
     {
     public:
-        parameterized_cost_provider_t();
         parameterized_cost_provider_t(
+            const std::string &model_path,
+            const std::string &model_path_for_retrain,
             opt::optimization_method_t *optimizer, opt::loss_function_t *error,
             opt::activation_function_t *hypo_cost_provider);
+
+        virtual void prepare_train();
+        virtual void postprocess_train();
 
         virtual opt::training_result_t* train(
             opt::epoch_t epoch,
@@ -144,7 +151,10 @@ public:
         void get_weights(const pg::proof_graph_t *graph, pg::edge_idx_t idx, std::vector<opt::weight_t> *out) const;
         void get_features(const pg::proof_graph_t *graph, pg::edge_idx_t idx, hash_set<opt::feature_t> *out) const;
 
-        mutable opt::feature_weights_t m_weights; /// Feature weights learned.
+        std::string m_model_path;
+        std::string m_model_path_for_retrain;
+
+        mutable std::unique_ptr<opt::feature_weights_t> m_weights; /// Feature weights learned.
         mutable hash_map<axiom_id_t, hash_set<opt::feature_t> > m_ax2ft; /// Memory.
 
         std::unique_ptr<opt::optimization_method_t> m_optimizer;
@@ -157,6 +167,7 @@ public:
     {
     public:
         parameterized_linear_cost_provider_t(
+            const std::string &model_path,
             opt::optimization_method_t *optimizer, opt::loss_function_t *error,
             opt::activation_function_t *hypo_cost_provider);
 
@@ -177,6 +188,9 @@ public:
     virtual bool is_available(std::list<std::string>*) const override;
     virtual void write(std::ostream *os) const override;
     virtual bool do_keep_validity_on_timeout() const override { return false; }
+
+    virtual void prepare_train() override { m_cost_provider->prepare_train(); }
+    virtual void postprocess_train() override { m_cost_provider->postprocess_train(); }
 
     virtual opt::training_result_t* train(
         opt::epoch_t epoch,

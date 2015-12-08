@@ -67,6 +67,9 @@ public:
     virtual ~ilp_converter_t() {}
     virtual ilp::ilp_problem_t* execute() const = 0;
 
+    virtual void prepare_train() {}
+    virtual void postprocess_train() {}
+
     /** Tunes its own parameters from a system output and a gold output, and returns the result. */
     virtual opt::training_result_t* train(
         opt::epoch_t epoch,

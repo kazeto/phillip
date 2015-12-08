@@ -253,30 +253,6 @@ inline bool phillip_main_t::is_excluded(const std::string &name) const
 }
 
 
-inline bool phillip_main_t::check_validity() const
-{
-    bool can_infer = 
-        (m_lhs_enumerator != NULL) and
-        (m_ilp_convertor != NULL) and
-        (m_ilp_solver != NULL);
-
-    if (not can_infer)
-    {
-        if (lhs_enumerator() == NULL)
-            throw phillip_exception_t(
-            "Cannot infer, because of lack of lhs_enumerator.");
-        if (ilp_convertor() == NULL)
-            throw phillip_exception_t(
-            "Cannot infer, because of lack of ilp_convertor.");
-        if (ilp_solver() == NULL)
-            throw phillip_exception_t(
-            "Cannot infer, because of lack of ilp_solver.");
-    }
-
-    return can_infer;
-}
-
-
 inline void phillip_main_t::reset_for_inference()
 {
     if (m_input != NULL) delete m_input;

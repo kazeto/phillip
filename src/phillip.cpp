@@ -212,6 +212,58 @@ void phillip_main_t::execute_solver(
 }
 
 
+bool phillip_main_t::check_validity_for_infer() const
+{
+    bool can_infer =
+        (m_lhs_enumerator != NULL) and
+        (m_ilp_convertor != NULL) and
+        (m_ilp_solver != NULL);
+
+    if (not can_infer)
+    {
+        if (lhs_enumerator() == NULL)
+            util::print_warning("Phillip lacks a generator.");
+        if (ilp_convertor() == NULL)
+            util::print_warning("Phillip lacks a converter.");
+        if (ilp_solver() == NULL)
+            util::print_warning("Phillip lacks a solver.");
+    }
+
+    std::list<std::string> disp;
+    auto check_availability = [&](const phillip_component_interface_t *ptr) -> bool
+    {
+        bool available = ptr->is_available(&disp);
+        if (not available)
+        {
+            for (auto s : disp)
+                util::print_warning(s);
+        }
+        return available;
+    };
+
+    can_infer =
+        check_availability(lhs_enumerator()) and
+        check_availability(ilp_convertor()) and
+        check_availability(ilp_solver());
+
+    return can_infer;
+}
+
+
+bool phillip_main_t::check_validity_for_train() const
+{
+    if (not check_validity_for_infer()) return false;
+
+    if (not ilp_convertor()->is_trainable())
+    {
+        util::print_warning("The converter used is not trainable.");
+        return false;
+    }
+
+    return true;
+}
+
+
 void phillip_main_t::write(const std::function<void(std::ostream*)> &writer, bits_t flags) const
 {
     auto open_and_write = [&writer](const std::string &filename)

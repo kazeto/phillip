@@ -30,6 +30,7 @@ generate_cost_provider(const phillip_main_t *ph)
         {
             parameterized_linear_cost_provider_t *out =
                 new parameterized_linear_cost_provider_t(
+                ph->param("model"),
                 opt::generate_optimizer(ph->param("optimizer")),
                 opt::generate_loss_function(ph->param("loss"), false),
                 opt::generate_activation_function(ph->param("activation")));
@@ -184,6 +185,7 @@ void weighted_converter_t::write(std::ostream *os) const
 
     (*os) << "</converter>" << std::endl;
 }
+
 
 opt::training_result_t* weighted_converter_t::train(
     opt::epoch_t epoch,
@@ -417,16 +419,29 @@ void weighted_converter_t::basic_cost_provider_t::write(std::ostream *os) const
 /* -------- Methods of parameterized_cost_provider_t -------- */
 
 
-weighted_converter_t::parameterized_cost_provider_t::parameterized_cost_provider_t()
-{}
-
-
 weighted_converter_t::parameterized_cost_provider_t::parameterized_cost_provider_t(
-    opt::optimization_method_t *optimizer, opt::loss_function_t *error,
+    const std::string &model_path,
+    const std::string &model_path_for_retrain,
+    opt::optimization_method_t *optimizer,
+    opt::loss_function_t *error,
     opt::activation_function_t *hypo_cost_provider)
     : m_optimizer(optimizer), m_loss_function(error),
     m_hypothesis_cost_provider(hypo_cost_provider)
 {}
+
+
+void weighted_converter_t::parameterized_cost_provider_t::prepare_train()
+{
+    m_weights.reset(new opt::feature_weights_t());
+    if (not m_model_path_for_retrain.empty())
+        m_weights->load(m_model_path_for_retrain);
+}
+
+
+void weighted_converter_t::parameterized_cost_provider_t::postprocess_train()
+{
+    m_weights->write(m_model_path);
+}
 
 
 opt::training_result_t* weighted_converter_t::parameterized_cost_provider_t::train(
@@ -440,7 +455,7 @@ opt::training_result_t* weighted_converter_t::parameterized_cost_provider_t::tra
     {
         const opt::feature_t f = p.first;
         const opt::gradient_t g = p.second;
-        opt::weight_t *w = &m_weights[f];
+        opt::weight_t *w = &(*m_weights)[f];
         opt::weight_t w_old = (*w);
 
         m_optimizer->update(w, g, epoch);
@@ -466,7 +481,7 @@ void weighted_converter_t::parameterized_cost_provider_t
     hash_set<opt::feature_t> features;
     get_features(g, idx, &features);
 
-    double w = m_hypothesis_cost_provider->operate(features, m_weights);
+    double w = m_hypothesis_cost_provider->operate(features, (*m_weights));
     out->assign(size, (w / (double)size));
 }
 
@@ -504,9 +519,10 @@ void weighted_converter_t::parameterized_cost_provider_t::get_features(
 
 
 weighted_converter_t::parameterized_linear_cost_provider_t::parameterized_linear_cost_provider_t(
+    const std::string &path,
     opt::optimization_method_t *optimizer, opt::loss_function_t *error,
     opt::activation_function_t *hypo_cost_provider)
-    : parameterized_cost_provider_t(optimizer, error, hypo_cost_provider)
+    : parameterized_cost_provider_t(path, optimizer, error, hypo_cost_provider)
 {}
 
 
@@ -571,7 +587,7 @@ weighted_converter_t::parameterized_linear_cost_provider_t::get_gradients(
                 m_loss_function->gradient_false(obj_gold, obj_sys);
 
             get_features(graph, idx_e, &feats);
-            m_hypothesis_cost_provider->backpropagate(feats, m_weights, g, &out);
+            m_hypothesis_cost_provider->backpropagate(feats, (*m_weights), g, &out);
         }
     };
 
