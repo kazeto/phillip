@@ -30,5 +30,12 @@ int main(int argc, char* argv[])
         util::print_error(exception.what());
         if (exception.do_print_usage()) bin::print_usage();
     }
+#ifdef USE_GUROBI
+    catch (const GRBException &exception)
+    {
+        util::print_error("Gurobi-exception was thrown:");
+        util::print_error("  -> " + exception.getMessage());
+    }
+#endif      
 #endif
 }
