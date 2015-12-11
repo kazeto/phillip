@@ -16,17 +16,17 @@ namespace opt
 {
 
 
-struct normalizer_t
+struct regularizer_t
 {
     virtual gradient_t operator()(weight_t w) const = 0;
     virtual void write(std::ostream *os) const = 0;
 };
 
 
-namespace norm /// A namespace for normalizer.
+namespace reg /// A namespace for normalizer.
 {
 
-class l1_norm : public normalizer_t
+class l1_norm : public regularizer_t
 {
 public:
     l1_norm(rate_t r) : m_rate(r) {}
@@ -37,7 +37,7 @@ private:
 };
 
 
-class l2_norm : public normalizer_t
+class l2_norm : public regularizer_t
 {
 public:
     l2_norm(rate_t r) : m_rate(r) {}
@@ -285,7 +285,7 @@ private:
 };
 
 
-normalizer_t* generate_normalizer(const std::string &key);
+regularizer_t* generate_normalizer(const std::string &key);
 scheduler_t* generate_scheduler(const std::string &key);
 activation_function_t* generate_activation_function(const std::string &key);
 loss_function_t* generate_loss_function(const std::string &key, bool do_maximize);

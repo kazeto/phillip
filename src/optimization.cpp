@@ -10,13 +10,13 @@ namespace opt
 {
 
 
-namespace norm
+namespace reg
 {
 
 void l1_norm::write(std::ostream *os) const
 {
     (*os)
-        << "<normalizer name=\"l1-norm\" r0=\"" << m_rate
+        << "<normalizer name=\"l1-reg\" r0=\"" << m_rate
         << "\">" << util::format("%lf * W", m_rate)
         << "</normalize>" << std::endl;
 }
@@ -25,7 +25,7 @@ void l1_norm::write(std::ostream *os) const
 void l2_norm::write(std::ostream *os) const
 {
     (*os)
-        << "<normalizer name=\"l2-norm\" r0=\"" << m_rate
+        << "<normalizer name=\"l2-reg\" r0=\"" << m_rate
         << "\">" << util::format("%lf * (W ^ 2)", m_rate)
         << "</normalize>" << std::endl;
 }
@@ -463,7 +463,7 @@ void adam_t::write(std::ostream *os) const
 
 
 
-normalizer_t* generate_normalizer(const phillip_main_t *ph)
+regularizer_t* generate_normalizer(const phillip_main_t *ph)
 {
     const std::string key = ph->param("normalizer");
     std::string pred;
@@ -475,14 +475,14 @@ normalizer_t* generate_normalizer(const phillip_main_t *ph)
     {
         double r(0.01);
         _sscanf(terms.at(0).c_str(), "%lf", &r);
-        return new norm::l1_norm(r);
+        return new reg::l1_norm(r);
     }
 
     if (pred == "l2" and terms.size() >= 1)
     {
         double r(0.01);
         _sscanf(terms.at(0).c_str(), "%lf", &r);
-        return new norm::l2_norm(r);
+        return new reg::l2_norm(r);
     }
 
     return NULL;
