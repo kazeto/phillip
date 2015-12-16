@@ -87,6 +87,7 @@ distance_provider_library_t* distance_provider_library_t::instance()
 
 distance_provider_library_t::distance_provider_library_t()
 {
+    add("null", new kb::dist::null_distance_provider_t::generator_t());
     add("basic", new kb::dist::basic_distance_provider_t::generator_t());
     add("cost", new kb::dist::cost_based_distance_provider_t::generator_t());
 }

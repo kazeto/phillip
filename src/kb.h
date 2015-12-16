@@ -385,6 +385,23 @@ private:
 namespace dist
 {
 
+
+class null_distance_provider_t : public distance_provider_t
+{
+public:
+    struct generator_t : public component_generator_t<distance_provider_t>
+    {
+        virtual distance_provider_t* operator()(const phillip_main_t*) const override
+        { return new null_distance_provider_t(); }
+    };
+
+    virtual void read(std::ifstream *fi) {}
+    virtual void write(std::ofstream *fo) const {}
+
+    virtual float operator() (const lf::axiom_t&) const;
+    virtual std::string repr() const { return "null"; };
+};
+
 class basic_distance_provider_t : public distance_provider_t
 {
 public:
@@ -398,7 +415,7 @@ public:
     virtual void write(std::ofstream *fo) const {}
 
     virtual float operator() (const lf::axiom_t&) const;
-    virtual std::string repr() const { return "Basic"; };
+    virtual std::string repr() const { return "basic"; };
 };
 
 
@@ -415,7 +432,7 @@ public:
     virtual void write(std::ofstream *fo) const {}
 
     virtual float operator()(const lf::axiom_t&) const;
-    virtual std::string repr() const { return "CostBased"; }
+    virtual std::string repr() const { return "cost-based"; }
 };
 
 }

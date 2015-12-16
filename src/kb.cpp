@@ -1963,6 +1963,12 @@ hash_set<float> knowledge_base_t::reachable_matrix_t::get(size_t idx) const
 namespace dist
 {
 
+float null_distance_provider_t::operator()(const lf::axiom_t &ax) const
+{
+    return 0.0f;
+}
+
+
 float basic_distance_provider_t::operator()(const lf::axiom_t &ax) const
 {
     float out;

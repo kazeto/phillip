@@ -47,18 +47,12 @@ struct execution_configure_t
 
 
 template <class T> class component_library_t
-: protected hash_map<std::string, component_generator_t<T>*>
+: protected hash_map<std::string, std::unique_ptr<component_generator_t<T>>>
 {
 public:
-    virtual ~component_library_t()
-    {
-        for (auto it = this->begin(); it != this->end(); ++it)
-            delete it->second;
-    }
-
     void add(const std::string &key, component_generator_t<T> *ptr)
     {
-        this->insert(std::make_pair(key, ptr));
+        (*this)[key].reset(ptr);
     }
 
     T* generate(const std::string &key, const phillip_main_t *ph) const
