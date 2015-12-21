@@ -198,16 +198,19 @@ void processor_t::process( std::vector<std::string> inputs )
         util::join(inputs.begin(), inputs.end(), ", ") + "}" );
 
     if( m_recursion++ == 0 )
-        for( auto it=m_components.begin(); it!=m_components.end(); ++it )
-            (*it)->prepare();
+    for (auto it = m_components.begin(); it != m_components.end(); ++it)
+        (*it)->prepare();
             
-    for( auto it=inputs.begin(); it!=inputs.end(); ++it )
+    for (int i = 0; i < inputs.size(); ++i)
     {
         std::istream *p_is( &std::cin );
         std::ifstream file;
         size_t file_size(0);
-        const std::string &input_path( *it );
+        const std::string &input_path(inputs.at(i));
         std::string filename;
+
+        IF_VERBOSE_1(
+            util::format("Reading input #%d: \"%s\"", i, input_path.c_str()));
         
         if( input_path != "-" )
         {
@@ -228,18 +231,19 @@ void processor_t::process( std::vector<std::string> inputs )
                 
         for( ; not reader.is_end(); reader.read() )
         {
-            if( file_size != 0 and phillip_main_t::verbose() != NOT_VERBOSE )
+            if (file_size != 0 and is_verbose(VERBOSE_4))
             {
                 size_t read_bytes(reader.get_read_bytes());
-                int progress( 100 * read_bytes / file_size );
-                if( notified.count(progress) == 0 )
+                int progress(100 * read_bytes / file_size);
+                if (notified.count(progress) == 0)
                 {
                     notified.insert(progress);
-                    std::cerr << util::time_stamp()
-                              << input_path << ":" << read_bytes
-                              << "/" << file_size
-                              << " bytes processed (" << progress << "%)."
-                              << std::endl;
+                    std::cerr
+                        << util::time_stamp()
+                        << input_path << ":" << read_bytes
+                        << "/" << file_size
+                        << " bytes processed (" << progress << "%)."
+                        << std::endl;
                 }
             }
 
