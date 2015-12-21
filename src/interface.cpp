@@ -19,10 +19,15 @@ bool lhs_enumerator_t::do_include_requirement(
 bool lhs_enumerator_t::do_exceed_max_lhs_size(
     const pg::proof_graph_t *graph, int max_nodes_num)
 {
-    if (max_nodes_num > 0 and graph->nodes().size() >= max_nodes_num)
+    // COUNTS THE NUMBER OF HYPOTHESIS NODES
+    int num = 0;
+    for (auto n : graph->nodes())
+    if (n.depth() > 0) ++num;
+
+    if (max_nodes_num > 0 and num >= max_nodes_num)
     {
         IF_VERBOSE_3("The number of literals exceeds the limitation!");
-        IF_VERBOSE_4(util::format("    now: %d", graph->nodes().size()));
+        IF_VERBOSE_4(util::format("    now: %d", num));
         IF_VERBOSE_4(util::format("    max: %d", max_nodes_num));
         return true;
     }

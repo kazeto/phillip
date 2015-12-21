@@ -23,7 +23,7 @@ const bits_t TRUNK = (1 << 4);
 
 
 int phillip_main_t::ms_verboseness = VERBOSE_1;
-const std::string phillip_main_t::VERSION = "phil.3.17";
+const std::string phillip_main_t::VERSION = "phil.4.00dev";
 
 
 phillip_main_t::phillip_main_t()
