@@ -68,7 +68,7 @@ public:
     bool find_parameter(const std::string &query) const;
     bool scan_parameter(const std::string &format, ...) const;
 
-    std::sregex_iterator regex_scan_parameter(const std::string &query) const;
+    void process_parameter(const std::function<bool(const std::string&)>&) const;
 
     bool is_valid_as_observation() const;
     bool is_valid_as_implication() const;

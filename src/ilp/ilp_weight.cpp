@@ -559,16 +559,19 @@ void weighted_converter_t::virtual_parameterized_cost_provider_t::get_features(
 
     feats.insert(util::format("id/%d", edge.axiom_id()));
 
-    /*
     for (auto l1 : axiom.func.get_lhs())
     for (auto l2 : axiom.func.get_rhs())
         feats.insert("p/" + l1->get_arity() + "/" + l2->get_arity());
 
-    auto it = axiom.func.regex_scan_parameter(R"(f/([^:]+))");
-    auto end = std::sregex_iterator();
-    for (; it != end; ++it)
-        feats.insert(it->str());
-    */
+    axiom.func.process_parameter([&feats](const std::string &s)
+    {
+        if (s.size() >= 3)
+        if (s.at(0) == 'f')
+        if (s.at(1) == '/')
+            feats.insert(s.substr(2));
+        return false;
+    });
+
     out->insert(feats.begin(), feats.end());
 }
 

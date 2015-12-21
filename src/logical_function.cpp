@@ -180,10 +180,22 @@ bool logical_function_t::scan_parameter(const std::string &format, ...) const
 }
 
 
-std::sregex_iterator logical_function_t::regex_scan_parameter(const std::string &query) const
+void logical_function_t::process_parameter(
+    const std::function<bool(const std::string&)> &processor) const
 {
-    std::regex re(":" + query + ":?");
-    return std::sregex_iterator(m_param.cbegin(), m_param.cend(), re);
+    if (m_param.empty()) return;
+
+    int idx1(1), idx2;
+    while (idx1 < m_param.size())
+    {
+        idx2 = m_param.find(':', idx1);
+        std::string sub =
+            (idx2 != std::string::npos) ?
+            m_param.substr(idx1, idx2 - idx1) : m_param.substr(idx1);
+
+        if (processor(sub))
+            return;
+    }
 }
 
 
