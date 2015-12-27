@@ -435,6 +435,26 @@ public:
     virtual std::string repr() const { return "cost-based"; }
 };
 
+
+class sum_of_left_hand_side_distance_provider_t : public distance_provider_t
+{
+    struct generator_t : public component_generator_t<distance_provider_t>
+    {
+        virtual distance_provider_t* operator()(const phillip_main_t*) const override;
+    };
+
+    sum_of_left_hand_side_distance_provider_t(float default_dist);
+    
+    virtual void read(std::ifstream *fi) {}
+    virtual void write(std::ofstream *fo) const {}
+
+    virtual float operator()(const lf::axiom_t&) const;
+    virtual std::string repr() const { return "sum_of_left-hand-side"; }
+
+private:
+    float m_default_distance;
+};
+
 }
 
 

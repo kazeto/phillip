@@ -1972,7 +1972,7 @@ float null_distance_provider_t::operator()(const lf::axiom_t &ax) const
 float basic_distance_provider_t::operator()(const lf::axiom_t &ax) const
 {
     float out;
-    return ax.func.scan_parameter("d%f", &out) ? out : 1.0f;
+    return 1.0f;
 }
 
 
@@ -1981,6 +1981,28 @@ float cost_based_distance_provider_t::operator()(const lf::axiom_t &ax) const
     float out(-1.0f);
     return ax.func.scan_parameter("%f", &out) ? out : 1.0f;
 }
+
+
+distance_provider_t* sum_of_left_hand_side_distance_provider_t::
+generator_t::operator()(const phillip_main_t *ph) const
+{
+    return new by_left_hand_literals_distance_provider_t(
+        ph->param_float("default-distance", 1.0f));
+}
+
+
+float sum_of_left_hand_side_distance_provider_t::operator()(const lf::axiom_t &ax) const
+{
+    float out(0.0f);
+    for (auto l : ax.func.get_lhs())
+    {
+        float d(m_default_distance);
+        l.scan_parameter("%f", &d);
+        out += d;
+    }
+    return out;
+}
+
 
 }
 
