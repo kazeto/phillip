@@ -148,6 +148,7 @@ knowledge_base_t::knowledge_base_t(const std::string &filename, const phillip_ma
     m_config_for_compile.thread_num = ph->param_int("kb_thread_num", 1);
     m_config_for_compile.do_disable_stop_word = ph->flag("disable_stop_word");
     m_config_for_compile.can_deduction = ph->flag("enable_deduction");
+    m_config_for_compile.do_print_reachability_matrix = ph->flag("print-reachability-matrix");
 
     if (m_config_for_compile.thread_num < 1)
         m_config_for_compile.thread_num = 1;
@@ -284,7 +285,7 @@ void knowledge_base_t::finalize()
         write_config();
         m_arity_db.write();
 
-        if (phillip_main_t::verbose() == FULL_VERBOSE)
+        if (m_config_for_compile.do_print_reachability_matrix)
         {
             std::cerr << "Reachability Matrix:" << std::endl;
             m_rm.prepare_query();
@@ -303,7 +304,7 @@ void knowledge_base_t::finalize()
                 {
                     arity_id_t idx2 = search_arity_id(a2);
                     float dist = m_rm.get(idx1, idx2);
-                    std::cerr << std::setw(a2.length()) << (int)dist << " | ";
+                    std::cerr << std::setw(a2.length()) << dist << " | ";
                 }
                 std::cerr << std::endl;
             }
@@ -1986,20 +1987,37 @@ float cost_based_distance_provider_t::operator()(const lf::axiom_t &ax) const
 distance_provider_t* sum_of_left_hand_side_distance_provider_t::
 generator_t::operator()(const phillip_main_t *ph) const
 {
-    return new by_left_hand_literals_distance_provider_t(
-        ph->param_float("default-distance", 1.0f));
+    return new sum_of_left_hand_side_distance_provider_t(
+        ((ph == NULL) ? 1.0f : ph->param_float("default-distance", 1.0f)));
+}
+
+
+void sum_of_left_hand_side_distance_provider_t::read(std::ifstream *fi)
+{
+    fi->read((char*)&m_default_distance, sizeof(float));
+}
+
+
+void sum_of_left_hand_side_distance_provider_t::write(std::ofstream *fo) const
+{
+    fo->write((char*)&m_default_distance, sizeof(float));
 }
 
 
 float sum_of_left_hand_side_distance_provider_t::operator()(const lf::axiom_t &ax) const
 {
     float out(0.0f);
-    for (auto l : ax.func.get_lhs())
+    std::vector<const lf::logical_function_t*> lhs;
+
+    ax.func.branch(0).enumerate_literal_branches(&lhs);
+    
+    for (auto l : lhs)
     {
         float d(m_default_distance);
-        l.scan_parameter("%f", &d);
+        l->scan_parameter("%f", &d);
         out += d;
     }
+    
     return out;
 }
 

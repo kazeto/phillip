@@ -334,6 +334,7 @@ private:
         int thread_num;
         bool do_disable_stop_word;
         bool can_deduction;
+        bool do_print_reachability_matrix;
     } m_config_for_compile;
 
     util::cdb_data_t m_cdb_rhs, m_cdb_lhs;
@@ -438,15 +439,16 @@ public:
 
 class sum_of_left_hand_side_distance_provider_t : public distance_provider_t
 {
+public:
     struct generator_t : public component_generator_t<distance_provider_t>
     {
         virtual distance_provider_t* operator()(const phillip_main_t*) const override;
     };
 
-    sum_of_left_hand_side_distance_provider_t(float default_dist);
+    sum_of_left_hand_side_distance_provider_t(float d) : m_default_distance(d) {}
     
-    virtual void read(std::ifstream *fi) {}
-    virtual void write(std::ofstream *fo) const {}
+    virtual void read(std::ifstream *fi);
+    virtual void write(std::ofstream *fo) const;
 
     virtual float operator()(const lf::axiom_t&) const;
     virtual std::string repr() const { return "sum_of_left-hand-side"; }
