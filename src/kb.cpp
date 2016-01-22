@@ -142,7 +142,6 @@ knowledge_base_t::knowledge_base_t(const std::string &filename, const phillip_ma
       m_rm(filename + ".rm.dat")
 {
     m_distance_provider = { NULL, "" };
-    m_category_table = { NULL, "" };
 
     m_config_for_compile.max_distance = ph->param_float("kb_max_distance", -1.0);
     m_config_for_compile.thread_num = ph->param_int("kb_thread_num", 1);
@@ -154,10 +153,7 @@ knowledge_base_t::knowledge_base_t(const std::string &filename, const phillip_ma
         m_config_for_compile.thread_num = 1;
 
     std::string dist_key = ph->param("distance_provider");
-    std::string tab_key = ph->param("category_table");
-
     set_distance_provider(dist_key.empty() ? "basic" : dist_key, ph);
-    set_category_table(tab_key.empty() ? "null" : tab_key, ph);
 }
 
 
@@ -177,11 +173,6 @@ void knowledge_base_t::prepare_compile()
         "Preparing KB had failed, "
         "because distance provider has not been set.");
 
-    if (m_category_table.instance == NULL)
-        throw phillip_exception_t(
-        "Preparing KB had failed, "
-        "because category table has not been set.");
-
     if (m_state == STATE_QUERY)
         finalize();
 
@@ -193,7 +184,6 @@ void knowledge_base_t::prepare_compile()
         m_cdb_arg_set.prepare_compile();
         m_cdb_arity_patterns.prepare_compile();
         m_cdb_pattern_to_ids.prepare_compile();
-        m_category_table.instance->prepare_compile(this);
 
         m_state = STATE_COMPILE;
     }
@@ -206,11 +196,6 @@ void knowledge_base_t::prepare_query()
         throw phillip_exception_t(
         "Preparing KB had failed, "
         "because distance provider has not been set.");
-
-    if (m_category_table.instance == NULL)
-        throw phillip_exception_t(
-        "Preparing KB had failed, "
-        "because category table has not been set.");
 
     if (m_state == STATE_COMPILE)
         finalize();
@@ -228,7 +213,6 @@ void knowledge_base_t::prepare_query()
         m_cdb_arity_patterns.prepare_query();
         m_cdb_pattern_to_ids.prepare_query();
         m_rm.prepare_query();
-        m_category_table.instance->prepare_query(this);
 
         m_state = STATE_QUERY;
     }
@@ -320,7 +304,6 @@ void knowledge_base_t::finalize()
     m_cdb_arity_patterns.finalize();
     m_cdb_pattern_to_ids.finalize();
     m_rm.finalize();
-    m_category_table.instance->finalize();
 }
 
 
@@ -331,7 +314,6 @@ void knowledge_base_t::write_config() const
         filename.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);
     char version(NUM_OF_KB_VERSION_TYPES - 1); // LATEST VERSION
     char num_dp = m_distance_provider.key.length();
-    char num_ct = m_category_table.key.length();
 
     if (not fo)
         throw phillip_exception_t(
@@ -343,10 +325,6 @@ void knowledge_base_t::write_config() const
     fo.write(&num_dp, sizeof(char));
     fo.write(m_distance_provider.key.c_str(), m_distance_provider.key.length());
     m_distance_provider.instance->write(&fo);
-
-    fo.write(&num_ct, sizeof(char));
-    fo.write(m_category_table.key.c_str(), m_category_table.key.length());
-    m_category_table.instance->write(&fo);
 
     fo.close();
 }
@@ -386,14 +364,7 @@ void knowledge_base_t::read_config()
     set_distance_provider(key);
     m_distance_provider.instance->read(&fi);
 
-    fi.read(&num, sizeof(char));
-    fi.read(key, num);
-    key[num] = '\0';
-    set_category_table(key);
-    m_category_table.instance->read(&fi);
-
     fi.close();
-
 }
 
 
@@ -414,10 +385,6 @@ axiom_id_t knowledge_base_t::insert_implication(
         func.enumerate_literal_branches(&branches);
         for (auto br : branches)
             m_arity_db.add(br->literal().get_arity());
-
-        // IF func IS CATEGORICAL KNOWLEDGE, IT IS INSERTED TO CATEGORY-TABLE.
-        if (m_category_table.instance->insert(func))
-            return INVALID_AXIOM_ID;
 
         axiom_id_t id = m_axioms.num_axioms();
         m_axioms.put(name, func);
@@ -683,22 +650,6 @@ void knowledge_base_t::set_distance_provider(
     if (m_distance_provider.instance == NULL)
         throw phillip_exception_t(
         util::format("The key of distance-provider is invalid: \"%s\"", key.c_str()));
-}
-
-
-void knowledge_base_t::set_category_table(
-    const std::string &key, const phillip_main_t *ph)
-{
-    if (m_category_table.instance != NULL)
-        delete m_category_table.instance;
-
-    m_category_table = {
-        bin::category_table_library_t::instance()->generate(key, ph),
-        key };
-
-    if (m_category_table.instance == NULL)
-        throw phillip_exception_t(
-        util::format("The key of category table is invalid: \"%s\"", key.c_str()));
 }
 
 
@@ -1046,10 +997,6 @@ void knowledge_base_t::create_query_map()
         }
         std::get<1>(query).sort();
 
-        for (char i = 0; i < branches.size(); ++i)
-        if (category_table()->do_target(branches[i]->literal().get_arity()))
-            std::get<2>(query).push_back(i);
-
         pattern_to_ids[query].insert(std::make_pair(ax.id, is_backward));
 
         for (auto idx : std::get<0>(query))
@@ -1150,7 +1097,6 @@ void knowledge_base_t::create_reachable_matrix()
     m_axioms.prepare_query();
     m_cdb_rhs.prepare_query();
     m_cdb_lhs.prepare_query();
-    m_category_table.instance->prepare_query(this);
 
     m_rm.prepare_compile();
 
@@ -1236,20 +1182,6 @@ void knowledge_base_t::_create_reachable_matrix_direct(
 {
     size_t num_processed(0);
     const std::vector<arity_t> &arities = m_arity_db.arities();
-
-    // SET VALUES IN CATEGORY-TABLE TO REACHABLE-MATRIX
-    for (arity_id_t i = 1; i < arities.size(); ++i)
-    {
-        hash_map<arity_id_t, float> buf;
-        m_category_table.instance->gets(i, &buf);
-        
-        for (auto p : buf)
-        if (p.second >= 0.0f)
-        {
-            (*out_lhs)[i][p.first] = p.second;
-            (*out_rhs)[i][p.first] = p.second;
-        }
-    }
 
     for (arity_id_t i = 1; i < arities.size(); ++i)
     {
@@ -1984,7 +1916,7 @@ float cost_based_distance_provider_t::operator()(const lf::axiom_t &ax) const
 }
 
 
-distance_provider_t* sum_of_left_hand_side_distance_provider_t::
+distance_function_t* sum_of_left_hand_side_distance_provider_t::
 generator_t::operator()(const phillip_main_t *ph) const
 {
     return new sum_of_left_hand_side_distance_provider_t(
@@ -2019,333 +1951,6 @@ float sum_of_left_hand_side_distance_provider_t::operator()(const lf::axiom_t &a
     }
     
     return out;
-}
-
-
-}
-
-
-namespace ct
-{
-
-
-bool null_category_table_t::insert(const lf::logical_function_t&)
-{
-    return false;
-}
-
-
-float null_category_table_t::get(const arity_t &a1, const arity_t &a2) const
-{
-    return (a1 == a2) ? 0.0 : -1.0;
-}
-
-
-float null_category_table_t::get(arity_id_t a1, arity_id_t a2) const
-{
-    assert(a1 != INVALID_ARITY_ID and a2 != INVALID_ARITY_ID);
-    return (a1 == a2) ? 0.0 : -1.0;
-}
-
-
-bool null_category_table_t::do_target(const arity_t&) const
-{
-    return false;
-}
-
-
-category_table_t* basic_category_table_t::
-generator_t::operator() (const phillip_main_t *ph) const
-{
-    // NOTE: Currently ph is always NULL.
-
-    if (ph)
-        return new basic_category_table_t(
-            ph->param_int("ct_max_depth", -1),
-            ph->param_float("ct_distance_scale", 1.0f));
-    else
-        return new basic_category_table_t(2, 1.0);
-}
-
-
-basic_category_table_t::basic_category_table_t(int max_depth, float dist_scale)
-    : m_max_depth(max_depth), m_distance_scale(dist_scale)
-{
-    assert(m_distance_scale > 0.0f);
-}
-
-
-void basic_category_table_t::read(std::ifstream *fi)
-{
-    fi->read((char*)&m_distance_scale, sizeof(float));
-}
-
-
-void basic_category_table_t::write(std::ofstream *fo) const
-{
-    fo->write((char*)&m_distance_scale, sizeof(float));
-}
-
-
-void basic_category_table_t::prepare_compile(const knowledge_base_t *base)
-{
-    if (m_state != STATE_NULL)
-        finalize();
-
-    m_prefix = base->filename();
-    m_state = STATE_COMPILE;
-}
-
-
-bool basic_category_table_t::insert(const lf::logical_function_t &ax)
-{
-    assert(m_state == STATE_COMPILE);
-
-    if (do_insert(ax))
-    {
-        std::vector<const lf::logical_function_t*> lhs, rhs;
-        ax.branch(0).enumerate_literal_branches(&lhs);
-        ax.branch(1).enumerate_literal_branches(&rhs);
-
-        arity_id_t a1 = kb()->search_arity_id(lhs.front()->literal().get_arity());
-        arity_id_t a2 = kb()->search_arity_id(rhs.front()->literal().get_arity());
-
-        assert(a1 != INVALID_ARITY_ID and a2 != INVALID_ARITY_ID);
-        m_table[a1][a2] = m_distance_scale; // DEDUCTION
-        m_table[a2][a1] = m_distance_scale; // ABDUCTION
-
-        return true;
-    }
-    else
-        return false;
-}
-
-
-void basic_category_table_t::prepare_query(const kb::knowledge_base_t *base)
-{
-    if (m_state != STATE_NULL)
-        finalize();
-
-    m_prefix = base->filename();
-    m_state = STATE_QUERY;
-
-    read(filename());
-}
-
-
-float basic_category_table_t::get(const arity_t &a1, const arity_t &a2) const
-{
-    assert(m_state == STATE_QUERY);
-
-    if (a1 == a2) return 0.0f;
-
-    arity_id_t i = kb()->search_arity_id(a1);
-    arity_id_t j = kb()->search_arity_id(a2);
-
-    return (i != INVALID_ARITY_ID and j != INVALID_ARITY_ID) ? get(i, j) : -1.0f;
-}
-
-
-float basic_category_table_t::get(arity_id_t a1, arity_id_t a2) const
-{
-    assert(a1 != INVALID_ARITY_ID and a2 != INVALID_ARITY_ID);
-
-    auto found1 = m_table.find(a1);
-    if (found1 != m_table.end())
-    {
-        auto found2 = found1->second.find(a2);
-        if (found2 != found1->second.end())
-            return found2->second;
-    }
-
-    return -1.0f;
-}
-
-
-void basic_category_table_t::gets(
-    const arity_id_t &a1, hash_map<arity_id_t, float> *out) const
-{
-    auto find = m_table.find(a1);
-    if (find != m_table.end())
-        out->insert(find->second.begin(), find->second.end());
-}
-
-
-bool basic_category_table_t::do_insert(
-    const lf::logical_function_t &func) const
-{
-    if (func.is_valid_as_implication())
-    {
-        auto lhs = func.get_lhs();
-        auto rhs = func.get_rhs();
-
-        if (lhs.size() == 1 and rhs.size() == 1)
-        {
-            term_t t1 = lhs.front()->terms.front();
-            term_t t2 = rhs.front()->terms.front();
-            return t1 == t2;
-        }
-        else
-            return false;
-    }
-    else
-        return false;
-}
-
-
-bool basic_category_table_t::do_target(const arity_t &a) const
-{
-    int num;
-    if (util::parse_arity(a, NULL, &num))
-        return (num == 1);
-    else
-        return false;
-}
-
-
-void basic_category_table_t::finalize()
-{
-    if (m_state == STATE_COMPILE)
-    {
-        combinate();
-        write(filename());
-    }
-
-    m_table.clear();
-    m_state = STATE_NULL;
-}
-
-
-void basic_category_table_t::combinate()
-{
-    const float max_dist = kb()->get_max_distance();
-    
-    auto search = [this](arity_id_t a1, arity_id_t a2) -> float
-    {
-        auto found1 = m_table.find(a1);
-        if (found1 != m_table.end())
-        {
-            auto found2 = found1->second.find(a2);
-            if (found2 != found1->second.end())
-                return found2->second;
-        }
-        return -1.0f;
-    };
-    
-    std::function<void(arity_id_t, arity_id_t, float, int)> walk =
-        [&, this](arity_id_t a1, arity_id_t a2, float dist, int depth)
-    {
-        if (m_max_depth >= 0 and depth >= m_max_depth)
-            return;
-        
-        auto it = m_table.find(a2);
-        if (it == m_table.end()) return;
-
-        for (auto p : it->second)
-        {
-            if (p.first != a1)
-            {
-                float d_new = dist + p.second;
-                float d_old = search(a1, p.first);
-
-                if (d_old < 0.0 or d_new < d_old)
-                if (max_dist < 0.0 or d_new < max_dist)
-                {
-                    m_table[a1][p.first] = d_new;
-                    walk(a1, p.first, d_new, depth + 1);
-                }
-            }
-        }
-    };
-
-    IF_VERBOSE_1("Constructing category-table...");
-    IF_VERBOSE_3(util::format("    max-distance = %.2f", max_dist));
-    IF_VERBOSE_3(util::format("    max-depth = %d", m_max_depth));
-    IF_VERBOSE_3(util::format("    distance-scale = %.2f", m_distance_scale));
-
-    int n(0);
-    for (auto p1 : m_table)
-    {
-        for (auto p2 : p1.second)
-            walk(p1.first, p2.first, p2.second, 1);
-
-        float rate = 100.0f * (++n) / m_table.size();
-        if (n % 10 == 0 and phillip_main_t::verbose() >= VERBOSE_1)
-            std::cerr << "Processed " << n << " elements [" << rate << "%]\r";
-    }
-    
-    IF_VERBOSE_1("Completed category-table construction.");
-}
-
-
-void basic_category_table_t::write(const std::string &filename) const
-{
-    std::ofstream fout(
-        filename, std::ios::out | std::ios::trunc | std::ios::binary);
-
-    if (fout.bad())
-    {
-        util::print_error_fmt("Cannot open %s.", filename.c_str());
-        return;
-    }
-
-    size_t num1 = m_table.size();
-    fout.write((char*)&num1, sizeof(size_t));
-    
-    IF_VERBOSE_4("Writing basic-category-table.");
-
-    size_t num(0);
-    for (auto p1 : m_table)
-    {
-        size_t num2 = p1.second.size();
-        fout.write((char*)&p1.first, sizeof(arity_id_t));
-        fout.write((char*)&num2, sizeof(size_t));
-
-        for (auto p2 : p1.second)
-        {
-            fout.write((char*)&p2.first, sizeof(arity_id_t));
-            fout.write((char*)&p2.second, sizeof(float));
-            ++num;
-        }
-    }
-    
-    IF_VERBOSE_4(util::format("    # of entities = %d", num));
-}
-
-
-void basic_category_table_t::read(const std::string &filename)
-{
-    std::ifstream fin(filename, std::ios::in | std::ios::binary);
-    size_t num1, num2, num(0);
-    arity_id_t id1, id2;
-    m_table.clear();
-
-    if (fin.bad())
-    {
-        util::print_error_fmt("Cannot open %s.", filename.c_str());
-        return;
-    }
-
-    fin.read((char*)&num1, sizeof(size_t));
-
-    IF_VERBOSE_4("Reading basic-category-table.");
-
-    for (int i = 0; i < num1; ++i)
-    {
-        fin.read((char*)&id1, sizeof(arity_id_t));
-        fin.read((char*)&num2, sizeof(size_t));
-
-        for (int j = 0; j < num2; ++j)
-        {
-            float d;
-            fin.read((char*)&id2, sizeof(arity_id_t));
-            fin.read((char*)&d, sizeof(float));
-            m_table[id1][id2] = d;
-            ++num;
-        }
-    }
-
-    IF_VERBOSE_4(util::format("    # of entities = %d", num));
 }
 
 

@@ -94,26 +94,6 @@ distance_provider_library_t::distance_provider_library_t()
 }
 
 
-std::unique_ptr<category_table_library_t, util::deleter_t<category_table_library_t> >
-category_table_library_t::ms_instance;
-
-
-category_table_library_t* category_table_library_t::instance()
-{
-    if (not ms_instance)
-        ms_instance.reset(new category_table_library_t());
-    return ms_instance.get();
-}
-
-
-category_table_library_t::category_table_library_t()
-{
-    add("null", new kb::ct::null_category_table_t::generator_t());
-    add("basic", new kb::ct::basic_category_table_t::generator_t());
-}
-
-
-
 bool _load_config_file(
     const char *filename, phillip_main_t *phillip,
     execution_configure_t *option, inputs_t *inputs);

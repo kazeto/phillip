@@ -110,7 +110,7 @@ private:
 
 /** A class to generate distance-provider from string key. */
 class distance_provider_library_t :
-    public component_library_t<kb::distance_provider_t>
+    public component_library_t<kb::distance_function_t>
 {
 public:
     static distance_provider_library_t* instance();
@@ -121,22 +121,6 @@ private:
     static std::unique_ptr<
         distance_provider_library_t,
         util::deleter_t<distance_provider_library_t> > ms_instance;
-};
-
-
-/** A class to generate distance-provider from string key. */
-class category_table_library_t :
-    public component_library_t<kb::category_table_t>
-{
-public:
-    static category_table_library_t* instance();
-
-private:
-    category_table_library_t();
-
-    static std::unique_ptr<
-        category_table_library_t,
-        util::deleter_t<category_table_library_t> > ms_instance;
 };
 
 

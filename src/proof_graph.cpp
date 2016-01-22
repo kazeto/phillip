@@ -191,18 +191,6 @@ void proof_graph_t::chain_candidate_generator_t::init(node_idx_t idx)
 
         kb::kb()->search_arity_patterns(id_pivot, &patterns);
         m_patterns.insert(patterns.begin(), patterns.end());
-
-        hash_map<kb::arity_id_t, float> soft_unifiable_arities;
-
-        kb::kb()->category_table()->gets(id_pivot, &soft_unifiable_arities);
-
-        for (auto p : soft_unifiable_arities)
-        if (p.second >= 0.0 and
-            p.second < m_graph->threshold_distance_for_soft_unifying())
-        {
-            kb::kb()->search_arity_patterns(p.first, &patterns);
-            m_patterns.insert(patterns.begin(), patterns.end());
-        }
     }
 
     m_pt_iter = m_patterns.begin();
@@ -248,11 +236,9 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
     for (auto i : kb::soft_unifiable_literal_indices(*m_pt_iter))
     {
         kb::arity_id_t a = kb::arities(*m_pt_iter).at(i);
-        hash_set<node_idx_t> ns;
-
-        m_graph->enumerate_nodes_softly_unifiable(kb::kb()->search_arity(a), &ns);
-        if (not ns.empty())
-            a2ns[a].insert(ns.begin(), ns.end());
+        const hash_set<node_idx_t> *ns = m_graph->search_nodes_with_arity(kb::kb()->search_arity(a));
+        if (ns != nullptr)
+            a2ns[a].insert(ns->begin(), ns->end());
     }
 
     // IF THERE IS A SLOT WHICH CANNOT BE FILLED, THEN STOP.
@@ -278,13 +264,6 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
 
         if (id1 == id2)
             slots_pivot.insert(i);
-        else
-        {
-            float dist = kb::kb()->category_table()->get(id1, id2);
-            if (dist >= 0.0f and
-                dist < m_graph->threshold_distance_for_soft_unifying())
-                slots_pivot.insert(i);
-        }
     }
     assert(not slots_pivot.empty());
 
@@ -672,31 +651,6 @@ std::string proof_graph_t::edge_to_string( edge_idx_t i ) const
         str_edge << "none";
     
     return str_edge.str();
-}
-
-
-void proof_graph_t::enumerate_nodes_softly_unifiable(
-const arity_t &arity, hash_set<node_idx_t> *out) const
-{
-    const hash_set<node_idx_t> *ns1 = search_nodes_with_arity(arity);
-    if (ns1 != NULL)
-        out->insert(ns1->begin(), ns1->end());
-
-    if (kb::kb()->category_table()->do_target(arity))
-    {
-        for (auto p1 : m_maps.predicate_to_nodes)
-        for (auto p2 : p1.second)
-        if (p2.first == 1)
-        {
-            arity_t arity2 = literal_t::get_arity(p1.first, p2.first, false);
-            if (arity2 != arity)
-            {
-                float dist = kb::kb()->category_table()->get(arity, arity2);
-                if (dist >= 0.0 and dist < threshold_distance_for_soft_unifying())
-                    out->insert(p2.second.begin(), p2.second.end());
-            }
-        }
-    }
 }
 
 
@@ -1796,13 +1750,12 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
     auto enumerate_unifiable_nodes = [this](node_idx_t target) -> std::list<node_idx_t>
     {
         const literal_t &lit = node(target).literal();
-        hash_set<node_idx_t> candidates;
         std::list<node_idx_t> unifiables;
         unifier_t unifier;
+        const hash_set<node_idx_t> *candidates = search_nodes_with_arity(lit.get_arity());
+        assert(candidates != nullptr);
 
-        enumerate_nodes_softly_unifiable(lit.get_arity(), &candidates);
-
-        for (auto n : candidates)
+        for (auto n : (*candidates))
         {
             if (target == n) continue;
 

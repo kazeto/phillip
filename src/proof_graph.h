@@ -350,12 +350,6 @@ public:
      *  If any node was found, return NULL. */
     inline const hash_set<node_idx_t>* search_nodes_with_depth(depth_t depth) const;
 
-    /** Return a set of nodes which is unifiable with a literal of given arity.
-     *  The threshold of category-table is given
-     *  through the parameter "threshold_soft_unify". */
-    void enumerate_nodes_softly_unifiable(
-        const arity_t &arity, hash_set<node_idx_t> *out) const;
-
     /** Return set of nodes whose literal is equal to given literal. */
     hash_set<node_idx_t> enumerate_nodes_with_literal(const literal_t &lit) const;
 

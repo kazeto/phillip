@@ -42,62 +42,23 @@ enum version_e
     KB_VERSION_UNSPECIFIED,
     KB_VERSION_1, KB_VERSION_2, KB_VERSION_3, KB_VERSION_4, KB_VERSION_5,
     KB_VERSION_6, KB_VERSION_7, KB_VERSION_8, KB_VERSION_9, KB_VERSION_10,
-    KB_VERSION_11,
+    KB_VERSION_11, KB_VERSION_12,
     NUM_OF_KB_VERSION_TYPES
 };
 
 
 /** A virtual class to define distance between predicates
  *  on creation of reachable-matrix. */
-class distance_provider_t
+class distance_function_t
 {
 public:
-    virtual ~distance_provider_t() {}
+    virtual ~distance_function_t() {}
     virtual float operator() (const lf::axiom_t &ax) const = 0;
 
     virtual void read(std::ifstream *fi) = 0;
     virtual void write(std::ofstream *fo) const = 0;
 
     virtual std::string repr() const = 0;
-};
-
-
-/** A virtual class of table which has semantic gaps between predicates. */
-class category_table_t
-{
-public:
-    enum table_state_e { STATE_NULL, STATE_COMPILE, STATE_QUERY };
-
-    category_table_t() : m_state(STATE_NULL) {}
-    virtual ~category_table_t() {}
-
-    virtual void read(std::ifstream *fi) = 0;
-    virtual void write(std::ofstream *fo) const = 0;
-
-    virtual void prepare_compile(const knowledge_base_t *base) = 0;
-    virtual void prepare_query(const knowledge_base_t *base) = 0;
-
-    /** Updates the elements corresponding to given axiom in the table.
-     *  Returns whether the axiom had been inserted to this.
-     *  This method is called in knowledge_base_t::insert_implication. */
-    virtual bool insert(const lf::logical_function_t &ax) = 0;
-
-    /** Returns the semantic gap between a1 & a2, which is a positive value.
-    *  If a1 cannot be a2, returns -1. */
-    virtual float get(const arity_t &a1, const arity_t &a2) const = 0;
-    virtual float get(arity_id_t a1, arity_id_t a2) const = 0;
-
-    /** Gets the elements related to a1.
-     *  This method is used on reachable-matrix construction. */
-    virtual void gets(const arity_id_t &a1, hash_map<arity_id_t, float> *out) const = 0;
-
-    virtual bool do_target(const arity_t &a) const = 0;
-
-    virtual void finalize() = 0;
-
-protected:
-    table_state_e m_state;
-    std::string m_prefix;
 };
 
 
@@ -139,7 +100,7 @@ public:
     /** Prepares for reading knowledge base. */
     void prepare_query();
 
-    /** Call this method on end of compiling or reading knowledge base. */
+    /** Call this method on the end of compiling or reading knowledge base. */
     void finalize();
 
     axiom_id_t insert_implication(
@@ -166,7 +127,6 @@ public:
         std::list<std::pair<axiom_id_t, bool> > *out) const;
 
     void set_distance_provider(const std::string &key, const phillip_main_t *ph = NULL);
-    void set_category_table(const std::string &key, const phillip_main_t *ph = NULL);
 
     /** Returns ditance between arity1 and arity2
      *  in a reachable-matrix in the current knowledge-base.
@@ -177,8 +137,6 @@ public:
     /** Returns distance between arity1 and arity2 with distance-provider. */
     inline float get_distance(const lf::axiom_t &axiom) const;
     inline float get_distance(axiom_id_t id) const;
-
-    const category_table_t* category_table() const { return m_category_table.instance; }
 
     inline version_e version() const;
     inline bool is_valid_version() const;
@@ -192,6 +150,7 @@ public:
     inline void clear_distance_cache();
 
 private:
+    /** A class of database of axioms. */
     class axioms_database_t
     {
     public:
@@ -222,6 +181,7 @@ private:
         axiom_pos_t m_writing_pos;
     };
 
+    /** A class of the list of arities. */
     class arity_database_t
     {
     public:
@@ -260,6 +220,7 @@ private:
     public:
         reachable_matrix_t(const std::string &filename);
         ~reachable_matrix_t();
+
         void prepare_compile();
         void prepare_query();
         void finalize();
@@ -368,31 +329,25 @@ private:
     /** Function object to provide distance between predicates. */
     struct
     {
-        distance_provider_t *instance;
+        distance_function_t *instance;
         std::string key;
     } m_distance_provider;
-
-    struct
-    {
-        category_table_t *instance;
-        std::string key;
-    } m_category_table;
 
     mutable hash_map<size_t, hash_map<size_t, float> > m_cache_distance;
 };
 
 
-/** The namespace for super-classes of distance_provider_t. */
+/** The namespace for super-classes of distance_function_t. */
 namespace dist
 {
 
 
-class null_distance_provider_t : public distance_provider_t
+class null_distance_provider_t : public distance_function_t
 {
 public:
-    struct generator_t : public component_generator_t<distance_provider_t>
+    struct generator_t : public component_generator_t<distance_function_t>
     {
-        virtual distance_provider_t* operator()(const phillip_main_t*) const override
+        virtual distance_function_t* operator()(const phillip_main_t*) const override
         { return new null_distance_provider_t(); }
     };
 
@@ -403,12 +358,12 @@ public:
     virtual std::string repr() const { return "null"; };
 };
 
-class basic_distance_provider_t : public distance_provider_t
+class basic_distance_provider_t : public distance_function_t
 {
 public:
-    struct generator_t : public component_generator_t<distance_provider_t>
+    struct generator_t : public component_generator_t<distance_function_t>
     {
-        virtual distance_provider_t* operator()(const phillip_main_t*) const override
+        virtual distance_function_t* operator()(const phillip_main_t*) const override
             { return new basic_distance_provider_t(); }
     };
 
@@ -420,12 +375,12 @@ public:
 };
 
 
-class cost_based_distance_provider_t : public distance_provider_t
+class cost_based_distance_provider_t : public distance_function_t
 {
 public:
-    struct generator_t : public component_generator_t<distance_provider_t>
+    struct generator_t : public component_generator_t<distance_function_t>
     {
-        virtual distance_provider_t* operator()(const phillip_main_t*) const override
+        virtual distance_function_t* operator()(const phillip_main_t*) const override
             { return new cost_based_distance_provider_t(); }
     };
 
@@ -437,12 +392,12 @@ public:
 };
 
 
-class sum_of_left_hand_side_distance_provider_t : public distance_provider_t
+class sum_of_left_hand_side_distance_provider_t : public distance_function_t
 {
 public:
-    struct generator_t : public component_generator_t<distance_provider_t>
+    struct generator_t : public component_generator_t<distance_function_t>
     {
-        virtual distance_provider_t* operator()(const phillip_main_t*) const override;
+        virtual distance_function_t* operator()(const phillip_main_t*) const override;
     };
 
     sum_of_left_hand_side_distance_provider_t(float d) : m_default_distance(d) {}
@@ -460,91 +415,14 @@ private:
 }
 
 
-/** The namespace for super-classes of category_table_t. */
-namespace ct
-{
-
-/** A class of category-table which do nothing. */
-class null_category_table_t : public category_table_t
-{
-public:
-    class generator_t : public component_generator_t<category_table_t>
-    {
-    public:
-        virtual category_table_t* operator() (const phillip_main_t*) const override
-            { return new null_category_table_t(); }
-    };
-
-    virtual void read(std::ifstream *fi) {}
-    virtual void write(std::ofstream *fo) const {}
-
-    virtual void prepare_compile(const knowledge_base_t*) override {}
-    virtual bool insert(const lf::logical_function_t&) override;
-
-    virtual void prepare_query(const knowledge_base_t*) override {}
-    virtual float get(const arity_t &a1, const arity_t &a2) const override;
-    virtual float get(arity_id_t a1, arity_id_t a2) const override;
-    virtual void gets(
-        const arity_id_t &a1, hash_map<arity_id_t, float> *out) const override {};
-
-    virtual bool do_target(const arity_t&) const override;
-
-    virtual void finalize() override {}
-};
-
-
-/** A class of basic category-table. */
-class basic_category_table_t : public category_table_t
-{
-public:
-    struct generator_t : public component_generator_t<category_table_t>
-    {
-        virtual category_table_t* operator() (const phillip_main_t*) const override;
-    };
-
-    basic_category_table_t(int max_depth, float dist_scale);
-
-    virtual void read(std::ifstream *fi);
-    virtual void write(std::ofstream *fo) const;
-
-    virtual void prepare_compile(const knowledge_base_t*) override;
-    virtual bool insert(const lf::logical_function_t &ax) override;
-
-    virtual void prepare_query(const knowledge_base_t*) override;
-    virtual float get(const arity_t &a1, const arity_t &a2) const override;
-    virtual float get(arity_id_t a1, arity_id_t a2) const override;
-    virtual void gets(
-        const arity_id_t &a1, hash_map<arity_id_t, float> *out) const override;
-
-    virtual bool do_target(const arity_t&) const override;
-
-    virtual void finalize() override;
-
-protected:
-    void combinate();
-    void write(const std::string &filename) const;
-    void read(const std::string &filename);
-
-    bool do_insert(const lf::logical_function_t&) const;
-    std::string filename() const { return m_prefix + ".category.dat"; }
-
-    hash_map<arity_id_t, hash_map<arity_id_t, float> > m_table;
-
-    int m_max_depth;
-    float m_distance_scale;
-};
-
-
-}
-
-
 void query_to_binary(const arity_pattern_t &q, std::vector<char> *bin);
 size_t binary_to_query(const char *bin, arity_pattern_t *out);
 
 inline knowledge_base_t* kb() { return knowledge_base_t::instance(); }
 
-}
+} // END OF kb
 
-}
+} // END OF phil
+
 
 #include "./kb.inline.h"
