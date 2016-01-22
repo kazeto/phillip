@@ -70,7 +70,7 @@ inline std::string node_t::to_string() const
 
 
 inline edge_t::edge_t()
-    : m_type(EDGE_UNDERSPECIFIED),
+    : m_type(EDGE_UNSPECIFIED),
       m_index_tail(-1), m_index_head(-1), m_axiom_id(-1)
 {}
 

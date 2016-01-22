@@ -37,7 +37,7 @@ logical_function_t::logical_function_t(
 
 
 logical_function_t::logical_function_t(const sexp::stack_t &s)
-    : m_operator(OPR_UNDERSPECIFIED)
+    : m_operator(OPR_UNSPECIFIED)
 {
     if (s.is_functor(OPR_STR_IMPLICATION))
     {

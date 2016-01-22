@@ -33,7 +33,7 @@ class solution_xml_decorator_t;
 
 enum constraint_operator_e
 {
-    OPR_UNDERSPECIFIED,
+    OPR_UNSPECIFIED,
     OPR_EQUAL,
     OPR_LESS_EQ,
     OPR_GREATER_EQ,

@@ -17,14 +17,14 @@ namespace lf
 
 enum logical_operator_t
 {
-    OPR_UNDERSPECIFIED,   /// Not defined
-    OPR_LITERAL,          /// Literal
-    OPR_AND,              /// And (as "^")
-    OPR_OR,               /// Or (as "v")
-    OPR_IMPLICATION,      /// Implication (as "=>")
-    OPR_INCONSISTENT,     /// Inconsistent (as "xor")
-    OPR_REQUIREMENT,      /// Requirement (as "require")
-    OPR_UNIPP,            /// Unification-Postponement (as "unipp")
+    OPR_UNSPECIFIED,  /// Not defined
+    OPR_LITERAL,      /// Literal
+    OPR_AND,          /// And (as "^")
+    OPR_OR,           /// Or (as "v")
+    OPR_IMPLICATION,  /// Implication (as "=>")
+    OPR_INCONSISTENT, /// Inconsistent (as "xor")
+    OPR_REQUIREMENT,  /// Requirement (as "require")
+    OPR_UNIPP,        /// Unification-Postponement (as "unipp")
 };
 
 

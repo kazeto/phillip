@@ -944,7 +944,7 @@ void ilp_problem_t::_print_literals_in_solution(
 
         switch (node.type())
         {
-        case pg::NODE_UNDERSPECIFIED: type = "underspecified"; break;
+        case pg::NODE_UNSPECIFIED: type = "unspecified"; break;
         case pg::NODE_OBSERVABLE:     type = "observable";     break;
         case pg::NODE_HYPOTHESIS:     type = "hypothesis";     break;
         case pg::NODE_REQUIRED:       type = "requirement";    break;

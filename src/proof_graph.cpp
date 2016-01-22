@@ -644,8 +644,8 @@ std::string proof_graph_t::edge_to_string( edge_idx_t i ) const
 
     switch(_edge.type())
     {
-    case EDGE_UNDERSPECIFIED:
-        str_edge << " => UNDERSPECIFIED => "; break;
+    case EDGE_UNSPECIFIED:
+        str_edge << " => UNSPECIFIED => "; break;
     case EDGE_HYPOTHESIZE:
         str_edge << util::format(" => BACKWARD(axiom=%d) => ", _edge.axiom_id());
         break;
@@ -1020,7 +1020,7 @@ void proof_graph_t::print_edges(std::ostream *os) const
         {
             switch (e.type())
             {
-            case EDGE_UNDERSPECIFIED: type = "underspecified"; break;
+            case EDGE_UNSPECIFIED: type = "unspecified"; break;
             case EDGE_HYPOTHESIZE: type = "abductive"; break;
             case EDGE_IMPLICATION: type = "deductive"; break;
             case EDGE_UNIFICATION: type = "unification"; break;

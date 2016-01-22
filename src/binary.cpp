@@ -125,7 +125,7 @@ bool _interpret_option(
 
 
 execution_configure_t::execution_configure_t()
-    : mode(EXE_MODE_UNDERSPECIFIED), kb_name("kb.cdb")
+    : mode(EXE_MODE_UNSPECIFIED), kb_name("kb.cdb")
 {}
 
 
@@ -453,10 +453,10 @@ bool _interpret_option(
                 arg == "training" or arg == "train")
                 config->mode = EXE_MODE_LEARNING;
             else
-                config->mode = EXE_MODE_UNDERSPECIFIED;
+                config->mode = EXE_MODE_UNSPECIFIED;
         }
 
-        return (config->mode != EXE_MODE_UNDERSPECIFIED);
+        return (config->mode != EXE_MODE_UNSPECIFIED);
     }
 
     case 'o': // ---- SET OUTPUT PATH
@@ -610,8 +610,8 @@ bool _interpret_option(
 
 bool preprocess(const execution_configure_t &config, phillip_main_t *ph)
 {
-    if (config.mode == EXE_MODE_UNDERSPECIFIED)
-        throw phillip_exception_t("Execution mode is underspecified.", true);
+    if (config.mode == EXE_MODE_UNSPECIFIED)
+        throw phillip_exception_t("Execution mode is unspecified.", true);
 
     for (auto n : config.target_obs_names)
         ph->add_target(n);

@@ -8,7 +8,7 @@ namespace lf
 
 
 inline logical_function_t::logical_function_t()
-: m_operator(OPR_UNDERSPECIFIED)
+: m_operator(OPR_UNSPECIFIED)
 {}
 
 

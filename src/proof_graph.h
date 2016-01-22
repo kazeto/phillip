@@ -40,11 +40,10 @@ class proof_graph_t;
 /** An enum of node-type. */
 enum node_type_e
 {
-    NODE_UNDERSPECIFIED, /**< Unknown type. */
-    NODE_OBSERVABLE,     /**< The node coressponds an observation. */
-    NODE_HYPOTHESIS,     /**< The node corresponds a hypothesis. */
-    NODE_REQUIRED           /**< The node corresponds a literal added
-                          *   to infer pseudo-positive example. */
+    NODE_UNSPECIFIED, /// Unknown type.
+    NODE_OBSERVABLE,  /// Corresponds an observable literal.
+    NODE_HYPOTHESIS,  /// Corresponds a hypothesized literal.
+    NODE_REQUIRED     /// Corresponds a literal for pseudo-positive sample.
 };
 
 
@@ -119,7 +118,7 @@ private:
 
 enum edge_type_e
 {
-    EDGE_UNDERSPECIFIED,
+    EDGE_UNSPECIFIED,
     EDGE_HYPOTHESIZE, /// For abduction.
     EDGE_IMPLICATION, /// For deduction.
     EDGE_UNIFICATION, /// For unification.

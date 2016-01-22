@@ -41,7 +41,7 @@ inline std::string variable_t::to_string() const
 
 
 inline constraint_t::constraint_t()
-    : m_operator(OPR_UNDERSPECIFIED)
+    : m_operator(OPR_UNSPECIFIED)
 {
     m_target[0] = m_target[1] = 0.0;
 }

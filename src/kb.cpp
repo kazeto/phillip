@@ -369,7 +369,7 @@ void knowledge_base_t::read_config()
         m_version = static_cast<version_e>(version);
     else
     {
-        m_version = KB_VERSION_UNDERSPECIFIED;
+        m_version = KB_VERSION_UNSPECIFIED;
         throw phillip_exception_t(
             "This compiled knowledge base is invalid. Please re-compile it.");
     }
