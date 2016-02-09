@@ -549,10 +549,6 @@ protected:
         const literal_t &target,
         std::list<std::tuple<node_idx_t, unifier_t> > *out) const;
 
-    void _enumerate_mutual_exclusion_for_argument_set(
-        const literal_t &target,
-        std::list<std::tuple<node_idx_t, unifier_t> > *out) const;
-
     /** Is a sub-routine of chain.
      *  @param is_node_base Gives the mode of enumerating candidate edges.
      *                      If true, enumeration is performed on node-base.
@@ -637,8 +633,6 @@ protected:
 
         /** Used in _check_nodes_coexistability. */
         mutable util::triangular_matrix_t<node_idx_t, bool> coexistability_logs;
-
-        std::map<std::pair<pg::node_idx_t, term_idx_t>, unsigned long int> argument_set_ids;
     } m_temporal;
 
     struct maps_t

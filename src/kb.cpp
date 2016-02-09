@@ -202,7 +202,6 @@ knowledge_base_t::knowledge_base_t(const std::string &filename, const phillip_ma
       m_filename(filename), m_version(KB_VERSION_1), 
       m_cdb_rhs(filename + ".rhs.cdb"),
       m_cdb_lhs(filename + ".lhs.cdb"),
-      m_cdb_arg_set(filename + ".args.cdb"),
       m_cdb_arity_patterns(filename + ".pattern.cdb"),
       m_cdb_pattern_to_ids(filename + ".search.cdb"),
       axioms(filename),
@@ -249,7 +248,6 @@ void knowledge_base_t::prepare_compile()
         axioms.prepare_compile();
         m_cdb_rhs.prepare_compile();
         m_cdb_lhs.prepare_compile();
-        m_cdb_arg_set.prepare_compile();
         m_cdb_arity_patterns.prepare_compile();
         m_cdb_pattern_to_ids.prepare_compile();
 
@@ -277,7 +275,6 @@ void knowledge_base_t::prepare_query()
         axioms.prepare_query();
         m_cdb_rhs.prepare_query();
         m_cdb_lhs.prepare_query();
-        m_cdb_arg_set.prepare_query();
         m_cdb_arity_patterns.prepare_query();
         m_cdb_pattern_to_ids.prepare_query();
         m_rm.prepare_query();
@@ -324,12 +321,10 @@ void knowledge_base_t::finalize()
         insert_cdb(m_rhs_to_axioms, &m_cdb_rhs);
         insert_cdb(m_lhs_to_axioms, &m_cdb_lhs);
         write_axiom_group();
-        insert_argument_set_to_cdb();
 
         m_rhs_to_axioms.clear();
         m_lhs_to_axioms.clear();
         m_group_to_axioms.clear();
-        m_argument_sets.clear();
 
         build_conjunct_predicates_map();
         create_reachable_matrix();
@@ -367,7 +362,6 @@ void knowledge_base_t::finalize()
     axioms.finalize();
     m_cdb_rhs.finalize();
     m_cdb_lhs.finalize();
-    m_cdb_arg_set.finalize();
     m_cdb_arity_patterns.finalize();
     m_cdb_pattern_to_ids.finalize();
     m_rm.finalize();
@@ -493,53 +487,6 @@ axiom_id_t knowledge_base_t::insert_implication(
 }
 
 
-void knowledge_base_t::insert_argument_set(const lf::logical_function_t &f)
-{
-    if (m_state != STATE_COMPILE) return;
-
-    if (not f.is_valid_as_argument_set())
-    {
-        util::print_warning_fmt(
-            "Argument set \"%s\" is invalid and skipped.",
-            f.to_string().c_str());
-    }
-    else
-    {
-        hash_set<std::string> *pivot = NULL;
-        const std::vector<term_t> &terms(f.literal().terms);
-        hash_set<std::string> args(terms.begin(), terms.end());
-
-        for (auto it_set = m_argument_sets.begin(); it_set != m_argument_sets.end();)
-        {
-            bool do_match(false);
-
-            for (auto a = args.begin(); a != args.end() and not do_match; ++a)
-            if (it_set->count(*a))
-                do_match = true;
-
-            if (do_match)
-            {
-                if (pivot == NULL)
-                {
-                    pivot = &(*it_set);
-                    pivot->insert(args.begin(), args.end());
-                    ++it_set;
-                }
-                else
-                {
-                    pivot->insert(it_set->begin(), it_set->end());
-                    it_set = m_argument_sets.erase(it_set);
-                }
-            }
-            else ++it_set;
-        }
-
-        if (pivot == NULL)
-            m_argument_sets.push_back(args);
-    }
-}
-
-
 hash_set<axiom_id_t> knowledge_base_t::search_axiom_group(axiom_id_t id) const
 {
     hash_set<axiom_id_t> out{ id };
@@ -550,23 +497,6 @@ hash_set<axiom_id_t> knowledge_base_t::search_axiom_group(axiom_id_t id) const
         out.insert(grp->begin(), grp->end());
 
     return out;
-}
-
-argument_set_id_t knowledge_base_t::
-search_argument_set_id(const std::string &arity, int term_idx) const
-{
-    if (not m_cdb_arg_set.is_readable())
-    {
-        util::print_warning("kb-search: Kb-state is invalid.");
-        return 0;
-    }
-
-    std::string key = util::format("%s/%d", arity.c_str(), term_idx);
-    size_t value_size;
-    const argument_set_id_t *value = (const argument_set_id_t*)
-        m_cdb_arg_set.get(key.c_str(), key.length(), &value_size);
-
-    return (value == NULL) ? 0 : (*value);
 }
 
 
@@ -713,23 +643,6 @@ void knowledge_base_t::read_axiom_group()
             m_axiom_group.axiom_to_groups[id].push_back(&grp);
         }
     }
-}
-
-
-void knowledge_base_t::insert_argument_set_to_cdb()
-{
-    IF_VERBOSE_1("starts writing " + m_cdb_arg_set.filename() + "...");
-    IF_VERBOSE_4(util::format("  # of arg-sets = %d", m_argument_sets.size()));
-
-    unsigned processed(0);
-    for (auto args = m_argument_sets.begin(); args != m_argument_sets.end(); ++args)
-    {
-        argument_set_id_t id = (++processed);
-        for (auto arg = args->begin(); arg != args->end(); ++arg)
-            m_cdb_arg_set.put(arg->c_str(), arg->length(), &id, sizeof(argument_set_id_t));
-    }
-
-    IF_VERBOSE_1("completed writing " + m_cdb_arg_set.filename() + ".");
 }
 
 

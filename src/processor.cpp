@@ -111,19 +111,6 @@ void compile_kb_t::process( const sexp::reader_t *reader )
             kb::kb()->predicates.define_functional_predicate(
                 kb::functional_predicate_configuration_t(*c));
         }
-        else if (c->is_functor(lf::OPR_STR_EXARGSET))
-        {
-            lf::logical_function_t func(*c);
-            if (phillip_main_t::verbose() == FULL_VERBOSE)
-            {
-                const std::vector<term_t> &terms = func.literal().terms;
-                std::string disp;
-                for (auto it = terms.begin(); it != terms.end(); ++it)
-                    disp += (it != terms.begin() ? ", " : "") + it->string();
-                util::print_console("Added argument-set: {" + disp + "}");
-            }
-            kb::kb()->insert_argument_set(func);
-        }
     }
 }
 

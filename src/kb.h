@@ -122,7 +122,6 @@ public:
 
     axiom_id_t insert_implication(
         const lf::logical_function_t &f, const std::string &name);
-    void insert_argument_set(const lf::logical_function_t &f);
 
     inline lf::axiom_t get_axiom(axiom_id_t id) const;
     inline std::list<axiom_id_t> search_axioms_with_rhs(const std::string &arity) const;
@@ -130,7 +129,6 @@ public:
     inline const std::list<std::pair<term_idx_t, term_idx_t> >*
         search_inconsistent_terms(predicate_id_t a1, predicate_id_t a2) const;
     hash_set<axiom_id_t> search_axiom_group(axiom_id_t id) const;
-    argument_set_id_t search_argument_set_id(const std::string &arity, int term_idx) const;
     void search_arity_patterns(predicate_id_t arity, std::list<arity_pattern_t> *out) const;
     void search_axioms_with_arity_pattern(
         const arity_pattern_t &query,
@@ -273,8 +271,6 @@ private:
     void write_axiom_group();
     void read_axiom_group();
 
-    void insert_argument_set_to_cdb();
-
     void build_conjunct_predicates_map();
     void create_reachable_matrix();
     
@@ -320,7 +316,6 @@ private:
     } m_config_for_compile;
 
     util::cdb_data_t m_cdb_rhs, m_cdb_lhs;
-    util::cdb_data_t m_cdb_arg_set;
     util::cdb_data_t m_cdb_arity_patterns, m_cdb_pattern_to_ids;
     reachable_matrix_t m_rm;
 
@@ -329,12 +324,6 @@ private:
         hash_map<axiom_id_t, std::list<hash_set<axiom_id_t>*> > axiom_to_groups;
         std::list<hash_set<axiom_id_t> > groups;
     } m_axiom_group;
-
-    /** A set of arities of stop-words.
-     *  These arities are ignored in constructing a reachable-matrix. */
-    hash_set<predicate_with_arity_t> m_stop_words;
-
-    std::list<hash_set<std::string> > m_argument_sets;
 
     hash_map<std::string, hash_set<axiom_id_t> > m_group_to_axioms;
     hash_map<predicate_id_t, hash_set<axiom_id_t> > m_lhs_to_axioms, m_rhs_to_axioms;

@@ -402,7 +402,6 @@ void proof_graph_t::temporal_variables_t::clear()
     postponed_unifications.clear();
     considered_unifications.clear();
     coexistability_logs.clear();
-    argument_set_ids.clear();
 }
 
 
@@ -1097,12 +1096,6 @@ node_idx_t proof_graph_t::add_node(
         const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
         std::string arity = lit.get_arity();
 
-        for (int i = 0; i < lit.terms.size(); ++i)
-        {
-            unsigned id = base->search_argument_set_id(arity, i);
-            if (id != kb::INVALID_ARGUMENT_SET_ID)
-                m_temporal.argument_set_ids[std::make_pair(out, i)] = id;
-        }
         if (add.arity_id() != kb::INVALID_PREDICATE_ID)
             m_maps.arity_to_nodes[add.arity_id()].insert(out);
     }
@@ -1568,7 +1561,6 @@ void proof_graph_t::get_mutual_exclusions(
 {
     _enumerate_mutual_exclusion_for_counter_nodes(target, muex);
     _enumerate_mutual_exclusion_for_inconsistent_nodes(target, muex);
-    _enumerate_mutual_exclusion_for_argument_set(target, muex);
 }
 
 
@@ -2065,52 +2057,6 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_counter_nodes(
             if (check_unifiability(target, l2, true, &uni))
                 out->push_back(std::make_tuple(*it, uni));
         }
-    }
-}
-
-
-void proof_graph_t::_enumerate_mutual_exclusion_for_argument_set(
-    const literal_t &target,
-    std::list<std::tuple<node_idx_t, unifier_t> > *out) const
-{
-    if (target.is_equality()) return;
-
-    kb::knowledge_base_t *_kb = kb::knowledge_base_t::instance();
-    std::string arity = target.get_arity();
-    hash_map<pg::node_idx_t, std::set<std::pair<term_idx_t, term_idx_t> > > cands;
-
-    for (term_idx_t i = 0; i < target.terms.size(); ++i)
-    {
-        kb::argument_set_id_t id = _kb->search_argument_set_id(arity, i);
-        if (id != kb::INVALID_ARGUMENT_SET_ID)
-        {
-            const std::map<std::pair<pg::node_idx_t, term_idx_t>, kb::argument_set_id_t>
-                &ids = m_temporal.argument_set_ids;
-
-            for (auto it = ids.begin(); it != ids.end(); ++it)
-            if (id != it->second)
-            {
-                node_idx_t n = it->first.first;
-                term_idx_t j = it->first.second;
-                cands[n].insert(std::make_pair(i, j));
-            }
-        }
-    }
-
-    for (auto it = cands.begin(); it != cands.end(); ++it)
-    {
-        unifier_t uni;
-        const node_t &n = node(it->first);
-
-        for (auto it_pair = it->second.begin(); it_pair != it->second.end(); ++it_pair)
-        {
-            term_t t1 = target.terms.at(it_pair->first);
-            term_t t2 = n.literal().terms.at(it_pair->second);
-            if (t1 != t2)
-                uni.add(t1, t2);
-        }
-
-        out->push_back(std::make_tuple(it->first, uni));
     }
 }
 
