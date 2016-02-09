@@ -100,7 +100,7 @@ void compile_kb_t::process( const sexp::reader_t *reader )
             _assert_syntax(
                 (c->children().size() >= 3), (*reader),
                 "Function 'xor' takes two arguments.");
-            kb::kb()->insert_inconsistency(lf::logical_function_t(*c));
+            kb::kb()->predicates.define_mutual_exclusion(lf::logical_function_t(*c));
         }
         else if (c->is_functor(lf::OPR_STR_UNIPP))
         {
@@ -108,7 +108,8 @@ void compile_kb_t::process( const sexp::reader_t *reader )
             _assert_syntax(
                 (c->children().size() >= 2), (*reader),
                 "Function 'unipp' takes one argument.");
-            kb::kb()->insert_functional_predicate(*c);
+            kb::kb()->predicates.define_functional_predicate(
+                kb::functional_predicate_configuration_t(*c));
         }
         else if (c->is_functor(lf::OPR_STR_EXARGSET))
         {

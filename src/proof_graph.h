@@ -63,8 +63,8 @@ public:
 
     inline node_type_e type() const { return m_type; }
     inline const literal_t& literal() const { return m_literal; }
-    inline arity_t arity() const { return m_literal.get_arity(); }
-    inline kb::arity_id_t arity_id() const { return m_arity_id; }
+    inline predicate_with_arity_t arity() const { return m_literal.get_arity(); }
+    inline kb::predicate_id_t arity_id() const { return m_arity_id; }
 
     /** Returns the index of this node in a proof-graph. */
     inline index_t index() const { return m_index; }
@@ -108,7 +108,7 @@ private:
     node_idx_t  m_index;
     hypernode_idx_t m_master_hypernode_idx;
     depth_t m_depth;
-    kb::arity_id_t m_arity_id;
+    kb::predicate_id_t m_arity_id;
 
     hash_set<node_idx_t> m_parents;
     hash_set<node_idx_t> m_ancestors;
@@ -343,8 +343,8 @@ public:
 
     /** Return pointer of set of nodes whose literal has given predicate.
      *  If any node was found, return NULL. */
-    inline const hash_set<node_idx_t>* search_nodes_with_arity(const arity_t &arity) const;
-    inline const hash_set<node_idx_t>* search_nodes_with_arity(kb::arity_id_t arity) const;
+    inline const hash_set<node_idx_t>* search_nodes_with_arity(const predicate_with_arity_t &arity) const;
+    inline const hash_set<node_idx_t>* search_nodes_with_arity(kb::predicate_id_t arity) const;
 
     /** Return pointer of set of nodes whose depth is equal to given value.
      *  If any node was found, return NULL. */
@@ -423,7 +423,7 @@ public:
 
     /** Returns gaps of predicate on given edge.
      *  The first is expected arity and the second is actual arity. */
-    std::list<std::pair<arity_t, arity_t> > get_gaps_on_edge(edge_idx_t) const;
+    std::list<std::pair<predicate_with_arity_t, predicate_with_arity_t> > get_gaps_on_edge(edge_idx_t) const;
 
     /** Enumerates unification nodes
      *  which are needed to satisfy conditions for given chaining.
@@ -682,7 +682,7 @@ protected:
         /** Map to get nodes which have given term. */
         hash_map<term_t, hash_set<node_idx_t> > term_to_nodes;
 
-        hash_map<kb::arity_id_t, hash_set<node_idx_t> > arity_to_nodes;
+        hash_map<kb::predicate_id_t, hash_set<node_idx_t> > arity_to_nodes;
     } m_maps;
 };
 

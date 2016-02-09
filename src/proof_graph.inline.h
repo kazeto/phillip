@@ -270,7 +270,7 @@ inline const hash_set<node_idx_t>* proof_graph_t::search_nodes_with_predicate(
 
 
 inline const hash_set<node_idx_t>*
-proof_graph_t::search_nodes_with_arity(const arity_t &arity) const
+proof_graph_t::search_nodes_with_arity(const predicate_with_arity_t &arity) const
 {
     int idx(arity.rfind('/')), num;
     assert( idx > 0 );
@@ -281,7 +281,7 @@ proof_graph_t::search_nodes_with_arity(const arity_t &arity) const
 
 
 inline const hash_set<node_idx_t>*
-proof_graph_t::search_nodes_with_arity(const kb::arity_id_t arity) const
+proof_graph_t::search_nodes_with_arity(const kb::predicate_id_t arity) const
 {
     auto found = m_maps.arity_to_nodes.find(arity);
     return (found != m_maps.arity_to_nodes.end()) ? &found->second : NULL;

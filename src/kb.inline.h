@@ -10,8 +10,8 @@ namespace kb
 
 inline lf::axiom_t knowledge_base_t::get_axiom(axiom_id_t id) const
 {
-    if (id >= 0 and id < m_axioms.num_axioms())
-        return m_axioms.get(id);
+    if (id >= 0 and id < axioms.num_axioms())
+        return axioms.get(id);
     else
         return lf::axiom_t();
 }
@@ -20,7 +20,7 @@ inline lf::axiom_t knowledge_base_t::get_axiom(axiom_id_t id) const
 inline std::list<axiom_id_t> knowledge_base_t::
 search_axioms_with_rhs(const std::string &rhs) const
 {
-    arity_id_t id = m_arity_db.arity2id(rhs);
+    predicate_id_t id = predicates.pred2id(rhs);
     return search_id_list(id, &m_cdb_rhs);
 }
 
@@ -28,15 +28,15 @@ search_axioms_with_rhs(const std::string &rhs) const
 inline std::list<axiom_id_t> knowledge_base_t::
 search_axioms_with_lhs(const std::string &lhs) const
 {
-    arity_id_t id = m_arity_db.arity2id(lhs);
+    predicate_id_t id = predicates.pred2id(lhs);
     return search_id_list(lhs, &m_cdb_lhs);
 }
 
 
 inline const std::list<std::pair<term_idx_t, term_idx_t> >* knowledge_base_t::
-search_inconsistent_terms(arity_id_t a1, arity_id_t a2) const
+search_inconsistent_terms(predicate_id_t a1, predicate_id_t a2) const
 {
-    return m_arity_db.find_inconsistent_terms(a1, a2);
+    return predicates.find_inconsistent_terms(a1, a2);
 }
 
 
@@ -78,13 +78,7 @@ inline bool knowledge_base_t::is_readable() const
 
 inline int knowledge_base_t::num_of_axioms() const
 {
-    return m_axioms.num_axioms();
-}
-
-
-inline const hash_set<std::string>& knowledge_base_t::stop_words() const
-{
-    return m_stop_words;
+    return axioms.num_axioms();
 }
 
 
@@ -107,44 +101,6 @@ inline void knowledge_base_t::clear_distance_cache()
 }
 
 
-inline arity_id_t knowledge_base_t::search_arity_id(const arity_t &arity) const
-{
-    return m_arity_db.arity2id(arity);
-}
-
-
-inline const arity_t& knowledge_base_t::search_arity(arity_id_t id) const
-{
-    return m_arity_db.id2arity(id);
-}
-
-
-const functional_predicate_configuration_t* knowledge_base_t::
-find_unification_postponement(arity_id_t arity) const
-{
-    return m_arity_db.find_unification_postponement(arity);
-}
-
-
-const functional_predicate_configuration_t* knowledge_base_t::
-find_unification_postponement(const arity_t &arity) const
-{
-    return m_arity_db.find_unification_postponement(m_arity_db.arity2id(arity));
-}
-
-
-inline bool knowledge_base_t::axioms_database_t::is_writable() const
-{
-    return (m_fo_idx != NULL) and (m_fo_dat != NULL);
-}
-
-
-inline bool knowledge_base_t::axioms_database_t::is_readable() const
-{
-    return (m_fi_idx != NULL) and (m_fi_dat != NULL);
-}
-
-
 inline std::string knowledge_base_t::axioms_database_t::get_name_of_unnamed_axiom()
 {
     char buf[128];
@@ -153,59 +109,49 @@ inline std::string knowledge_base_t::axioms_database_t::get_name_of_unnamed_axio
 }
 
 
-arity_id_t knowledge_base_t::arity_database_t::add(const arity_t &arity)
-{
-    auto found = m_arity2id.find(arity);
-
-    if (found != m_arity2id.end())
-        return found->second;
-    else
-    {
-        arity_id_t id = m_arities.size();
-        m_arity2id[arity] = id;
-        m_arities.push_back(arity);
-        return id;
-    }
-}
-
-
-inline void knowledge_base_t::arity_database_t::add_unification_postponement(
-    const functional_predicate_configuration_t &unipp)
-{
-    if (unipp.arity_id() != INVALID_ARITY_ID)
-        m_unification_postponements[unipp.arity_id()] = unipp;
-}
-
-
-inline const std::vector<arity_t>& knowledge_base_t::arity_database_t::arities() const
+inline const std::vector<predicate_with_arity_t>& knowledge_base_t::predicate_database_t::arities() const
 {
     return m_arities;
 }
 
 
-inline arity_id_t knowledge_base_t::arity_database_t::arity2id(const arity_t &arity) const
+inline predicate_id_t knowledge_base_t::predicate_database_t::pred2id(const predicate_with_arity_t &arity) const
 {
     auto found = m_arity2id.find(arity);
-    return (found != m_arity2id.end()) ? found->second : INVALID_ARITY_ID;
+    return (found != m_arity2id.end()) ? found->second : INVALID_PREDICATE_ID;
 }
 
 
-inline const arity_t& knowledge_base_t::arity_database_t::id2arity(arity_id_t id) const
+inline const predicate_with_arity_t& knowledge_base_t::predicate_database_t::id2pred(predicate_id_t id) const
 {
     return (id < m_arities.size()) ? m_arities.at(id) : m_arities.front();    
 }
 
 
-inline const functional_predicate_configuration_t*
-knowledge_base_t::arity_database_t::find_unification_postponement(arity_id_t id) const
+inline const hash_map<predicate_id_t, functional_predicate_configuration_t>&
+knowledge_base_t::predicate_database_t::functional_predicates() const
 {
-    auto found = m_unification_postponements.find(id);
-    return (found != m_unification_postponements.end()) ? &found->second : NULL;
+    return m_functional_predicates;
+}
+
+
+inline const functional_predicate_configuration_t*
+knowledge_base_t::predicate_database_t::find_functional_predicate(predicate_id_t id) const
+{
+    auto found = m_functional_predicates.find(id);
+    return (found != m_functional_predicates.end()) ? &found->second : nullptr;
+}
+
+
+inline const functional_predicate_configuration_t*
+knowledge_base_t::predicate_database_t::find_functional_predicate(const predicate_with_arity_t &p) const
+{
+    return find_functional_predicate(pred2id(p));
 }
 
 
 inline const std::list<std::pair<term_idx_t, term_idx_t> >*
-knowledge_base_t::arity_database_t::find_inconsistent_terms(arity_id_t a1, arity_id_t a2) const
+knowledge_base_t::predicate_database_t::find_inconsistent_terms(predicate_id_t a1, predicate_id_t a2) const
 {
     assert(a1 <= a2);
 

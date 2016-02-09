@@ -994,7 +994,7 @@ void ilp_problem_t::_print_explanations_in_solution(
         std::string axiom_name = base->get_axiom(edge.axiom_id()).name;
         std::string gaps = util::join_f(
             m_graph->get_gaps_on_edge(*it),
-            [](const std::pair<arity_t, arity_t> &p){return p.first + ":" + p.second; }, ",");
+            [](const std::pair<predicate_with_arity_t, predicate_with_arity_t> &p){return p.first + ":" + p.second; }, ",");
 
         (*os)
             << "<explanation id=\"" << (*it)
@@ -1052,7 +1052,7 @@ void ilp_problem_t::_print_unifications_in_solution(
             &hn_from(m_graph->hypernode(edge.tail()));
         std::string gaps = util::join_f(
             m_graph->get_gaps_on_edge(*it),
-            [](const std::pair<arity_t, arity_t> &p){return p.first + ":" + p.second; }, ",");
+            [](const std::pair<predicate_with_arity_t, predicate_with_arity_t> &p){return p.first + ":" + p.second; }, ",");
 
         (*os)
             << "<unification l1=\"" << hn_from[0]

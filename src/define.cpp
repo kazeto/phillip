@@ -20,14 +20,14 @@ namespace phil
 {
 
 
-bool string_t::to_arity(predicate_t *p, term_size_t *n) const
+bool string_t::to_arity(predicate_t *p, arity_t *n) const
 {
     int idx = rfind('/');
     if (idx != std::string::npos)
     {
-        if (p != NULL)
+        if (p != nullptr)
             (*p) = substr(0, idx);
-        if (n != NULL)
+        if (n != nullptr)
             (*n) = std::stoi(substr(idx + 1));
         return true;
     }
@@ -36,10 +36,18 @@ bool string_t::to_arity(predicate_t *p, term_size_t *n) const
 }
 
 
-std::pair<predicate_t, term_size_t> string_t::to_arity() const
+std::pair<predicate_t, arity_t> string_t::to_arity() const
 {
-    std::pair<predicate_t, term_size_t> out{ "", 0 };
+    std::pair<predicate_t, arity_t> out{ "", 0 };
     to_arity(&out.first, &out.second);
+    return out;
+}
+
+
+string_t string_t::to_lower() const
+{
+    string_t out(*this);
+    for (auto &c : out) c = std::tolower(c);
     return out;
 }
 

@@ -42,6 +42,7 @@ namespace phil
 {
 
 class phillip_main_t;
+class string_t;
 
 typedef unsigned int bits_t;
 typedef unsigned char small_size_t;
@@ -49,10 +50,10 @@ typedef long int index_t;
 typedef std::string file_path_t;
 
 typedef long int axiom_id_t;
-typedef small_size_t term_size_t;
+typedef small_size_t arity_t;
 typedef small_size_t term_idx_t;
-typedef std::string predicate_t;
-typedef std::string arity_t;
+typedef string_t predicate_t;
+typedef string_t predicate_with_arity_t;
 typedef float duration_time_t;
 
 namespace sexp
@@ -65,25 +66,20 @@ namespace kb
 class knowledge_base_t;
 
 typedef unsigned long int argument_set_id_t;
-typedef size_t arity_id_t;
+typedef size_t predicate_id_t;
 
 typedef std::pair<index_t, term_idx_t> term_pos_t;
 typedef std::tuple<
-    std::vector<arity_id_t>,
-    std::list<std::pair<term_pos_t, term_pos_t> >,
-    std::list<small_size_t> > arity_pattern_t;
-typedef std::pair<std::pair<kb::arity_id_t, term_idx_t>,
-                  std::pair<kb::arity_id_t, term_idx_t> > hard_term_pair_t;
+    std::vector<predicate_id_t>,
+    std::list<std::pair<term_pos_t, term_pos_t>>> arity_pattern_t;
+typedef std::pair<std::pair<kb::predicate_id_t, term_idx_t>,
+                  std::pair<kb::predicate_id_t, term_idx_t> > hard_term_pair_t;
 
-inline const std::vector<arity_id_t>&
+inline const std::vector<predicate_id_t>&
 arities(const arity_pattern_t &p) { return std::get<0>(p); }
 
 inline const std::list<std::pair<term_pos_t, term_pos_t> >&
 hard_terms(const arity_pattern_t &p) { return std::get<1>(p); }
-
-inline const std::list<small_size_t>
-soft_unifiable_literal_indices(const arity_pattern_t &p)
-{ return std::get<2>(p); }
 
 inline bool is_backward(std::pair<axiom_id_t, bool> &p)
 { return p.second; }
@@ -128,8 +124,10 @@ public:
     string_t(const char *s) : std::string(s) {}
     string_t(const std::string &s) : std::string(s) {}
 
-    bool to_arity(predicate_t *p, term_size_t *n) const;
-    std::pair<predicate_t, term_size_t> to_arity() const;
+    bool to_arity(predicate_t *p, arity_t *n) const;
+    std::pair<predicate_t, arity_t> to_arity() const;
+
+    string_t to_lower() const;
 
     std::vector<string_t> split(const char *separator, const int MAX_NUM = -1) const;
     string_t replace(const std::string &from, const std::string &to) const;
@@ -521,9 +519,6 @@ bool parse_string_as_function_call(
     const std::string &str,
     std::string *pred, std::vector<std::string> *terms);
 
-bool parse_arity(const arity_t &arity, predicate_t *pred, int *num_term);
-std::pair<predicate_t, term_size_t> parse(const arity_t &arity);
-
 /** Convert string into binary and return size of binary.
  *  The size of string must be less than 255. */
 inline size_t string_to_binary(const std::string &str, char *out);
@@ -572,11 +567,19 @@ extern std::mutex g_mutex_for_print;
 
 namespace std
 {
+
 template <> struct hash<phil::string_hash_t>
 {
     size_t operator() (const phil::string_hash_t &s) const
     { return s.get_hash(); }
 };
+
+template <> struct hash<phil::string_t> : public hash<std::string>
+{
+    size_t operator() (const phil::string_t &s) const
+    { return hash<std::string>::operator()(s); }
+};
+
 }
 
 #include "./define.inline.h"

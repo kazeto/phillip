@@ -23,7 +23,7 @@ node_t::node_t(
     const literal_t &lit, node_type_e type, node_idx_t idx,
     depth_t depth, const hash_set<node_idx_t> &parents)
     : m_type(type), m_literal(lit), m_index(idx),
-    m_depth(depth), m_arity_id(kb::INVALID_ARITY_ID),
+    m_depth(depth), m_arity_id(kb::INVALID_PREDICATE_ID),
     m_master_hypernode_idx(-1), m_parents(parents), m_ancestors(parents)
 {
     for (auto p : m_parents)
@@ -46,7 +46,7 @@ node_t::node_t(
     }
 
     if (not m_literal.is_equality())
-        m_arity_id = kb::kb()->search_arity_id(m_literal.get_arity());
+        m_arity_id = kb::kb()->predicates.pred2id(m_literal.get_arity());
 }
 
 
@@ -187,7 +187,7 @@ void proof_graph_t::chain_candidate_generator_t::init(node_idx_t idx)
     if (m_pivot >= 0)
     {
         std::list<kb::arity_pattern_t> patterns;
-        kb::arity_id_t id_pivot = m_graph->node(m_pivot).arity_id();
+        kb::predicate_id_t id_pivot = m_graph->node(m_pivot).arity_id();
 
         kb::kb()->search_arity_patterns(id_pivot, &patterns);
         m_patterns.insert(patterns.begin(), patterns.end());
@@ -220,7 +220,7 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
 
     if (end()) return;
 
-    hash_map<kb::arity_id_t, hash_set<node_idx_t>> a2ns;
+    hash_map<kb::predicate_id_t, hash_set<node_idx_t>> a2ns;
     std::list<std::list<node_idx_t> > node_arrays;
 
     // CONSTRUCTS a2ns
@@ -232,18 +232,9 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
             a2ns.insert(std::make_pair(a, *found));
     }
 
-    // EXPANDS a2ns WITH SOFT-UNIFIABLE NODES
-    for (auto i : kb::soft_unifiable_literal_indices(*m_pt_iter))
-    {
-        kb::arity_id_t a = kb::arities(*m_pt_iter).at(i);
-        const hash_set<node_idx_t> *ns = m_graph->search_nodes_with_arity(kb::kb()->search_arity(a));
-        if (ns != nullptr)
-            a2ns[a].insert(ns->begin(), ns->end());
-    }
-
     // IF THERE IS A SLOT WHICH CANNOT BE FILLED, THEN STOP.
     {
-        hash_set<kb::arity_id_t> arity_set(
+        hash_set<kb::predicate_id_t> arity_set(
             kb::arities(*m_pt_iter).begin(),
             kb::arities(*m_pt_iter).end());
         if (a2ns.size() < arity_set.size()) return;
@@ -259,8 +250,8 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
     hash_set<index_t> slots_pivot;
     for (index_t i = 0; i < kb::arities(*m_pt_iter).size(); ++i)
     {
-        kb::arity_id_t id1 = kb::arities(*m_pt_iter).at(i);
-        kb::arity_id_t id2 = m_graph->node(m_pivot).arity_id();
+        kb::predicate_id_t id1 = kb::arities(*m_pt_iter).at(i);
+        kb::predicate_id_t id2 = m_graph->node(m_pivot).arity_id();
 
         if (id1 == id2)
             slots_pivot.insert(i);
@@ -985,7 +976,7 @@ void proof_graph_t::print_edges(std::ostream *os) const
 
         std::string gaps = util::join_f(
             get_gaps_on_edge(i),
-            [](const std::pair<arity_t, arity_t> &p){return p.first + ":" + p.second; }, ",");
+            [](const std::pair<predicate_with_arity_t, predicate_with_arity_t> &p){return p.first + ":" + p.second; }, ",");
 
         (*os) << "<edge id=\"" << i << "\" type=\"" << type
               << "\" tail=\"" << hypernode2str(e.tail())
@@ -1112,7 +1103,7 @@ node_idx_t proof_graph_t::add_node(
             if (id != kb::INVALID_ARGUMENT_SET_ID)
                 m_temporal.argument_set_ids[std::make_pair(out, i)] = id;
         }
-        if (add.arity_id() != kb::INVALID_ARITY_ID)
+        if (add.arity_id() != kb::INVALID_PREDICATE_ID)
             m_maps.arity_to_nodes[add.arity_id()].insert(out);
     }
     
@@ -1594,9 +1585,9 @@ int proof_graph_t::get_depth_of_deepest_node(
 }
 
 
-std::list<std::pair<arity_t, arity_t> > proof_graph_t::get_gaps_on_edge(edge_idx_t idx) const
+std::list<std::pair<predicate_with_arity_t, predicate_with_arity_t> > proof_graph_t::get_gaps_on_edge(edge_idx_t idx) const
 {
-    std::list<std::pair<arity_t, arity_t> > out;
+    std::list<std::pair<predicate_with_arity_t, predicate_with_arity_t> > out;
     const edge_t &e = edge(idx);
     auto tail = hypernode(e.tail());
 
@@ -1612,8 +1603,8 @@ std::list<std::pair<arity_t, arity_t> > proof_graph_t::get_gaps_on_edge(edge_idx
 
         for (index_t i = 0; i < branches_tail.size(); ++i)
         {
-            arity_t a1 = branches_tail.at(i)->literal().get_arity();
-            arity_t a2 = node(tail.at(i)).arity();
+            predicate_with_arity_t a1 = branches_tail.at(i)->literal().get_arity();
+            predicate_with_arity_t a2 = node(tail.at(i)).arity();
 
             if (a1 != a2) out.push_back(std::make_pair(a1, a2));
         }
@@ -1621,7 +1612,7 @@ std::list<std::pair<arity_t, arity_t> > proof_graph_t::get_gaps_on_edge(edge_idx
     else if (e.is_unify_edge())
     {
         assert(tail.size() == 2);
-        arity_t a1(node(tail.at(0)).arity()), a2(node(tail.at(1)).arity());
+        predicate_with_arity_t a1(node(tail.at(0)).arity()), a2(node(tail.at(1)).arity());
 
         if (a1 != a2) out.push_back(std::make_pair(a1, a2));
     }
@@ -1700,11 +1691,11 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_inconsistent_nodes(
 
     const kb::knowledge_base_t *kb = kb::knowledge_base_t::instance();
     std::string arity = target1.get_arity();
-    kb::arity_id_t id1 = kb->search_arity_id(arity);
+    kb::predicate_id_t id1 = kb->predicates.pred2id(arity);
 
     for (auto p1 : m_maps.arity_to_nodes)
     {
-        kb::arity_id_t id2 = p1.first;
+        kb::predicate_id_t id2 = p1.first;
         bool do_reverse = (id1 > id2);
         const std::list<std::pair<term_idx_t, term_idx_t> >* terms =
             do_reverse ?
@@ -1790,7 +1781,7 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
 
     std::list<node_idx_t> unifiables = enumerate_unifiable_nodes(target);
     const kb::functional_predicate_configuration_t* pp =
-        kb::knowledge_base_t::instance()->find_unification_postponement(node(target).arity());
+        kb::knowledge_base_t::instance()->predicates.find_functional_predicate(node(target).arity());
 
     /* UNIFY EACH UNIFIABLE NODE PAIR. */
     for (auto it = unifiables.begin(); it != unifiables.end(); ++it)
@@ -1944,8 +1935,7 @@ void proof_graph_t::post_process()
                 {
                     const node_idx_t n1(it1->first), n2(*it2);
                     const kb::functional_predicate_configuration_t *pp =
-                        kb::knowledge_base_t::instance()
-                        ->find_unification_postponement(node(n1).arity());
+                        kb::kb()->predicates.find_functional_predicate(node(n1).arity());
                     assert(pp != NULL);
 
                     if (not pp->do_postpone(this, n1, n2))

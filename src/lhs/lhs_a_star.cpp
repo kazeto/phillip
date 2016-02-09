@@ -147,7 +147,7 @@ void a_star_based_enumerator_t::add_reachability(
 
     hash_set<pg::node_idx_t> goals_filtered;
     {
-        arity_t arity_current = graph->node(current).arity();
+        predicate_with_arity_t arity_current = graph->node(current).arity();
         for (auto g : goals)
         if (graph->node(g).arity() != arity_current)
             goals_filtered.insert(g);
