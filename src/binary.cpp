@@ -307,7 +307,7 @@ bool parse_options(
     }
 
     for (int i = optind; i < argc; i++)
-        inputs->push_back(util::normalize_path(argv[i]));
+        inputs->push_back(util::reguralize_path(argv[i]));
 
     return true;
 }
@@ -349,7 +349,7 @@ bool _load_config_file(
                 + std::string(line), true);
         }
         if (spl.at(0).at(0) != '-' and spl.size() == 1)
-            inputs->push_back(util::normalize_path(spl.at(0)));
+            inputs->push_back(util::reguralize_path(spl.at(0)));
     }
 
     fin.close();
@@ -410,13 +410,13 @@ bool _interpret_option(
     
     case 'k': // ---- SET FILENAME OF KNOWLEDGE-BASE
     {
-        config->kb_name = util::normalize_path(arg);
+        config->kb_name = util::reguralize_path(arg);
         return true;
     }
 
     case 'l': // ---- SET THE PATH OF PHILLIP CONFIGURE FILE
     {
-        std::string path = util::normalize_path(arg);
+        std::string path = util::reguralize_path(arg);
         _load_config_file(path.c_str(), phillip, config, inputs);
         return true;
     }
@@ -450,17 +450,17 @@ bool _interpret_option(
 
             if (key == "lhs")
             {
-                phillip->set_param("path_lhs_out", util::normalize_path(val));
+                phillip->set_param("path_lhs_out", util::reguralize_path(val));
                 return true;
             }
             else if (key == "ilp")
             {
-                phillip->set_param("path_ilp_out", util::normalize_path(val));
+                phillip->set_param("path_ilp_out", util::reguralize_path(val));
                 return true;
             }
             else if (key == "sol")
             {
-                phillip->set_param("path_sol_out", util::normalize_path(val));
+                phillip->set_param("path_sol_out", util::reguralize_path(val));
                 return true;
             }
             else
@@ -468,7 +468,7 @@ bool _interpret_option(
         }
         else
         {
-            phillip->set_param("path_out", util::normalize_path(arg));
+            phillip->set_param("path_out", util::reguralize_path(arg));
             return true;
         }
     }
@@ -482,7 +482,7 @@ bool _interpret_option(
             std::string key = arg.substr(0, idx);
             std::string val = arg.substr(idx + 1);
             if (util::startswith(key, "path"))
-                val = util::normalize_path(val);
+                val = util::reguralize_path(val);
             phillip->set_param(key, val);
         }
         else

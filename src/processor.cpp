@@ -19,7 +19,7 @@ namespace proc
     if (not(x)){ \
         util::print_warning(\
             util::format("Syntax error at line %d: ", s.get_line_num()) \
-            + e + "\n" + s.get_stack()->to_string()); \
+            + e + "\n" + s.get_stack()->expr()); \
         return; }
 
 #else
@@ -27,14 +27,14 @@ namespace proc
 #define _assert_syntax(x, s, e) \
     if (not(x)) throw phillip_exception_t(\
     util::format("Syntax error at line %d: ", s.get_line_num()) \
-    + e + "\n" + s.get_stack()->to_string());
+    + e + "\n" + s.get_stack()->expr());
 
 #endif
 
 
 void parse_obs_t::process(const sexp::reader_t *reader)
 {
-    const sexp::stack_t& stack(*reader->get_stack());
+    const sexp::sexp_t& stack(*reader->get_stack());
 
     if (not stack.is_functor("O") or m_inputs == NULL)
         return;
@@ -48,19 +48,19 @@ void parse_obs_t::process(const sexp::reader_t *reader)
     int i_name = stack.find_functor(lf::OPR_STR_NAME);
 
     if (i_name >= 0)
-        name = stack.children.at(i_name)->children.at(1)->get_string();
+        name = stack.child(i_name).child(1).string();
 
     _assert_syntax((i_obs >= 0), (*reader), "Any input was not found: " + name);
 
     lf::input_t data;
     data.name = reader->name() + "::" + name;
-    data.obs = lf::logical_function_t(*stack.children.at(i_obs));
+    data.obs = lf::logical_function_t(stack.child(i_obs));
 
     _assert_syntax(data.obs.is_valid_as_observation(), (*reader), "Invalid observation: \"" + name + "\"");
 
     if (i_req >= 0)
     {
-        data.req = lf::logical_function_t(*stack.children.at(i_req));
+        data.req = lf::logical_function_t(stack.child(i_req));
         _assert_syntax(data.req.is_valid_as_requirements(), (*reader), "Arguments of req are invalid.");
     }
 
@@ -74,104 +74,54 @@ void compile_kb_t::prepare()
 
 void compile_kb_t::process( const sexp::reader_t *reader )
 {    
-    const sexp::stack_t *stack(reader->get_stack());
-    kb::knowledge_base_t *_kb = kb::knowledge_base_t::instance();
+    const sexp::sexp_t *stack(reader->get_stack());
 
-    if (stack->is_functor("ASSERT"))
-    {
-        _assert_syntax(reader->is_root(), (*reader), "Function ASSERT should be root.");
-        _assert_syntax(stack->children.size() >= 1, (*reader), "There is no operator of assertion.");
-        _assert_syntax(stack->children.size() >= 2, (*reader), "There is no argument of assertion.");
-
-        if (stack->children.at(0)->get_string() == "stopword")
-        {
-            for (int i = 1; i < stack->children.size(); ++i)
-            {
-                arity_t a = stack->children.at(i)->get_string();
-                kb::kb()->assert_stop_word(a);
-                IF_VERBOSE_FULL("Added stop-word assertion: " + a);
-            }
-        }
-    }
-    
-    if (not stack->is_functor("B"))
-        return;
+    if (not stack->is_functor("B")) return;
 
     /* SHOULD BE ROOT. */
     _assert_syntax(reader->is_root(), (*reader), "Function B should be root.");
 
-    /* IDENTIFY THE LOGICAL FORM PART. */
-    index_t idx_lf = stack->find_functor(lf::OPR_STR_IMPLICATION);
-    index_t idx_inc = stack->find_functor(lf::OPR_STR_INCONSISTENT);
-    index_t idx_pp = stack->find_functor(lf::OPR_STR_UNIPP);
-    index_t idx_as = stack->find_functor(lf::OPR_STR_EXARGSET);
-    index_t idx_name = stack->find_functor(lf::OPR_STR_NAME);
-    index_t idx_assert = stack->find_functor(lf::OPR_STR_ASSERTION);
-        
-    _assert_syntax(
-        (idx_lf >= 0 or idx_inc >= 0 or idx_pp >= 0 or idx_as >= 0 or idx_assert >= 0),
-        (*reader), "No logical connectors found." );
+    index_t idx_name = stack->find_functor(lf::OPR_STR_NAME);        
+    std::string name((idx_name >= 0) ? stack->child(idx_name).child(1).string() : "");
 
-    std::string name;
-    if (idx_name >= 0)
-        name = stack->children.at(idx_name)->children.at(1)->get_string();
-
-    if (idx_lf >= 0)
+    for (const auto& c : stack->children())
     {
-        lf::logical_function_t func(*stack->children[idx_lf]);
-        _assert_syntax(
-            (stack->children.at(idx_lf)->children.size() >= 3), (*reader),
-            "Function '=>' and '>>' takes two arguments.");
-        IF_VERBOSE_FULL("Added implication: "+ stack->to_string());
-        _kb->insert_implication(func, name);
-    }
-    else if (idx_inc >= 0)
-    {
-        lf::logical_function_t func(*stack->children[idx_inc]);
-        _assert_syntax(
-            (stack->children.at(idx_inc)->children.size() >= 3), (*reader),
-            "Function 'xor' takes two arguments.");
-        IF_VERBOSE_FULL("Added inconsistency: " + stack->to_string());
-        _kb->insert_inconsistency(func);
-    }
-    else if (idx_pp >= 0)
-    {
-        lf::logical_function_t func(*stack->children[idx_pp]);
-        _assert_syntax(
-            (stack->children.at(idx_pp)->children.size() >= 2), (*reader),
-            "Function 'unipp' takes one argument.");
-        IF_VERBOSE_FULL("Added unification-postponement: " + stack->to_string());
-        _kb->insert_unification_postponement(func);
-    }
-    else if (idx_as >= 0)
-    {
-        lf::logical_function_t func(*stack->children[idx_as]);
-        if (phillip_main_t::verbose() == FULL_VERBOSE)
+        if (c->is_functor(lf::OPR_STR_IMPLICATION))
         {
-            const std::vector<term_t> &terms = func.literal().terms;
-            std::string disp;
-            for (auto it = terms.begin(); it != terms.end(); ++it)
-                disp += (it != terms.begin() ? ", " : "") + it->string();
-            util::print_console("Added argument-set: {" + disp + "}");
-        }
-        _kb->insert_argument_set(func);
-    }
-    else if (idx_assert >= 0)
-    {
-        const sexp::stack_t *target = stack->children.at(idx_assert);
-        _assert_syntax(target->children.size() > 1, (*reader), "Function 'assert' takes one operator.");
-
-        if (target->children.at(1)->get_string() == "stopword")
-        {
+            IF_VERBOSE_FULL("Added implication: " + stack->expr());
             _assert_syntax(
-                target->children.size() > 2, (*reader),
-                "Function 'assert stopword' takes at least one argument.");
-            for (int i = 2; i < target->children.size(); ++i)
+                (c->children().size() >= 3), (*reader),
+                "Function '=>' and '>>' takes two arguments.");
+            kb::kb()->insert_implication(lf::logical_function_t{ *c }, name);
+        }
+        else if (c->is_functor(lf::OPR_STR_INCONSISTENT))
+        {
+            IF_VERBOSE_FULL("Added inconsistency: " + stack->expr());
+            _assert_syntax(
+                (c->children().size() >= 3), (*reader),
+                "Function 'xor' takes two arguments.");
+            kb::kb()->insert_inconsistency(lf::logical_function_t(*c));
+        }
+        else if (c->is_functor(lf::OPR_STR_UNIPP))
+        {
+            IF_VERBOSE_FULL("Added unification-postponement: " + stack->expr());
+            _assert_syntax(
+                (c->children().size() >= 2), (*reader),
+                "Function 'unipp' takes one argument.");
+            kb::kb()->insert_functional_predicate(*c);
+        }
+        else if (c->is_functor(lf::OPR_STR_EXARGSET))
+        {
+            lf::logical_function_t func(*c);
+            if (phillip_main_t::verbose() == FULL_VERBOSE)
             {
-                arity_t a = target->children.at(i)->get_string();
-                kb::kb()->assert_stop_word(a);
-                IF_VERBOSE_FULL("Added stop-word assertion: " + a);
+                const std::vector<term_t> &terms = func.literal().terms;
+                std::string disp;
+                for (auto it = terms.begin(); it != terms.end(); ++it)
+                    disp += (it != terms.begin() ? ", " : "") + it->string();
+                util::print_console("Added argument-set: {" + disp + "}");
             }
+            kb::kb()->insert_argument_set(func);
         }
     }
 }
@@ -261,7 +211,7 @@ void processor_t::process( std::vector<std::string> inputs )
                 "Syntax error: too few parentheses. Around here, or line %d"
                 " (typically the expression followed by this): %s",
                 reader.get_line_num(),
-                reader.get_stack()->to_string().c_str() );
+                reader.get_stack()->expr().c_str() );
             throw phillip_exception_t(out);
         }
     }
@@ -274,15 +224,15 @@ void processor_t::process( std::vector<std::string> inputs )
 
 void processor_t::include( const sexp::reader_t *reader )
 {
-    const sexp::stack_t& stack( *reader->get_stack() );
+    const sexp::sexp_t& stack( *reader->get_stack() );
     if( stack.is_functor("include") )
     {
-        const sexp::stack_t& arg( *stack.children.at(1) );
+        const sexp::sexp_t& arg(stack.child(1));
         _assert_syntax(
-            (arg.type == sexp::stack_t::STRING_STACK),
+            (arg.type() == sexp::sexp_t::STRING_STACK),
             (*reader), "what is included should be a string.");
         
-        std::vector<std::string> inputs( 1, arg.get_string() );
+        std::vector<std::string> inputs(1, arg.string());
         process( inputs );
     }
 }

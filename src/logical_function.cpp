@@ -36,49 +36,46 @@ logical_function_t::logical_function_t(
 }
 
 
-logical_function_t::logical_function_t(const sexp::stack_t &s)
+logical_function_t::logical_function_t(const sexp::sexp_t &s)
     : m_operator(OPR_UNSPECIFIED)
 {
     if (s.is_functor(OPR_STR_IMPLICATION))
     {
         m_operator = OPR_IMPLICATION;
-        m_branches.push_back(logical_function_t(*(s.children[1])));
-        m_branches.push_back(logical_function_t(*(s.children[2])));
+        m_branches.push_back(logical_function_t(s.child(1)));
+        m_branches.push_back(logical_function_t(s.child(2)));
     }
     else if (s.is_functor(OPR_STR_INCONSISTENT))
     {
         m_operator = OPR_INCONSISTENT;
-        m_branches.push_back(logical_function_t(*(s.children[1])));
-        m_branches.push_back(logical_function_t(*(s.children[2])));
+        m_branches.push_back(logical_function_t(s.child(1)));
+        m_branches.push_back(logical_function_t(s.child(2)));
     }
     else if (s.is_functor(OPR_STR_AND) or s.is_functor(OPR_STR_OR))
     {
         m_operator = s.is_functor(OPR_STR_AND) ? OPR_AND : OPR_OR;
-        for (int i = 1; i < s.children.size(); i++)
+        for (auto it = ++s.children().cbegin(); it != s.children().cend(); ++it)
         {
-            const sexp::stack_t &child = *(s.children[i]);
-            if (not child.is_parameter())
-                m_branches.push_back(logical_function_t(child));
+            if (not(*it)->is_parameter())
+                m_branches.push_back(logical_function_t(**it));
         }
     }
     else if (s.is_functor(OPR_STR_REQUIREMENT))
     {
         m_operator = OPR_REQUIREMENT;
-        for (int i = 1; i < s.children.size(); i++)
+        for (auto it = ++s.children().cbegin(); it != s.children().cend(); ++it)
         {
-            const sexp::stack_t &child = *(s.children[i]);
-            if (not child.is_parameter())
-                m_branches.push_back(logical_function_t(child));
+            if (not(*it)->is_parameter())
+                m_branches.push_back(logical_function_t(**it));
         }
     }
     else if (s.is_functor(OPR_STR_UNIPP))
     {
         m_operator = OPR_UNIPP;
-        for (int i = 1; i < s.children.size(); i++)
+        for (auto it = ++s.children().cbegin(); it != s.children().cend(); ++it)
         {
-            const sexp::stack_t &child = *(s.children[i]);
-            if (not child.is_parameter())
-                m_branches.push_back(logical_function_t(child));
+            if (not(*it)->is_parameter())
+                m_branches.push_back(logical_function_t(**it));
         }
     }
     else
@@ -89,11 +86,11 @@ logical_function_t::logical_function_t(const sexp::stack_t &s)
     }
     
     // SET OPTIONAL PARAMETER
-    if (not s.children.empty())
+    if (not s.children().empty())
     {
-        const sexp::stack_t &child = *(s.children.back());
+        const sexp::sexp_t &child = *(s.children().back());
         if (child.is_parameter())
-            m_param = child.get_string();
+            m_param = child.string();
     }
 }
 

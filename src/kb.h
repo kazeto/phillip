@@ -11,6 +11,7 @@
 #include <ctime>
 
 #include "./define.h"
+#include "./sexp.h"
 #include "./logical_function.h"
 
 
@@ -28,12 +29,25 @@ static const axiom_id_t INVALID_AXIOM_ID = -1;
 static const argument_set_id_t INVALID_ARGUMENT_SET_ID = 0;
 static const arity_id_t INVALID_ARITY_ID = 0;
 
+typedef long relation_flags_t;
 
-enum unification_postpone_argument_type_e
+
+enum variable_unifiability_type_e : char
 {
-    UNI_PP_INDISPENSABLE,           /// Is expressed as '*'.
-    UNI_PP_INDISPENSABLE_PARTIALLY, /// Is expressed as '+'.
-    UNI_PP_DISPENSABLE,             /// Is expressed as '.'.
+    UNI_STRONGLY_LIMITED, /// Is expressed as '*'.
+    UNI_WEAKLY_LIMITED,   /// Is expressed as '+'.
+    UNI_UNLIMITED,        /// Is expressed as '.'.
+};
+
+
+enum relation_e : long
+{
+    REL_NONE         = 0x00000000,
+    REL_IRREFLEXIVE  = 0x00000001,
+    REL_SYMMETRIC    = 0x00000010,
+    REL_ASYMMETRIC   = 0x00000100,
+    REL_TRANSITIVE   = 0x00001000,
+    REL_RIGHT_UNIQUE = 0x00010000
 };
 
 
@@ -62,25 +76,27 @@ public:
 };
 
 
-class unification_postponement_t
+class functional_predicate_configuration_t
 {
 public:
-    unification_postponement_t() {}
-    unification_postponement_t(
-        arity_id_t arity, const std::vector<char> &args,
-        small_size_t num_for_partial_indispensability);
-    unification_postponement_t(std::ifstream *fi);
+    functional_predicate_configuration_t();
+    functional_predicate_configuration_t(arity_id_t arity, relation_flags_t rel);
+    functional_predicate_configuration_t(const sexp::sexp_t &s);
+    functional_predicate_configuration_t(std::ifstream *fi);
 
     void write(std::ofstream *fo) const;
 
     arity_id_t arity_id() const { return m_arity; }
     bool do_postpone(const pg::proof_graph_t*, index_t n1, index_t n2) const;
-    inline bool empty() const { return m_args.empty(); }
+
+    inline bool empty() const { return m_arity == INVALID_ARITY_ID; }
 
 private:
+    void assign_unifiability(relation_flags_t flags, term_size_t n);
+
     arity_id_t m_arity;
-    std::vector<char> m_args;
-    small_size_t m_num_for_partial_indispensability;
+    std::vector<variable_unifiability_type_e> m_unifiability;
+    relation_flags_t m_rel;
 };
 
 
@@ -106,7 +122,7 @@ public:
     axiom_id_t insert_implication(
         const lf::logical_function_t &f, const std::string &name);
     void insert_inconsistency(const lf::logical_function_t &f);
-    void insert_unification_postponement(const lf::logical_function_t &f);
+    void insert_functional_predicate(const sexp::sexp_t &s);
     void insert_argument_set(const lf::logical_function_t &f);
     void assert_stop_word(const arity_t &arity);
 
@@ -118,8 +134,8 @@ public:
     inline arity_id_t search_arity_id(const arity_t &arity) const;
     inline const arity_t& search_arity(arity_id_t id) const;
     hash_set<axiom_id_t> search_axiom_group(axiom_id_t id) const;
-    inline const unification_postponement_t* find_unification_postponement(arity_id_t arity) const;
-    inline const unification_postponement_t* find_unification_postponement(const arity_t &arity) const;
+    inline const functional_predicate_configuration_t* find_unification_postponement(arity_id_t arity) const;
+    inline const functional_predicate_configuration_t* find_unification_postponement(const arity_t &arity) const;
     argument_set_id_t search_argument_set_id(const std::string &arity, int term_idx) const;
     void search_arity_patterns(arity_id_t arity, std::list<arity_pattern_t> *out) const;
     void search_axioms_with_arity_pattern(
@@ -192,13 +208,13 @@ private:
         void write() const;
 
         inline arity_id_t add(const arity_t&);
-        inline void add_unification_postponement(const unification_postponement_t &unipp);
+        inline void add_unification_postponement(const functional_predicate_configuration_t &unipp);
         void add_mutual_exclusion(const literal_t &l1, const literal_t &l2);
 
         inline const std::vector<arity_t>& arities() const;
         inline arity_id_t arity2id(const arity_t&) const;
         inline const arity_t& id2arity(arity_id_t) const;
-        inline const unification_postponement_t*
+        inline const functional_predicate_configuration_t*
             find_unification_postponement(arity_id_t) const;
         inline const std::list<std::pair<term_idx_t, term_idx_t> >*
             find_inconsistent_terms(arity_id_t, arity_id_t) const;
@@ -209,7 +225,7 @@ private:
         std::vector<arity_t> m_arities;
         hash_map<arity_t, arity_id_t> m_arity2id;
 
-        hash_map<arity_id_t, unification_postponement_t> m_unification_postponements;
+        hash_map<arity_id_t, functional_predicate_configuration_t> m_unification_postponements;
         hash_map<arity_id_t, hash_map<arity_id_t,
             std::list<std::pair<term_idx_t, term_idx_t> > > > m_mutual_exclusions;
     };

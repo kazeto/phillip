@@ -22,7 +22,6 @@
 #include <exception>
 
 #include "./lib/cdbpp.h"
-#include "./s_expression.h"
 
 #define hash_map std::unordered_map
 #define hash_set std::unordered_set
@@ -50,11 +49,16 @@ typedef long int index_t;
 typedef std::string file_path_t;
 
 typedef long int axiom_id_t;
+typedef small_size_t term_size_t;
 typedef small_size_t term_idx_t;
 typedef std::string predicate_t;
 typedef std::string arity_t;
 typedef float duration_time_t;
 
+namespace sexp
+{
+class sexp_t;
+}
 
 namespace kb
 {
@@ -114,6 +118,21 @@ enum verboseness_e
     NOT_VERBOSE,
     VERBOSE_1, VERBOSE_2, VERBOSE_3, VERBOSE_4,
     FULL_VERBOSE
+};
+
+
+class string_t : public std::string
+{
+public:
+    string_t() {}
+    string_t(const char *s) : std::string(s) {}
+    string_t(const std::string &s) : std::string(s) {}
+
+    bool to_arity(predicate_t *p, term_size_t *n) const;
+    std::pair<predicate_t, term_size_t> to_arity() const;
+
+    std::vector<string_t> split(const char *separator, const int MAX_NUM = -1) const;
+    string_t replace(const std::string &from, const std::string &to) const;
 };
 
 
@@ -199,7 +218,7 @@ public:
         const std::string &_predicate,
         const std::string &term1, const std::string &term2,
         bool _truth = true);
-    literal_t(const sexp::stack_t &s);
+    literal_t(const sexp::sexp_t &s);
 
     bool operator > (const literal_t &x) const;
     bool operator < (const literal_t &x) const;
@@ -495,7 +514,7 @@ inline size_t get_file_size(const std::string &filename);
 inline size_t get_file_size(std::istream &ifs);
 void mkdir(std::string path);
 
-std::string normalize_path(const std::string &target);
+std::string reguralize_path(const std::string &target);
 std::string indexize_path(std::string str, int idx);
 
 bool parse_string_as_function_call(
@@ -503,6 +522,7 @@ bool parse_string_as_function_call(
     std::string *pred, std::vector<std::string> *terms);
 
 bool parse_arity(const arity_t &arity, predicate_t *pred, int *num_term);
+std::pair<predicate_t, term_size_t> parse(const arity_t &arity);
 
 /** Convert string into binary and return size of binary.
  *  The size of string must be less than 255. */

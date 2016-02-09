@@ -4,7 +4,7 @@
 #define HENRY_PROCESSOR_H
 
 
-#include "./s_expression.h"
+#include "./sexp.h"
 #include "./logical_function.h"
 
 namespace phil

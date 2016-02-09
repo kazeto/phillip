@@ -446,6 +446,21 @@ inline bool parse_arity(const arity_t &arity, predicate_t *pred, int *num_term)
 }
 
 
+inline std::pair<predicate_t, term_size_t> parse(const arity_t &arity)
+{
+    std::pair<predicate_t, term_size_t> out("", 0);
+    int idx = arity.rfind('/');
+
+    if (idx != std::string::npos)
+    {
+        out.first = arity.substr(0, idx);
+        _sscanf(arity.substr(idx + 1).c_str(), "%d", &out.second);
+    }
+
+    return out;
+}
+
+
 inline size_t string_to_binary(const std::string &str, char *out)
 {
     size_t n(0);

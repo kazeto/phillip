@@ -119,14 +119,14 @@ inline const arity_t& knowledge_base_t::search_arity(arity_id_t id) const
 }
 
 
-const unification_postponement_t* knowledge_base_t::
+const functional_predicate_configuration_t* knowledge_base_t::
 find_unification_postponement(arity_id_t arity) const
 {
     return m_arity_db.find_unification_postponement(arity);
 }
 
 
-const unification_postponement_t* knowledge_base_t::
+const functional_predicate_configuration_t* knowledge_base_t::
 find_unification_postponement(const arity_t &arity) const
 {
     return m_arity_db.find_unification_postponement(m_arity_db.arity2id(arity));
@@ -170,7 +170,7 @@ arity_id_t knowledge_base_t::arity_database_t::add(const arity_t &arity)
 
 
 inline void knowledge_base_t::arity_database_t::add_unification_postponement(
-    const unification_postponement_t &unipp)
+    const functional_predicate_configuration_t &unipp)
 {
     if (unipp.arity_id() != INVALID_ARITY_ID)
         m_unification_postponements[unipp.arity_id()] = unipp;
@@ -196,7 +196,7 @@ inline const arity_t& knowledge_base_t::arity_database_t::id2arity(arity_id_t id
 }
 
 
-inline const unification_postponement_t*
+inline const functional_predicate_configuration_t*
 knowledge_base_t::arity_database_t::find_unification_postponement(arity_id_t id) const
 {
     auto found = m_unification_postponements.find(id);

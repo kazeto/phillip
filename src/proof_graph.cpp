@@ -1789,7 +1789,7 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
     };
 
     std::list<node_idx_t> unifiables = enumerate_unifiable_nodes(target);
-    const kb::unification_postponement_t* pp =
+    const kb::functional_predicate_configuration_t* pp =
         kb::knowledge_base_t::instance()->find_unification_postponement(node(target).arity());
 
     /* UNIFY EACH UNIFIABLE NODE PAIR. */
@@ -1943,7 +1943,7 @@ void proof_graph_t::post_process()
                 for (auto it2 = it1->second.begin(); it2 != it1->second.end();)
                 {
                     const node_idx_t n1(it1->first), n2(*it2);
-                    const kb::unification_postponement_t *pp =
+                    const kb::functional_predicate_configuration_t *pp =
                         kb::knowledge_base_t::instance()
                         ->find_unification_postponement(node(n1).arity());
                     assert(pp != NULL);

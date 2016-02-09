@@ -3,7 +3,7 @@
 #include <iterator>
 #include <regex>
 
-#include "./s_expression.h"
+#include "./sexp.h"
 #include "./define.h"
 
 
@@ -49,7 +49,7 @@ public:
     inline logical_function_t(const literal_t &lit);
     logical_function_t(
         logical_operator_t _opr, const std::vector<literal_t> &literals);
-    logical_function_t(const sexp::stack_t &s);
+    logical_function_t(const sexp::sexp_t &s);
 
     inline bool is_operator(logical_operator_t opr) const;
     inline const std::vector<logical_function_t>& branches() const;

@@ -23,52 +23,83 @@ namespace kb
 {
 
 
-unification_postponement_t::unification_postponement_t(
-    arity_id_t arity, const std::vector<char> &args,
-    small_size_t num_for_partial_indispensability)
-    : m_arity(arity), m_args(args),
-      m_num_for_partial_indispensability(num_for_partial_indispensability)
-{
-    int n = std::count(
-        m_args.begin(), m_args.end(), UNI_PP_INDISPENSABLE_PARTIALLY);
+functional_predicate_configuration_t::functional_predicate_configuration_t()
+: m_arity(INVALID_ARITY_ID), m_rel(REL_NONE)
+{}
 
-    if (m_num_for_partial_indispensability < 0)
-        m_num_for_partial_indispensability = 0;
-    if (m_num_for_partial_indispensability > n)
-        m_num_for_partial_indispensability = n;
+
+functional_predicate_configuration_t::functional_predicate_configuration_t(arity_id_t arity, relation_flags_t rel)
+    : m_arity(arity), m_rel(rel)
+{
+    auto p = util::parse(kb()->search_arity(arity));
+    assign_unifiability(rel, p.second);
 }
 
 
-unification_postponement_t::unification_postponement_t(std::ifstream *fi)
+functional_predicate_configuration_t::functional_predicate_configuration_t(const sexp::sexp_t &s)
+: m_arity(INVALID_ARITY_ID), m_rel(REL_NONE)
 {
-    small_size_t num_args;
+    // EXAMPLE: (define-functional-predicate (nsubj/3 asymmetric right-unique))
+
+    if (s.children().size() == 2)
+    {
+        const sexp::sexp_t &def = s.child(1);
+        arity_t a = def.child(0).string();
+        auto p = util::parse(a);
+
+        if (p.second > 0)
+        {
+            m_arity = kb::kb()->search_arity_id(a);
+
+            for (auto it = ++def.children().begin(); it != def.children().end(); ++it)
+            {
+                std::string rs = (*it)->string();
+                for (auto& c : rs) c = std::tolower(c);
+
+                if (rs == "irreflexive")
+                    m_rel |= REL_IRREFLEXIVE;
+                else if (rs == "symmetric")
+                    m_rel |= REL_SYMMETRIC;
+                else if (rs == "asymmetric")
+                    m_rel |= REL_ASYMMETRIC;
+                else if (rs == "transitive")
+                    m_rel |= REL_TRANSITIVE;
+                else if (rs == "right-unique")
+                    m_rel |= REL_RIGHT_UNIQUE;
+                else
+                    util::print_warning_fmt(
+                    "The relation property identifier \"%s\" is invalid and skipped.", rs);
+            }
+
+            assign_unifiability(m_rel, p.second);
+        }
+    }
+}
+
+
+functional_predicate_configuration_t::functional_predicate_configuration_t(std::ifstream *fi)
+{
+    term_size_t n;
 
     fi->read((char*)&m_arity, sizeof(arity_id_t));
-    fi->read((char*)&num_args, sizeof(small_size_t));
+    fi->read((char*)&n, sizeof(term_size_t));
+    fi->read((char*)&m_rel, sizeof(relation_flags_t));
 
-    m_args.assign(num_args, 0);
-    for (unsigned char i = 0; i < num_args; ++i)
-        fi->read(&m_args[i], sizeof(char));
-
-    fi->read((char*)&m_num_for_partial_indispensability, sizeof(small_size_t));
+    assign_unifiability(m_rel, n);
 }
 
 
-void unification_postponement_t::write(std::ofstream *fo) const
+void functional_predicate_configuration_t::write(std::ofstream *fo) const
 {
-    small_size_t num_args = m_args.size();
+    term_size_t n = static_cast<term_size_t>(m_unifiability.size());
 
     fo->write((char*)&m_arity, sizeof(arity_id_t));
-    fo->write((char*)&num_args, sizeof(small_size_t));
-
-    for (auto arg : m_args)
-        fo->write(&arg, sizeof(char));
-
-    fo->write((char*)&m_num_for_partial_indispensability, sizeof(small_size_t));
+    fo->write((char*)&n, sizeof(term_size_t));
+    fo->write((char*)&m_rel, sizeof(relation_flags_t));
 }
 
 
-bool unification_postponement_t::do_postpone(
+bool functional_predicate_configuration_t::do_postpone(
     const pg::proof_graph_t *graph, index_t n1, index_t n2) const
 {
 #ifdef DISABLE_UNIPP
@@ -76,31 +107,50 @@ bool unification_postponement_t::do_postpone(
 #else
     const literal_t &l1 = graph->node(n1).literal();
     const literal_t &l2 = graph->node(n2).literal();
-    int num(0);
+    int n_all(0), n_fail(0);
 
-    assert(
-        l1.terms.size() == m_args.size() and
-        l2.terms.size() == m_args.size());
+    assert(graph->node(n1).arity_id() == m_arity);
+    assert(graph->node(n2).arity_id() == m_arity);
 
-    for (size_t i = 0; i < m_args.size(); ++i)
+    for (int i = 0; i < m_unifiability.size(); ++i)
     {
-        unification_postpone_argument_type_e arg =
-            static_cast<unification_postpone_argument_type_e>(m_args.at(i));
+        variable_unifiability_type_e u = m_unifiability.at(i);
 
-        if (arg == UNI_PP_DISPENSABLE) continue;
-        
-        bool can_equal(l1.terms.at(i) == l2.terms.at(i));
-        if (not can_equal)
-            can_equal = (graph->find_sub_node(l1.terms.at(i), l2.terms.at(i)) >= 0);
+        if (u = UNI_UNLIMITED) continue;
 
-        if (arg == UNI_PP_INDISPENSABLE and not can_equal)
-            return true;
-        if (arg == UNI_PP_INDISPENSABLE_PARTIALLY and can_equal)
-            ++num;
+        bool is_unified = (graph->find_sub_node(l1.terms.at(i), l2.terms.at(i)) < 0);
+
+        switch (u)
+        {
+        case UNI_STRONGLY_LIMITED:
+            if (not is_unified)
+                return true;
+            break;
+        case UNI_WEAKLY_LIMITED:
+            ++n_all;
+            if (not is_unified)
+                ++n_fail;
+            break;
+        }
     }
 
-    return (num < m_num_for_partial_indispensability);
+    return (n_all > 0 and n_fail == n_all);
 #endif
+}
+
+
+void functional_predicate_configuration_t::
+assign_unifiability(relation_flags_t flags, term_size_t n)
+{
+    if (n == 2 or n == 3)
+    {
+        if (flags & REL_RIGHT_UNIQUE)
+            m_unifiability.assign({ UNI_UNLIMITED, UNI_STRONGLY_LIMITED, UNI_UNLIMITED });
+        else
+            m_unifiability.assign({ UNI_UNLIMITED, UNI_WEAKLY_LIMITED, UNI_WEAKLY_LIMITED });
+    }
+    else
+        m_arity = INVALID_ARITY_ID;
 }
 
 
@@ -450,49 +500,10 @@ void knowledge_base_t::insert_inconsistency(const lf::logical_function_t &func)
 }
 
 
-void knowledge_base_t::insert_unification_postponement(const lf::logical_function_t &func)
+void knowledge_base_t::insert_functional_predicate(const sexp::sexp_t &s)
 {
     if (m_state == STATE_COMPILE)
-    {
-        if (not func.is_valid_as_unification_postponement())
-        {
-            util::print_warning_fmt(
-                "Unification postponement \"%s\" is invalid and skipped.",
-                func.to_string().c_str());
-            return;
-        }
-        else
-        {
-            const term_t INDISPENSABLE("*"), PARTIAL("+"), DISPENSABLE(".");
-            const literal_t &lit = func.branch(0).literal();
-
-            arity_id_t arity = m_arity_db.add(lit.get_arity());
-            std::vector<char> args(lit.terms.size(), 0);
-
-            for (size_t i = 0; i < args.size(); ++i)
-            {
-                if (lit.terms.at(i) == INDISPENSABLE)
-                    args[i] = UNI_PP_INDISPENSABLE;
-                else if (lit.terms.at(i) == PARTIAL)
-                    args[i] = UNI_PP_INDISPENSABLE_PARTIALLY;
-                else if (lit.terms.at(i) == DISPENSABLE)
-                    args[i] = UNI_PP_DISPENSABLE;
-                else
-                {
-                    util::print_warning_fmt(
-                        "The unification postponement for the arity \"%s\" is invalid.",
-                        lit.get_arity().c_str());
-                    return;
-                }
-
-            }
-
-            int num(1);
-            func.param2int(&num);
-
-            m_arity_db.add_unification_postponement(unification_postponement_t(arity, args, num));
-        }
-    }
+        m_arity_db.add_unification_postponement(functional_predicate_configuration_t(s));
 }
 
 
@@ -1623,7 +1634,7 @@ void knowledge_base_t::arity_database_t::read()
     fi.read((char*)&unipp_num, sizeof(size_t));
 
     for (size_t i = 0; i < unipp_num; ++i)
-        add_unification_postponement(unification_postponement_t(&fi));
+        add_unification_postponement(functional_predicate_configuration_t(&fi));
 
     size_t muex_num_1;
     fi.read((char*)&muex_num_1, sizeof(size_t));

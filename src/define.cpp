@@ -5,6 +5,7 @@
 #include <errno.h>
 
 #include "./define.h"
+#include "./sexp.h"
 
 #ifdef _WIN32
 #include <direct.h>
@@ -18,6 +19,84 @@ const int FAILURE_MKDIR = -1;
 namespace phil
 {
 
+
+bool string_t::to_arity(predicate_t *p, term_size_t *n) const
+{
+    int idx = rfind('/');
+    if (idx != std::string::npos)
+    {
+        if (p != NULL)
+            (*p) = substr(0, idx);
+        if (n != NULL)
+            (*n) = std::stoi(substr(idx + 1));
+        return true;
+    }
+    else
+        return false;
+}
+
+
+std::pair<predicate_t, term_size_t> string_t::to_arity() const
+{
+    std::pair<predicate_t, term_size_t> out{ "", 0 };
+    to_arity(&out.first, &out.second);
+    return out;
+}
+
+
+std::vector<string_t> string_t::split(const char *separator, const int MAX_NUM) const
+{
+    auto _find_split_index = [this](const char *separator, int begin) -> index_t
+    {
+        for (size_t i = begin; i < size(); ++i)
+        {
+            if (strchr(separator, at(i)) != NULL)
+                return static_cast<int>(i);
+        }
+        return -1;
+    };
+
+    std::vector<string_t> out;
+    int idx(0);
+
+    while (idx < size())
+    {
+        int idx2(_find_split_index(separator, idx));
+
+        if (idx2 < 0)
+            idx2 = size();
+
+        if (idx2 - idx > 0)
+        {
+            if (MAX_NUM > 0 and out.size() >= MAX_NUM)
+                idx2 = size();
+            out.push_back(substr(idx, idx2 - idx));
+        }
+
+        idx = idx2 + 1;
+    }
+
+    return out;
+}
+
+
+string_t string_t::replace(const std::string &from, const std::string &to) const
+{
+    size_t pos(0);
+    string_t out(*this);
+
+    if (from.empty()) return out;
+
+    while((pos = out.find(from, pos)) != std::string::npos)
+    {
+        out.std::string::replace(pos, from.length(), to);
+        pos += to.length();
+    }
+
+    return out;
+}
+
+
 std::mutex string_hash_t::ms_mutex_hash;
 std::mutex string_hash_t::ms_mutex_unknown;
 hash_map<std::string, unsigned> string_hash_t::ms_hashier;
@@ -25,12 +104,12 @@ std::vector<std::string> string_hash_t::ms_strs;
 unsigned string_hash_t::ms_issued_variable_count = 0;
 
 
-literal_t::literal_t(const sexp::stack_t &s)
+literal_t::literal_t(const sexp::sexp_t &s)
     : truth(true)
 {
     if (s.is_functor())
     {
-        const std::string &str = s.children[0]->children[0]->str;
+        const std::string &&str = s.child(0).string();
         if (str.at(0) == '!')
         {
             truth = false;
@@ -39,17 +118,17 @@ literal_t::literal_t(const sexp::stack_t &s)
         else
             predicate = predicate_t(str);
 
-        for (int i = 1; i < s.children.size(); i++)
+        for (auto it = ++s.children().cbegin(); it != s.children().cend(); ++it)
         {
-            if (not s.children[i]->is_parameter())
+            if (not (*it)->is_parameter())
             {
-                term_t term(s.children[i]->get_string());
+                term_t term((*it)->string());
                 terms.push_back(term);
             }
         }
     }
     else
-        predicate = s.children[0]->str;
+        predicate = s.child(0).string();
 
     if (predicate.length() >= 255)
     {
@@ -446,26 +525,26 @@ std::string time_stamp()
 }
 
 
-int _find_split_index(
-    const std::string &str, const char *separator, int begin=0 )
-{
-    for( size_t i=begin; i<str.size(); ++i )
-    {
-        if( strchr(separator, str.at(i)) != NULL )
-            return static_cast<int>(i);
-    }
-    return -1;
-}
-
-
 std::vector<std::string> split(
     const std::string &str, const char *separator, const int MAX_NUM )
 {
+    auto _find_split_index = [](
+        const std::string &str, const char *separator, int begin) -> index_t
+    {
+        for (size_t i = begin; i<str.size(); ++i)
+        {
+            if (strchr(separator, str.at(i)) != NULL)
+                return static_cast<int>(i);
+        }
+        return -1;
+    };
+
     std::vector<std::string> out;
     int idx(0);
-    while( idx < str.size() )
+
+    while (idx < str.size())
     {
-        int idx2( _find_split_index(str, separator, idx) );
+        int idx2(_find_split_index(str, separator, idx));
 
         if (idx2 < 0)
             idx2 = str.size();
@@ -474,11 +553,12 @@ std::vector<std::string> split(
         {
             if (MAX_NUM > 0 and out.size() >= MAX_NUM)
                 idx2 = str.size();
-            out.push_back( str.substr(idx, idx2-idx) );
+            out.push_back(str.substr(idx, idx2 - idx));
         }
 
         idx = idx2 + 1;
     }
+
     return out;
 }
 
@@ -598,7 +678,7 @@ void mkdir(std::string path)
 }
 
 
-std::string normalize_path(const std::string &target)
+std::string reguralize_path(const std::string &target)
 {
     std::string out(target);
 
