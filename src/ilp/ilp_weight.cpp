@@ -355,7 +355,7 @@ const pg::proof_graph_t *g, pg::edge_idx_t idx, double default_weight)
 {
     const pg::edge_t &edge = g->edge(idx);
     size_t size = g->hypernode(edge.head()).size();
-    lf::axiom_t axiom(kb::kb()->get_axiom(edge.axiom_id()));
+    lf::axiom_t axiom(kb::kb()->axioms.get(edge.axiom_id()));
     lf::logical_function_t branch =
         axiom.func.branch(edge.type() == pg::EDGE_HYPOTHESIZE ? 0 : 1);
 
@@ -543,7 +543,7 @@ void weighted_converter_t::virtual_parameterized_cost_provider_t::get_features(
     const pg::proof_graph_t *graph, pg::edge_idx_t idx, hash_set<opt::feature_t> *out) const
 {
     const pg::edge_t &edge = graph->edge(idx);
-    lf::axiom_t axiom(kb::kb()->get_axiom(edge.axiom_id()));
+    lf::axiom_t axiom(kb::kb()->axioms.get(edge.axiom_id()));
 
     // CHECK MEMORY
     {

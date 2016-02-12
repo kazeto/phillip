@@ -64,24 +64,17 @@ class sexp_t;
 namespace kb
 {
 class knowledge_base_t;
+class conjunction_pattern_t;
 
 typedef unsigned long int argument_set_id_t;
 typedef size_t predicate_id_t;
+typedef bool is_backward_t;
 
 typedef std::pair<index_t, term_idx_t> term_pos_t;
-typedef std::tuple<
-    std::vector<predicate_id_t>,
-    std::list<std::pair<term_pos_t, term_pos_t>>> arity_pattern_t;
 typedef std::pair<std::pair<kb::predicate_id_t, term_idx_t>,
                   std::pair<kb::predicate_id_t, term_idx_t> > hard_term_pair_t;
 
-inline const std::vector<predicate_id_t>&
-arities(const arity_pattern_t &p) { return std::get<0>(p); }
-
-inline const std::list<std::pair<term_pos_t, term_pos_t> >&
-hard_terms(const arity_pattern_t &p) { return std::get<1>(p); }
-
-inline bool is_backward(std::pair<axiom_id_t, bool> &p)
+inline bool is_backward(std::pair<axiom_id_t, is_backward_t> &p)
 { return p.second; }
 
 }

@@ -991,7 +991,7 @@ void ilp_problem_t::_print_explanations_in_solution(
         bool is_backward = (edge.type() == pg::EDGE_HYPOTHESIZE);
         std::string s_from(util::join(hn_from.begin(), hn_from.end(), ","));
         std::string s_to(util::join(hn_to.begin(), hn_to.end(), ","));
-        std::string axiom_name = base->get_axiom(edge.axiom_id()).name;
+        std::string axiom_name = base->axioms.get(edge.axiom_id()).name;
         std::string gaps = util::join_f(
             m_graph->get_gaps_on_edge(*it),
             [](const std::pair<predicate_with_arity_t, predicate_with_arity_t> &p){return p.first + ":" + p.second; }, ",");

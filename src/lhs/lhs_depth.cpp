@@ -55,7 +55,7 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
 
         for (auto p : candidates)
         {
-            const lf::axiom_t &axiom = kb::kb()->get_axiom(p.first);
+            const lf::axiom_t &axiom = kb::kb()->axioms.get(p.first);
 
             for (auto c : p.second)
             {

@@ -133,7 +133,7 @@ double costed_converter_t::basic_cost_provider_t::edge_cost(
 
     if (edge.is_chain_edge())
     {
-        lf::axiom_t axiom(base->get_axiom(edge.axiom_id()));
+        lf::axiom_t axiom(base->axioms.get(edge.axiom_id()));
         if (not axiom.func.scan_parameter("%lf", &cost))
             cost = m_default_axiom_cost;            
     }

@@ -53,7 +53,7 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
 
         if (considered.count(static_cast<pg::chain_candidate_t>(cand)) == 0)
         {
-            lf::axiom_t axiom = base->get_axiom(cand.axiom_id);
+            lf::axiom_t axiom = base->axioms.get(cand.axiom_id);
             pg::hypernode_idx_t hn_new = cand.is_forward ?
                 graph->forward_chain(cand.nodes, axiom) :
                 graph->backward_chain(cand.nodes, axiom);
@@ -159,7 +159,7 @@ void a_star_based_enumerator_t::add_reachability(
     {
         for (auto ax : gen.axioms())
         {
-            lf::axiom_t axiom = kb::kb()->get_axiom(ax.first);
+            lf::axiom_t axiom = kb::kb()->axioms.get(ax.first);
             float d_from = dist + kb::kb()->get_distance(axiom);
             
             if (not check_permissibility_of(d_from)) continue;

@@ -247,7 +247,7 @@ public:
         bool empty() const { return m_axioms.empty(); }
 
         const std::list<std::vector<node_idx_t> >& targets() const { return m_targets; }
-        const std::list<std::pair<axiom_id_t, bool> >& axioms() const { return m_axioms; }
+        const std::list<std::pair<axiom_id_t, kb::is_backward_t> >& axioms() const { return m_axioms; }
 
     private:
         void enumerate();
@@ -255,11 +255,11 @@ public:
         const proof_graph_t *m_graph;
         node_idx_t m_pivot;
 
-        std::set<kb::arity_pattern_t> m_patterns;
-        std::set<kb::arity_pattern_t>::const_iterator m_pt_iter;
+        std::set<kb::conjunction_pattern_t> m_patterns;
+        std::set<kb::conjunction_pattern_t>::const_iterator m_pt_iter;
 
         std::list<std::vector<node_idx_t> > m_targets;
-        std::list<std::pair<axiom_id_t, bool> > m_axioms;
+        std::list<std::pair<axiom_id_t, kb::is_backward_t> > m_axioms;
     };
 
     /** A class to detect potential loops in a proof-graph. */

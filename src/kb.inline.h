@@ -8,35 +8,31 @@ namespace kb
 {
 
 
-inline lf::axiom_t knowledge_base_t::get_axiom(axiom_id_t id) const
+inline std::list<axiom_id_t> knowledge_base_t::axioms_database_t::
+gets_by_rhs(predicate_id_t rhs) const
 {
-    if (id >= 0 and id < axioms.num_axioms())
-        return axioms.get(id);
-    else
-        return lf::axiom_t();
+    return gets_from_cdb((char*)&rhs, sizeof(predicate_id_t), &m_cdb_rhs);
 }
 
 
-inline std::list<axiom_id_t> knowledge_base_t::
-search_axioms_with_rhs(const std::string &rhs) const
+inline std::list<axiom_id_t> knowledge_base_t::axioms_database_t::
+gets_by_rhs(const predicate_with_arity_t &rhs) const
 {
-    predicate_id_t id = predicates.pred2id(rhs);
-    return search_id_list(id, &m_cdb_rhs);
+    return gets_by_rhs(kb()->predicates.pred2id(rhs));
 }
 
 
-inline std::list<axiom_id_t> knowledge_base_t::
-search_axioms_with_lhs(const std::string &lhs) const
+inline std::list<axiom_id_t> knowledge_base_t::axioms_database_t::
+gets_by_lhs(predicate_id_t lhs) const
 {
-    predicate_id_t id = predicates.pred2id(lhs);
-    return search_id_list(lhs, &m_cdb_lhs);
+    return gets_from_cdb((char*)&lhs, sizeof(predicate_id_t), &m_cdb_lhs);
 }
 
 
-inline const std::list<std::pair<term_idx_t, term_idx_t> >* knowledge_base_t::
-search_inconsistent_terms(predicate_id_t a1, predicate_id_t a2) const
+inline std::list<axiom_id_t> knowledge_base_t::axioms_database_t::
+gets_by_lhs(const predicate_with_arity_t &lhs) const
 {
-    return predicates.find_inconsistent_terms(a1, a2);
+    return gets_by_lhs(kb()->predicates.pred2id(lhs));
 }
 
 
@@ -48,49 +44,13 @@ inline float knowledge_base_t::get_distance(const lf::axiom_t &axiom) const
 
 inline float knowledge_base_t::get_distance(axiom_id_t id) const
 {
-    return get_distance(get_axiom(id));
-}
-
-
-inline version_e knowledge_base_t::version() const
-{
-    return m_version;
-}
-
-
-inline bool knowledge_base_t::is_valid_version() const
-{
-    return m_version == KB_VERSION_12;
-}
-
-
-inline bool knowledge_base_t::is_writable() const
-{
-    return m_state == STATE_COMPILE;
-}
-
-
-inline bool knowledge_base_t::is_readable() const
-{
-    return m_state == STATE_QUERY;
-}
-
-
-inline int knowledge_base_t::num_of_axioms() const
-{
-    return axioms.num_axioms();
+    return get_distance(axioms.get(id));
 }
 
 
 inline float knowledge_base_t::get_max_distance() const
 {
     return m_config_for_compile.max_distance;
-}
-
-
-inline const std::string& knowledge_base_t::filename() const
-{
-    return m_filename;
 }
 
 
@@ -165,17 +125,6 @@ knowledge_base_t::predicate_database_t::find_inconsistent_terms(predicate_id_t a
     return NULL;
 }
 
-    
-inline bool knowledge_base_t::reachable_matrix_t::is_writable() const
-{
-    return (m_fout != NULL);
-}
-
-
-inline bool knowledge_base_t::reachable_matrix_t::is_readable() const
-{
-    return (m_fin != NULL);
-}
 
 
 }

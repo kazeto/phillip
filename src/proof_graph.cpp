@@ -186,10 +186,8 @@ void proof_graph_t::chain_candidate_generator_t::init(node_idx_t idx)
 
     if (m_pivot >= 0)
     {
-        std::list<kb::arity_pattern_t> patterns;
         kb::predicate_id_t id_pivot = m_graph->node(m_pivot).arity_id();
-
-        kb::kb()->search_arity_patterns(id_pivot, &patterns);
+        const std::list<kb::conjunction_pattern_t> &&patterns = kb::kb()->axioms.patterns(id_pivot);
         m_patterns.insert(patterns.begin(), patterns.end());
     }
 
@@ -224,7 +222,7 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
     std::list<std::list<node_idx_t> > node_arrays;
 
     // CONSTRUCTS a2ns
-    for (auto a : kb::arities(*m_pt_iter))
+    for (auto a : m_pt_iter->predicates())
     if (a2ns.count(a) == 0)
     {
         auto found = m_graph->search_nodes_with_arity(a);
@@ -235,22 +233,22 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
     // IF THERE IS A SLOT WHICH CANNOT BE FILLED, THEN STOP.
     {
         hash_set<kb::predicate_id_t> arity_set(
-            kb::arities(*m_pt_iter).begin(),
-            kb::arities(*m_pt_iter).end());
+            m_pt_iter->predicates().begin(),
+            m_pt_iter->predicates().end());
         if (a2ns.size() < arity_set.size()) return;
     }
 
     // CONSTRUCTS hard_term_satisfiers,
     // WHICH IS LISTS OF NODE-PAIR WHICH CAN SATISFY HARD-TERM CONSTRAINTS.
     hash_map<index_t, hash_map<index_t, std::pair<term_idx_t, term_idx_t>>> hard_terms;
-    for (auto p : kb::hard_terms(*m_pt_iter))
+    for (auto p : m_pt_iter->hardterms())
         hard_terms[p.second.first][p.first.first] =
-            std::make_pair(p.second.second, p.first.second);
+        std::make_pair(p.second.second, p.first.second);
 
     hash_set<index_t> slots_pivot;
-    for (index_t i = 0; i < kb::arities(*m_pt_iter).size(); ++i)
+    for (index_t i = 0; i < m_pt_iter->predicates().size(); ++i)
     {
-        kb::predicate_id_t id1 = kb::arities(*m_pt_iter).at(i);
+        kb::predicate_id_t id1 = m_pt_iter->predicates().at(i);
         kb::predicate_id_t id2 = m_graph->node(m_pivot).arity_id();
 
         if (id1 == id2)
@@ -285,7 +283,7 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
             
             if (not do_violate_hard_term(nodes, i))
             {
-                if (i < kb::arities(*m_pt_iter).size() - 1)
+                if (i < m_pt_iter->predicates().size() - 1)
                     routine_recursive(nodes, i + 1, i_pivot);
                 else
                     m_targets.push_back(*nodes);
@@ -293,16 +291,13 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
         }
         else
         {
-            const hash_set<node_idx_t> &ns =
-                a2ns.at(kb::arities(*m_pt_iter).at(i));
-            
-            for (auto n : ns)
+            for (auto n : a2ns.at(m_pt_iter->predicates().at(i)))
             {
                 (*nodes)[i] = n;
 
                 if (not do_violate_hard_term(nodes, i))
                 {
-                    if (i < kb::arities(*m_pt_iter).size() - 1)
+                    if (i < m_pt_iter->predicates().size() - 1)
                         routine_recursive(nodes, i + 1, i_pivot);
                     else
                         m_targets.push_back(*nodes);
@@ -311,13 +306,13 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
         }
     };
     
-    std::vector<node_idx_t> nodes(kb::arities(*m_pt_iter).size(), -1);
+    std::vector<node_idx_t> nodes(m_pt_iter->predicates().size(), -1);
 
     for (auto i_pivot : slots_pivot)
         routine_recursive(&nodes, 0, i_pivot);
 
     if (not m_targets.empty())
-        kb::kb()->search_axioms_with_arity_pattern(*m_pt_iter, &m_axioms);
+        m_axioms = kb::kb()->axioms.gets_by_pattern(*m_pt_iter);
 }
 
 
@@ -940,7 +935,7 @@ void proof_graph_t::print_axioms(std::ostream *os) const
     (*os) << "<axioms num=\"" << list_axioms.size() << "\">" << std::endl;
     for (auto ax = list_axioms.begin(); ax != list_axioms.end(); ++ax)
     {
-        lf::axiom_t axiom = kb::knowledge_base_t::instance()->get_axiom(*ax);
+        lf::axiom_t axiom = kb::knowledge_base_t::instance()->axioms.get(*ax);
         (*os)
             << "<axiom "
             << "id=\"" << axiom.id
@@ -1585,7 +1580,7 @@ std::list<std::pair<predicate_with_arity_t, predicate_with_arity_t> > proof_grap
 
     if (e.is_chain_edge())
     {
-        lf::axiom_t ax = kb::knowledge_base_t::instance()->get_axiom(e.axiom_id());
+        lf::axiom_t ax = kb::knowledge_base_t::instance()->axioms.get(e.axiom_id());
         std::vector<const lf::logical_function_t*> branches_tail;
 
         if (e.type() == EDGE_IMPLICATION)
@@ -1691,8 +1686,8 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_inconsistent_nodes(
         bool do_reverse = (id1 > id2);
         const std::list<std::pair<term_idx_t, term_idx_t> >* terms =
             do_reverse ?
-            kb->search_inconsistent_terms(id2, id1) :
-            kb->search_inconsistent_terms(id1, id2);
+            kb->predicates.find_inconsistent_terms(id2, id1) :
+            kb->predicates.find_inconsistent_terms(id1, id2);
         if (terms == NULL) continue;
 
         for (auto idx : p1.second)
@@ -2096,7 +2091,7 @@ void proof_graph_t::_generate_mutual_exclusion_for_edges(
             for (auto it1 = targets.begin(); it1 != targets.end(); ++it1)
             {
                 const edge_t &e1 = edge(*it1);
-                hash_set<axiom_id_t> grp = kb->search_axiom_group(e1.axiom_id());
+                hash_set<axiom_id_t> grp = kb->axioms.gets_in_same_group_as(e1.axiom_id());
                 if (grp.empty()) continue;
 
                 util::comparable_list<edge_idx_t> exc;
@@ -2135,7 +2130,7 @@ void proof_graph_t::_generate_mutual_exclusion_for_edges(
             const edge_t &e1 = edge(*it1);
             if (e1.tail() != from or e1.axiom_id() < 0) continue;
 
-            hash_set<axiom_id_t> grp = kb->search_axiom_group(e1.axiom_id());
+            hash_set<axiom_id_t> grp = kb->axioms.gets_in_same_group_as(e1.axiom_id());
             if (grp.empty()) continue;
 
             util::comparable_list<edge_idx_t> exc;

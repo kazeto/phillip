@@ -343,7 +343,7 @@ void phillip_main_t::write_header(std::ostream *os) const
     const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
     (*os)
         << "<knowledge_base path=\"" << base->filename()
-        << "\" size=\"" << base->num_of_axioms()
+        << "\" size=\"" << base->axioms.size()
         << "\" max_distance=\"" << base->get_max_distance()
         << "\"></knowledge_base>" << std::endl;
 

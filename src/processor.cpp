@@ -92,7 +92,7 @@ void compile_kb_t::process( const sexp::reader_t *reader )
             _assert_syntax(
                 (c->children().size() >= 3), (*reader),
                 "Function '=>' and '>>' takes two arguments.");
-            kb::kb()->insert_implication(lf::logical_function_t{ *c }, name);
+            kb::kb()->axioms.add(lf::logical_function_t{ *c }, name);
         }
         else if (c->is_functor(lf::OPR_STR_INCONSISTENT))
         {
