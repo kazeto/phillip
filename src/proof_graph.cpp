@@ -1220,7 +1220,7 @@ hypernode_idx_t proof_graph_t::chain(
                         return false;
                     else
 #endif
-                        conds->insert(util::make_sorted_pair(t_ax, t_hy));
+                        subs->insert(std::make_pair(t_ax, t_hy));
                 }
             }
             else
