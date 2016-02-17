@@ -44,7 +44,9 @@ extern const std::string OPR_STR_ASSERTION;
 class logical_function_t
 {    
 public:
-    static bool check_validity_of_conjunction(const std::list<const logical_function_t*>&, bool);
+    static bool check_validity_of_conjunction(
+        const std::list<const logical_function_t*> &conj,
+        bool do_allow_no_content_literals);
 
     inline logical_function_t();
     inline logical_function_t(logical_operator_t _opr);
