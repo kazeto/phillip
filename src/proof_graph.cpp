@@ -940,7 +940,7 @@ void proof_graph_t::print_axioms(std::ostream *os) const
             << "<axiom "
             << "id=\"" << axiom.id
             << "\" name=\"" << axiom.name
-            << "\">" << axiom.func.to_string()
+            << "\">" << axiom.func.repr()
             << "</axiom>" << std::endl;
     }
     (*os) << "</axioms>" << std::endl;

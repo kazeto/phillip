@@ -6,6 +6,7 @@
 
 #include "./define.h"
 #include "./sexp.h"
+#include "./kb.h"
 
 #ifdef _WIN32
 #include <direct.h>

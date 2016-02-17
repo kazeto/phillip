@@ -102,6 +102,15 @@ public:
     predicate_id_t arity_id() const { return m_pid; }
     bool do_postpone(const pg::proof_graph_t*, index_t n1, index_t n2) const;
 
+    bool is_irreflexive() const { return m_rel & REL_IRREFLEXIVE; }
+    bool is_symmetric() const { return m_rel & REL_SYMMETRIC; }
+    bool is_asymmetric() const { return m_rel & REL_ASYMMETRIC; }
+    bool is_transitive() const { return m_rel & REL_TRANSITIVE; }
+    bool is_right_unique() const { return m_rel & REL_RIGHT_UNIQUE; }
+
+    term_idx_t governor() const { return (m_unifiability.size() == 3) ? 1 : 0; }
+    term_idx_t dependent() const { return (m_unifiability.size() == 3) ? 2 : 1; }
+
     inline bool empty() const { return m_pid == INVALID_PREDICATE_ID; }
     string_t repr() const;
 

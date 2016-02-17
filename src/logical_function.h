@@ -44,6 +44,8 @@ extern const std::string OPR_STR_ASSERTION;
 class logical_function_t
 {    
 public:
+    static bool check_validity_of_conjunction(const std::list<const logical_function_t*>&, bool);
+
     inline logical_function_t();
     inline logical_function_t(logical_operator_t _opr);
     inline logical_function_t(const literal_t &lit);
@@ -60,7 +62,7 @@ public:
     bool param2double(double *out) const;
 
     /** Return string of logical-function. */
-    inline std::string to_string(bool f_colored = false) const;
+    std::string repr() const;
 
     /** Return true if lit is included in this. */
     bool do_include(const literal_t& lit) const;
@@ -73,8 +75,6 @@ public:
     bool is_valid_as_observation() const;
     bool is_valid_as_implication() const;
     bool is_valid_as_inconsistency() const;
-    bool is_valid_as_unification_postponement() const;
-    bool is_valid_as_argument_set() const;
     bool is_valid_as_requirements() const;
     
     /** Return literals included in this. */
@@ -89,8 +89,6 @@ public:
 
     size_t write_binary(char *bin) const;
     size_t read_binary(const char *bin);
-    
-    void print(std::string *p_out_str, bool f_colored = false) const;
 
     void add_branch(const logical_function_t &lf);
 

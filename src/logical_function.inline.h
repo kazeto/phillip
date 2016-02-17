@@ -65,14 +65,6 @@ inline std::vector<const literal_t*> logical_function_t::get_rhs() const
 }
 
 
-inline std::string logical_function_t::to_string( bool f_colored ) const
-{
-    std::string out;
-    print(&out, f_colored);
-    return out;
-}
-
-
 inline std::vector<const literal_t*>
 logical_function_t::get_all_literals() const
 {

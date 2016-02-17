@@ -27,6 +27,52 @@ const std::string OPR_STR_EXARGSET = "argset";
 const std::string OPR_STR_ASSERTION = "assert";
 
 
+bool logical_function_t::check_validity_of_conjunction(
+    const std::list<const logical_function_t*> &conj, bool do_allow_no_content_literals)
+{
+    hash_set<term_t> terms_c; // TEMRS IN CONTENT-LITERALS
+    std::list<std::pair<const term_t*, const term_t*>> terms_f; // TERMS IN FUNCTIONAL-LITERALS
+
+    for (const auto &f : conj)
+    {
+        if (f->is_operator(OPR_LITERAL))
+        if (f->literal().is_valid())
+        {
+            const literal_t &lit = f->literal();
+            auto fp = kb::kb()->predicates.find_functional_predicate(lit.get_arity());
+
+            if (fp == nullptr)
+                terms_c.insert(lit.terms.begin(), lit.terms.end());
+            else if (fp->is_right_unique())
+                terms_f.push_back(std::make_pair(&lit.terms.at(fp->governor()), nullptr));
+            else
+                terms_f.push_back(std::make_pair(&lit.terms.at(fp->governor()), &lit.terms.at(fp->dependent())));
+
+            continue;
+        }
+
+        return false;
+    }
+
+    // IF THERE IS NO CONTENT-LITERAL, RETURNS TRUE.
+    if (do_allow_no_content_literals)
+    if (terms_c.empty())
+        return true;
+
+    // CHECK WHETHER THERE IS A PARENT OF EACH FUNCTIONAL-LITERAL
+    for (const auto &p : terms_f)
+    if (terms_c.count(*p.first) == 0)
+    {
+        if (p.second == nullptr)
+            return false;
+        else if (terms_c.count(*p.second) == 0)
+            return false;
+    }
+
+    return true;
+}
+
+
 logical_function_t::logical_function_t(
     logical_operator_t opr, const std::vector<literal_t> &literals)
     : m_operator(opr)
@@ -119,6 +165,55 @@ bool logical_function_t::param2double(double *out) const
 }
 
 
+std::string logical_function_t::repr() const
+{
+    std::function<void(const logical_function_t*, std::string*)> print;
+
+    print = [&print](const logical_function_t *f, std::string *out)
+    {
+        switch (f->m_operator)
+        {
+        case OPR_LITERAL:
+            (*out) += f->m_literal.to_string();
+            break;
+        case OPR_IMPLICATION:
+            print(&f->m_branches[0], out);
+            (*out) += " => ";
+            print(&f->m_branches[1], out);
+            break;
+        case OPR_INCONSISTENT:
+            print(&f->m_branches[0], out);
+            (*out) += " xor ";
+            print(&f->m_branches[1], out);
+            break;
+        case OPR_OR:
+        case OPR_AND:
+            for (auto it = f->m_branches.begin(); it != f->m_branches.end(); ++it)
+            {
+                if (it != f->m_branches.begin())
+                    (*out) += f->is_operator(OPR_AND) ? " ^ " : " v ";
+
+                bool is_literal = it->is_operator(OPR_LITERAL);
+
+                if (not is_literal) (*out) += "(";
+                print(&(*it), out);
+                if (not is_literal) (*out) += ")";
+            }
+            break;
+        case OPR_UNIPP:
+            (*out) += "(uni-pp ";
+            print(&f->m_branches[0], out);
+            (*out) += ")";
+            break;
+        }
+    };
+
+    std::string out;
+    print(this, &out);
+    return out;
+}
+
+
 bool logical_function_t::do_include(const literal_t& lit) const
 {
     auto my_literals(get_all_literals());
@@ -200,43 +295,59 @@ bool logical_function_t::is_valid_as_observation() const
 {
     if (not is_operator(OPR_AND)) return false;
 
-    for (auto br : branches())
+    std::list<const logical_function_t*> conj;
+
+    for (const auto &br : branches())
     {
-        if (not br.is_operator(OPR_LITERAL))
-            return false;
-        else if (not br.literal().is_valid())
-            return false;
+        if (br.is_operator(OPR_LITERAL))
+        if (br.literal().is_valid())
+        {
+            conj.push_back(&br);
+            continue;
+        }
+        return false;
     }
 
-    return true;
+    return check_validity_of_conjunction(conj, false);
 }
 
 
 bool logical_function_t::is_valid_as_implication() const
 {
-    if (not is_operator(OPR_IMPLICATION))
-        return false;
-    if (branches().size() != 2)
-        return false;
+    if (not is_operator(OPR_IMPLICATION)) return false;
+    if (branches().size() != 2) return false;
 
-    // CHECKING LHS & RHS
-    for (int i = 0; i < 2; ++i)
+    std::list<const logical_function_t*> conj;
+
+    // CHECK LHS & RHS
+    for (const auto &br : branches())
     {
-        const logical_function_t &br = branch(i);
-
         if (br.is_operator(OPR_LITERAL))
-            continue;
+        {
+            if (br.literal().is_valid())
+                conj.push_back(&br);
+            else
+                return false;
+        }
         else if (br.is_operator(OPR_AND))
         {
-            for (auto it = br.branches().begin(); it != br.branches().end(); ++it)
-            if (not it->is_operator(OPR_LITERAL))
+            for (auto it = br.branches().cbegin(); it != br.branches().cend(); ++it)
+            {
+                if (it->is_operator(OPR_LITERAL))
+                if (it->literal().is_valid())
+                {
+                    conj.push_back(&(*it));
+                    continue;
+                }
+
                 return false;
+            }
         }
         else
             return false;
     }
 
-    return true;
+    return check_validity_of_conjunction(conj, true);
 }
 
 
@@ -253,56 +364,6 @@ bool logical_function_t::is_valid_as_inconsistency() const
     }
 
     return true;
-}
-
-
-bool logical_function_t::is_valid_as_unification_postponement() const
-{
-    if (branches().size() != 1)
-        return false;
-    else
-    {
-        const logical_function_t &br = branch(0);
-        if (not br.is_operator(OPR_LITERAL))
-            return false;
-        else
-        {
-            const literal_t &l = br.literal();
-            term_t t1("."), t2("+"), t3("*");
-            for (auto it = l.terms.begin(); it != l.terms.end(); ++it)
-                if ((*it) != t1 and (*it) != t2 and (*it) != t3)
-                    return false;
-        }
-    }
-
-    return true;
-}
-
-
-bool logical_function_t::is_valid_as_argument_set() const
-{
-    if (not is_operator(OPR_LITERAL))
-        return false;
-    else
-    {
-        const std::vector<term_t> &terms(m_literal.terms);
-
-        for (auto it_term = terms.begin(); it_term != terms.end(); ++it_term)
-        {
-            const std::string &str = it_term->string();
-            int n_slash(0);
-
-            for (auto c = str.rbegin(); c != str.rend() and n_slash < 2; ++c)
-            {
-                if (*c == '/')
-                    ++n_slash;
-                else if (not std::isdigit(*c))
-                    return false;
-            }
-        }
-
-        return true;
-    }
 }
 
 
@@ -467,50 +528,6 @@ size_t logical_function_t::read_binary( const char *bin )
     n += util::binary_to_string(bin + n, &m_param);
 
     return n;
-}
-
-
-void logical_function_t::print(
-    std::string *p_out_str, bool f_colored ) const
-{
-    switch( m_operator )
-    {
-    case OPR_LITERAL:
-        (*p_out_str) += m_literal.to_string( f_colored );
-        break;
-    case OPR_IMPLICATION:
-        m_branches[0].print(p_out_str, f_colored);
-        (*p_out_str) += " => ";
-        m_branches[1].print(p_out_str, f_colored);
-        break;
-    case OPR_INCONSISTENT:
-        m_branches[0].print( p_out_str, f_colored );
-        (*p_out_str) += " xor ";
-        m_branches[1].print( p_out_str, f_colored );
-        break;
-    case OPR_OR:
-    case OPR_AND:
-        for( auto it=m_branches.begin(); it!=m_branches.end(); ++it )
-        {
-            if( it != m_branches.begin() )
-            {
-                (*p_out_str) += (m_operator == OPR_AND) ? " ^ " : " v ";
-                if( f_colored ) (*p_out_str) += "\n";
-            }
-
-            bool is_literal = it->is_operator(OPR_LITERAL);
-            
-            if( not is_literal ) (*p_out_str) += "(";
-            it->print( p_out_str, f_colored );
-            if( not is_literal ) (*p_out_str) += ")";
-        }
-        break;
-    case OPR_UNIPP:
-        (*p_out_str) += "(uni-pp ";
-        m_branches[0].print(p_out_str, f_colored);
-        (*p_out_str) += ")";
-        break;
-    }
 }
 
 

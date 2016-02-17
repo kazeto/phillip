@@ -1014,7 +1014,7 @@ axiom_id_t knowledge_base_t::axioms_database_t::add(
     {
         util::print_warning_fmt(
             "SKIPPED: \"%s\"\n"
-            "    -> The knowledge base is not writable.", func.to_string().c_str());
+            "    -> The knowledge base is not writable.", func.repr().c_str());
         return INVALID_AXIOM_ID;
     }
 
@@ -1022,7 +1022,7 @@ axiom_id_t knowledge_base_t::axioms_database_t::add(
     {
         util::print_warning_fmt(
             "SKIPPED: \"%s\"\n"
-            "    -> This axiom is invalid.", func.to_string().c_str());
+            "    -> This axiom is invalid.", func.repr().c_str());
         return INVALID_AXIOM_ID;
     }
 
@@ -1364,7 +1364,7 @@ void knowledge_base_t::predicate_database_t::define_mutual_exclusion(const lf::l
         util::print_warning_fmt(
             "SKIPPED: \"%s\"\n"
             "    -> This logical formula is invalid as mutual exclusion.",
-            f.to_string().c_str());
+            f.repr().c_str());
         return;
     }
     else
