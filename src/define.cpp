@@ -252,6 +252,12 @@ void literal_t::print( std::string *p_out_str, bool f_colored ) const
 }
 
 
+bool literal_t::is_functional() const
+{
+    return kb::kb()->predicates.find_functional_predicate(predicate_with_arity()) != nullptr;
+}
+
+
 size_t literal_t::write_binary(char *bin) const
 {
     size_t n(0);

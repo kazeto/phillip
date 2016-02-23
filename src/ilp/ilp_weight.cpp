@@ -561,7 +561,7 @@ void weighted_converter_t::virtual_parameterized_cost_provider_t::get_features(
 
     for (auto l1 : axiom.func.get_lhs())
     for (auto l2 : axiom.func.get_rhs())
-        feats.insert("p/" + l1->get_arity() + "/" + l2->get_arity());
+        feats.insert("p/" + l1->predicate_with_arity() + "/" + l2->predicate_with_arity());
 
     axiom.func.process_parameter([&feats](const std::string &s)
     {

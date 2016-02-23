@@ -29,7 +29,7 @@ public:
     a_star_based_enumerator_t(
         const phillip_main_t *ptr, float max_dist,
         int max_depth = -1,
-        bool disable_unification_count = false);
+        bool disable_checking_unified_path = false);
 
     virtual pg::proof_graph_t* execute() const;
 
@@ -71,9 +71,7 @@ private:
 
     float m_max_distance;
     int m_max_depth;
-
-    std::unique_ptr<std::map<std::pair<pg::node_idx_t, pg::node_idx_t>, int>>
-        m_unified_paths;
+    bool m_do_check_unified_path;
 };
 
 

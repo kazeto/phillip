@@ -23,7 +23,7 @@ node_t::node_t(
     const literal_t &lit, node_type_e type, node_idx_t idx,
     depth_t depth, const hash_set<node_idx_t> &parents)
     : m_type(type), m_literal(lit), m_index(idx),
-    m_depth(depth), m_arity_id(kb::INVALID_PREDICATE_ID),
+    m_depth(depth), m_pred_id(kb::INVALID_PREDICATE_ID),
     m_master_hypernode_idx(-1), m_parents(parents), m_ancestors(parents)
 {
     for (auto p : m_parents)
@@ -46,7 +46,7 @@ node_t::node_t(
     }
 
     if (not m_literal.is_equality())
-        m_arity_id = kb::kb()->predicates.pred2id(m_literal.get_arity());
+        m_pred_id = kb::kb()->predicates.pred2id(m_literal.predicate_with_arity());
 }
 
 
@@ -186,7 +186,7 @@ void proof_graph_t::chain_candidate_generator_t::init(node_idx_t idx)
 
     if (m_pivot >= 0)
     {
-        kb::predicate_id_t id_pivot = m_graph->node(m_pivot).arity_id();
+        kb::predicate_id_t id_pivot = m_graph->node(m_pivot).predicate_id();
         const std::list<kb::conjunction_pattern_t> &&patterns = kb::kb()->axioms.patterns(id_pivot);
         m_patterns.insert(patterns.begin(), patterns.end());
     }
@@ -249,7 +249,7 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
     for (index_t i = 0; i < m_pt_iter->predicates().size(); ++i)
     {
         kb::predicate_id_t id1 = m_pt_iter->predicates().at(i);
-        kb::predicate_id_t id2 = m_graph->node(m_pivot).arity_id();
+        kb::predicate_id_t id2 = m_graph->node(m_pivot).predicate_id();
 
         if (id1 == id2)
             slots_pivot.insert(i);
@@ -438,9 +438,8 @@ void proof_graph_t::enumerate_dependent_edges(
         edge_idx_t e = find_parental_edge(m);
         out->insert(e);
 
-        auto _nodes = hypernode(edge(e).tail());
-        for (auto it = _nodes.begin(); it != _nodes.end(); ++it)
-            enumerate_dependent_edges(*it, out);
+        for (auto n : hypernode(edge(e).tail()))
+            enumerate_dependent_edges(n, out);
     }
 }
 
@@ -454,12 +453,11 @@ void proof_graph_t::enumerate_dependent_nodes(
         if (m < 0) return;
 
         edge_idx_t e = find_parental_edge(m);
-        auto _nodes = hypernode(edge(e).tail());
 
-        for (auto it = _nodes.begin(); it != _nodes.end(); ++it)
+        for (auto n : hypernode(edge(e).tail()))
         {
-            out->insert(*it);
-            enumerate_dependent_nodes(*it, out);
+            out->insert(n);
+            enumerate_dependent_nodes(n, out);
         }
     }
 }
@@ -749,12 +747,12 @@ void proof_graph_t::enumerate_descendant_nodes(
             for (auto c = children.begin(); c != children.end(); ++c)
             {
                 if (checked->count(*c) > 0) continue;
-                else checked->insert(*c);
+                checked->insert(*c);
 
-                auto _hn = this->hypernode(*c);
+                const auto &_hn = this->hypernode(*c);
                 out->insert(_hn.begin(), _hn.end());
-                for (auto n = _hn.begin(); n != _hn.end(); ++n)
-                    f(*n, out, checked);
+                for (auto n : _hn)
+                    f(n, out, checked);
             }
         }
     };
@@ -965,15 +963,10 @@ void proof_graph_t::print_edges(std::ostream *os) const
         }
         else type = util::format("user-defined(%d)", e.type());
 
-        std::string gaps = util::join_f(
-            get_gaps_on_edge(i),
-            [](const std::pair<predicate_with_arity_t, predicate_with_arity_t> &p){return p.first + ":" + p.second; }, ",");
-
         (*os) << "<edge id=\"" << i << "\" type=\"" << type
               << "\" tail=\"" << hypernode2str(e.tail())
               << "\" head=\"" << hypernode2str(e.head())
-              << "\" axiom=\"" << e.axiom_id()
-              << "\" gap=\"" << gaps;
+              << "\" axiom=\"" << e.axiom_id();
 
         auto conds = m_subs_of_conditions_for_chain.find(i);
         if (conds != m_subs_of_conditions_for_chain.end())
@@ -1086,10 +1079,10 @@ node_idx_t proof_graph_t::add_node(
     else
     {
         const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
-        std::string arity = lit.get_arity();
+        std::string arity = lit.predicate_with_arity();
 
-        if (add.arity_id() != kb::INVALID_PREDICATE_ID)
-            m_maps.arity_to_nodes[add.arity_id()].insert(out);
+        if (add.predicate_id() != kb::INVALID_PREDICATE_ID)
+            m_maps.arity_to_nodes[add.predicate_id()].insert(out);
     }
     
     for (unsigned i = 0; i < lit.terms.size(); i++)
@@ -1569,42 +1562,6 @@ int proof_graph_t::get_depth_of_deepest_node(
 }
 
 
-std::list<std::pair<predicate_with_arity_t, predicate_with_arity_t> > proof_graph_t::get_gaps_on_edge(edge_idx_t idx) const
-{
-    std::list<std::pair<predicate_with_arity_t, predicate_with_arity_t> > out;
-    const edge_t &e = edge(idx);
-    auto tail = hypernode(e.tail());
-
-    if (e.is_chain_edge())
-    {
-        lf::axiom_t ax = kb::knowledge_base_t::instance()->axioms.get(e.axiom_id());
-        std::vector<const lf::logical_function_t*> branches_tail;
-
-        if (e.type() == EDGE_IMPLICATION)
-            ax.func.branch(0).enumerate_literal_branches(&branches_tail);
-        else if (e.type() == EDGE_HYPOTHESIZE)
-            ax.func.branch(1).enumerate_literal_branches(&branches_tail);
-
-        for (index_t i = 0; i < branches_tail.size(); ++i)
-        {
-            predicate_with_arity_t a1 = branches_tail.at(i)->literal().get_arity();
-            predicate_with_arity_t a2 = node(tail.at(i)).arity();
-
-            if (a1 != a2) out.push_back(std::make_pair(a1, a2));
-        }
-    }
-    else if (e.is_unify_edge())
-    {
-        assert(tail.size() == 2);
-        predicate_with_arity_t a1(node(tail.at(0)).arity()), a2(node(tail.at(1)).arity());
-
-        if (a1 != a2) out.push_back(std::make_pair(a1, a2));
-    }
-
-    return out;
-}
-
-
 std::list<std::tuple<node_idx_t, node_idx_t, unifier_t> >
 proof_graph_t::enumerate_mutual_exclusive_nodes() const
 {
@@ -1674,7 +1631,7 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_inconsistent_nodes(
     if (target1.is_equality()) return;
 
     const kb::knowledge_base_t *kb = kb::knowledge_base_t::instance();
-    std::string arity = target1.get_arity();
+    std::string arity = target1.predicate_with_arity();
     kb::predicate_id_t id1 = kb->predicates.pred2id(arity);
 
     for (auto p1 : m_maps.arity_to_nodes)
@@ -1727,7 +1684,7 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
         const literal_t &lit = node(target).literal();
         std::list<node_idx_t> unifiables;
         unifier_t unifier;
-        const hash_set<node_idx_t> *candidates = search_nodes_with_arity(lit.get_arity());
+        const hash_set<node_idx_t> *candidates = search_nodes_with_arity(lit.predicate_with_arity());
         assert(candidates != nullptr);
 
         for (auto n : (*candidates))
@@ -1765,7 +1722,7 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
 
     std::list<node_idx_t> unifiables = enumerate_unifiable_nodes(target);
     const kb::functional_predicate_configuration_t* pp =
-        kb::knowledge_base_t::instance()->predicates.find_functional_predicate(node(target).arity());
+        kb::knowledge_base_t::instance()->predicates.find_functional_predicate(node(target).predicate_with_arity());
 
     /* UNIFY EACH UNIFIABLE NODE PAIR. */
     for (auto it = unifiables.begin(); it != unifiables.end(); ++it)
@@ -1919,7 +1876,7 @@ void proof_graph_t::post_process()
                 {
                     const node_idx_t n1(it1->first), n2(*it2);
                     const kb::functional_predicate_configuration_t *pp =
-                        kb::kb()->predicates.find_functional_predicate(node(n1).arity());
+                        kb::kb()->predicates.find_functional_predicate(node(n1).predicate_id());
                     assert(pp != NULL);
 
                     if (not pp->do_postpone(this, n1, n2))

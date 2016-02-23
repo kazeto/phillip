@@ -39,7 +39,7 @@ bool logical_function_t::check_validity_of_conjunction(
         if (f->literal().is_valid())
         {
             const literal_t &lit = f->literal();
-            auto fp = kb::kb()->predicates.find_functional_predicate(lit.get_arity());
+            auto fp = kb::kb()->predicates.find_functional_predicate(lit.predicate_with_arity());
 
             if (fp == nullptr)
                 terms_c.insert(lit.terms.begin(), lit.terms.end());

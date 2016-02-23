@@ -110,8 +110,8 @@ bool functional_predicate_configuration_t::do_postpone(
     const literal_t &l2 = graph->node(n2).literal();
     int n_all(0), n_fail(0);
 
-    assert(graph->node(n1).arity_id() == m_pid);
-    assert(graph->node(n2).arity_id() == m_pid);
+    assert(graph->node(n1).predicate_id() == m_pid);
+    assert(graph->node(n2).predicate_id() == m_pid);
 
     for (int i = 0; i < m_unifiability.size(); ++i)
     {
@@ -603,7 +603,7 @@ void knowledge_base_t::_create_reachable_matrix_direct(
 
                 for (auto it_l = lhs.begin(); it_l != lhs.end(); ++it_l)
                 {
-                    std::string arity = (*it_l)->get_arity();
+                    std::string arity = (*it_l)->predicate_with_arity();
                     predicate_id_t idx = predicates.pred2id(arity);
 
                     if (idx != INVALID_PREDICATE_ID)
@@ -613,7 +613,7 @@ void knowledge_base_t::_create_reachable_matrix_direct(
 
                 for (auto it_r = rhs.begin(); it_r != rhs.end(); ++it_r)
                 {
-                    std::string arity = (*it_r)->get_arity();
+                    std::string arity = (*it_r)->predicate_with_arity();
                     predicate_id_t idx = predicates.pred2id(arity);
 
                     if (idx != INVALID_PREDICATE_ID)
@@ -982,7 +982,7 @@ axiom_id_t knowledge_base_t::axioms_database_t::add(
         for (index_t i = 0; i < conj.size(); ++i)
         {
             const literal_t &lit = (*conj[i]);
-            std::string arity = lit.get_arity();
+            std::string arity = lit.predicate_with_arity();
             predicate_id_t idx = kb::kb()->predicates.pred2id(arity);
 
             assert(idx != INVALID_PREDICATE_ID);
@@ -1030,7 +1030,7 @@ axiom_id_t knowledge_base_t::axioms_database_t::add(
     std::vector<const lf::logical_function_t*> branches;
     func.enumerate_literal_branches(&branches);
     for (auto br : branches)
-        kb()->predicates.add(br->literal().get_arity());
+        kb()->predicates.add(br->literal().predicate_with_arity());
 
     // WRITE AXIOM TO DATABASE
     axiom_id_t id = size();
@@ -1068,8 +1068,8 @@ axiom_id_t knowledge_base_t::axioms_database_t::add(
         for (auto p : rhs)
         if (not p->is_equality())
         {
-            predicate_id_t arity_id = kb()->predicates.pred2id(p->get_arity());
-            m_tmp.rhs2ax[arity_id].insert(id);
+            predicate_id_t predicate_id = kb()->predicates.pred2id(p->predicate_with_arity());
+            m_tmp.rhs2ax[predicate_id].insert(id);
         }
         map_pattern(rhs, id, true);
     }
@@ -1081,8 +1081,8 @@ axiom_id_t knowledge_base_t::axioms_database_t::add(
         for (auto p : lhs)
         if (not p->is_equality())
         {
-            predicate_id_t arity_id = kb()->predicates.pred2id(p->get_arity());
-            m_tmp.lhs2ax[arity_id].insert(id);
+            predicate_id_t predicate_id = kb()->predicates.pred2id(p->predicate_with_arity());
+            m_tmp.lhs2ax[predicate_id].insert(id);
         }
         map_pattern(lhs, id, false);
     }
@@ -1340,7 +1340,7 @@ void knowledge_base_t::predicate_database_t::define_functional_predicate(
         util::print_warning_fmt(
             "SKIPPED: \"%s\"\n"
             "    -> The knowledge base is not writable.",
-            id2pred(fp.arity_id()).c_str());
+            id2pred(fp.predicate_id()).c_str());
         return;
     }
 
@@ -1349,11 +1349,11 @@ void knowledge_base_t::predicate_database_t::define_functional_predicate(
         util::print_warning_fmt(
             "SKIPPED: \"%s\"\n"
             "    -> Functional predicates must be defined before insertion of axioms.",
-            id2pred(fp.arity_id()).c_str());
+            id2pred(fp.predicate_id()).c_str());
         return;
     }
 
-    m_functional_predicates[fp.arity_id()] = fp;
+    m_functional_predicates[fp.predicate_id()] = fp;
 }
 
 
@@ -1389,8 +1389,8 @@ void knowledge_base_t::predicate_database_t::define_mutual_exclusion(const liter
 
     if (not pairs.empty())
     {
-        predicate_id_t a1 = add(l1.get_arity());
-        predicate_id_t a2 = add(l2.get_arity());
+        predicate_id_t a1 = add(l1.predicate_with_arity());
+        predicate_id_t a2 = add(l2.predicate_with_arity());
         if (a1 > a2) std::swap(a1, a2);
 
         m_mutual_exclusions[a1][a2] = pairs;
@@ -1620,10 +1620,10 @@ float sum_of_left_hand_side_distance_provider_t::operator()(const lf::axiom_t &a
 void pattern_to_binary(const conjunction_pattern_t &q, std::vector<char> *bin)
 {
     size_t size_expected =
-        sizeof(unsigned char) * 3 +
+        sizeof(unsigned char) * 2 +
         sizeof(predicate_id_t) * q.predicates().size() +
         (sizeof(predicate_id_t) + sizeof(char)) * 2 * q.hardterms().size();
-    size_t size = 0;
+    size_t size(0);
     bin->assign(size_expected, '\0');
 
     size += util::num_to_binary(q.predicates().size(), &(*bin)[0]);

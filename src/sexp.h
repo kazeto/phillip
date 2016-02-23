@@ -142,7 +142,8 @@ inline string_t sexp_t::string() const
 
 
 inline reader_t::reader_t(std::istream &_stream, const std::string &name)
-: m_line_num(1), m_read_bytes(0), m_stream(_stream), m_name(name)
+: m_line_num(1), m_read_bytes(0), m_stream(_stream), m_name(name),
+m_stack_current(nullptr)
 {
     m_stack.push_back(new_stack(sexp_t(sexp_t::LIST_STACK)));
     read();

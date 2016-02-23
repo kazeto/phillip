@@ -168,8 +168,7 @@ inline void string_hash_t::set_flags(const std::string &str)
 }
 
 
-inline std::string literal_t::get_arity(
-    const predicate_t &pred, int term_num, bool is_negated)
+inline predicate_with_arity_t literal_t::predicate_with_arity(const predicate_t &pred, int term_num, bool is_negated)
 {
     return 
         (is_negated ? "!" : "") +
@@ -240,9 +239,9 @@ inline std::string literal_t::to_string( bool f_colored ) const
 }
 
 
-inline std::string literal_t::get_arity() const
+inline std::string literal_t::predicate_with_arity() const
 {
-    return get_arity(predicate, terms.size(), not truth);
+    return predicate_with_arity(predicate, terms.size(), not truth);
 }
 
 

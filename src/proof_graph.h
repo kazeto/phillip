@@ -63,8 +63,8 @@ public:
 
     inline node_type_e type() const { return m_type; }
     inline const literal_t& literal() const { return m_literal; }
-    inline predicate_with_arity_t arity() const { return m_literal.get_arity(); }
-    inline kb::predicate_id_t arity_id() const { return m_arity_id; }
+    inline predicate_with_arity_t predicate_with_arity() const { return m_literal.predicate_with_arity(); }
+    inline kb::predicate_id_t predicate_id() const { return m_pred_id; }
 
     /** Returns the index of this node in a proof-graph. */
     inline index_t index() const { return m_index; }
@@ -108,7 +108,7 @@ private:
     node_idx_t  m_index;
     hypernode_idx_t m_master_hypernode_idx;
     depth_t m_depth;
-    kb::predicate_id_t m_arity_id;
+    kb::predicate_id_t m_pred_id;
 
     hash_set<node_idx_t> m_parents;
     hash_set<node_idx_t> m_ancestors;
@@ -420,10 +420,6 @@ public:
 
     /** Returns a list of nodes which are needed to hypothesize given node. */
     void enumerate_dependent_nodes(node_idx_t, hash_set<node_idx_t>*) const;
-
-    /** Returns gaps of predicate on given edge.
-     *  The first is expected arity and the second is actual arity. */
-    std::list<std::pair<predicate_with_arity_t, predicate_with_arity_t> > get_gaps_on_edge(edge_idx_t) const;
 
     /** Enumerates unification nodes
      *  which are needed to satisfy conditions for given chaining.

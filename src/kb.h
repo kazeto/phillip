@@ -99,7 +99,7 @@ public:
 
     void write(std::ofstream *fo) const;
 
-    predicate_id_t arity_id() const { return m_pid; }
+    predicate_id_t predicate_id() const { return m_pid; }
     bool do_postpone(const pg::proof_graph_t*, index_t n1, index_t n2) const;
 
     bool is_irreflexive() const { return m_rel & REL_IRREFLEXIVE; }

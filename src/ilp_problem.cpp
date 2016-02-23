@@ -363,9 +363,9 @@ void ilp_problem_t::add_constraints_to_forbid_looping_unification(
 
     hash_map<std::string, hash_set<pg::node_idx_t> > a2n_1, a2n_2;
     for (auto it = descendants.begin(); it != descendants.end(); ++it)
-        a2n_1[m_graph->node(*it).literal().get_arity()].insert(*it);
+        a2n_1[m_graph->node(*it).literal().predicate_with_arity()].insert(*it);
     for (auto it = ancestors.begin(); it != ancestors.end(); ++it)
-        a2n_2[m_graph->node(*it).literal().get_arity()].insert(*it);
+        a2n_2[m_graph->node(*it).literal().predicate_with_arity()].insert(*it);
 
     for (auto it1 = a2n_1.begin(); it1 != a2n_1.end(); ++it1)
     {
@@ -559,7 +559,7 @@ void ilp_problem_t::enumerate_variables_for_requirement(
     else
     {
         const hash_set<pg::node_idx_t> *nodes =
-            m_graph->search_nodes_with_arity(req.literal.get_arity());
+            m_graph->search_nodes_with_arity(req.literal.predicate_with_arity());
 
         if (nodes != NULL)
         for (auto n_idx : (*nodes))
@@ -992,9 +992,6 @@ void ilp_problem_t::_print_explanations_in_solution(
         std::string s_from(util::join(hn_from.begin(), hn_from.end(), ","));
         std::string s_to(util::join(hn_to.begin(), hn_to.end(), ","));
         std::string axiom_name = base->axioms.get(edge.axiom_id()).name;
-        std::string gaps = util::join_f(
-            m_graph->get_gaps_on_edge(*it),
-            [](const std::pair<predicate_with_arity_t, predicate_with_arity_t> &p){return p.first + ":" + p.second; }, ",");
 
         (*os)
             << "<explanation id=\"" << (*it)
@@ -1002,8 +999,7 @@ void ilp_problem_t::_print_explanations_in_solution(
             << "\" head=\"" << m_graph->hypernode2str(edge.head())
             << "\" active=\"" << (edge_is_active(*sol, *it) ? "yes" : "no")
             << "\" backward=\"" << (is_backward ? "yes" : "no")
-            << "\" axiom=\"" << axiom_name
-            << "\" gap=\"" << gaps;
+            << "\" axiom=\"" << axiom_name;
 
         hash_map<std::string, std::string> attributes;
         for (auto dec = m_xml_decorators.begin(); dec != m_xml_decorators.end(); ++dec)
@@ -1048,18 +1044,13 @@ void ilp_problem_t::_print_unifications_in_solution(
             }
         }
 
-        const std::vector<pg::node_idx_t>
-            &hn_from(m_graph->hypernode(edge.tail()));
-        std::string gaps = util::join_f(
-            m_graph->get_gaps_on_edge(*it),
-            [](const std::pair<predicate_with_arity_t, predicate_with_arity_t> &p){return p.first + ":" + p.second; }, ",");
+        const std::vector<pg::node_idx_t> &hn_from(m_graph->hypernode(edge.tail()));
 
         (*os)
             << "<unification l1=\"" << hn_from[0]
             << "\" l2=\"" << hn_from[1]
             << "\" unifier=\"" << util::join(subs.begin(), subs.end(), ", ")
-            << "\" active=\"" << (edge_is_active(*sol, *it) ? "yes" : "no")
-            << "\" gap=\"" << gaps;
+            << "\" active=\"" << (edge_is_active(*sol, *it) ? "yes" : "no");
 
         hash_map<std::string, std::string> attributes;
         for (auto dec = m_xml_decorators.begin(); dec != m_xml_decorators.end(); ++dec)
