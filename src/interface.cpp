@@ -63,7 +63,7 @@ bool lhs_enumerator_t::do_time_out(const std::chrono::system_clock::time_point &
 
 int lhs_enumerator_t::get_max_lhs_size() const
 {
-    return phillip()->param_int("max_lhs_size");
+    return phillip()->param_int("max-lhs-size");
 }
 
 

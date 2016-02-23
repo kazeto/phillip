@@ -13,10 +13,15 @@ namespace lhs
 
 
 a_star_based_enumerator_t::a_star_based_enumerator_t(
-    const phillip_main_t *ptr, float max_dist, int max_depth)
+    const phillip_main_t *ptr, float max_dist, int max_depth,
+    bool disable_unification_counts)
     : lhs_enumerator_t(ptr),
       m_max_distance(max_dist), m_max_depth(max_depth)
-{}
+{
+    if (not disable_unification_counts)
+        m_unified_paths.reset(
+        new std::map<std::pair<pg::node_idx_t, pg::node_idx_t>, int>());
+}
 
 
 pg::proof_graph_t* a_star_based_enumerator_t::execute() const
@@ -213,8 +218,9 @@ generator_t::operator()(const phillip_main_t *ph) const
 {
     return new lhs::a_star_based_enumerator_t(
         ph,
-        ph->param_float("max_distance"),
-        ph->param_int("max_depth"));
+        ph->param_float("max-distance"),
+        ph->param_int("max-depth"),
+        ph->flag("disable-check-unified-path"));
 }
 
 

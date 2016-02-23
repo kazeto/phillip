@@ -402,10 +402,7 @@ void proof_graph_t::temporal_variables_t::clear()
 
 proof_graph_t::proof_graph_t(const phillip_main_t *main, const std::string &name)
 : m_phillip(main), m_name(name), m_is_timeout(false)
-{
-    m_threshold_distance_for_soft_unify =
-        m_phillip->param_float("threshold_soft_unify", kb::kb()->get_max_distance());
-}
+{}
 
 
 std::list< const hash_set<term_t>* >
@@ -1536,7 +1533,7 @@ hypernode_idx_t proof_graph_t::chain(
     ax2hn[axiom.id].insert(idx_hn_from);
 
     /* GENERATE MUTUAL EXCLUSIONS BETWEEN CHAINS */
-    bool flag(phillip()->flag("enable_node_based_mutual_exclusive_chain"));
+    bool flag(phillip()->flag("enable-node-based-mutual-exclusive-chain"));
     _generate_mutual_exclusion_for_edges(edge_idx, flag);
 
     /* GENERATE MUTUAL EXCLUSIONS & UNIFICATION ASSUMPTIONS */

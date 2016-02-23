@@ -379,12 +379,6 @@ inline void proof_graph_t::add_attribute(const std::string &name, const std::str
 }
 
 
-inline float proof_graph_t::threshold_distance_for_soft_unifying() const
-{
-    return m_threshold_distance_for_soft_unify;
-}
-
-
 inline bool proof_graph_t::_is_considered_unification(
     node_idx_t i, node_idx_t j ) const
 {

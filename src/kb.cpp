@@ -206,16 +206,16 @@ knowledge_base_t::knowledge_base_t(const std::string &filename, const phillip_ma
 {
     m_distance_provider = { NULL, "" };
 
-    m_config_for_compile.max_distance = ph->param_float("kb_max_distance", -1.0);
-    m_config_for_compile.thread_num = ph->param_int("kb_thread_num", 1);
-    m_config_for_compile.do_disable_stop_word = ph->flag("disable_stop_word");
-    m_config_for_compile.can_deduction = ph->flag("enable_deduction");
+    m_config_for_compile.max_distance = ph->param_float("kb-max-distance", -1.0);
+    m_config_for_compile.thread_num = ph->param_int("kb-thread-num", 1);
+    m_config_for_compile.do_disable_stop_word = ph->flag("disable-stop_word");
+    m_config_for_compile.can_deduction = ph->flag("enable-deduction");
     m_config_for_compile.do_print_heuristics = ph->flag("print-reachability-matrix");
 
     if (m_config_for_compile.thread_num < 1)
         m_config_for_compile.thread_num = 1;
 
-    std::string dist_key = ph->param("distance_provider");
+    std::string dist_key = ph->param("distance-provider");
     set_distance_provider(dist_key.empty() ? "basic" : dist_key, ph);
 }
 
@@ -1075,7 +1075,7 @@ axiom_id_t knowledge_base_t::axioms_database_t::add(
     }
 
     // DEDUCTION
-    if (kb()->is_bidirectional())
+    if (kb()->can_deduce())
     {
         std::vector<const literal_t*> lhs(func.get_lhs());
         for (auto p : lhs)

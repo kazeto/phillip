@@ -153,7 +153,7 @@ public:
     inline bool is_valid_version() const { return m_version == KB_VERSION_12; }
     inline bool is_writable() const      { return m_state == STATE_COMPILE; }
     inline bool is_readable() const      { return m_state == STATE_QUERY; }
-    inline bool is_bidirectional() const { return m_config_for_compile.can_deduction; }
+    inline bool can_deduce() const { return m_config_for_compile.can_deduction; }
     inline const std::string& filename() const { return m_filename; }
     inline float get_max_distance() const;
 

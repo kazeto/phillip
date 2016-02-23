@@ -108,7 +108,7 @@ void costed_converter_t::write(std::ostream *os) const
 ilp_converter_t* costed_converter_t::
 generator_t::operator()(const phillip_main_t *ph) const
 {
-    const std::string &param = ph->param("cost_provider");
+    const std::string &param = ph->param("cost-provider");
     costed_converter_t::cost_provider_t *ptr =
         costed_converter_t::parse_string_to_cost_provider(param);
 

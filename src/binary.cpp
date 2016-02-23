@@ -138,7 +138,7 @@ void execute(
 
     bool do_compile =
         (config.mode == bin::EXE_MODE_COMPILE_KB) or
-        ph->flag("do_compile_kb");
+        ph->flag("do-compile-kb");
 
     /* COMPILING KNOWLEDGE-BASE */
     if (do_compile)

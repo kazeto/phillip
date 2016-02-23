@@ -72,10 +72,10 @@ public:
     inline void set_timeout_sol(duration_time_t t) { m_timeout_sol.set(t); }
     inline void set_timeout_all(duration_time_t t) { m_timeout_all.set(t); }
 
-    inline void set_param(const std::string &key, const std::string &param);
+    inline void set_param(const string_t &key, const string_t &param);
     inline void erase_param(const std::string &key);
 
-    inline void set_flag(const std::string &key);
+    inline void set_flag(const string_t &key);
     inline void erase_flag(const std::string &key);
     
     inline const lf::input_t* get_input() const;
@@ -92,12 +92,12 @@ public:
     inline const util::timeout_t& timeout_sol() const { return m_timeout_sol; }
     inline const util::timeout_t& timeout_all() const { return m_timeout_all; }
 
-    inline const hash_map<std::string, std::string>& params() const;
-    inline const std::string& param(const std::string &key) const;
+    inline const hash_map<string_t, string_t>& params() const;
+    inline const string_t& param(const string_t &key) const;
     inline int param_int(const std::string &key, int def = -1) const;
     inline float param_float(const std::string &key, float def = -1.0f) const;
 
-    inline const hash_set<std::string>& flags() const;
+    inline const hash_set<string_t>& flags() const;
     inline bool flag(const std::string &key) const;
     inline bool do_infer_pseudo_positive() const;
 
@@ -116,7 +116,9 @@ public:
     bool check_validity_for_infer() const;
     bool check_validity_for_train() const;
 
-    void write(const std::function<void(std::ostream*)> &writer, bits_t flags = wf::WR_ALL) const;
+    void write(
+        const std::function<void(std::ostream*)> &writer,
+        bits_t flags = wf::WR_ALL) const;
     
     void write_header() const;
     void write_header(std::ostream *os) const;
@@ -155,8 +157,8 @@ private:
     std::unique_ptr<ilp_solver_t>     m_ilp_solver;
 
     // ---- DATA, SETTING, ETC...
-    hash_map<std::string, std::string> m_params;
-    hash_set<std::string> m_flags;
+    hash_map<string_t, string_t> m_params;
+    hash_set<string_t> m_flags;
     util::timeout_t m_timeout_lhs, m_timeout_ilp, m_timeout_sol, m_timeout_all;
     
     hash_set<std::string> m_target_obs_names;

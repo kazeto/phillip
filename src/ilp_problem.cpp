@@ -858,7 +858,7 @@ void ilp_problem_t::print_solution(
         << "\" all=\"" << (is_time_out_all ? "yes" : "no")
         << "\"></timeout>" << std::endl;
 
-    if (phillip()->flag("human_readable_output"))
+    if (phillip()->flag("human-readable-output"))
         sol->print_human_readable_hypothesis(os);
 
     _print_requirements_in_solution(sol, os);

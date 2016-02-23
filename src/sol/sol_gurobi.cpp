@@ -91,7 +91,7 @@ void gurobi_t::prepare(model_t &m) const
     g_mutex_gurobi.unlock();
 
     if (phillip() != NULL)
-    if (phillip()->flag("disable_cpi"))
+    if (phillip()->flag("disable-cpi"))
         m.do_cpi = false;
 
     add_variables(m.prob, m.model.get(), &m.vars);
@@ -315,8 +315,8 @@ ilp_solver_t* gurobi_t::generator_t::operator()(const phillip_main_t *ph) const
 {
     return new sol::gurobi_t(
         ph,
-        ph->param_int("gurobi_thread_num"),
-        ph->flag("activate_gurobi_log"));
+        ph->param_int("gurobi-thread-num"),
+        ph->flag("activate-gurobi-log"));
 }
 
 

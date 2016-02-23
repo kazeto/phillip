@@ -97,7 +97,7 @@ void depth_based_enumerator_t::write(std::ostream *os) const
 lhs_enumerator_t* depth_based_enumerator_t::
 generator_t::operator()(const phillip_main_t *ph) const
 {
-    return new lhs::depth_based_enumerator_t(ph, ph->param_int("max_depth"));
+    return new lhs::depth_based_enumerator_t(ph, ph->param_int("max-depth"));
 }
 
 

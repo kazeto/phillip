@@ -280,12 +280,12 @@ void phillip_main_t::write(const std::function<void(std::ostream*)> &writer, bit
         }
     };
 
-    if (flags & wf::WR_FGEN) open_and_write(param("path_lhs_out"));
-    if (flags & wf::WR_FCNV) open_and_write(param("path_ilp_out"));
-    if (flags & wf::WR_FSOL) open_and_write(param("path_sol_out"));
+    if (flags & wf::WR_FGEN) open_and_write(param("path-lhs-out"));
+    if (flags & wf::WR_FCNV) open_and_write(param("path-ilp-out"));
+    if (flags & wf::WR_FSOL) open_and_write(param("path-sol-out"));
     if (flags & wf::WR_FOUT)
     {
-        open_and_write(param("path_out"));
+        open_and_write(param("path-out"));
         writer(&std::cout);
     }
 }

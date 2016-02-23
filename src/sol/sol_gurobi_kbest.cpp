@@ -150,11 +150,11 @@ ilp_solver_t* gurobi_k_best_t::generator_t::operator()(const phillip_main_t *ph)
 {
     return new sol::gurobi_k_best_t(
         ph,
-        ph->param_int("gurobi_thread_num"),
-        ph->flag("activate_gurobi_log"),
-        ph->param_int("max_sols_num", 5),
-        ph->param_float("sols_threshold", 10.0),
-        ph->param_int("sols_margin", 1));
+        ph->param_int("gurobi-thread-num"),
+        ph->flag("activate-gurobi-log"),
+        ph->param_int("max-sols-num", 5),
+        ph->param_float("sols-threshold", 10.0),
+        ph->param_int("sols-margin", 1));
 }
 
 

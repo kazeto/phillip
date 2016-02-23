@@ -3,6 +3,7 @@
 #include <set>
 #include <tuple>
 #include <queue>
+#include <memory>
 
 #include "../phillip.h"
 
@@ -25,7 +26,10 @@ public:
         virtual lhs_enumerator_t* operator()(const phillip_main_t*) const override;
     };
 
-    a_star_based_enumerator_t(const phillip_main_t *ptr, float max_dist, int max_depth = -1);
+    a_star_based_enumerator_t(
+        const phillip_main_t *ptr, float max_dist,
+        int max_depth = -1,
+        bool disable_unification_count = false);
 
     virtual pg::proof_graph_t* execute() const;
 
@@ -67,6 +71,9 @@ private:
 
     float m_max_distance;
     int m_max_depth;
+
+    std::unique_ptr<std::map<std::pair<pg::node_idx_t, pg::node_idx_t>, int>>
+        m_unified_paths;
 };
 
 

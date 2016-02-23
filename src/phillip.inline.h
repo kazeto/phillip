@@ -25,9 +25,9 @@ inline void phillip_main_t::set_input(const lf::input_t &ipt)
 
 
 inline void phillip_main_t::set_param(
-    const std::string &key, const std::string &param )
+    const string_t &key, const string_t &param )
 {
-    m_params[key] = param;
+    m_params[key.replace("_", "-")] = param;
 }
 
 
@@ -37,9 +37,9 @@ inline void phillip_main_t::erase_param(const std::string &key)
 }
 
 
-inline void phillip_main_t::set_flag(const std::string &key)
+inline void phillip_main_t::set_flag(const string_t &key)
 {
-    m_flags.insert(key);
+    m_flags.insert(key.replace("_", "-"));
 }
 
 
@@ -97,13 +97,13 @@ inline const opt::training_result_t* phillip_main_t::get_training_result() const
 }
 
 
-inline const hash_map<std::string, std::string>& phillip_main_t::params() const
+inline const hash_map<string_t, string_t>& phillip_main_t::params() const
 { return m_params; }
 
 
-inline const std::string& phillip_main_t::param(const std::string &key) const
+inline const string_t& phillip_main_t::param(const string_t &key) const
 {
-    static const std::string empty_str("");
+    static const string_t empty_str("");
     auto found = m_params.find(key);
     return (found != m_params.end()) ? found->second : empty_str;
 }
@@ -125,7 +125,7 @@ inline float phillip_main_t::param_float(const std::string &key, float def) cons
 }
 
 
-inline const hash_set<std::string>& phillip_main_t::flags() const
+inline const hash_set<string_t>& phillip_main_t::flags() const
 {
     return m_flags;
 }
@@ -139,7 +139,7 @@ inline bool phillip_main_t::flag(const std::string &key) const
 
 inline bool phillip_main_t::do_infer_pseudo_positive() const
 {
-    return flag("get_pseudo_positive");
+    return flag("get-pseudo-positive");
 }
 
 
@@ -227,21 +227,21 @@ inline void phillip_main_t::reset_for_inference()
 inline void phillip_main_t::execute_enumerator()
 {
     execute_enumerator(
-        &m_lhs, &m_time_for_enumerate, param("path_lhs_out"));
+        &m_lhs, &m_time_for_enumerate, param("path-lhs-out"));
 }
 
 
 inline void phillip_main_t::execute_convertor()
 {
     execute_convertor(
-        &m_ilp, &m_time_for_convert, param("path_ilp_out"));
+        &m_ilp, &m_time_for_convert, param("path-ilp-out"));
 }
 
 
 inline void phillip_main_t::execute_solver()
 {
     execute_solver(
-        m_ilp.get(), &m_sol, &m_time_for_solve, param("path_sol_out"));
+        m_ilp.get(), &m_sol, &m_time_for_solve, param("path-sol-out"));
 }
 
 

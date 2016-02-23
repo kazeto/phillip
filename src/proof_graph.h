@@ -450,8 +450,6 @@ public:
 
     inline void add_attribute(const std::string &name, const std::string &value);
 
-    inline float threshold_distance_for_soft_unifying() const;
-
     virtual void print(std::ostream *os) const;
 
 protected:
@@ -599,8 +597,6 @@ protected:
 
     /** These are written in xml-file of output as attributes. */
     hash_map<std::string, std::string> m_attributes;
-
-    float m_threshold_distance_for_soft_unify;
     
     /** Mutual exclusiveness betwen two nodes.
      *  If unifier of third value is satisfied, the node of the first key and the node of the second key cannot be hypothesized together. */
