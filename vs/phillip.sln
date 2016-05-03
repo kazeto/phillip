@@ -8,11 +8,17 @@ EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
+		LibDebug|Win32 = LibDebug|Win32
+		LibRelease|Win32 = LibRelease|Win32
 		Release|Win32 = Release|Win32
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{F2D85260-267E-4433-B6F7-2BC82DD9A43C}.Debug|Win32.ActiveCfg = Debug|Win32
 		{F2D85260-267E-4433-B6F7-2BC82DD9A43C}.Debug|Win32.Build.0 = Debug|Win32
+		{F2D85260-267E-4433-B6F7-2BC82DD9A43C}.LibDebug|Win32.ActiveCfg = LibDebug|Win32
+		{F2D85260-267E-4433-B6F7-2BC82DD9A43C}.LibDebug|Win32.Build.0 = LibDebug|Win32
+		{F2D85260-267E-4433-B6F7-2BC82DD9A43C}.LibRelease|Win32.ActiveCfg = LibRelease|Win32
+		{F2D85260-267E-4433-B6F7-2BC82DD9A43C}.LibRelease|Win32.Build.0 = LibRelease|Win32
 		{F2D85260-267E-4433-B6F7-2BC82DD9A43C}.Release|Win32.ActiveCfg = Release|Win32
 		{F2D85260-267E-4433-B6F7-2BC82DD9A43C}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection

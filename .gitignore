@@ -45,3 +45,5 @@ Thumbs.db
 ipch
 vs/[Dd]ebug/*
 vs/[Rr]elease/*
+vs/[Ll]ib[Dd]ebug/*
+vs/[Ll]ib[Rr]elease/*
