@@ -426,12 +426,12 @@ constraint_idx_t ilp_problem_t::add_constraint_of_mutual_exclusion(
 
     for (auto sub = subs.begin(); sub != subs.end(); ++sub)
     {
-        const term_t &term1 = sub->terms[0];
-        const term_t &term2 = sub->terms[1];
-        if (term1.is_constant() and term2.is_constant() and term1 != term2)
+        const term_t &t1 = sub->terms().at(0);
+        const term_t &t2 = sub->terms().at(1);
+        if (t1.is_constant() and t2.is_constant() and t1 != t2)
             return -1;
 
-        pg::node_idx_t sub_node = m_graph->find_sub_node(term1, term2);
+        pg::node_idx_t sub_node = m_graph->find_sub_node(t1, t2);
         if (sub_node < 0) return -1;
 
         variable_idx_t sub_var = find_variable_with_node(sub_node);
@@ -549,7 +549,7 @@ void ilp_problem_t::enumerate_variables_for_requirement(
     if (req.literal.is_equality())
     {
         pg::node_idx_t n = m_graph->find_sub_node(
-            req.literal.terms.at(0), req.literal.terms.at(1));
+            req.literal.terms().at(0), req.literal.terms().at(1));
         if (n >= 0)
         {
             variable_idx_t v = find_variable_with_node(n);
@@ -559,7 +559,7 @@ void ilp_problem_t::enumerate_variables_for_requirement(
     else
     {
         const hash_set<pg::node_idx_t> *nodes =
-            m_graph->search_nodes_with_arity(req.literal.predicate_with_arity());
+            m_graph->search_nodes_with_same_predicate_as(req.literal);
 
         if (nodes != NULL)
         for (auto n_idx : (*nodes))
@@ -1040,7 +1040,8 @@ void ilp_problem_t::_print_unifications_in_solution(
                 const literal_t &lit = m_graph->node(*it).literal();
                 // assert(lit.predicate == "=");
                 subs.push_back(
-                    lit.terms[0].string() + "=" + lit.terms[1].string());
+                    lit.terms().at(0).string() + "=" +
+                    lit.terms().at(1).string());
             }
         }
 
@@ -1133,7 +1134,7 @@ void ilp_solution_t::enumerate_unified_terms_sets(std::list<hash_set<term_t> > *
         if (n.is_equality_node())
         if (prob->node_is_active(*this, n.index()))
         {
-            const std::vector<term_t> &unified = n.literal().terms;
+            const std::vector<term_t> &unified = n.literal().terms();
             auto it_set = out->begin();
 
             for (; it_set != out->end(); ++it_set)
@@ -1178,12 +1179,12 @@ void ilp_solution_t::print_human_readable_hypothesis(std::ostream *os) const
         [](const std::list<hash_set<term_t> > &terms, const literal_t &lit) -> literal_t
     {
         literal_t out(lit);
-        for (term_idx_t i = 0; i < out.terms.size(); ++i)
+        for (term_idx_t i = 0; i < out.terms().size(); ++i)
         {
             for (auto set : terms)
-            if (set.count(out.terms.at(i)) > 0)
+            if (set.count(out.terms().at(i)) > 0)
             {
-                out.terms[i] = *set.begin();
+                out.terms()[i] = *set.begin();
                 break;
             }
         }

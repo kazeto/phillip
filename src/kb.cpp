@@ -23,6 +23,12 @@ namespace kb
 {
 
 
+const axiom_id_t INVALID_AXIOM_ID = -1;
+const argument_set_id_t INVALID_ARGUMENT_SET_ID = 0;
+const predicate_id_t INVALID_PREDICATE_ID = 0;
+const predicate_id_t EQ_PREDICATE_ID = 1;
+
+
 functional_predicate_configuration_t::functional_predicate_configuration_t()
 : m_pid(INVALID_PREDICATE_ID), m_rel(REL_NONE)
 {}
@@ -119,7 +125,8 @@ bool functional_predicate_configuration_t::do_postpone(
 
         if (u = UNI_UNLIMITED) continue;
 
-        bool is_unified = (graph->find_sub_node(l1.terms.at(i), l2.terms.at(i)) < 0);
+        bool is_unified =
+            (graph->find_sub_node(l1.terms().at(i), l2.terms().at(i)) < 0);
 
         switch (u)
         {
@@ -465,19 +472,26 @@ float knowledge_base_t::get_distance(
 {
     predicate_id_t get1 = predicates.pred2id(arity1);
     predicate_id_t get2 = predicates.pred2id(arity2);
-    if (get1 == INVALID_PREDICATE_ID or get2 == INVALID_PREDICATE_ID) return -1.0f;
+    return get_distance(get1, get2);
+}
+
+
+float knowledge_base_t::get_distance(predicate_id_t a1, predicate_id_t a2) const
+{
+    if (a1 == INVALID_PREDICATE_ID or a2 == INVALID_PREDICATE_ID)
+        return -1.0f;
 
     std::lock_guard<std::mutex> lock(ms_mutex_for_cache);
-    auto found1 = m_cache_distance.find(get1);
+    auto found1 = m_cache_distance.find(a1);
     if (found1 != m_cache_distance.end())
     {
-        auto found2 = found1->second.find(get2);
+        auto found2 = found1->second.find(a2);
         if (found2 != found1->second.end())
             return found2->second;
     }
 
-    float dist(heuristics.get(get1, get2));
-    m_cache_distance[get1][get2] = dist;
+    float dist(heuristics.get(a1, a2));
+    m_cache_distance[a1][a2] = dist;
     return dist;
 }
 
@@ -988,9 +1002,9 @@ axiom_id_t knowledge_base_t::axioms_database_t::add(
             assert(idx != INVALID_PREDICATE_ID);
             pattern.predicates().push_back(idx);
 
-            for (term_idx_t j = 0; j < lit.terms.size(); ++j)
-            if (lit.terms.at(j).is_hard_term())
-                term2arity[lit.terms.at(j)].insert(std::make_pair(i, j));
+            for (term_idx_t j = 0; j < lit.terms().size(); ++j)
+            if (lit.terms().at(j).is_hard_term())
+                term2arity[lit.terms().at(j)].insert(std::make_pair(i, j));
         }
 
         // ENUMERATE HARD TERMS
@@ -1004,9 +1018,9 @@ axiom_id_t knowledge_base_t::axioms_database_t::add(
 
         m_tmp.pat2ax[pattern].insert(std::make_pair(ax_id, is_backward));
 
-        // PREDICATES NOT FUNCTIONAL ARE ASSIGNED TO THE PATTERN
+        // NON-FUNCTIONAL PREDICATES ARE ASSIGNED TO THE PATTERN
         for (auto pid : pattern.predicates())
-        if (kb::kb()->predicates.find_functional_predicate(pid) == nullptr)
+        if (not kb::kb()->predicates.is_functional(pid))
             m_tmp.pred2pats[pid].insert(pattern);
     };
 
@@ -1180,6 +1194,9 @@ knowledge_base_t::predicate_database_t::predicate_database_t(const std::string &
 {
     m_arities.push_back("");
     m_arity2id[""] = INVALID_PREDICATE_ID;
+
+    m_arities.push_back("=");
+    m_arity2id["="] = EQ_PREDICATE_ID;
 }
 
 
@@ -1380,10 +1397,10 @@ void knowledge_base_t::predicate_database_t::define_mutual_exclusion(const liter
 {
     std::list< std::pair<term_idx_t, term_idx_t> > pairs;
 
-    for (term_idx_t t1 = 0; t1 < l1.terms.size(); ++t1)
-    for (term_idx_t t2 = 0; t2 < l2.terms.size(); ++t2)
+    for (term_idx_t t1 = 0; t1 < l1.terms().size(); ++t1)
+    for (term_idx_t t2 = 0; t2 < l2.terms().size(); ++t2)
     {
-        if (l1.terms.at(t1) == l2.terms.at(t2))
+        if (l1.terms().at(t1) == l2.terms().at(t2))
             pairs.push_back(std::make_pair(t1, t2));
     }
 

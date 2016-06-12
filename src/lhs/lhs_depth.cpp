@@ -42,13 +42,21 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
         {
             for (gen.init(n); not gen.end(); gen.next())
             {
+                // LIST UP VALID TARGETS
+                std::list<const std::vector<pg::node_idx_t>*> targets;
+                for (const auto &t : gen.targets())
+                if (t.is_valid())
+                    targets.push_back(&t);
+
                 for (auto ax : gen.axioms())
                 {
                     std::set<pg::chain_candidate_t> &cands = candidates[ax.first];
 
-                    for (auto nodes : gen.targets())
-                        cands.insert(pg::chain_candidate_t(
-                        nodes, ax.first, not kb::is_backward(ax)));
+                    for (const auto t : targets)
+                    {
+                        bool forward = not kb::is_backward(ax);
+                        cands.insert(pg::chain_candidate_t(*t, ax.first, forward));
+                    }
                 }
             }
         }

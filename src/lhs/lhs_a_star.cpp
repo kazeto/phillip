@@ -29,17 +29,17 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
     std::map<pg::chain_candidate_t, pg::hypernode_idx_t> considered;
 
     int max_size = get_max_lhs_size();
-
     auto begin = std::chrono::system_clock::now();
-    add_observations(graph);
-
     std::map<std::pair<pg::node_idx_t, pg::node_idx_t>, int> unified_paths;
     reachability_manager_t rm;
+    reachability_list_t &rl = rm[kb::INVALID_PREDICATE_ID];
+
+    add_observations(graph);
     initialize_reachability(graph, &rm);
 
-    while (not rm.empty())
+    while (not rl.empty())
     {
-        const reachability_t cand = rm.top();
+        const reachability_t cand = rl.top();
         IF_VERBOSE_FULL("Candidates: " + cand.to_string());
 
         // CHECK TIME-OUT
@@ -87,9 +87,10 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
                 hash_map<pg::node_idx_t, std::pair<float, hash_set<pg::node_idx_t>>> from2goals;
 
                 // ENUMERATE REACHABLE-NODE AND THEIR PRE-ESTIMATED DISTANCE.
-                for (auto rc : rm)
+                for (auto rc : rl)
                 {
-                    if (static_cast<pg::chain_candidate_t>(cand) == static_cast<pg::chain_candidate_t>(rc))
+                    if (static_cast<pg::chain_candidate_t>(cand)
+                        == static_cast<pg::chain_candidate_t>(rc))
                     {
                         auto found = from2goals.find(rc.node_from);
 
@@ -123,11 +124,11 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
                 std::make_pair(static_cast<pg::chain_candidate_t>(cand), hn_new));
         }
 
-        for (auto it = rm.begin(); it != rm.end();)
+        for (auto it = rl.begin(); it != rl.end();)
         {
             if (static_cast<pg::chain_candidate_t>(cand)
                 == static_cast<pg::chain_candidate_t>(*it))
-                it = rm.erase(it);
+                it = rl.erase(it);
             else
                 ++it;
         }
@@ -167,6 +168,7 @@ void a_star_based_enumerator_t::add_reachability(
 {    
     if (not check_permissibility_of(dist)) return;
 
+    // ENUMERATE OBSERVATION-NODES WHICH ARE REACHABLE FROM start
     hash_set<pg::node_idx_t> goals_filtered;
     {
         predicate_with_arity_t arity_current = graph->node(current).predicate_with_arity();
@@ -177,20 +179,38 @@ void a_star_based_enumerator_t::add_reachability(
     if (goals_filtered.empty()) return;
 
     pg::proof_graph_t::chain_candidate_generator_t gen(graph);
+
+    // ITERATE AXIOMS WHICH IS APPLICABLE TO current.
     for (gen.init(current); not gen.end(); gen.next())
     {
+        // CONSTRUCT A MAP FROM A TARGET TO THE CORRESPONDING REACHABILITY-LIST
+        std::map<
+            const pg::proof_graph_t::chain_candidate_generator_t::target_nodes_t*,
+            reachability_list_t*> tar2rch;
+        for (const auto &tar : gen.targets())
+        {
+            kb::predicate_id_t pred = kb::INVALID_PREDICATE_ID;
+            for (index_t i = 0; i < tar.size(); ++i)
+            if (tar.at(i) == -1)
+            {
+                pred = gen.predicates().at(i);
+                break;
+            }
+            tar2rch[&tar] = &(*out)[pred];
+        }
+
+        // APPLY EACH AXIOM TO TARGETS
         for (auto ax : gen.axioms())
         {
             lf::axiom_t axiom = kb::kb()->axioms.get(ax.first);
             float d_from = dist + kb::kb()->get_distance(axiom);
-            
+
             if (not check_permissibility_of(d_from)) continue;
-            
+
+            // EACH OBSERVATION-NODE g WHICH IS THE ENDPOINT OF THE PATH
             for (auto g : goals_filtered)
             {
-                std::string arity_goal = graph->node(g).predicate_with_arity();
-
-                for (auto tar : gen.targets())
+                for (const auto &tar : gen.targets())
                 {
                     auto lits = not kb::is_backward(ax) ?
                         axiom.func.get_rhs() : axiom.func.get_lhs();
@@ -198,7 +218,10 @@ void a_star_based_enumerator_t::add_reachability(
 
                     for (const auto &l : lits)
                     {
-                        float d = kb::kb()->get_distance(l->predicate_with_arity(), arity_goal);
+                        kb::predicate_id_t l_id = kb::kb()->predicates.pred2id(l->predicate_with_arity());
+                        kb::predicate_id_t g_id = graph->node(g).predicate_id();
+                        float d = kb::kb()->get_distance(l_id, g_id);
+
                         if ((d_to < 0.0f or d_to > d)
                             and check_permissibility_of(d))
                             d_to = d;
@@ -207,7 +230,7 @@ void a_star_based_enumerator_t::add_reachability(
                     if (not check_permissibility_of(d_to)) continue;
                     if (not check_permissibility_of(d_from + d_to)) continue;
 
-                    out->push(reachability_t(
+                    tar2rch[&tar]->push(reachability_t(
                         pg::chain_candidate_t(tar, ax.first, !ax.second),
                         start, g, d_from, d_to));
                 }
@@ -250,7 +273,7 @@ std::string a_star_based_enumerator_t::reachability_t::to_string() const
 }
 
 
-void a_star_based_enumerator_t::reachability_manager_t::push(const reachability_t& r)
+void a_star_based_enumerator_t::reachability_list_t::push(const reachability_t& r)
 {
     float d1 = r.distance();
 

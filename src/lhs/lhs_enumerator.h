@@ -53,11 +53,13 @@ private:
         float dist_to;   // Distance from new node to the goal node.
     };
 
-    struct reachability_manager_t : public std::list<reachability_t>
+    struct reachability_list_t : public std::list<reachability_t>
     {
         const reachability_t &top() const { return front(); }
         void push(const reachability_t&);
     };
+
+    typedef hash_map<kb::predicate_id_t, reachability_list_t> reachability_manager_t;
 
     void initialize_reachability(
         const pg::proof_graph_t*, reachability_manager_t*) const;

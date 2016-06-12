@@ -70,9 +70,9 @@ bool unifier_t::operator==(const unifier_t &x) const
 
 void unifier_t::operator()(literal_t *p_out_lit) const
 {
-    for (size_t i = 0; i < p_out_lit->terms.size(); i++)
+    for (size_t i = 0; i < p_out_lit->terms().size(); i++)
     {
-        term_t &term = p_out_lit->terms[i];
+        term_t &term = p_out_lit->terms()[i];
         auto found = m_mapping.find(term);
 
         if (found != m_mapping.end())
@@ -104,10 +104,12 @@ std::string unifier_t::to_string() const
     std::string exp;
     for (auto sub = m_substitutions.begin(); sub != m_substitutions.end(); ++sub)
     {
-        if (sub->terms.at(0) != sub->terms.at(1))
+        if (sub->terms().at(0) != sub->terms().at(1))
         {
             if (not exp.empty()) exp += ", ";
-            exp += sub->terms.at(0).string() + "/" + sub->terms.at(1).string();
+            exp +=
+                sub->terms().at(0).string() + "/" +
+                sub->terms().at(1).string();
         }
     }
     return "{" + exp + "}";
@@ -211,31 +213,39 @@ void proof_graph_t::chain_candidate_generator_t::next()
 }
 
 
+const std::vector<kb::predicate_id_t>&
+proof_graph_t::chain_candidate_generator_t::predicates() const
+{
+    return m_pt_iter->first;
+}
+
+
 void proof_graph_t::chain_candidate_generator_t::enumerate()
 {
     m_targets.clear();
-    m_axioms.clear();
 
     if (end()) return;
 
     hash_map<kb::predicate_id_t, hash_set<node_idx_t>> a2ns;
+    hash_set<kb::predicate_id_t> preds_seen;
     std::list<std::list<node_idx_t> > node_arrays;
 
     // CONSTRUCTS a2ns
     for (auto a : m_pt_iter->predicates())
-    if (a2ns.count(a) == 0)
     {
-        auto found = m_graph->search_nodes_with_arity(a);
-        if (found != NULL)
-            a2ns.insert(std::make_pair(a, *found));
-    }
+        if (preds_seen.count(a) > 0) continue;
+        preds_seen.insert(a);
 
-    // IF THERE IS A SLOT WHICH CANNOT BE FILLED, THEN STOP.
-    {
-        hash_set<kb::predicate_id_t> arity_set(
-            m_pt_iter->predicates().begin(),
-            m_pt_iter->predicates().end());
-        if (a2ns.size() < arity_set.size()) return;
+        hash_set<node_idx_t> &ns = a2ns[a];
+        auto found = m_graph->search_nodes_with_pid(a);
+
+        if (found != NULL)
+            a2ns[a].insert(found->begin(), found->end());
+
+        // IF THERE IS A SLOT WHICH CANNOT BE FILLED AND IS NOT FUNCTIONAL,
+        // THEN STOP.
+        if (ns.empty() and kb::kb()->predicates.is_functional(a))
+            return;
     }
 
     // CONSTRUCTS hard_term_satisfiers,
@@ -245,6 +255,7 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
         hard_terms[p.second.first][p.first.first] =
         std::make_pair(p.second.second, p.first.second);
 
+    // ENUMERATE SLOTS TO WHICH THE PIVOT CAN BE ASSIGNED
     hash_set<index_t> slots_pivot;
     for (index_t i = 0; i < m_pt_iter->predicates().size(); ++i)
     {
@@ -268,14 +279,15 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
             const literal_t &l1 = m_graph->node(nodes->at(i)).literal();
             const literal_t &l2 = m_graph->node(nodes->at(p.first)).literal();
 
-            return l1.terms.at(p.second.first) != l2.terms.at(p.second.second);
+            return l1.terms().at(p.second.first) != l2.terms().at(p.second.second);
         }
         
         return false;
     };
 
-    std::function<void(std::vector<node_idx_t>*, index_t, index_t)> routine_recursive;
-    routine_recursive = [&, this](std::vector<pg::node_idx_t> *nodes, index_t i, index_t i_pivot)
+    // FIND TARGET-NODES WHOSE (i_pivot)-TH SLOT IS THE PIVOT
+    std::function<void(target_nodes_t*, index_t, index_t)> routine_recursive;
+    routine_recursive = [&, this](target_nodes_t *nodes, index_t i, index_t i_pivot)
     {
         if (i == i_pivot)
         {
@@ -284,35 +296,54 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
             if (not do_violate_hard_term(nodes, i))
             {
                 if (i < m_pt_iter->predicates().size() - 1)
-                    routine_recursive(nodes, i + 1, i_pivot);
+                    routine_recursive(nodes, i + 1, i_pivot); // NEXT SLOT
                 else
-                    m_targets.push_back(*nodes);
+                    m_targets.push_back(*nodes); // FINISH
             }
         }
         else
         {
-            for (auto n : a2ns.at(m_pt_iter->predicates().at(i)))
-            {
-                (*nodes)[i] = n;
+            const auto &ns = a2ns.at(m_pt_iter->predicates().at(i));
 
-                if (not do_violate_hard_term(nodes, i))
+            if (not ns.empty())
+            {
+                for (auto n : ns)
                 {
-                    if (i < m_pt_iter->predicates().size() - 1)
-                        routine_recursive(nodes, i + 1, i_pivot);
-                    else
-                        m_targets.push_back(*nodes);
+                    (*nodes)[i] = n;
+
+                    if (not do_violate_hard_term(nodes, i))
+                    {
+                        if (i < m_pt_iter->predicates().size() - 1)
+                            routine_recursive(nodes, i + 1, i_pivot); // NEXT SLOT
+                        else
+                            m_targets.push_back(*nodes); // FINISH
+                    }
                 }
+            }
+            else
+            {
+                (*nodes)[i] = -1; // EMPTY
+                routine_recursive(nodes, i + 1, i_pivot); // NEXT SLOT
             }
         }
     };
     
-    std::vector<node_idx_t> nodes(m_pt_iter->predicates().size(), -1);
+    target_nodes_t nodes(m_pt_iter->predicates().size());
 
     for (auto i_pivot : slots_pivot)
         routine_recursive(&nodes, 0, i_pivot);
 
     if (not m_targets.empty())
         m_axioms = kb::kb()->axioms.gets_by_pattern(*m_pt_iter);
+}
+
+
+bool proof_graph_t::chain_candidate_generator_t::target_nodes_t::is_valid() const
+{
+    for (auto n : (*this))
+    if (n == -1)
+        return false;
+    return true;
 }
 
 
@@ -634,25 +665,6 @@ std::string proof_graph_t::edge_to_string( edge_idx_t i ) const
 }
 
 
-hash_set<node_idx_t>
-    proof_graph_t::enumerate_nodes_with_literal( const literal_t &lit ) const
-{
-    hash_set<node_idx_t> out;
-    const hash_set<node_idx_t> *pa_list =
-        search_nodes_with_predicate( lit.predicate, lit.terms.size() );
-    
-    if (pa_list == NULL) return out;
-
-    for (auto it = pa_list->begin(); it != pa_list->end(); ++it)
-    {
-        if (m_nodes.at(*it).literal() == lit)
-            out.insert(*it);
-    }
-
-    return out;
-}
-
-
 hash_set<edge_idx_t> proof_graph_t::enumerate_edges_with_node(node_idx_t idx) const
 {
     hash_set<edge_idx_t> out;
@@ -823,8 +835,11 @@ node_idx_t proof_graph_t::
     find_transitive_sub_node(node_idx_t i, node_idx_t j) const
 {
     const node_t &n1(node(i)), &n2(node(j));
-    term_t t1_1(n1.literal().terms.at(0)), t1_2(n1.literal().terms.at(1));
-    term_t t2_1(n2.literal().terms.at(0)), t2_2(n2.literal().terms.at(1));
+    term_t
+        t1_1(n1.literal().terms().at(0)),
+        t1_2(n1.literal().terms().at(1)),
+        t2_1(n2.literal().terms().at(0)),
+        t2_2(n2.literal().terms().at(1));
 
     if (t1_1 == t2_1) return find_sub_node(t1_2, t2_2);
     if (t1_1 == t2_2) return find_sub_node(t1_2, t2_1);
@@ -1061,17 +1076,17 @@ node_idx_t proof_graph_t::add_node(
     const hash_set<node_idx_t> &parents)
 {
     node_t add(this, lit, type, m_nodes.size(), depth, parents);
-    int n = static_cast<int>(lit.terms.size());
+    int n = static_cast<int>(lit.terms().size());
     node_idx_t out = m_nodes.size();
     
     m_nodes.push_back(add);
-    m_maps.predicate_to_nodes[lit.predicate][n].insert(out);
+    m_maps.predicate_to_nodes[lit.predicate()][n].insert(out);
     m_maps.depth_to_nodes[depth].insert(out);
     
     if(lit.is_equality())
     {
-        term_t t1(lit.terms[0]), t2(lit.terms[1]);
-        if (lit.truth)
+        term_t t1(lit.terms().at(0)), t2(lit.terms().at(1));
+        if (lit.truth())
             m_maps.terms_to_sub_node.insert(t1, t2, out);
         else
             m_maps.terms_to_negsub_node.insert(t1, t2, out);
@@ -1079,15 +1094,14 @@ node_idx_t proof_graph_t::add_node(
     else
     {
         const kb::knowledge_base_t *base = kb::knowledge_base_t::instance();
-        std::string arity = lit.predicate_with_arity();
 
         if (add.predicate_id() != kb::INVALID_PREDICATE_ID)
-            m_maps.arity_to_nodes[add.predicate_id()].insert(out);
+            m_maps.pid_to_nodes[add.predicate_id()].insert(out);
     }
     
-    for (unsigned i = 0; i < lit.terms.size(); i++)
+    for (unsigned i = 0; i < lit.terms().size(); i++)
     {
-        const term_t& t = lit.terms.at(i);
+        const term_t& t = lit.terms().at(i);
         m_maps.term_to_nodes[t].insert(out);
     }
 
@@ -1210,9 +1224,9 @@ hypernode_idx_t proof_graph_t::chain(
             const literal_t &li_ax = *(ax_from.at(i));
             const literal_t &li_hy = node(from.at(i - n_eq)).literal();
 
-            for (size_t j = 0; j<li_ax.terms.size(); ++j)
+            for (size_t j = 0; j<li_ax.terms().size(); ++j)
             {
-                const term_t &t_ax(li_ax.terms.at(j)), &t_hy(li_hy.terms.at(j));
+                const term_t &t_ax(li_ax.terms().at(j)), &t_hy(li_hy.terms().at(j));
                 if (not generate_subs(t_ax, t_hy, subs, conds))
                     return false;
 
@@ -1352,9 +1366,9 @@ hypernode_idx_t proof_graph_t::chain(
         for (size_t i = 0; i < ax_to.size(); ++i)
         {
             (*lits)[i] = *ax_to.at(i);
-            for (size_t j = 0; j < (*lits)[i].terms.size(); ++j)
+            for (size_t j = 0; j < (*lits)[i].terms().size(); ++j)
             {
-                term_t &term = (*lits)[i].terms[j];
+                term_t &term = (*lits)[i].terms()[j];
                 term = substitute_term(term, subs);
             }
         }
@@ -1395,7 +1409,7 @@ hypernode_idx_t proof_graph_t::chain(
         for (auto it_n = evidences.begin(); it_n != evidences.end(); ++it_n)
         if (node(*it_n).is_equality_node())
         {
-            const std::vector<term_t> &terms = node(*it_n).literal().terms;
+            const std::vector<term_t> &terms = node(*it_n).literal().terms();
             eqs.insert(std::make_pair(terms.at(0), terms.at(1)));
         }
 
@@ -1506,8 +1520,8 @@ hypernode_idx_t proof_graph_t::chain(
         for (auto it = ax_from.begin(); it != ax_from.end(); ++it)
         if ((*it)->is_equality())
         {
-            auto found1 = subs.find((*it)->terms.at(0));
-            auto found2 = subs.find((*it)->terms.at(1));
+            auto found1 = subs.find((*it)->terms().at(0));
+            auto found2 = subs.find((*it)->terms().at(1));
             if (found1 != subs.end() and found2 != subs.end())
             {
                 term_t t1(found1->second), t2(found2->second);
@@ -1634,7 +1648,7 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_inconsistent_nodes(
     std::string arity = target1.predicate_with_arity();
     kb::predicate_id_t id1 = kb->predicates.pred2id(arity);
 
-    for (auto p1 : m_maps.arity_to_nodes)
+    for (auto p1 : m_maps.pid_to_nodes)
     {
         kb::predicate_id_t id2 = p1.first;
         bool do_reverse = (id1 > id2);
@@ -1652,8 +1666,8 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_inconsistent_nodes(
 
             for (auto t : (*terms))
             {
-                const term_t &t1 = target1.terms.at(do_reverse ? t.second : t.first);
-                const term_t &t2 = target2.terms.at(do_reverse ? t.first : t.second);
+                const term_t &t1 = target1.terms().at(do_reverse ? t.second : t.first);
+                const term_t &t2 = target2.terms().at(do_reverse ? t.first : t.second);
                 if (t1 != t2)
                 {
                     if (t1.is_constant() and t2.is_constant())
@@ -1684,7 +1698,8 @@ void proof_graph_t::_generate_unification_assumptions(node_idx_t target)
         const literal_t &lit = node(target).literal();
         std::list<node_idx_t> unifiables;
         unifier_t unifier;
-        const hash_set<node_idx_t> *candidates = search_nodes_with_arity(lit.predicate_with_arity());
+        const hash_set<node_idx_t> *candidates =
+            search_nodes_with_same_predicate_as(lit);        
         assert(candidates != nullptr);
 
         for (auto n : (*candidates))
@@ -1759,7 +1774,7 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
             if (find_sub_node(t, *it) < 0)
             {
                 std::pair<term_t, term_t> ts = util::make_sorted_pair(t, *it);
-                literal_t sub("=", ts.first, ts.second);
+                literal_t sub = literal_t::equal(ts.first, ts.second);
                 node_idx_t idx = add_node(sub, NODE_HYPOTHESIS, -1, hash_set<node_idx_t>());
                 m_maps.terms_to_sub_node.insert(ts.first, ts.second, idx);
 
@@ -1788,7 +1803,7 @@ void proof_graph_t::_chain_for_unification(node_idx_t i, node_idx_t j)
 
     for (auto sub = subs.begin(); sub != subs.end(); ++sub)
     {
-        term_t t1(sub->terms[0]), t2(sub->terms[1]);
+        term_t t1(sub->terms().at(0)), t2(sub->terms().at(1));
         if (t1 == t2) continue;
 
         node_idx_t sub_node_idx = find_sub_node(t1, t2);
@@ -1830,18 +1845,27 @@ bool proof_graph_t::check_unifiability(
 {
     if (out != NULL) out->clear();
 
-    if (not do_ignore_truthment and p1.truth != p2.truth) return false;
-    if (p1.terms.size() != p2.terms.size()) return false;
-    // if (p1.predicate != p2.predicate) return false;
+    if (not do_ignore_truthment and p1.truth() != p2.truth()) return false;
+    if (p1.terms().size() != p2.terms().size()) return false;
 
-    for (int i = 0; i < p1.terms.size(); i++)
+    if (p1.pid() != p2.pid()) return false;
+    else
     {
-        if (p1.terms[i] != p2.terms[i])
+        if (p1.pid() == kb::INVALID_PREDICATE_ID)
+        if (p1.predicate() != p2.predicate())
+            return false;
+    }
+
+    for (int i = 0; i < p1.terms().size(); i++)
+    {
+        const term_t &t1 = p1.terms().at(i);
+        const term_t &t2 = p2.terms().at(i);
+        if (t1 != t2)
         {
-            if (p1.terms[i].is_constant() and p2.terms[i].is_constant())
+            if (t1.is_constant() and t2.is_constant())
                 return false;
             else if (out != NULL)
-                out->add(p1.terms[i], p2.terms[i]);
+                out->add(t1, t2);
         }
     }
     return true;
@@ -1991,15 +2015,14 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_counter_nodes(
     std::list<std::tuple<node_idx_t, unifier_t> > *out) const
 {
     const hash_set<node_idx_t>* indices =
-        search_nodes_with_predicate(target.predicate, target.terms.size());
-
-    if (indices == NULL) return;
+        search_nodes_with_same_predicate_as(target);
+    if (indices == nullptr) return;
 
     for (auto it = indices->begin(); it != indices->end(); ++it)
     {
         const literal_t &l2 = node(*it).literal();
 
-        if (target.truth != l2.truth)
+        if (target.truth() != l2.truth())
         {
             unifier_t uni;
 

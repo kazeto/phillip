@@ -47,13 +47,13 @@ inline hypernode_idx_t node_t::master_hypernode() const
 
 inline bool node_t::is_equality_node() const
 {
-    return (m_literal.predicate == "=" and m_literal.truth);
+    return (m_literal.is_equality() and m_literal.truth());
 }
 
 
 inline bool node_t::is_non_equality_node() const
 {
-    return (m_literal.predicate == "=" and not m_literal.truth);
+    return (m_literal.is_equality() and not m_literal.truth());
 }
 
 
@@ -121,8 +121,7 @@ inline void unifier_t::add(term_t x, term_t y)
     if (x == y) return;
     if (x < y) std::swap(x, y);
 
-    literal_t added("=", x, y);
-    m_substitutions.insert(added);
+    m_substitutions.insert(literal_t::equal(x, y));
     m_mapping[x] = y;
 }
 
@@ -270,21 +269,20 @@ inline const hash_set<node_idx_t>* proof_graph_t::search_nodes_with_predicate(
 
 
 inline const hash_set<node_idx_t>*
-proof_graph_t::search_nodes_with_arity(const predicate_with_arity_t &arity) const
+proof_graph_t::search_nodes_with_pid(const kb::predicate_id_t arity) const
 {
-    int idx(arity.rfind('/')), num;
-    assert( idx > 0 );
-    _sscanf( arity.substr(idx+1).c_str(), "%d", &num );
-
-    return search_nodes_with_predicate(arity.substr(0, idx), num);
+    auto found = m_maps.pid_to_nodes.find(arity);
+    return (found != m_maps.pid_to_nodes.end()) ? &found->second : NULL;
 }
 
 
 inline const hash_set<node_idx_t>*
-proof_graph_t::search_nodes_with_arity(const kb::predicate_id_t arity) const
+proof_graph_t::search_nodes_with_same_predicate_as(const literal_t &lit) const
 {
-    auto found = m_maps.arity_to_nodes.find(arity);
-    return (found != m_maps.arity_to_nodes.end()) ? &found->second : NULL;
+    if (lit.pid() != kb::INVALID_PREDICATE_ID)
+        return search_nodes_with_pid(lit.pid());
+    else
+        return search_nodes_with_predicate(lit.predicate(), lit.terms().size());
 }
 
 

@@ -26,10 +26,6 @@ namespace pg { class proof_graph_t; }
 namespace kb
 {
 
-static const axiom_id_t INVALID_AXIOM_ID = -1;
-static const argument_set_id_t INVALID_ARGUMENT_SET_ID = 0;
-static const predicate_id_t INVALID_PREDICATE_ID = 0;
-
 typedef long relation_flags_t;
 
 
@@ -62,6 +58,10 @@ enum version_e
 };
 
 
+/** A class for keys to look up KB.
+* The first element is a predicate list.
+* The second is argument pairs which are hard-term.
+*/
 class conjunction_pattern_t
     : public std::pair<std::vector<predicate_id_t>, std::list<std::pair<term_pos_t, term_pos_t>>>
 {
@@ -142,8 +142,8 @@ public:
     /** Returns ditance between arity1 and arity2
      *  in a reachable-matrix in the current knowledge-base.
      *  If these arities are not reachable, then return -1. */
-    float get_distance(
-        const std::string &arity1, const std::string &arity2) const;
+    float get_distance(const std::string &a1, const std::string &a2) const;
+    float get_distance(predicate_id_t a1, predicate_id_t a2) const;
 
     /** Returns distance between arity1 and arity2 with distance-provider. */
     inline float get_distance(const lf::axiom_t &axiom) const;
@@ -252,6 +252,8 @@ public:
         inline const hash_map<predicate_id_t, functional_predicate_configuration_t>& functional_predicates() const;
         inline const functional_predicate_configuration_t* find_functional_predicate(predicate_id_t) const;
         inline const functional_predicate_configuration_t* find_functional_predicate(const predicate_with_arity_t&) const;
+        inline bool is_functional(predicate_id_t) const;
+        inline bool is_functional(const predicate_with_arity_t&) const;
 
         inline const std::list<std::pair<term_idx_t, term_idx_t> >*
             find_inconsistent_terms(predicate_id_t, predicate_id_t) const;

@@ -176,57 +176,55 @@ inline predicate_with_arity_t literal_t::predicate_with_arity(const predicate_t 
 }
 
 
-inline literal_t::literal_t( const std::string &_pred, bool _truth )
-    : predicate(_pred), truth(_truth) {}
-    
+inline literal_t literal_t::equal(const term_t &t1, const term_t &t2)
+{
+    return literal_t(kb::EQ_PREDICATE_ID, std::vector<term_t>{t1, t2}, true);
+}
 
-inline literal_t::literal_t(
-    predicate_t _pred, const std::vector<term_t> _terms, bool _truth )
-    : predicate(_pred), terms(_terms), truth(_truth)
+
+inline literal_t literal_t::not_equal(const term_t &t1, const term_t &t2)
+{
+    return literal_t(kb::EQ_PREDICATE_ID, std::vector<term_t>{t1, t2}, false);
+}
+
+
+inline literal_t::literal_t(kb::predicate_id_t pid, bool truth)
+: m_pid(pid), m_truth(truth)
 {
     regularize();
 }
 
 
 inline literal_t::literal_t(
-    const std::string &_pred,
-    const std::vector<term_t> _terms, bool _truth )
-    : predicate(_pred), terms(_terms), truth(_truth)
+    kb::predicate_id_t pid, const std::vector<term_t> &terms, bool truth)
+    : m_pid(pid), m_terms(terms), m_truth(truth)
+{
+    regularize();
+}
+
+
+inline literal_t::literal_t(const predicate_t& pred, bool truth)
+: m_predicate(pred), m_truth(truth)
 {
     regularize();
 }
 
 
 inline literal_t::literal_t(
-    const std::string &_pred,
-    const std::initializer_list<std::string> &_terms, bool _truth)
-    : predicate(_pred), truth(_truth)
+    const predicate_t &pred, const std::vector<term_t> &terms, bool truth)
+    : m_predicate(pred), m_terms(terms), m_truth(truth)
 {
-    for (auto t : _terms)
-        terms.push_back(term_t(t));
     regularize();
 }
 
 
 inline literal_t::literal_t(
-    const std::string &_pred,
-    const term_t &term1, const term_t &term2, bool _truth )
-    : predicate(_pred), truth(_truth)
+    const predicate_t &pred,
+    const std::initializer_list<std::string> &terms, bool truth)
+    : m_predicate(pred), m_truth(truth)
 {
-    terms.push_back(term1);
-    terms.push_back(term2);
-    regularize();
-}
-
-
-inline literal_t::literal_t(
-    const std::string &_pred,
-    const std::string &term1, const std::string &term2,
-    bool _truth )
-    : predicate(_pred), truth(_truth)
-{
-    terms.push_back( string_hash_t(term1) );
-    terms.push_back( string_hash_t(term2) );
+    for (auto t : terms)
+        m_terms.push_back(term_t(t));
     regularize();
 }
 
@@ -239,23 +237,26 @@ inline std::string literal_t::to_string( bool f_colored ) const
 }
 
 
-inline std::string literal_t::predicate_with_arity() const
+inline predicate_with_arity_t literal_t::predicate_with_arity() const
 {
-    return predicate_with_arity(predicate, terms.size(), not truth);
+    if (m_pid != kb::INVALID_PREDICATE_ID)
+        return predicate_with_arity(m_pid, not m_truth);
+    else
+        return predicate_with_arity(m_predicate, m_terms.size(), not m_truth);
 }
 
 
 inline bool literal_t::is_valid() const
 {
-    return not terms.empty() and not predicate.empty();
+    return not m_terms.empty()
+        and not m_predicate.empty()
+        and m_pid == kb::INVALID_PREDICATE_ID;
 }
 
 
-inline void literal_t::regularize()
+inline bool literal_t::is_equality() const
 {
-    if (is_equality())
-        if (terms.at(0) > terms.at(1))
-            std::swap(terms[0], terms[1]);
+    return m_pid == kb::EQ_PREDICATE_ID;
 }
 
 

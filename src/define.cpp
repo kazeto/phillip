@@ -113,38 +113,44 @@ std::vector<std::string> string_hash_t::ms_strs;
 unsigned string_hash_t::ms_issued_variable_count = 0;
 
 
-literal_t::literal_t(const sexp::sexp_t &s)
-    : truth(true)
+predicate_with_arity_t literal_t::predicate_with_arity(
+    kb::predicate_id_t id, bool is_negated)
+{
+    return (is_negated ? "!" : "") + kb::kb()->predicates.id2pred(id);
+}
+
+
+literal_t::literal_t(const sexp::sexp_t &s) : m_truth(true)
 {
     if (s.is_functor())
     {
         const std::string &&str = s.child(0).string();
         if (str.at(0) == '!')
         {
-            truth = false;
-            predicate = predicate_t(str.substr(1));
+            m_truth = false;
+            m_predicate = predicate_t(str.substr(1));
         }
         else
-            predicate = predicate_t(str);
+            m_predicate = predicate_t(str);
 
         for (auto it = ++s.children().cbegin(); it != s.children().cend(); ++it)
         {
             if (not (*it)->is_parameter())
             {
                 term_t term((*it)->string());
-                terms.push_back(term);
+                m_terms.push_back(term);
             }
         }
     }
     else
-        predicate = s.child(0).string();
+        m_predicate = s.child(0).string();
 
-    if (predicate.length() >= 255)
+    if (m_predicate.length() >= 255)
     {
         util::print_warning_fmt(
             "Following predicate is too long and shortened: \"%s\"",
-            predicate.c_str());
-        predicate = predicate.substr(0, 250);
+            m_predicate.c_str());
+        m_predicate = m_predicate.substr(0, 250);
     }
 
     regularize();
@@ -153,15 +159,15 @@ literal_t::literal_t(const sexp::sexp_t &s)
 
 bool literal_t::operator > (const literal_t &x) const
 {
-    if (truth != x.truth) return truth;
-    if (predicate != x.predicate) return (predicate > x.predicate);
-    if (terms.size() != x.terms.size())
-        return (terms.size() > x.terms.size());
+    if (m_truth != x.m_truth) return m_truth;
+    if (m_predicate != x.m_predicate) return (m_predicate > x.m_predicate);
+    if (m_terms.size() != x.m_terms.size())
+        return (m_terms.size() > x.m_terms.size());
 
-    for (size_t i = 0; i < terms.size(); i++)
+    for (size_t i = 0; i < m_terms.size(); i++)
     {
-        if (terms[i] != x.terms[i])
-            return terms[i] > x.terms[i];
+        if (m_terms[i] != x.m_terms[i])
+            return m_terms[i] > x.m_terms[i];
     }
     return false;
 }
@@ -169,15 +175,15 @@ bool literal_t::operator > (const literal_t &x) const
 
 bool literal_t::operator < (const literal_t &x) const
 {
-    if (truth != x.truth) return not truth;
-    if (predicate != x.predicate) return (predicate < x.predicate);
-    if (terms.size() != x.terms.size())
-        return (terms.size() < x.terms.size());
+    if (m_truth != x.m_truth) return not m_truth;
+    if (m_predicate != x.m_predicate) return (m_predicate < x.m_predicate);
+    if (m_terms.size() != x.m_terms.size())
+        return (m_terms.size() < x.m_terms.size());
 
-    for (size_t i = 0; i < terms.size(); i++)
+    for (size_t i = 0; i < m_terms.size(); i++)
     {
-        if (terms[i] != x.terms[i])
-            return terms[i] < x.terms[i];
+        if (m_terms[i] != x.m_terms[i])
+            return m_terms[i] < x.m_terms[i];
     }
     return false;
 }
@@ -185,13 +191,13 @@ bool literal_t::operator < (const literal_t &x) const
 
 bool literal_t::operator == (const literal_t &x) const
 {
-    if (truth != x.truth) return false;
-    if (predicate != x.predicate) return false;
-    if (terms.size() != x.terms.size()) return false;
+    if (m_truth != x.m_truth) return false;
+    if (m_predicate != x.m_predicate) return false;
+    if (m_terms.size() != x.m_terms.size()) return false;
 
-    for (size_t i = 0; i < terms.size(); i++)
+    for (size_t i = 0; i < m_terms.size(); i++)
     {
-        if (terms[i] != x.terms[i])
+        if (m_terms[i] != x.m_terms[i])
             return false;
     }
     return true;
@@ -200,16 +206,29 @@ bool literal_t::operator == (const literal_t &x) const
 
 bool literal_t::operator != (const literal_t &x) const
 {
-    if (truth != x.truth) return true;
-    if (predicate != x.predicate) return true;
-    if (terms.size() != x.terms.size()) return true;
+    if (m_truth != x.m_truth) return true;
+    if (m_predicate != x.m_predicate) return true;
+    if (m_terms.size() != x.m_terms.size()) return true;
 
-    for (size_t i = 0; i < terms.size(); i++)
+    for (size_t i = 0; i < m_terms.size(); i++)
     {
-        if (terms[i] != x.terms[i])
+        if (m_terms[i] != x.m_terms[i])
             return true;
     }
     return false;
+}
+
+
+predicate_t literal_t::predicate() const
+{
+    if (m_pid != kb::INVALID_PREDICATE_ID)
+    {
+        predicate_t out;
+        kb::kb()->predicates.id2pred(m_pid).to_arity(&out, nullptr);
+        return out;
+    }
+    else
+        return m_predicate;
 }
 
 
@@ -219,33 +238,33 @@ void literal_t::print( std::string *p_out_str, bool f_colored ) const
     static const int color[] = {31, 32, 33, 34, 35, 36, 37, 38, 39, 40};
 
     (*p_out_str) += "(";
-    if( not truth ) (*p_out_str) += "!";
+    if( not m_truth ) (*p_out_str) += "!";
 
 #ifdef _WIN32
-    (*p_out_str) += predicate;
+    (*p_out_str) += m_predicate;
 #else
     if( f_colored )
         (*p_out_str) +=
-            util::format( "\33[40m%s\33[0m", predicate.c_str() );
+            util::format( "\33[40m%s\33[0m", m_predicate.c_str() );
     else
         (*p_out_str) += predicate;
 #endif
 
-    for( int i=0; i<terms.size(); i++ )
+    for( int i=0; i<m_terms.size(); i++ )
     {
         (*p_out_str) += " ";
 #ifdef _WIN32
-        (*p_out_str) += terms[i].string();
+        (*p_out_str) += m_terms[i].string();
 #else
         if (f_colored)
         {
-            const int &_color = color[(terms[i].get_hash()) % 8];
+            const int &_color = color[(m_terms[i].get_hash()) % 8];
             (*p_out_str) += util::format(
                 "\33[0;%dm%s\33[0m",
-                _color, terms[i].string().c_str() );
+                _color, m_terms[i].string().c_str() );
         }
         else
-            (*p_out_str) += terms[i].string();
+            (*p_out_str) += m_terms[i].string();
 #endif
     }
     (*p_out_str) += ")";
@@ -254,48 +273,70 @@ void literal_t::print( std::string *p_out_str, bool f_colored ) const
 
 bool literal_t::is_functional() const
 {
-    return kb::kb()->predicates.find_functional_predicate(predicate_with_arity()) != nullptr;
+    return kb::kb()->predicates.is_functional(predicate_with_arity());
 }
 
 
+// This method is called only in compiling KB!
 size_t literal_t::write_binary(char *bin) const
 {
     size_t n(0);
 
-    n += util::string_to_binary(predicate, bin);
+    assert(m_pid != kb::INVALID_PREDICATE_ID);
+    n += util::to_binary<kb::predicate_id_t>(m_pid, bin);
 
     /* terms */
-    n += util::num_to_binary(terms.size(), bin + n);
-    for (int i = 0; i < terms.size(); ++i)
-        n += util::string_to_binary(terms.at(i).string(), bin + n);
+    n += util::num_to_binary(m_terms.size(), bin + n);
+    for (int i = 0; i < m_terms.size(); ++i)
+        n += util::string_to_binary(m_terms.at(i).string(), bin + n);
 
-    n += util::bool_to_binary(truth, bin + n);
+    n += util::bool_to_binary(m_truth, bin + n);
 
     return n;
 }
 
 
-size_t literal_t::read_binary( const char *bin )
+// This method is called only in looking up KB!
+size_t literal_t::read_binary(const char *bin)
 {
     size_t n(0);
     std::string s_buf;
     int i_buf;
 
-    n += util::binary_to_string(bin, &s_buf);
-    predicate = predicate_t(s_buf);
+    n += util::binary_to<kb::predicate_id_t>(bin, &m_pid);
+    assert(m_pid != kb::INVALID_PREDICATE_ID);
 
     n += util::binary_to_num(bin + n, &i_buf);
-    terms.assign(i_buf, term_t());
+    m_terms.assign(i_buf, term_t());
+
     for( int i=0; i<i_buf; ++i )
     {
         n += util::binary_to_string(bin + n, &s_buf);
-        terms[i] = term_t(s_buf);
+        m_terms[i] = term_t(s_buf);
     }
 
-    n += util::binary_to_bool(bin + n, &truth);
+    n += util::binary_to_bool(bin + n, &m_truth);
 
     return n;
 }
+
+
+inline void literal_t::regularize()
+{
+    if (not m_predicate.empty())
+    {
+        m_pid = kb::kb()->predicates.pred2id(
+            predicate_with_arity(m_predicate, m_terms.size(), not m_truth));
+
+        if (m_pid != kb::INVALID_PREDICATE_ID)
+            m_predicate.clear();
+    }
+
+    if (is_equality())
+    if (m_terms.at(0) > m_terms.at(1))
+        std::swap(m_terms[0], m_terms[1]);
+}
+
 
 
 std::ostream& operator<<(std::ostream& os, const term_t& t)

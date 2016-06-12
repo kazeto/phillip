@@ -74,6 +74,11 @@ typedef std::pair<index_t, term_idx_t> term_pos_t;
 typedef std::pair<std::pair<kb::predicate_id_t, term_idx_t>,
                   std::pair<kb::predicate_id_t, term_idx_t> > hard_term_pair_t;
 
+extern const axiom_id_t INVALID_AXIOM_ID;
+extern const argument_set_id_t INVALID_ARGUMENT_SET_ID;
+extern const predicate_id_t INVALID_PREDICATE_ID;
+extern const predicate_id_t EQ_PREDICATE_ID;
+
 inline bool is_backward(std::pair<axiom_id_t, is_backward_t> &p)
 { return p.second; }
 
@@ -188,27 +193,18 @@ class literal_t
 public:
     static inline predicate_with_arity_t predicate_with_arity(
         const predicate_t &pred, int term_num, bool is_negated);
+    static predicate_with_arity_t predicate_with_arity(
+        kb::predicate_id_t id, bool is_negated);
 
-    inline literal_t() {}
-    inline literal_t(const std::string &_pred, bool _truth = true);
-    inline literal_t(
-        predicate_t _predicate, const std::vector<term_t> _terms,
-        bool _truth = true);
-    inline literal_t(
-        const std::string &_predicate, const std::vector<term_t> _terms,
-        bool _truth = true);
-    inline literal_t(
-        const std::string &_predicate,
-        const term_t& term1, const term_t& term2,
-        bool _truth = true);
-    inline literal_t(
-        const std::string &_pred,
-        const std::initializer_list<std::string> &_terms,
-        bool _truth = true);
-    inline literal_t(
-        const std::string &_predicate,
-        const std::string &term1, const std::string &term2,
-        bool _truth = true);
+    inline static literal_t equal(const term_t&, const term_t&);
+    inline static literal_t not_equal(const term_t&, const term_t&);
+
+    inline literal_t() : m_pid(kb::INVALID_PREDICATE_ID) {}
+    inline literal_t(kb::predicate_id_t pid, bool = true);
+    inline literal_t(kb::predicate_id_t pid, const std::vector<term_t>&, bool = true);
+    inline literal_t(const predicate_t&, bool = true);
+    inline literal_t(const predicate_t&, const std::vector<term_t>&, bool = true);
+    inline literal_t(const predicate_t&, const std::initializer_list<std::string>&, bool = true);
     literal_t(const sexp::sexp_t &s);
 
     bool operator > (const literal_t &x) const;
@@ -217,10 +213,19 @@ public:
     bool operator != (const literal_t &x) const;
 
     inline std::string to_string(bool f_colored = false) const;
-    inline std::string predicate_with_arity() const;
+
+    predicate_t predicate() const;
+    inline predicate_with_arity_t predicate_with_arity() const;
+    kb::predicate_id_t pid() const { return m_pid; }
+
+    inline std::vector<term_t>& terms()             { return m_terms; }
+    inline const std::vector<term_t>& terms() const { return m_terms; }
+
+    inline bool& truth()       { return m_truth; }
+    inline bool  truth() const { return m_truth; }
 
     inline bool is_valid() const;
-    inline bool is_equality() const { return predicate == "="; }
+    inline bool is_equality() const;
 
     bool is_functional() const;
 
@@ -231,12 +236,13 @@ public:
 
     static const int MAX_ARGUMENTS_NUM = 12;
 
-    predicate_t predicate;
-    std::vector<term_t> terms;
-    bool truth;
-
 private:
     inline void regularize();
+
+    kb::predicate_id_t m_pid;
+    predicate_t m_predicate;
+    std::vector<term_t> m_terms;
+    bool m_truth;
 };
 
 

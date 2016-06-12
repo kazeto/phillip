@@ -239,6 +239,13 @@ public:
     class chain_candidate_generator_t
     {
     public:
+        class target_nodes_t : public std::vector<node_idx_t>
+        {
+        public:
+            target_nodes_t(int size) : std::vector<node_idx_t>(size, -1) {}
+            bool is_valid() const;
+        };
+
         chain_candidate_generator_t(const proof_graph_t *g);
 
         void init(node_idx_t);
@@ -246,7 +253,8 @@ public:
         bool end() const { return m_pt_iter == m_patterns.end(); }
         bool empty() const { return m_axioms.empty(); }
 
-        const std::list<std::vector<node_idx_t> >& targets() const { return m_targets; }
+        const std::vector<kb::predicate_id_t>& predicates() const;
+        const std::list<target_nodes_t>& targets() const { return m_targets; }
         const std::list<std::pair<axiom_id_t, kb::is_backward_t> >& axioms() const { return m_axioms; }
 
     private:
@@ -258,7 +266,7 @@ public:
         std::set<kb::conjunction_pattern_t> m_patterns;
         std::set<kb::conjunction_pattern_t>::const_iterator m_pt_iter;
 
-        std::list<std::vector<node_idx_t> > m_targets;
+        std::list<target_nodes_t> m_targets;
         std::list<std::pair<axiom_id_t, kb::is_backward_t> > m_axioms;
     };
 
@@ -339,19 +347,19 @@ public:
 
     /** Return pointer of set of nodes whose literal has given predicate.
      *  If any node was found, return NULL. */
-    inline const hash_set<node_idx_t>* search_nodes_with_predicate(predicate_t predicate, int arity) const;
+    inline const hash_set<node_idx_t>*
+        search_nodes_with_predicate(predicate_t predicate, int arity) const;
 
-    /** Return pointer of set of nodes whose literal has given predicate.
+    /** Return pointer of set of nodes whose predicate-ids are same as given one.
      *  If any node was found, return NULL. */
-    inline const hash_set<node_idx_t>* search_nodes_with_arity(const predicate_with_arity_t &arity) const;
-    inline const hash_set<node_idx_t>* search_nodes_with_arity(kb::predicate_id_t arity) const;
+    inline const hash_set<node_idx_t>* search_nodes_with_pid(kb::predicate_id_t arity) const;
+
+    inline const hash_set<node_idx_t>*
+        search_nodes_with_same_predicate_as(const literal_t&) const;
 
     /** Return pointer of set of nodes whose depth is equal to given value.
      *  If any node was found, return NULL. */
     inline const hash_set<node_idx_t>* search_nodes_with_depth(depth_t depth) const;
-
-    /** Return set of nodes whose literal is equal to given literal. */
-    hash_set<node_idx_t> enumerate_nodes_with_literal(const literal_t &lit) const;
 
     /** Return the indices of edges connected with given hypernode.
     *  If any edge was not found, return NULL. */
@@ -668,7 +676,7 @@ protected:
         /** Map to get nodes which have given term. */
         hash_map<term_t, hash_set<node_idx_t> > term_to_nodes;
 
-        hash_map<kb::predicate_id_t, hash_set<node_idx_t> > arity_to_nodes;
+        hash_map<kb::predicate_id_t, hash_set<node_idx_t> > pid_to_nodes;
     } m_maps;
 };
 

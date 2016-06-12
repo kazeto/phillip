@@ -39,14 +39,17 @@ bool logical_function_t::check_validity_of_conjunction(
         if (f->literal().is_valid())
         {
             const literal_t &lit = f->literal();
-            auto fp = kb::kb()->predicates.find_functional_predicate(lit.predicate_with_arity());
+            auto fp = kb::kb()->predicates.find_functional_predicate(lit.pid());
 
             if (fp == nullptr)
-                terms_c.insert(lit.terms.begin(), lit.terms.end());
+                terms_c.insert(lit.terms().begin(), lit.terms().end());
             else if (fp->is_right_unique())
-                terms_f.push_back(std::make_pair(&lit.terms.at(fp->governor()), nullptr));
+                terms_f.push_back(std::make_pair(
+                &lit.terms().at(fp->governor()), nullptr));
             else
-                terms_f.push_back(std::make_pair(&lit.terms.at(fp->governor()), &lit.terms.at(fp->dependent())));
+                terms_f.push_back(std::make_pair(
+                &lit.terms().at(fp->governor()),
+                &lit.terms().at(fp->dependent())));
 
             continue;
         }

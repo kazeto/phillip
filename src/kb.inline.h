@@ -96,7 +96,8 @@ knowledge_base_t::predicate_database_t::functional_predicates() const
 
 
 inline const functional_predicate_configuration_t*
-knowledge_base_t::predicate_database_t::find_functional_predicate(predicate_id_t id) const
+knowledge_base_t::predicate_database_t::
+find_functional_predicate(predicate_id_t id) const
 {
     auto found = m_functional_predicates.find(id);
     return (found != m_functional_predicates.end()) ? &found->second : nullptr;
@@ -104,11 +105,24 @@ knowledge_base_t::predicate_database_t::find_functional_predicate(predicate_id_t
 
 
 inline const functional_predicate_configuration_t*
-knowledge_base_t::predicate_database_t::find_functional_predicate(const predicate_with_arity_t &p) const
+knowledge_base_t::predicate_database_t::
+find_functional_predicate(const predicate_with_arity_t &p) const
 {
     return find_functional_predicate(pred2id(p));
 }
 
+
+inline bool knowledge_base_t::predicate_database_t::
+is_functional(predicate_id_t id) const
+{
+    return find_functional_predicate(id) != nullptr;
+}
+
+inline bool knowledge_base_t::predicate_database_t::
+is_functional(const predicate_with_arity_t &p) const
+{
+    return find_functional_predicate(p) != nullptr;
+}
 
 inline const std::list<std::pair<term_idx_t, term_idx_t> >*
 knowledge_base_t::predicate_database_t::find_inconsistent_terms(predicate_id_t a1, predicate_id_t a2) const
