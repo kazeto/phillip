@@ -5,8 +5,8 @@
 (B (name criminal_is_arrested)
    (=> (^ (criminal-jj *e1) (nsubj *e1 x))
        (^ (arrest-vb *e2) (dobj *e2 x))))
-(B (name murder_is_kill)
-   (=> (murder-vb e) (kill-vb e)))
+(B (name murder_kill)
+   (=> (kill-vb e) (murder-vb e)))
 
 (B (unipp (nsubj * .)))
 (B (unipp (dobj * .)))

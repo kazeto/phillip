@@ -25,6 +25,8 @@ def ask_yes_no(query):
 
 def write_main(target_bin, do_use_lpsolve, do_use_gurobi):
     cmd_test = ''
+
+    solver_on_test = 'gurobi' if do_use_gurobi else 'lpsolve'
     
     with open('Makefile', 'w') as fout:
         fout.write('\n'.join([
@@ -39,7 +41,7 @@ def write_main(target_bin, do_use_lpsolve, do_use_gurobi):
             'OBJS_BIN = $(SRCS_BIN:.cpp=.o)',
             'OBJS_LIB = $(SRCS_LIB:.cpp=.lo)',
             '',
-            'OPTS = -O2 -std=c++11 -DNDEBUG',
+            'OPTS = -O2 -std=c++11 -DNDEBUG -lpthread',
             'IDFLAGS =',
             'LDFLAGS =',
             '',
@@ -49,7 +51,7 @@ def write_main(target_bin, do_use_lpsolve, do_use_gurobi):
             '',
             '# USE-GUROBI',
             ('' if do_use_gurobi else '# ') + 'OPTS += -DUSE_GUROBI',
-            ('' if do_use_gurobi else '# ') + 'LDFLAGS += -lgurobi_c++ -lgurobi60 -lpthread',
+            ('' if do_use_gurobi else '# ') + 'LDFLAGS += -lgurobi_c++ -lgurobi60',
             '',
             'all: $(OBJS_BIN)' +
             (('\n\tmkdir -p %s' % get_dir(target_bin)) if get_dir(target_bin) else ''),
@@ -73,9 +75,9 @@ def write_main(target_bin, do_use_lpsolve, do_use_gurobi):
             '',
             'test:',
             '\t$(TARGET_BIN) -m infer -k data/compiled/kb '
-            '-c dist=basic -c tab=basic -c lhs=a* -c ilp=weighted -c sol=gurobi '
+            '-c dist=basic -c tab=basic -c lhs=a* -c ilp=weighted -c sol=%s '
             '-p kb_max_distance=4 -p max_distance=4.0 '
-            '-f do_compile_kb -v 5 data/toy.lisp']))
+            '-f do_compile_kb -v 3 data/toy.lisp' % solver_on_test]))
 
 
 def write_example(dir, do_use_lpsolve, do_use_gurobi):
@@ -88,7 +90,7 @@ def write_example(dir, do_use_lpsolve, do_use_gurobi):
             'HEDDER = $(shell find ../../src -name *.h)',
             'OBJS = $(SRCS:.cpp=.o)',
             '',
-            'OPTS = -O2 -std=c++11 -g',
+            'OPTS = -O2 -std=c++11 -g -lpthread',
             'IDFLAGS = -I ../../src',
             'LDFLAGS = -L ../../lib -lphil',
             '',
@@ -98,7 +100,7 @@ def write_example(dir, do_use_lpsolve, do_use_gurobi):
             '',
             '# USE-GUROBI',
             ('' if do_use_gurobi else '# ') + 'OPTS += -DUSE_GUROBI',
-            ('' if do_use_gurobi else '# ') + 'LDFLAGS += -lgurobi_c++ -lgurobi60 -lpthread',
+            ('' if do_use_gurobi else '# ') + 'LDFLAGS += -lgurobi_c++ -lgurobi60',
             '',
             'all: $(OBJS)',
             '\t$(CXX) $(OPTS) $(OBJS) $(IDFLAGS) $(LDFLAGS) -o $(TARGET)',
