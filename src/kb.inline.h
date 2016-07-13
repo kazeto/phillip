@@ -8,6 +8,15 @@ namespace kb
 {
 
 
+inline bool functional_predicate_configuration_t::is_good() const
+{
+    return
+        (m_pid != INVALID_PREDICATE_ID) and
+        not (m_rel & (REL_ASYMMETRIC | REL_SYMMETRIC)) and
+        not (m_rel & (REL_RIGHT_UNIQUE | REL_SYMMETRIC));
+}
+
+
 inline std::list<axiom_id_t> knowledge_base_t::axioms_database_t::
 gets_by_rhs(predicate_id_t rhs) const
 {

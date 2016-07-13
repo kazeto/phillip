@@ -87,30 +87,11 @@ void compile_kb_t::process( const sexp::reader_t *reader )
     for (const auto& c : stack->children())
     {
         if (c->is_functor(lf::OPR_STR_IMPLICATION))
-        {
-            IF_VERBOSE_FULL("Added implication: " + stack->expr());
-            _assert_syntax(
-                (c->children().size() >= 3), (*reader),
-                "Function '=>' and '>>' takes two arguments.");
             kb::kb()->axioms.add(lf::logical_function_t{ *c }, name);
-        }
         else if (c->is_functor(lf::OPR_STR_INCONSISTENT))
-        {
-            IF_VERBOSE_FULL("Added inconsistency: " + stack->expr());
-            _assert_syntax(
-                (c->children().size() >= 3), (*reader),
-                "Function 'xor' takes two arguments.");
             kb::kb()->predicates.define_mutual_exclusion(lf::logical_function_t(*c));
-        }
-        else if (c->is_functor(lf::OPR_STR_UNIPP))
-        {
-            IF_VERBOSE_FULL("Added unification-postponement: " + stack->expr());
-            _assert_syntax(
-                (c->children().size() >= 2), (*reader),
-                "Function 'unipp' takes one argument.");
-            kb::kb()->predicates.define_functional_predicate(
-                kb::functional_predicate_configuration_t(*c));
-        }
+        else if (c->is_functor(lf::OPR_STR_DEFINE))
+            kb::kb()->predicates.define_functional_predicate(lf::logical_function_t(*c));
     }
 }
 

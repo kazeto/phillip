@@ -24,7 +24,7 @@ enum logical_operator_t
     OPR_IMPLICATION,  /// Implication (as "=>")
     OPR_INCONSISTENT, /// Inconsistent (as "xor")
     OPR_REQUIREMENT,  /// Requirement (as "require")
-    OPR_UNIPP,        /// Unification-Postponement (as "unipp")
+    OPR_DEFINE,       /// Functional-predicate definition
 };
 
 
@@ -34,9 +34,8 @@ extern const std::string OPR_STR_OR;
 extern const std::string OPR_STR_IMPLICATION;
 extern const std::string OPR_STR_INCONSISTENT;
 extern const std::string OPR_STR_REQUIREMENT;
-extern const std::string OPR_STR_UNIPP;
-extern const std::string OPR_STR_EXARGSET; /// Exclusive argument set.
 extern const std::string OPR_STR_ASSERTION;
+extern const std::string OPR_STR_DEFINE;
 
 
 
@@ -59,7 +58,7 @@ public:
     inline const std::vector<logical_function_t>& branches() const;
     inline const logical_function_t& branch(int i) const;
     inline const literal_t& literal() const;
-    inline const std::string& param() const;
+    inline const string_t& param() const;
     bool param2int(int *out) const;
     bool param2double(double *out) const;
 
@@ -78,6 +77,7 @@ public:
     bool is_valid_as_implication() const;
     bool is_valid_as_inconsistency() const;
     bool is_valid_as_requirements() const;
+    bool is_valid_as_definition() const;
     
     /** Return literals included in this. */
     inline std::vector<const literal_t*> get_all_literals() const;
@@ -107,7 +107,7 @@ private:
     std::vector<logical_function_t> m_branches;
     
     /** Optional parameters for each implements. */
-    std::string m_param;
+    string_t m_param;
 };
 
 

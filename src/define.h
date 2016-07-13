@@ -163,6 +163,8 @@ public:
     inline bool is_unknown()  const { return m_is_unknown; }
     inline bool is_hard_term() const { return m_is_hard_term; }
 
+    inline bool is_unifiable_with(const string_hash_t&) const;
+
 private:
     /** Assign a hash to str if needed, and return the hash of str. */
     static inline unsigned get_hash(std::string str);
@@ -199,12 +201,17 @@ public:
     inline static literal_t equal(const term_t&, const term_t&);
     inline static literal_t not_equal(const term_t&, const term_t&);
 
+    // DEFAULT CONSTRUCTOR
     inline literal_t() : m_pid(kb::INVALID_PREDICATE_ID) {}
-    inline literal_t(kb::predicate_id_t pid, bool = true);
+
+    // CONSTRUCT A LITERAL WITH A PREDICATE-ID
     inline literal_t(kb::predicate_id_t pid, const std::vector<term_t>&, bool = true);
-    inline literal_t(const predicate_t&, bool = true);
+
+    // CONSTRUCT A LITERAL WITH A STRING AS THE PREDICATE
     inline literal_t(const predicate_t&, const std::vector<term_t>&, bool = true);
     inline literal_t(const predicate_t&, const std::initializer_list<std::string>&, bool = true);
+
+    // CONSTRUCT A LITERAL WITH S-EXPRESSION
     literal_t(const sexp::sexp_t &s);
 
     bool operator > (const literal_t &x) const;
@@ -226,6 +233,10 @@ public:
 
     inline bool is_valid() const;
     inline bool is_equality() const;
+    inline bool is_valid_as_functional_predicate() const;
+
+    inline bool do_share_predicate_with(const literal_t &x) const;
+    inline bool is_unifiable_with(const literal_t &x) const;
 
     bool is_functional() const;
 

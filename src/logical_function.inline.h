@@ -47,7 +47,7 @@ inline const literal_t& logical_function_t::literal() const
 }
 
 
-inline const std::string& logical_function_t::param() const
+inline const string_t& logical_function_t::param() const
 {
     return m_param;
 }

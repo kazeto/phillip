@@ -35,6 +35,13 @@ inline string_hash_t::string_hash_t( const std::string &s )
 }
 
 
+inline bool string_hash_t::is_unifiable_with(const string_hash_t &x) const
+{
+    return this->is_constant() ?
+        (not x.is_constant() or x == (*this)) : true;
+}
+
+
 inline string_hash_t string_hash_t::get_unknown_hash()
 {
     std::lock_guard<std::mutex> lock(ms_mutex_unknown);
@@ -188,23 +195,9 @@ inline literal_t literal_t::not_equal(const term_t &t1, const term_t &t2)
 }
 
 
-inline literal_t::literal_t(kb::predicate_id_t pid, bool truth)
-: m_pid(pid), m_truth(truth)
-{
-    regularize();
-}
-
-
 inline literal_t::literal_t(
     kb::predicate_id_t pid, const std::vector<term_t> &terms, bool truth)
     : m_pid(pid), m_terms(terms), m_truth(truth)
-{
-    regularize();
-}
-
-
-inline literal_t::literal_t(const predicate_t& pred, bool truth)
-: m_predicate(pred), m_truth(truth)
 {
     regularize();
 }
@@ -257,6 +250,40 @@ inline bool literal_t::is_valid() const
 inline bool literal_t::is_equality() const
 {
     return m_pid == kb::EQ_PREDICATE_ID;
+}
+
+
+inline bool literal_t::is_valid_as_functional_predicate() const
+{
+    return is_valid() and
+        (terms().size() == 2 or terms().size() == 3);
+}
+
+
+inline bool literal_t::do_share_predicate_with(const literal_t &x) const
+{
+    if (pid() != kb::INVALID_PREDICATE_ID)
+        return (pid() == x.pid());
+    else
+    {
+        return
+            (this->terms().size() == x.terms().size()) and
+            (this->predicate_with_arity() == x.predicate_with_arity());
+    }
+}
+
+
+inline bool literal_t::is_unifiable_with(const literal_t &x) const
+{
+    if (do_share_predicate_with(x))
+    {
+        for (index_t i = 0; i < this->terms().size(); ++i)
+        if (not this->terms().at(i).is_unifiable_with(x.terms().at(i)))
+            return false;
+        return true;
+    }
+    else
+        return false;
 }
 
 

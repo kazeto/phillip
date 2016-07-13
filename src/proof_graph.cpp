@@ -251,7 +251,7 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
     // CONSTRUCTS hard_term_satisfiers,
     // WHICH IS LISTS OF NODE-PAIR WHICH CAN SATISFY HARD-TERM CONSTRAINTS.
     hash_map<index_t, hash_map<index_t, std::pair<term_idx_t, term_idx_t>>> hard_terms;
-    for (auto p : m_pt_iter->hardterms())
+    for (const auto &p : m_pt_iter->hardterms())
         hard_terms[p.second.first][p.first.first] =
         std::make_pair(p.second.second, p.first.second);
 
@@ -267,14 +267,14 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
     }
     assert(not slots_pivot.empty());
 
-    // SUB-ROUTINE OF routine_recursive.
+    // CHECK WHETHER i-TH NODE OF nodes VIOLATES HARD-TERM.
     auto do_violate_hard_term =
         [&, this](const std::vector<pg::node_idx_t> *nodes, index_t i) -> bool
     {
         auto it = hard_terms.find(i);
         
         if (it != hard_terms.end())
-        for (auto p : it->second)
+        for (const auto &p : it->second)
         {
             const literal_t &l1 = m_graph->node(nodes->at(i)).literal();
             const literal_t &l2 = m_graph->node(nodes->at(p.first)).literal();
@@ -340,7 +340,7 @@ void proof_graph_t::chain_candidate_generator_t::enumerate()
 
 bool proof_graph_t::chain_candidate_generator_t::target_nodes_t::is_valid() const
 {
-    for (auto n : (*this))
+    for (const auto &n : (*this))
     if (n == -1)
         return false;
     return true;
@@ -358,8 +358,7 @@ void proof_graph_t::loop_detector_t::construct()
 }
 
 
-void proof_graph_t::unifiable_variable_clusters_set_t::add(
-    term_t t1, term_t t2 )
+void proof_graph_t::unifiable_variable_clusters_set_t::add(term_t t1, term_t t2)
 {
     m_variables.insert(t1);
     m_variables.insert(t2);

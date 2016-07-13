@@ -47,6 +47,8 @@ private:
         float distance() const { return dist_from + dist_to; }
         std::string to_string() const;
 
+        bool operator == (const reachability_t &x) const { return pg::chain_candidate_t::operator==(x); }
+
         pg::node_idx_t node_from; // The start node.
         pg::node_idx_t node_to;   // The goal node.
         float dist_from; // Distance from the start node to new nodes.

@@ -323,6 +323,8 @@ size_t literal_t::read_binary(const char *bin)
 
 inline void literal_t::regularize()
 {
+    // CHECK WHETHER THE PREDICATE HAS BEEN REGISTERED TO KB.
+    // IT NOT, THIS WILL KEEP THE STRING OF PREDICATE.
     if (not m_predicate.empty())
     {
         m_pid = kb::kb()->predicates.pred2id(

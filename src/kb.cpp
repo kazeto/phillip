@@ -42,45 +42,38 @@ functional_predicate_configuration_t::functional_predicate_configuration_t(predi
 }
 
 
-functional_predicate_configuration_t::functional_predicate_configuration_t(const sexp::sexp_t &s)
+functional_predicate_configuration_t::functional_predicate_configuration_t(const lf::logical_function_t &f)
 : m_pid(INVALID_PREDICATE_ID), m_rel(REL_NONE)
 {
-    // EXAMPLE: (define-functional-predicate (nsubj/3 asymmetric right-unique))
+    // EXAMPLE: (define (nsubj e x y :asymmetric:right-unique))
 
-    if (s.children().size() == 2)
+    literal_t lit = f.branch(0).literal();
+    auto rels = f.branch(0).param().split(":");
+
+    m_pid = kb::kb()->predicates.add(lit);
+
+    for (const auto &rs : rels)
+    if (not rs.empty())
     {
-        const sexp::sexp_t &def = s.child(1);
-        predicate_with_arity_t a = def.child(0).string();
-        predicate_t p;
-        arity_t n;
+        string_t r = rs.to_lower();
 
-        if (a.to_arity(&p, &n))
-        {
-            m_pid = kb::kb()->predicates.add(a);
-
-            for (auto it = ++def.children().begin(); it != def.children().end(); ++it)
-            {
-                string_t rs = (*it)->string().to_lower();
-
-                if (rs == "irreflexive")
-                    m_rel |= REL_IRREFLEXIVE;
-                else if (rs == "symmetric")
-                    m_rel |= REL_SYMMETRIC;
-                else if (rs == "asymmetric")
-                    m_rel |= REL_ASYMMETRIC;
-                else if (rs == "transitive")
-                    m_rel |= REL_TRANSITIVE;
-                else if (rs == "right-unique")
-                    m_rel |= REL_RIGHT_UNIQUE;
-                else
-                    util::print_warning_fmt(
-                    "phil::kb::functional_predicate_configuration_t: "
-                    "The relation property identifier \"%s\" is invalid and skipped.", rs);
-            }
-
-            assign_unifiability(m_rel, n);
-        }
+        if (rs == "irreflexive")
+            m_rel |= REL_IRREFLEXIVE;
+        else if (rs == "symmetric")
+            m_rel |= REL_SYMMETRIC;
+        else if (rs == "asymmetric")
+            m_rel |= REL_ASYMMETRIC;
+        else if (rs == "transitive")
+            m_rel |= REL_TRANSITIVE;
+        else if (rs == "right-unique")
+            m_rel |= REL_RIGHT_UNIQUE;
+        else
+            util::print_warning_fmt(
+            "phil::kb::functional_predicate_configuration_t: "
+            "The relation property identifier \"%s\" is invalid and skipped.", rs);
     }
+
+    assign_unifiability(m_rel, lit.terms().size());
 }
 
 
@@ -167,15 +160,22 @@ string_t functional_predicate_configuration_t::repr() const
 void functional_predicate_configuration_t::
 assign_unifiability(relation_flags_t flags, arity_t n)
 {
-    if (n == 2 or n == 3)
+    assert(n == 2 or n == 3);
+
+    if (n == 2)
+    {
+        if (flags & REL_RIGHT_UNIQUE)
+            m_unifiability.assign({ UNI_STRONGLY_LIMITED, UNI_UNLIMITED });
+        else
+            m_unifiability.assign({ UNI_WEAKLY_LIMITED, UNI_WEAKLY_LIMITED });
+    }
+    else
     {
         if (flags & REL_RIGHT_UNIQUE)
             m_unifiability.assign({ UNI_UNLIMITED, UNI_STRONGLY_LIMITED, UNI_UNLIMITED });
         else
             m_unifiability.assign({ UNI_UNLIMITED, UNI_WEAKLY_LIMITED, UNI_WEAKLY_LIMITED });
     }
-    else
-        m_pid = INVALID_PREDICATE_ID;
 }
 
 
@@ -1040,13 +1040,13 @@ axiom_id_t knowledge_base_t::axioms_database_t::add(
         return INVALID_AXIOM_ID;
     }
 
-    // ASSIGN ARITIES IN func TO ARITY-DATABASE.
+    // REGISTER PREDICATES IN func TO KNOWLEDGE-BASE.
     std::vector<const lf::logical_function_t*> branches;
     func.enumerate_literal_branches(&branches);
-    for (auto br : branches)
+    for (const auto &br : branches)
         kb()->predicates.add(br->literal().predicate_with_arity());
 
-    // WRITE AXIOM TO DATABASE
+    // WRITE AXIOM TO KNOWLEDGE-BASE.
     axiom_id_t id = size();
     {
         const int SIZE(512 * 512);
@@ -1100,6 +1100,8 @@ axiom_id_t knowledge_base_t::axioms_database_t::add(
         }
         map_pattern(lhs, id, false);
     }
+
+    IF_VERBOSE_FULL(util::format("ADDED IMPLICATION-RULE: %s", func.repr()));
 
     return id;
 }
@@ -1347,19 +1349,45 @@ predicate_id_t knowledge_base_t::predicate_database_t::add(const predicate_with_
 }
 
 
-void knowledge_base_t::predicate_database_t::define_functional_predicate(
-    const functional_predicate_configuration_t &fp)
+predicate_id_t knowledge_base_t::predicate_database_t::add(const literal_t &lit)
 {
-    if (fp.empty()) return;
+    if (lit.pid() == INVALID_PREDICATE_ID)
+        return add(lit.predicate_with_arity());
+    else
+        return lit.pid();
+}
 
+
+void knowledge_base_t::predicate_database_t::define_functional_predicate(
+    const lf::logical_function_t &lf)
+{
     if (not kb()->is_writable())
     {
         util::print_warning_fmt(
             "SKIPPED: \"%s\"\n"
             "    -> The knowledge base is not writable.",
-            id2pred(fp.predicate_id()).c_str());
+            lf.repr());
         return;
     }
+
+    if (not lf.is_valid_as_definition())
+    {
+        util::print_warning_fmt(
+            "SKIPPED: \"%s\"\n"
+            "    -> This formula has invalid form as a functional predicate definition.",
+            lf.repr());
+        return;
+    }
+
+    define_functional_predicate(
+        functional_predicate_configuration_t(lf));
+}
+
+
+void knowledge_base_t::predicate_database_t::
+define_functional_predicate(const functional_predicate_configuration_t &fp)
+{
+    if (not fp.is_good()) return;
 
     if (kb()->axioms.size() > 0)
     {

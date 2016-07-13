@@ -22,9 +22,8 @@ const std::string OPR_STR_OR = "v";
 const std::string OPR_STR_IMPLICATION = "=>";
 const std::string OPR_STR_INCONSISTENT = "xor";
 const std::string OPR_STR_REQUIREMENT = "req";
-const std::string OPR_STR_UNIPP = "unipp";
-const std::string OPR_STR_EXARGSET = "argset";
 const std::string OPR_STR_ASSERTION = "assert";
+const std::string OPR_STR_DEFINE = "define";
 
 
 bool logical_function_t::check_validity_of_conjunction(
@@ -118,9 +117,9 @@ logical_function_t::logical_function_t(const sexp::sexp_t &s)
                 m_branches.push_back(logical_function_t(**it));
         }
     }
-    else if (s.is_functor(OPR_STR_UNIPP))
+    else if (s.is_functor(OPR_STR_DEFINE))
     {
-        m_operator = OPR_UNIPP;
+        m_operator = OPR_DEFINE;
         for (auto it = ++s.children().cbegin(); it != s.children().cend(); ++it)
         {
             if (not(*it)->is_parameter())
@@ -203,10 +202,9 @@ std::string logical_function_t::repr() const
                 if (not is_literal) (*out) += ")";
             }
             break;
-        case OPR_UNIPP:
-            (*out) += "(uni-pp ";
-            print(&f->m_branches[0], out);
-            (*out) += ")";
+        case OPR_DEFINE:
+            (*out) += "define: ";
+            print(&f->branches().front(), out);
             break;
         }
     };
@@ -401,6 +399,19 @@ bool logical_function_t::is_valid_as_requirements() const
 }
 
 
+bool logical_function_t::is_valid_as_definition() const
+{
+    if (not is_operator(OPR_DEFINE)) return false;
+
+    if (branches().size() == 1) 
+    if (branches().front().is_operator(OPR_LITERAL))
+    if (branches().front().literal().is_valid_as_functional_predicate())
+        return true;
+
+    return false;
+}
+
+
 void logical_function_t::get_all_literals( std::list<literal_t> *out ) const
 {
     auto literals = get_all_literals();
@@ -425,9 +436,11 @@ void logical_function_t::get_all_literals_sub(
     case OPR_OR:
     case OPR_AND:
     case OPR_REQUIREMENT:
-    case OPR_UNIPP:
         for (int i = 0; i<m_branches.size(); i++)
             m_branches[i].get_all_literals_sub(p_out_list);
+        break;
+    case OPR_DEFINE:
+        p_out_list->push_back(&branch(0).literal());
         break;
     default:
         break;
@@ -451,9 +464,11 @@ void logical_function_t::enumerate_literal_branches(
     case OPR_OR:
     case OPR_AND:
     case OPR_REQUIREMENT:
-    case OPR_UNIPP:
         for (int i = 0; i<m_branches.size(); i++)
             m_branches[i].enumerate_literal_branches(out);
+        break;
+    case OPR_DEFINE:
+        out->push_back(&branch(0));
         break;
     default:
         break;
@@ -479,11 +494,11 @@ size_t logical_function_t::write_binary( char *bin ) const
         break;
     case OPR_IMPLICATION:
     case OPR_INCONSISTENT:
-        n += m_branches.at(0).write_binary( bin+n );
-        n += m_branches.at(1).write_binary( bin+n );
+        n += m_branches.at(0).write_binary(bin + n);
+        n += m_branches.at(1).write_binary(bin + n);
         break;
-    case OPR_UNIPP:
-        n += m_branches.at(0).write_binary( bin+n );
+    case OPR_DEFINE:
+        n += m_branches.at(0).write_binary(bin + n);
         break;
     default:
         break;
@@ -521,11 +536,11 @@ size_t logical_function_t::read_binary( const char *bin )
         n += m_branches[0].read_binary(bin + n);
         n += m_branches[1].read_binary(bin + n);
         break;
-    case OPR_UNIPP:
+    case OPR_DEFINE:
         m_branches.assign(1, logical_function_t());
         n += m_branches[0].read_binary(bin + n);
     default:
-        throw phillip_exception_t("Invalid operator occured.");
+        throw phillip_exception_t("Invalid operator was found.");
     }
 
     n += util::binary_to_string(bin + n, &m_param);

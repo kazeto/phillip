@@ -94,7 +94,7 @@ class functional_predicate_configuration_t
 public:
     functional_predicate_configuration_t();
     functional_predicate_configuration_t(predicate_id_t arity, relation_flags_t rel);
-    functional_predicate_configuration_t(const sexp::sexp_t &s);
+    functional_predicate_configuration_t(const lf::logical_function_t &f);
     functional_predicate_configuration_t(std::ifstream *fi);
 
     void write(std::ofstream *fo) const;
@@ -111,7 +111,7 @@ public:
     term_idx_t governor() const { return (m_unifiability.size() == 3) ? 1 : 0; }
     term_idx_t dependent() const { return (m_unifiability.size() == 3) ? 2 : 1; }
 
-    inline bool empty() const { return m_pid == INVALID_PREDICATE_ID; }
+    inline bool is_good() const;
     string_t repr() const;
 
 private:
@@ -132,7 +132,6 @@ public:
 
     ~knowledge_base_t();
 
-    
     void prepare_compile(); /// Prepares for compiling knowledge base.
     void prepare_query();   /// Prepares for reading knowledge base.
     void finalize();        /// Is called on the end of compiling or reading.
@@ -239,8 +238,10 @@ public:
 
     public:
         predicate_id_t add(const predicate_with_arity_t&);
+        predicate_id_t add(const literal_t&);
 
-        void define_functional_predicate(const functional_predicate_configuration_t &unipp);
+        void define_functional_predicate(const lf::logical_function_t&);
+        void define_functional_predicate(const functional_predicate_configuration_t&);
 
         void define_mutual_exclusion(const lf::logical_function_t &f);
         void define_mutual_exclusion(const literal_t &l1, const literal_t &l2);

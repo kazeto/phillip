@@ -50,10 +50,11 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
             break;
         }
 
-        // CHECK LHS-SIZE
+        // CHECK THE SIZE OF LATENT HYPOTHESES SET
         if (do_exceed_max_lhs_size(graph, max_size))
             break;
 
+        // IF THE CANDIDATE HAS BEEN NOT PROCESSED YET, THEN PROCESS IT
         if (considered.count(static_cast<pg::chain_candidate_t>(cand)) == 0)
         {
             lf::axiom_t axiom = base->axioms.get(cand.axiom_id);
@@ -61,53 +62,31 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
                 graph->forward_chain(cand.nodes, axiom) :
                 graph->backward_chain(cand.nodes, axiom);
             
+            // IF CHAINING HAD BEEN PERFORMED, POST-PROCESS THE NEW NODES
             if (hn_new >= 0)
             {
                 const std::vector<pg::node_idx_t> nodes_new = graph->hypernode(hn_new);
-
-                if (m_do_check_unified_path)
-                {
-                    for (auto n : nodes_new)
-                    if (not graph->node(n).literal().is_functional())
-                    {
-                        for (auto e : graph->enumerate_edges_with_node(n))
-                        if (graph->edge(e).is_unify_edge())
-                        {
-                            std::vector<hash_set<pg::node_idx_t>> ns;
-                            for (auto t : graph->hypernode(graph->edge(e).tail()))
-                            {
-                                ns.push_back(hash_set<pg::node_idx_t>());
-                                graph->enumerate_dependent_nodes(t, &ns.back());
-                                ns.back().insert(t);
-                            }
-                        }
-                    }
-                }
-
                 hash_map<pg::node_idx_t, std::pair<float, hash_set<pg::node_idx_t>>> from2goals;
 
-                // ENUMERATE REACHABLE-NODE AND THEIR PRE-ESTIMATED DISTANCE.
+                // ENUMERATE NODES REACHABLE FROM hn_new AND THEIR PRE-ESTIMATED DISTANCE.
                 for (auto rc : rl)
+                if (cand == rc)
                 {
-                    if (static_cast<pg::chain_candidate_t>(cand)
-                        == static_cast<pg::chain_candidate_t>(rc))
-                    {
-                        auto found = from2goals.find(rc.node_from);
+                    auto found = from2goals.find(rc.node_from);
 
-                        if (found == from2goals.end())
-                        {
-                            hash_set<pg::node_idx_t> set{ rc.node_to };
-                            from2goals[rc.node_from] = std::make_pair(rc.dist_from, set);
-                        }
-                        else
-                        {
-                            assert(found->second.first == rc.dist_from);
-                            found->second.second.insert(rc.node_to);
-                        }
+                    if (found == from2goals.end())
+                    {
+                        hash_set<pg::node_idx_t> set{ rc.node_to };
+                        from2goals[rc.node_from] = std::make_pair(rc.dist_from, set);
+                    }
+                    else
+                    {
+                        assert(found->second.first == rc.dist_from);
+                        found->second.second.insert(rc.node_to);
                     }
                 }
 
-                // ADD REACHABILITIES
+                // ADD REACHABILITIES FROM nodes_new
                 for (auto p : from2goals)
                 for (auto n : nodes_new)
                 {
@@ -124,10 +103,10 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
                 std::make_pair(static_cast<pg::chain_candidate_t>(cand), hn_new));
         }
 
+        // REMOVE CANDIDATES SIMILAR TO cand
         for (auto it = rl.begin(); it != rl.end();)
         {
-            if (static_cast<pg::chain_candidate_t>(cand)
-                == static_cast<pg::chain_candidate_t>(*it))
+            if ((*it) == cand)
                 it = rl.erase(it);
             else
                 ++it;
@@ -172,7 +151,7 @@ void a_star_based_enumerator_t::add_reachability(
     hash_set<pg::node_idx_t> goals_filtered;
     {
         predicate_with_arity_t arity_current = graph->node(current).predicate_with_arity();
-        for (auto g : goals)
+        for (const auto &g : goals)
         if (graph->node(g).predicate_with_arity() != arity_current)
             goals_filtered.insert(g);
     }
