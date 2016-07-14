@@ -138,7 +138,8 @@ void execute(
 
     bool do_compile =
         (config.mode == bin::EXE_MODE_COMPILE_KB) or
-        ph->flag("do-compile-kb");
+        ph->flag("compile-kb");
+    bool do_skip_parse_error = ph->flag("skip-parse-error");
 
     /* COMPILING KNOWLEDGE-BASE */
     if (do_compile)
@@ -148,7 +149,8 @@ void execute(
 
         kb::kb()->prepare_compile();
 
-        processor.add_component(new proc::compile_kb_t());
+        processor.add_component(
+            new proc::compile_kb_t(do_skip_parse_error));
         processor.process(inputs);
 
         kb::kb()->finalize();
@@ -208,7 +210,8 @@ void execute(
 
         util::print_console("Loading observations ...");
 
-        processor.add_component(new proc::parse_obs_t(&parsed_inputs));
+        processor.add_component(
+            new proc::parse_obs_t(&parsed_inputs, do_skip_parse_error));
         processor.process(inputs);
 
         util::print_console("Completed to load observations.");

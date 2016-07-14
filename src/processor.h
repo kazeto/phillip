@@ -1,11 +1,10 @@
 /* -*- coding: utf-8 -*- */
 
-#ifndef HENRY_PROCESSOR_H
-#define HENRY_PROCESSOR_H
-
+#pragma once
 
 #include "./sexp.h"
 #include "./logical_function.h"
+
 
 namespace phil
 {
@@ -18,9 +17,18 @@ namespace proc
 class component_t
 {
 public:
+    component_t(bool do_skip = false) : m_do_skip_parse_error(do_skip) {}
+    
     virtual void prepare() = 0;
-    virtual void process( const sexp::reader_t* ) = 0;
+    virtual void process(const sexp::reader_t*) = 0;
     virtual void quit() = 0;
+
+protected:
+    void print_syntax_error(const sexp::reader_t *r, const std::string &m);
+    
+    /** If true, this will skip invalid inputs.
+     *  Otherwise, this will abort Phillip when it encounts an invalid input. */
+    bool m_do_skip_parse_error;
 };
 
 
@@ -28,9 +36,11 @@ public:
 class parse_obs_t : public component_t
 {
 public:
-    parse_obs_t( std::vector<lf::input_t> *ipt ) : m_inputs(ipt) {}
+    parse_obs_t(std::vector<lf::input_t> *ipt, bool do_skip_parse_error)
+        : component_t(do_skip_parse_error), m_inputs(ipt) {}
+    
     virtual void prepare() {}
-    virtual void process( const sexp::reader_t* );
+    virtual void process(const sexp::reader_t*);
     virtual void quit() {}
 
 private:
@@ -42,6 +52,9 @@ private:
 class compile_kb_t : public component_t
 {
 public:
+    compile_kb_t(bool do_skip_parse_error)
+        : component_t(do_skip_parse_error() {}
+    
     virtual void prepare();
     virtual void process(const sexp::reader_t*);
     virtual void quit();
@@ -76,5 +89,3 @@ private:
 }
 
 
-
-#endif

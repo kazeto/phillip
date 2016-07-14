@@ -292,7 +292,7 @@ void logical_function_t::process_parameter(
 }
 
 
-bool logical_function_t::is_valid_as_observation() const
+bool logical_function_t::is_valid_as_observation(std::string *message) const
 {
     if (not is_operator(OPR_AND)) return false;
 
@@ -306,14 +306,18 @@ bool logical_function_t::is_valid_as_observation() const
             conj.push_back(&br);
             continue;
         }
+
+        if (message)
+            (*message) = "An observation must be a conjunction.";
+        
         return false;
     }
 
-    return check_validity_of_conjunction(conj, false);
+    return true;
 }
 
 
-bool logical_function_t::is_valid_as_implication() const
+bool logical_function_t::is_valid_as_implication(std::string *message) const
 {
     if (not is_operator(OPR_IMPLICATION)) return false;
     if (branches().size() != 2) return false;
@@ -328,7 +332,11 @@ bool logical_function_t::is_valid_as_implication() const
             if (br.literal().is_valid())
                 conj.push_back(&br);
             else
+            {
+                if (message)
+                    (*message) = "Invalid format as an implicational rule.";
                 return false;
+            }
         }
         else if (br.is_operator(OPR_AND))
         {
@@ -341,37 +349,55 @@ bool logical_function_t::is_valid_as_implication() const
                     continue;
                 }
 
+                if (message)
+                    (*message) = "Invalid format as an implicational rule.";
                 return false;
             }
         }
         else
+        {
+            if (message)
+                (*message) = "Invalid format as an implicational rule.";
             return false;
+        }
     }
 
     return check_validity_of_conjunction(conj, true);
 }
 
 
-bool logical_function_t::is_valid_as_inconsistency() const
+bool logical_function_t::is_valid_as_inconsistency(std::string *message) const
 {
-    if (branches().size() != 2) return false;
+    if (branches().size() != 2)
+    {
+        if (message)
+            (*message) = "Invalid format as a mutual exclusion definition."
+        return false;
+    }
 
     for (auto it = branches().begin(); it != branches().end(); ++it)
     {
         if (not it->is_operator(OPR_LITERAL))
+        {
+            if (message)
+                (*message) = "Invalid format as a mutual exclusion definition."
             return false;
+        }
         else if (it->literal().is_equality())
+        {
+            if (message)
+                (*message) = "Invalid format as a mutual exclusion definition."
             return false;
+        }
     }
 
     return true;
 }
 
 
-bool logical_function_t::is_valid_as_requirements() const
+bool logical_function_t::is_valid_as_requirements(std::string *message) const
 {
-    if (not is_operator(OPR_REQUIREMENT))
-        return false;
+    assert(is_operator(OPR_REQUIREMENT));
 
     size_t num_gold(0);
 
@@ -386,27 +412,47 @@ bool logical_function_t::is_valid_as_requirements() const
         {
             for (auto br2 : br.branches())
             if (not br2.is_operator(OPR_LITERAL))
+            {
+                if (message)
+                    (*message) = "Invalid format as a query."
                 return false;
+            }
         }
         else
+        {
+            if (message)
+                (*message) = "Invalid format as a query."
             return false;
+        }
     }
 
     if (branches().size() > 1 and num_gold > 1)
+    {
+        if (message)
+            (*message) = "Invalid format as a query."
         return false;
+    }
 
     return true;
 }
 
 
-bool logical_function_t::is_valid_as_definition() const
+bool logical_function_t::is_valid_as_definition(std::string *message) const
 {
-    if (not is_operator(OPR_DEFINE)) return false;
+    if (not is_operator(OPR_DEFINE))
+    {
+        if (message)
+            (*message) = "Invalid format as a functional predicate definition."
+        return false;
+    }
 
     if (branches().size() == 1) 
     if (branches().front().is_operator(OPR_LITERAL))
     if (branches().front().literal().is_valid_as_functional_predicate())
         return true;
+
+    if (message)
+        (*message) = "Invalid format as a functional predicate definition.";
 
     return false;
 }

@@ -13,34 +13,33 @@ namespace proc
 {
 
 
-#ifdef SKIP_SYNTAX_ERROR
-
-#define _assert_syntax(x, s, e) \
-    if (not(x)){ \
-        util::print_warning(\
-            util::format("Syntax error at line %d: ", s.get_line_num()) \
-            + e + "\n" + s.get_stack()->expr()); \
-        return; }
-
-#else
-
-#define _assert_syntax(x, s, e) \
-    if (not(x)) throw phillip_exception_t(\
-    util::format("Syntax error at line %d: ", s.get_line_num()) \
-    + e + "\n" + s.get_stack()->expr());
-
-#endif
+void component_t::print_syntax_error(const sexp::reader_t *r, const std::string &m)
+{
+    std::string disp =
+        util::format("Syntax error at line %d: ", r->get_line_num()) +
+        + m + "\n" + r->get_stack()->expr();
+        
+    if (m_do_skip_parse_error)
+        util::print_warning(disp);
+    else
+        throw phillip_exception_t(disp);
+}
 
 
 void parse_obs_t::process(const sexp::reader_t *reader)
 {
     const sexp::sexp_t& stack(*reader->get_stack());
+    std::string message; // FOR ERROR MESSAGE
 
     if (not stack.is_functor("O") or m_inputs == NULL)
         return;
 
     /* SHOULD BE ROOT. */
-    _assert_syntax(reader->is_root(), (*reader), "Function O should be root.");
+    if (not reader->is_root())
+    {
+        print_syntax_error(reader, "Function O should be root.");
+        return;
+    }
 
     std::string name = "?";
     int i_obs = stack.find_functor(lf::OPR_STR_AND);
@@ -50,18 +49,30 @@ void parse_obs_t::process(const sexp::reader_t *reader)
     if (i_name >= 0)
         name = stack.child(i_name).child(1).string();
 
-    _assert_syntax((i_obs >= 0), (*reader), "Any input was not found: " + name);
+    if (i_obs < 0)
+    {
+        print_syntax_error(reader, "Any observation was not found.");
+        return;
+    }
 
     lf::input_t data;
     data.name = reader->name() + "::" + name;
     data.obs = lf::logical_function_t(stack.child(i_obs));
 
-    _assert_syntax(data.obs.is_valid_as_observation(), (*reader), "Invalid observation: \"" + name + "\"");
+    if (not data.obs.is_valid_as_observation(&message))
+    {
+        print_syntax_error(reader, message);
+        return;
+    }
 
     if (i_req >= 0)
     {
         data.req = lf::logical_function_t(stack.child(i_req));
-        _assert_syntax(data.req.is_valid_as_requirements(), (*reader), "Arguments of req are invalid.");
+        if(not data.req.is_valid_as_requirements(&message))
+        {
+            print_syntax_error(reader, message);
+            return;
+        }
     }
 
     m_inputs->push_back(data);
@@ -72,26 +83,50 @@ void compile_kb_t::prepare()
 {}
 
 
-void compile_kb_t::process( const sexp::reader_t *reader )
-{    
+void compile_kb_t::process(const sexp::reader_t *reader)
+{
     const sexp::sexp_t *stack(reader->get_stack());
+    std::string message; // FOR ERROR MESSAGE
 
     if (not stack->is_functor("B")) return;
 
     /* SHOULD BE ROOT. */
-    _assert_syntax(reader->is_root(), (*reader), "Function B should be root.");
+    if (not reader->is_root())
+    {
+        print_syntax_error(reader, "Function B must be root.");
+        return;
+    }
 
     index_t idx_name = stack->find_functor(lf::OPR_STR_NAME);        
-    std::string name((idx_name >= 0) ? stack->child(idx_name).child(1).string() : "");
-
+    std::string name =
+        (idx_name >= 0) ? stack->child(idx_name).child(1).string() : "";
+    
     for (const auto& c : stack->children())
     {
         if (c->is_functor(lf::OPR_STR_IMPLICATION))
-            kb::kb()->axioms.add(lf::logical_function_t{ *c }, name);
+        {
+            lf::logical_function_t func{ *c };
+            if (func.is_valid_as_implication(&message))
+                kb::kb()->axioms.add(func, name);
+            else
+                print_syntax_error(reader, message);
+        }
         else if (c->is_functor(lf::OPR_STR_INCONSISTENT))
-            kb::kb()->predicates.define_mutual_exclusion(lf::logical_function_t(*c));
+        {
+            lf::logical_function_t func{ *c };
+            if (func.is_valid_as_inconsistency(&message))
+                kb::kb()->predicates.define_mutual_exclusion(func);
+            else
+                print_syntax_error(reader, message);
+        }
         else if (c->is_functor(lf::OPR_STR_DEFINE))
-            kb::kb()->predicates.define_functional_predicate(lf::logical_function_t(*c));
+        {
+            lf::logical_function_t func{ *c };
+            if (func.is_valid_as_definition(&message))
+                kb::kb()->predicates.define_functional_predicate(func);
+            else
+                print_syntax_error(reader, message);
+        }
     }
 }
 

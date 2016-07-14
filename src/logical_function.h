@@ -73,11 +73,11 @@ public:
 
     void process_parameter(const std::function<bool(const std::string&)>&) const;
 
-    bool is_valid_as_observation() const;
-    bool is_valid_as_implication() const;
-    bool is_valid_as_inconsistency() const;
-    bool is_valid_as_requirements() const;
-    bool is_valid_as_definition() const;
+    bool is_valid_as_observation(std::string* = nullptr) const;
+    bool is_valid_as_implication(std::string* = nullptr) const;
+    bool is_valid_as_inconsistency(std::string* = nullptr) const;
+    bool is_valid_as_requirements(std::string* = nullptr) const;
+    bool is_valid_as_definition(std::string* = nullptr) const;
     
     /** Return literals included in this. */
     inline std::vector<const literal_t*> get_all_literals() const;
