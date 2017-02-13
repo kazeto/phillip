@@ -53,7 +53,7 @@ class compile_kb_t : public component_t
 {
 public:
     compile_kb_t(bool do_skip_parse_error)
-        : component_t(do_skip_parse_error() {}
+        : component_t(do_skip_parse_error) {}
     
     virtual void prepare();
     virtual void process(const sexp::reader_t*);

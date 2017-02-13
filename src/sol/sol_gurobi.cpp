@@ -30,8 +30,8 @@ gurobi_t::gurobi_t(const phillip_main_t *ptr, int thread_num, bool do_output_log
 
 void gurobi_t::execute(std::vector<ilp::ilp_solution_t> *out) const
 {
-#ifdef USE_GUROBI
     const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
+#ifdef USE_GUROBI
     solve(prob, out);
 #else
     out->push_back(ilp::ilp_solution_t(

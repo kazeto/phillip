@@ -16,7 +16,7 @@ namespace proc
 void component_t::print_syntax_error(const sexp::reader_t *r, const std::string &m)
 {
     std::string disp =
-        util::format("Syntax error at line %d: ", r->get_line_num()) +
+        util::format("Syntax error at line %d: ", r->get_line_num())
         + m + "\n" + r->get_stack()->expr();
         
     if (m_do_skip_parse_error)
@@ -232,9 +232,13 @@ void processor_t::include( const sexp::reader_t *reader )
     if( stack.is_functor("include") )
     {
         const sexp::sexp_t& arg(stack.child(1));
-        _assert_syntax(
-            (arg.type() == sexp::sexp_t::STRING_STACK),
-            (*reader), "what is included should be a string.");
+		if (arg.type() == sexp::sexp_t::STRING_STACK)
+		{
+			std::string disp =
+				util::format("Syntax error at line %d: ", reader->get_line_num())
+				+ "what is included should be a string.\n" + reader->get_stack()->expr();
+			util::print_warning(disp);
+		}
         
         std::vector<std::string> inputs(1, arg.string());
         process( inputs );

@@ -245,8 +245,10 @@ bool logical_function_t::find_parameter(const std::string &query) const
 }
 
 
-bool logical_function_t::scan_parameter(const std::string &format, ...) const
+bool logical_function_t::scan_parameter(std::string format, ...) const
 {
+	// TO ABOID C2338, format IS NOT REFERENCE.
+
     if (m_param.empty()) return false;
 
     int idx1(1), idx2;
@@ -370,8 +372,8 @@ bool logical_function_t::is_valid_as_inconsistency(std::string *message) const
 {
     if (branches().size() != 2)
     {
-        if (message)
-            (*message) = "Invalid format as a mutual exclusion definition."
+		if (message)
+			(*message) = "Invalid format as a mutual exclusion definition.";
         return false;
     }
 
@@ -379,14 +381,14 @@ bool logical_function_t::is_valid_as_inconsistency(std::string *message) const
     {
         if (not it->is_operator(OPR_LITERAL))
         {
-            if (message)
-                (*message) = "Invalid format as a mutual exclusion definition."
+			if (message)
+				(*message) = "Invalid format as a mutual exclusion definition.";
             return false;
         }
         else if (it->literal().is_equality())
         {
-            if (message)
-                (*message) = "Invalid format as a mutual exclusion definition."
+			if (message)
+				(*message) = "Invalid format as a mutual exclusion definition.";
             return false;
         }
     }
@@ -413,23 +415,23 @@ bool logical_function_t::is_valid_as_requirements(std::string *message) const
             for (auto br2 : br.branches())
             if (not br2.is_operator(OPR_LITERAL))
             {
-                if (message)
-                    (*message) = "Invalid format as a query."
+				if (message)
+					(*message) = "Invalid format as a query.";
                 return false;
             }
         }
         else
         {
-            if (message)
-                (*message) = "Invalid format as a query."
+			if (message)
+				(*message) = "Invalid format as a query.";
             return false;
         }
     }
 
     if (branches().size() > 1 and num_gold > 1)
     {
-        if (message)
-            (*message) = "Invalid format as a query."
+		if (message)
+			(*message) = "Invalid format as a query.";
         return false;
     }
 
@@ -441,8 +443,8 @@ bool logical_function_t::is_valid_as_definition(std::string *message) const
 {
     if (not is_operator(OPR_DEFINE))
     {
-        if (message)
-            (*message) = "Invalid format as a functional predicate definition."
+		if (message)
+			(*message) = "Invalid format as a functional predicate definition.";
         return false;
     }
 

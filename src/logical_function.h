@@ -69,7 +69,7 @@ public:
     bool do_include(const literal_t& lit) const;
 
     bool find_parameter(const std::string &query) const;
-    bool scan_parameter(const std::string &format, ...) const;
+    bool scan_parameter(std::string format, ...) const;
 
     void process_parameter(const std::function<bool(const std::string&)>&) const;
 

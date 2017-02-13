@@ -20,8 +20,8 @@ gurobi_k_best_t::gurobi_k_best_t(
 
 void gurobi_k_best_t::execute(std::vector<ilp::ilp_solution_t> *out) const
 {
+	const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
 #ifdef USE_GUROBI
-    const ilp::ilp_problem_t *prob = phillip()->get_ilp_problem();
     solve(prob, out);
 #else
     out->push_back(ilp::ilp_solution_t(
