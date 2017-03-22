@@ -33,6 +33,9 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
 
     auto begin = std::chrono::system_clock::now();
     add_observations(graph);
+    
+    int max_chain_num = phillip()->param_int("max_chain_num", -1);
+    int chain_num(0);
 
     for (int depth = 0; (m_depth_max < 0 or depth < m_depth_max); ++depth)
     {
@@ -66,13 +69,20 @@ pg::proof_graph_t* depth_based_enumerator_t::execute() const
                 pg::hypernode_idx_t to = c.is_forward ?
                     graph->forward_chain(c.nodes, axiom) :
                     graph->backward_chain(c.nodes, axiom);
+
+                if (to >= 0) ++chain_num;
             }
 
+            // CHECK TIME-OUT
             if (do_time_out(begin))
             {
                 graph->timeout(true);
                 goto TIMED_OUT;
             }
+
+            // CHECK CHAIN-LIMIT
+            if (max_chain_num > 0 and chain_num >= max_chain_num)
+                goto TIMED_OUT;
         }
     }
 

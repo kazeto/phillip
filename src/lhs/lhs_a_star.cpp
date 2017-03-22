@@ -38,6 +38,9 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
     reachability_manager_t rm;
     initialize_reachability(graph, &rm);
 
+    int max_chain_num = phillip()->param_int("max_chain_num", -1);
+    int chain_num(0);
+
     while (not rm.empty())
     {
         const reachability_t cand = rm.top();
@@ -50,6 +53,10 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
             graph->timeout(true);
             break;
         }
+
+        // CHECK CHAIN-LIMIT
+        if (max_chain_num > 0 and chain_num >= max_chain_num)
+            break;
 
         if (considered.count(static_cast<pg::chain_candidate_t>(cand)) == 0)
         {
@@ -96,6 +103,8 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
                             graph, p.first, n, dist, p.second.second, &rm);
                     }
                 }
+
+                ++chain_num;
             }
 
             considered.insert(
