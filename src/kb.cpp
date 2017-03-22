@@ -412,7 +412,8 @@ axiom_id_t knowledge_base_t::insert_implication(
         std::vector<const lf::logical_function_t*> branches;
         func.enumerate_literal_branches(&branches);
         for (auto br : branches)
-            m_arity_db.add(br->literal().get_arity());
+            if (not br->literal().is_equality())
+                m_arity_db.add(br->literal().get_arity());
 
         // IF func IS CATEGORICAL KNOWLEDGE, IT IS INSERTED TO CATEGORY-TABLE.
         if (m_category_table.instance->insert(func))
@@ -1037,6 +1038,8 @@ void knowledge_base_t::create_query_map()
         for (index_t i = 0; i < branches.size(); ++i)
         {
             const literal_t &lit = branches[i]->literal();
+            if (lit.is_equality()) continue;
+            
             std::string arity = lit.get_arity();
             arity_id_t idx = search_arity_id(arity);
 
