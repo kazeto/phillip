@@ -84,6 +84,9 @@
     <ClCompile Include="..\src\sexp.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\parser.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\binary.h">
@@ -99,15 +102,6 @@
       <Filter>header</Filter>
     </ClInclude>
     <ClInclude Include="..\src\define.inline.h">
-      <Filter>header</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\factory_lhs.h">
-      <Filter>header</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\factory_lpp.h">
-      <Filter>header</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\factory_sol.h">
       <Filter>header</Filter>
     </ClInclude>
     <ClInclude Include="..\src\lib\getopt_win.h">
@@ -162,6 +156,9 @@
       <Filter>header</Filter>
     </ClInclude>
     <ClInclude Include="..\src\sexp.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\parser.h">
       <Filter>header</Filter>
     </ClInclude>
   </ItemGroup>

@@ -106,6 +106,22 @@ string_t string_t::replace(const std::string &from, const std::string &to) const
 }
 
 
+string_t phil::string_t::strip(const char *targets) const
+{
+	size_t idx1(0);
+	for (; idx1 < this->length(); ++idx1)
+		if (strchr(targets, this->at(idx1)) == NULL)
+			break;
+
+	size_t idx2(this->length());
+	for (; idx2 > idx1; --idx2)
+		if (strchr(targets, this->at(idx2 - 1)) == NULL)
+			break;
+
+	return (idx1 == idx2) ? "" : this->substr(idx1, idx2 - idx1);
+}
+
+
 std::mutex string_hash_t::ms_mutex_hash;
 std::mutex string_hash_t::ms_mutex_unknown;
 hash_map<std::string, unsigned> string_hash_t::ms_hashier;

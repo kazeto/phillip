@@ -122,6 +122,8 @@ public:
     string_t(const char *s) : std::string(s) {}
     string_t(const std::string &s) : std::string(s) {}
 
+    inline explicit operator bool() const { return not empty(); }
+
     bool to_arity(predicate_t *p, arity_t *n) const;
     std::pair<predicate_t, arity_t> to_arity() const;
 
@@ -129,6 +131,7 @@ public:
 
     std::vector<string_t> split(const char *separator, const int MAX_NUM = -1) const;
     string_t replace(const std::string &from, const std::string &to) const;
+	string_t strip(const char *targets) const;
 };
 
 
