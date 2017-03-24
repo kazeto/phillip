@@ -25,10 +25,11 @@ public:
 
     char get(const condition_t&);
 
-    string_t read(const condition_t&);
     string_t read(const formatter_t&);
 
     void ignore(const condition_t&);
+
+    void skip(); /// Skips spaces and comments.
 
     size_t row() const { return m_row; }
     size_t column() const { return m_column; }
