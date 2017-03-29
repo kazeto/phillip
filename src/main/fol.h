@@ -1,7 +1,9 @@
 #pragma once
 
 #include "./util.h"
+
 #include <cassert>
+#include <set>
 
 namespace dav
 {
@@ -219,8 +221,6 @@ class predicate_library_t
 public:
     static predicate_library_t* instance();
 
-    predicate_library_t();
-
     void init();
     void load();
     void write() const;
@@ -242,6 +242,8 @@ public:
 	const predicate_property_t* find_property(predicate_id_t) const;
 
 private:
+    predicate_library_t();
+
     static std::unique_ptr<predicate_library_t> ms_instance; /// For singleton pattern.
 
     filepath_t m_filename;
@@ -263,6 +265,13 @@ public:
 	{
 		feature_t() {}
 		feature_t(binary_reader_t&);
+
+		bool operator<(const feature_t &x) const;
+		bool operator>(const feature_t &x) const;
+		bool operator==(const feature_t &x) const;
+		bool operator!=(const feature_t &x) const;
+
+		size_t bytesize() const;
 
 		std::vector<predicate_id_t> pids;
 	};
@@ -293,6 +302,29 @@ template <> void binary_writer_t::write<conjunction_t::feature_t>(const conjunct
 	for (const auto &pid : x.pids)
 		write<predicate_id_t>(pid);
 }
+
+
+/** A class to strage all patterns of conjunctions found in KB. */
+class conjunction_library_t : public cdb_data_t
+{
+public:
+	static void initialize(const filepath_t &path);
+	static conjunction_library_t* instance();
+
+	void prepare_compile();
+	void prepare_query();
+	void finalize();
+
+	void insert(const conjunction_t&);
+	std::list<conjunction_t::feature_t> get(predicate_id_t) const;
+
+private:
+	conjunction_library_t(const filepath_t &path);
+
+	static std::unique_ptr<conjunction_library_t> ms_instance;
+
+	std::unordered_map<predicate_id_t, std::set<conjunction_t::feature_t>> m_features;
+};
 
 
 /** A class to represents rules. */

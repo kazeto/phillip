@@ -130,46 +130,48 @@ void knowledge_base_t::finalize()
     axioms.finalize();
     heuristics.finalize();
 
+	auto *preds = predicate_library_t::instance();
+
     if (state == STATE_COMPILE)
     {
         extend_inconsistency();
         create_reachable_matrix();
         write_config();
-        predicate_library_t::instance()->write();
+        preds->write();
 
-        if (param()->has("do_print_reachability"))
+        if (param()->has("print-reachability"))
         {
-            std::cerr << "Reachability Matrix:" << std::endl;
+			std::ofstream fo(param()->get("print-reachability"));
+
+            fo << "Reachability Matrix:" << std::endl;
             heuristics.prepare_query();
 
-            std::cerr << std::setw(30) << std::right << "" << " | ";
-            for (auto arity : predicates.arities())
-                std::cerr << arity << " | ";
-            std::cerr << std::endl;
+            fo << std::setw(30) << std::right << "" << " | ";
+            for (auto p : preds->predicates())
+                fo << p.string() << " | ";
+            fo << std::endl;
 
-            for (auto a1 : predicates.arities())
+            for (auto p1 : preds->predicates())
             {
-                predicate_id_t idx1 = predicates.pred2id(a1);
-                std::cerr << std::setw(30) << std::right << a1 << " | ";
+                predicate_id_t idx1 = preds->pred2id(p1);
+                fo << std::setw(30) << std::right << p1.string() << " | ";
 
-                for (auto a2 : predicates.arities())
+                for (auto p2 : preds->predicates())
                 {
-                    predicate_id_t idx2 = predicates.pred2id(a2);
+                    predicate_id_t idx2 = preds->pred2id(p2);
                     float dist = heuristics.get(idx1, idx2);
-                    std::cerr << std::setw(a2.length()) << dist << " | ";
+                    fo << std::setw(p2.string().length()) << dist << " | ";
                 }
-                std::cerr << std::endl;
+                fo << std::endl;
             }
         }
-
-        predicates.clear();
     }
 }
 
 
 void knowledge_base_t::write_config() const
 {
-    std::string filename(m_filename + ".conf");
+    std::string filename(m_config.path + ".conf");
     std::ofstream fo(
         filename.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);
     char version(NUM_OF_KB_VERSION_TYPES - 1); // LATEST VERSION
@@ -177,14 +179,13 @@ void knowledge_base_t::write_config() const
 
     if (not fo)
         throw phillip_exception_t(
-        util::format("Cannot open KB-configuration file: \"%s\"", filename.c_str()));
+        format("Cannot open KB-configuration file: \"%s\"", filename.c_str()));
 
     fo.write(&version, sizeof(char));
-    fo.write((char*)&m_config_for_compile.max_distance, sizeof(float));
+    fo.write((char*)&m_config.max_distance, sizeof(float));
 
     fo.write(&num_dp, sizeof(char));
     fo.write(m_distance_provider.key.c_str(), m_distance_provider.key.length());
-    m_distance_provider.instance->write(&fo);
 
     fo.close();
 }
@@ -192,14 +193,14 @@ void knowledge_base_t::write_config() const
 
 void knowledge_base_t::read_config()
 {
-    std::string filename(m_filename + ".conf");
+    std::string filename(m_config.path + ".conf");
     std::ifstream fi(filename.c_str(), std::ios::in | std::ios::binary);
     char version, num;
     char key[256];
 
     if (not fi)
         throw phillip_exception_t(
-        util::format("Cannot open KB-configuration file: \"%s\"", filename.c_str()));
+        format("Cannot open KB-configuration file: \"%s\"", filename.c_str()));
 
     fi.read(&version, sizeof(char));
 
@@ -216,13 +217,12 @@ void knowledge_base_t::read_config()
         throw phillip_exception_t(
         "This compiled knowledge base is too old. Please re-compile it.");
 
-    fi.read((char*)&m_config_for_compile.max_distance, sizeof(float));
+    fi.read((char*)&m_config.max_distance, sizeof(float));
 
     fi.read(&num, sizeof(char));
     fi.read(key, num);
     key[num] = '\0';
     set_distance_provider(key);
-    m_distance_provider.instance->read(&fi);
 
     fi.close();
 }
@@ -234,7 +234,7 @@ std::list<conjunction_pattern_t> knowledge_base_t::axioms_database_t::patterns(p
 
     if (not m_cdb_arity_patterns.is_readable())
     {
-        util::print_warning("kb-search: Kb-state is invalid.");
+        console()->warn("kb-search: Kb-state is invalid.");
         return out;
     }
 

@@ -242,6 +242,9 @@ public:
 	void add_indent();
 	void sub_indent();
 
+	int& verbosity() { return m_verbosity; }
+	int verbosity() const { return m_verbosity; }
+
 private:
 	console_t() : m_indent(0) {}
 
@@ -253,9 +256,16 @@ private:
 	static std::mutex ms_mutex;
 
 	int m_indent;
+	int m_verbosity;
 };
 
 console_t* console() { return console_t::instance(); }
+
+#define PRINT_VERBOSE_1(s) if (console()->verbosity() >= 1) console()->print(s)
+#define PRINT_VERBOSE_2(s) if (console()->verbosity() >= 2) console()->print(s)
+#define PRINT_VERBOSE_3(s) if (console()->verbosity() >= 3) console()->print(s)
+#define PRINT_VERBOSE_4(s) if (console()->verbosity() >= 4) console()->print(s)
+#define PRINT_VERBOSE_5(s) if (console()->verbosity() >= 5) console()->print(s)
 
 
 /** A class to see duration-time. */
@@ -376,6 +386,7 @@ public:
 	}
 
 	size_t size() { return m_size; }
+	void reset() { m_size = 0; }
 
 private:
 	const char* current() { return m_ptr + m_size; }

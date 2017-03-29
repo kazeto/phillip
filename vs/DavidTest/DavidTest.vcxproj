@@ -149,6 +149,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\main\fol.cpp" />
+    <ClCompile Include="..\..\src\main\fol_conjunction_library.cpp" />
     <ClCompile Include="..\..\src\main\fol_literal.cpp" />
     <ClCompile Include="..\..\src\main\fol_predicate_library.cpp" />
     <ClCompile Include="..\..\src\main\fol_predicate.cpp" />

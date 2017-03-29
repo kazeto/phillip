@@ -38,6 +38,36 @@ conjunction_t::feature_t::feature_t(binary_reader_t &r)
 }
 
 
+bool conjunction_t::feature_t::operator<(const feature_t &x) const
+{
+	return pids < x.pids;
+}
+
+
+bool conjunction_t::feature_t::operator>(const feature_t &x) const
+{
+	return pids > x.pids;
+}
+
+
+bool conjunction_t::feature_t::operator==(const feature_t &x) const
+{
+	return pids == x.pids;
+}
+
+
+bool conjunction_t::feature_t::operator!=(const feature_t &x) const
+{
+	return pids != x.pids;
+}
+
+
+size_t conjunction_t::feature_t::bytesize() const
+{
+	return sizeof(predicate_id_t) * pids.size();
+}
+
+
 rule_t::rule_t(binary_reader_t &r)
 {
 	r.read<std::string>(&m_name);
