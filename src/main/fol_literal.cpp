@@ -42,6 +42,34 @@ literal_t::literal_t(
 }
 
 
+literal_t::literal_t(binary_reader_t &r)
+{
+	std::string s_buf;
+	predicate_id_t pid;
+
+	r.read<predicate_id_t>(&pid);
+	assert(pid != INVALID_PREDICATE_ID);
+	m_predicate = predicate_t(pid);
+
+	// READ ARGUMENTS
+	m_terms.assign(m_predicate.arity(), term_t());
+	for (int i = 0; i<m_predicate.arity(); ++i)
+	{
+		r.read<std::string>(&s_buf);
+		m_terms[i] = term_t(s_buf);
+	}
+
+	// READ NEGATION
+	char flag;
+	r.read<char>(&flag);
+	m_neg = (bool)(flag & 0b0001);
+	m_naf = (bool)(flag & 0b0010);
+
+	// READ PARAMETER
+	r.read<std::string>(&m_param);
+}
+
+
 bool literal_t::operator > (const literal_t &x) const
 {
     if (m_neg != x.m_neg) return not m_neg;
@@ -123,59 +151,6 @@ string_t literal_t::string() const
     out += ")";
 
     return out;
-}
-
-
-// This method is called only in compiling KB!
-size_t literal_t::write_binary(char *bin) const
-{
-    size_t n(0);
-
-    assert(m_predicate.pid() != INVALID_PREDICATE_ID);
-    n += util::to_binary<predicate_id_t>(m_predicate.pid(), bin);
-
-    /* terms */
-    n += util::num_to_binary(m_terms.size(), bin + n);
-    for (int i = 0; i < m_terms.size(); ++i)
-        n += util::string_to_binary(m_terms.at(i).string(), bin + n);
-
-    char flag(0b0000);
-    if (m_neg) flag |= 0b0001;
-    if (m_naf) flag |= 0b0010;
-    n += util::to_binary<char>(flag, bin + n);
-
-    return n;
-}
-
-
-// This method is called only in looking up KB!
-size_t literal_t::read_binary(const char *bin)
-{
-    size_t n(0);
-    std::string s_buf;
-    int i_buf;
-
-    predicate_id_t pid;
-    n += util::binary_to<predicate_id_t>(bin, &pid);
-    assert(pid != INVALID_PREDICATE_ID);
-    m_predicate = predicate_t(pid);
-
-    n += util::binary_to_num(bin + n, &i_buf);
-    m_terms.assign(i_buf, term_t());
-    assert(m_predicate.arity() == i_buf);
-
-    for (int i = 0; i<i_buf; ++i)
-    {
-        n += util::binary_to_string(bin + n, &s_buf);
-        m_terms[i] = term_t(s_buf);
-    }
-
-    char flag;
-    n += util::binary_to<char>(bin + n, &flag);
-    m_neg = (bool)(flag & 0b0001);
-    m_naf = (bool)(flag & 0b0010);
-
-    return n;
 }
 
 

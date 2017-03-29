@@ -18,9 +18,6 @@ namespace dav
 {
 
 
-namespace pg { class proof_graph_t; }
-
-
 namespace kb
 {
 
@@ -36,34 +33,27 @@ enum version_e
 };
 
 
-/** A class for keys to look up KB.
-* The first element is a predicate list.
-* The second is argument pairs which are hard-term.
-*/
-class conjunction_pattern_t
-    : public std::pair<std::vector<predicate_id_t>, std::list<std::pair<term_pos_t, term_pos_t>>>
-{
-public:
-    std::vector<predicate_id_t>& predicates() { return this->first; }
-    const std::vector<predicate_id_t>& predicates() const { return this->first; }
-
-    std::list<std::pair<term_pos_t, term_pos_t>>& hardterms() { return this->second; }
-    const std::list<std::pair<term_pos_t, term_pos_t>>& hardterms() const { return this->second; }
-};
-
-
 /** A virtual class to define distance between predicates
  *  on creation of reachable-matrix. */
 class distance_function_t
 {
 public:
     virtual ~distance_function_t() {}
-    virtual float operator() (const lf::axiom_t &ax) const = 0;
 
-    virtual void read(std::ifstream *fi) = 0;
-    virtual void write(std::ofstream *fo) const = 0;
+	virtual double operator()(const rule_t&) const = 0;
 
     virtual std::string repr() const = 0;
+};
+
+
+struct configuration_t
+{
+	configuration_t();
+
+	filepath_t path;
+	double max_distance;
+	int thread_num;
+	string_t dp_key; /// Key of distance-provider
 };
 
 
@@ -71,7 +61,7 @@ public:
 class knowledge_base_t
 {
 public:
-    static void initialize(std::string filename, const phillip_main_t *ph);
+    static void initialize(const configuration_t &conf);
     static knowledge_base_t* instance();
 
     ~knowledge_base_t();
@@ -80,7 +70,7 @@ public:
     void prepare_query();   /// Prepares for reading knowledge base.
     void finalize();        /// Is called on the end of compiling or reading.
 
-    void set_distance_provider(const std::string &key, const phillip_main_t *ph = NULL);
+    void set_distance_provider(const string_t &key);
 
     /** Returns ditance between arity1 and arity2
      *  in a reachable-matrix in the current knowledge-base.
@@ -89,16 +79,14 @@ public:
     float get_distance(predicate_id_t a1, predicate_id_t a2) const;
 
     /** Returns distance between arity1 and arity2 with distance-provider. */
-    inline float get_distance(const lf::axiom_t &axiom) const;
     inline float get_distance(axiom_id_t id) const;
 
-    inline version_e version() const     { return m_version; }
-    inline bool is_valid_version() const { return m_version == KB_VERSION_12; }
-    inline bool is_writable() const      { return m_state == STATE_COMPILE; }
-    inline bool is_readable() const      { return m_state == STATE_QUERY; }
-    inline bool can_deduce() const { return m_config_for_compile.can_deduction; }
-    inline const std::string& filename() const { return m_filename; }
-    inline float get_max_distance() const;
+    version_e version() const     { return m_version; }
+    bool is_valid_version() const { return m_version == KB_VERSION_12; }
+    bool is_writable() const      { return m_state == STATE_COMPILE; }
+    bool is_readable() const      { return m_state == STATE_QUERY; }
+    const std::string& filename() const { return m_config.path; }
+	float get_max_distance() const { return m_config.max_distance; }
 
     inline void clear_distance_cache();
 
@@ -116,8 +104,8 @@ public:
     public:
         ~axioms_database_t();
 
-        axiom_id_t add(const lf::logical_function_t &func, const string_t &name = "");
-        lf::axiom_t get(axiom_id_t id) const;
+        axiom_id_t add(const rule_t &r);
+        rule_t get(axiom_id_t id) const;
 
         inline std::list<axiom_id_t> gets_by_rhs(predicate_id_t rhs) const;
         inline std::list<axiom_id_t> gets_by_rhs(const predicate_with_arity_t &rhs) const;
@@ -140,8 +128,8 @@ public:
         typedef string_t group_name_t;
 
         inline std::string get_name_of_unnamed_axiom();
-        std::list<axiom_id_t> gets_from_cdb(const char *key, size_t key_size, const util::cdb_data_t *dat) const;
-        void build_conjunct_predicates_map(); /// Sub routine in finalize.
+        std::list<axiom_id_t> gets_from_cdb(
+			const char *key, size_t key_size, const cdb_data_t *dat) const;
 
         static std::mutex ms_mutex;
 
@@ -151,8 +139,8 @@ public:
         int m_num_compiled_axioms, m_num_unnamed_axioms;
         axiom_pos_t m_writing_pos;
 
-        util::cdb_data_t m_cdb_rhs, m_cdb_lhs;
-        util::cdb_data_t m_cdb_arity_patterns, m_cdb_pattern_to_ids;
+        cdb_data_t m_cdb_rhs, m_cdb_lhs;
+        cdb_data_t m_cdb_arity_patterns, m_cdb_pattern_to_ids;
 
         struct
         {
@@ -200,7 +188,7 @@ public:
 private:
     enum kb_state_e { STATE_NULL, STATE_COMPILE, STATE_QUERY };
 
-    knowledge_base_t(const std::string &filename, const phillip_main_t *ph);
+    knowledge_base_t(const configuration_t &conf);
 
     void write_config() const;
     void read_config();
@@ -221,22 +209,14 @@ private:
 
     void extend_inconsistency();
 
-    static std::unique_ptr<knowledge_base_t, util::deleter_t<knowledge_base_t> > ms_instance;
+    static std::unique_ptr<knowledge_base_t, deleter_t<knowledge_base_t>> ms_instance;
     static std::mutex ms_mutex_for_cache;
     static std::mutex ms_mutex_for_rm;
 
     kb_state_e m_state;
-    std::string m_filename;
     version_e m_version;
 
-    struct
-    {
-        float max_distance;
-        int thread_num;
-        bool do_disable_stop_word;
-        bool can_deduction;
-        bool do_print_heuristics;
-    } m_config_for_compile;
+    configuration_t m_config;
 
     /** Function object to provide distance between predicates. */
     struct
@@ -254,87 +234,41 @@ namespace dist
 {
 
 
-class null_distance_provider_t : public distance_function_t
+class null_distance_function_t : public distance_function_t
 {
 public:
     struct generator_t : public component_generator_t<distance_function_t>
     {
-        virtual distance_function_t* operator()(const phillip_main_t*) const override
-        { return new null_distance_provider_t(); }
+        virtual distance_function_t* operator()() const override
+        { return new null_distance_function_t(); }
     };
 
-    virtual void read(std::ifstream *fi) {}
-    virtual void write(std::ofstream *fo) const {}
-
-    virtual float operator() (const lf::axiom_t&) const;
-    virtual std::string repr() const { return "null"; };
+	virtual double operator() (const rule_t&) const override { return 0.0; }
+    virtual std::string repr() const override { return "null"; };
 };
 
-class basic_distance_provider_t : public distance_function_t
+
+class basic_distance_function_t : public distance_function_t
 {
 public:
     struct generator_t : public component_generator_t<distance_function_t>
     {
-        virtual distance_function_t* operator()(const phillip_main_t*) const override
-            { return new basic_distance_provider_t(); }
+        virtual distance_function_t* operator()() const override
+            { return new basic_distance_function_t(); }
     };
 
-    virtual void read(std::ifstream *fi) {}
-    virtual void write(std::ofstream *fo) const {}
-
-    virtual float operator() (const lf::axiom_t&) const;
-    virtual std::string repr() const { return "basic"; };
+	virtual double operator() (const rule_t&) const override { return 1.0; }
+    virtual std::string repr() const override { return "basic"; };
 };
 
+} // end of dist
 
-class cost_based_distance_provider_t : public distance_function_t
-{
-public:
-    struct generator_t : public component_generator_t<distance_function_t>
-    {
-        virtual distance_function_t* operator()(const phillip_main_t*) const override
-            { return new cost_based_distance_provider_t(); }
-    };
-
-    virtual void read(std::ifstream *fi) {}
-    virtual void write(std::ofstream *fo) const {}
-
-    virtual float operator()(const lf::axiom_t&) const;
-    virtual std::string repr() const { return "cost-based"; }
-};
-
-
-class sum_of_left_hand_side_distance_provider_t : public distance_function_t
-{
-public:
-    struct generator_t : public component_generator_t<distance_function_t>
-    {
-        virtual distance_function_t* operator()(const phillip_main_t*) const override;
-    };
-
-    sum_of_left_hand_side_distance_provider_t(float d) : m_default_distance(d) {}
-    
-    virtual void read(std::ifstream *fi);
-    virtual void write(std::ofstream *fo) const;
-
-    virtual float operator()(const lf::axiom_t&) const;
-    virtual std::string repr() const { return "sum_of_left-hand-side"; }
-
-private:
-    float m_default_distance;
-};
-
-}
-
-
-void pattern_to_binary(const conjunction_pattern_t &q, std::vector<char> *bin);
-size_t binary_to_pattern(const char *bin, conjunction_pattern_t *out);
 
 inline knowledge_base_t* kb() { return knowledge_base_t::instance(); }
 
-} // END OF kb
+} // end of kb
 
-} // END OF phil
+} // end of dav
 
 
 #include "./kb.inline.h"

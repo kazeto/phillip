@@ -1,7 +1,7 @@
 #pragma once
 
 #include "./util.h"
-
+#include <cassert>
 
 namespace dav
 {
@@ -97,6 +97,7 @@ public:
     literal_t(predicate_id_t pid, const std::vector<term_t>&, bool neg, bool naf);
     literal_t(const string_t&, const std::vector<term_t>&, bool neg, bool naf);
     literal_t(const string_t&, const std::initializer_list<std::string>&, bool neg, bool naf);
+    literal_t(binary_reader_t&);
 
     bool operator > (const literal_t &x) const;
     bool operator < (const literal_t &x) const;
@@ -120,8 +121,6 @@ public:
 
     bool good() const; /// Returns whether this is valid.
 
-    size_t write_binary(char *bin) const;
-    size_t read_binary(const char *bin);
 
     string_t string() const;
     inline operator std::string() const { return string(); }
@@ -140,6 +139,25 @@ private:
 
 /** Functions for output-stream. */
 std::ostream& operator<<(std::ostream& os, const literal_t& t);
+
+template <> void binary_writer_t::write<literal_t>(const literal_t &x)
+{
+	assert(x.predicate().pid() != INVALID_PREDICATE_ID);
+	write<predicate_id_t>(x.predicate().pid());
+
+	// WRITE ARGUMENTS
+	for (int i = 0; i < x.terms().size(); ++i)
+		write<std::string>(x.term(i).string());
+
+	// WRITE NEGATION
+	char flag(0b0000);
+	if (x.neg()) flag |= 0b0001;
+	if (x.naf()) flag |= 0b0010;
+	write<char>(flag);
+
+	// WRITE PARAMETER
+	write<std::string>(x.param());
+}
 
 
 /** A class to represent properties of predicates */
@@ -207,33 +225,26 @@ public:
     void load();
     void write() const;
 
-    inline const string_t& filepath() const { return m_filename; }
-    inline       string_t& filepath()       { return m_filename; }
+    inline const filepath_t& filepath() const { return m_filename; }
+    inline       filepath_t& filepath()       { return m_filename; }
 
     predicate_id_t add(const predicate_t&);
     predicate_id_t add(const literal_t&);
 
-    void add_predicate_property(const predicate_property_t&);
+    void add_property(const predicate_property_t&);
 
-    inline const std::vector<predicate_with_arity_t>& arities() const;
-    inline predicate_id_t pred2id(const predicate_with_arity_t&) const;
-    inline const predicate_with_arity_t& id2pred(predicate_id_t) const;
+	const std::deque<predicate_t>& predicates() const { return m_predicates; }
 
-    inline const hash_map<predicate_id_t, predicate_property_t>& functional_predicates() const;
-    inline const predicate_property_t* find_functional_predicate(predicate_id_t) const;
-    inline const predicate_property_t* find_functional_predicate(const predicate_with_arity_t&) const;
-    inline bool is_functional(predicate_id_t) const;
-    inline bool is_functional(const predicate_with_arity_t&) const;
+	predicate_id_t pred2id(const predicate_t&) const;
+	predicate_id_t pred2id(const string_t&) const;
+	const predicate_t& id2pred(predicate_id_t) const;
 
-    inline const std::list<std::pair<term_idx_t, term_idx_t> >*
-        find_inconsistent_terms(predicate_id_t, predicate_id_t) const;
+	const predicate_property_t* find_property(predicate_id_t) const;
 
 private:
-    void init();
-
     static std::unique_ptr<predicate_library_t> ms_instance; /// For singleton pattern.
 
-    string_t m_filename;
+    filepath_t m_filename;
 
     std::deque<predicate_t> m_predicates;
     hash_map<string_t, predicate_id_t> m_pred2id;
@@ -243,38 +254,75 @@ private:
 
 
 /** A class to represents conjunctions and disjunction. */
-class atom_array_t : std::vector<literal_t>
+class conjunction_t : public std::vector<literal_t>
 {
 public:
-    atom_array_t() {}
+	/** A class to express features of conjunctions.
+	*  Instances of this are used as keys on looking up KB. */
+	struct feature_t
+	{
+		feature_t() {}
+		feature_t(binary_reader_t&);
+
+		std::vector<predicate_id_t> pids;
+	};
+
+    conjunction_t() {}
+	conjunction_t(binary_reader_t&);
 
     inline const string_t& param() const { return m_param; }
     inline       string_t& param()       { return m_param; }
+
+	feature_t feature() const;
 
 private:
     string_t m_param;
 };
 
+template <> void binary_writer_t::write<conjunction_t>(const conjunction_t &x)
+{
+	write<small_size_t>(static_cast<small_size_t>(x.size()));
+	for (const auto &a : x)
+		write<literal_t>(a);
+	write<std::string>(x.param());
+}
 
-/** A class to represents implication rules. */
-class implication_t
+template <> void binary_writer_t::write<conjunction_t::feature_t>(const conjunction_t::feature_t &x)
+{
+	write<small_size_t>(static_cast<small_size_t>(x.pids.size()));
+	for (const auto &pid : x.pids)
+		write<predicate_id_t>(pid);
+}
+
+
+/** A class to represents rules. */
+class rule_t
 {
 public:
-    implication_t() {}
+    rule_t() {}
+	rule_t(binary_reader_t &r);
 
     inline const string_t& name() const { return m_name; }
     inline       string_t& name()       { return m_name; }
 
-    inline const atom_array_t& lhs() const { return m_lhs; }
-    inline       atom_array_t& lhs()       { return m_lhs; }
+    inline const conjunction_t& lhs() const { return m_lhs; }
+    inline       conjunction_t& lhs()       { return m_lhs; }
 
-    inline const atom_array_t& rhs() const { return m_rhs; }
-    inline       atom_array_t& rhs()       { return m_rhs; }
+    inline const conjunction_t& rhs() const { return m_rhs; }
+    inline       conjunction_t& rhs()       { return m_rhs; }
 
 private:
     string_t m_name;
-    atom_array_t m_lhs, m_rhs;
+    conjunction_t m_lhs, m_rhs;
 };
+
+template <> void binary_writer_t::write<rule_t>(const rule_t &x)
+{
+	write<std::string>(x.name());
+	write<conjunction_t>(x.lhs());
+	write<conjunction_t>(x.rhs());
+}
+
 
 
 } // end of dav

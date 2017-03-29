@@ -44,7 +44,7 @@ unsigned string_hash_t::get_hash(std::string str)
     else
     {
         if (has_shortened)
-            util::print_warning("The string has been shortened: " + str);
+            console()->warn("The string has been shortened: " + str);
 
         ms_strs.push_back(str);
         unsigned idx(ms_strs.size() - 1);

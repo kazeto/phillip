@@ -52,7 +52,7 @@ predicate_t::predicate_t(std::ifstream *fi)
 void predicate_t::write(std::ofstream *fo) const
 {
     string_t s = string();
-    small_size_t len = s.length();
+    small_size_t len = static_cast<small_size_t>(s.length());
     fo->write((char*)&len, sizeof(small_size_t));
     fo->write(s.c_str(), sizeof(char)* len);
 }

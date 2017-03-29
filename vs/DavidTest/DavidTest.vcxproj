@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -28,26 +28,26 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -148,12 +148,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\main\fol.cpp" />
     <ClCompile Include="..\..\src\main\fol_literal.cpp" />
     <ClCompile Include="..\..\src\main\fol_predicate_library.cpp" />
     <ClCompile Include="..\..\src\main\fol_predicate.cpp" />
     <ClCompile Include="..\..\src\main\fol_predicate_property.cpp" />
     <ClCompile Include="..\..\src\main\kb.cpp" />
     <ClCompile Include="..\..\src\main\util.cpp" />
+    <ClCompile Include="..\..\src\main\util_cdb_data.cpp" />
+    <ClCompile Include="..\..\src\main\util_console.cpp" />
+    <ClCompile Include="..\..\src\main\util_filepath.cpp" />
+    <ClCompile Include="..\..\src\main\util_parameter_strage.cpp" />
     <ClCompile Include="..\..\src\main\util_string.cpp" />
     <ClCompile Include="..\..\src\main\util_string_hash.cpp" />
     <ClCompile Include="..\..\src\test\main.cpp" />
@@ -163,7 +168,6 @@
     <ClInclude Include="..\..\src\main\kb.h" />
     <ClInclude Include="..\..\src\main\kb.inline.h" />
     <ClInclude Include="..\..\src\main\util.h" />
-    <ClInclude Include="..\..\src\main\util.inline.h" />
     <ClInclude Include="..\..\src\test\test_util.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

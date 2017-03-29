@@ -117,9 +117,11 @@ string_t predicate_property_t::string() const
         }
     }
     
+	const auto &pred = predicate_library_t::instance()->id2pred(m_pid);
+
     return
-        "property " + predicate_library_t::instance()->id2pred(m_pid) +
-        " : {" + util::join(strs.begin(), strs.end(), ", ") + "}";
+        "property " + pred.string() +
+        " : {" + join(strs.begin(), strs.end(), ", ") + "}";
 }
 
 

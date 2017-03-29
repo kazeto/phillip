@@ -5,11 +5,11 @@
 #include <ciso646>
 #include <cctype>
 #include <cstdio>
-#include <cstdarg>
 #include <cstdlib>
-#include <ctime>
 #include <chrono>
 #include <cassert>
+#include <cstring>
+
 #include <sys/stat.h>
 #include <iostream>
 #include <initializer_list>
@@ -57,40 +57,66 @@ typedef float duration_time_t;
 
 namespace pg
 {
-    typedef index_t entity_idx_t;
-    typedef index_t node_idx_t;
-    typedef index_t edge_idx_t;
-    typedef index_t hypernode_idx_t;
-    typedef int depth_t;
+typedef index_t entity_idx_t;
+typedef index_t node_idx_t;
+typedef index_t edge_idx_t;
+typedef index_t hypernode_idx_t;
+typedef int depth_t;
 }
 
 
 /** Verboseness of debug printing */
 enum verboseness_e
 {
-    NOT_VERBOSE,
-    VERBOSE_1, VERBOSE_2, VERBOSE_3, VERBOSE_4,
-    FULL_VERBOSE
+	NOT_VERBOSE,
+	VERBOSE_1, VERBOSE_2, VERBOSE_3, VERBOSE_4,
+	FULL_VERBOSE
 };
 
 
+/** Wrapper class of std::string. */
 class string_t : public std::string
 {
 public:
-    string_t() {}
-    string_t(const char *s) : std::string(s) {}
-    string_t(const std::string &s) : std::string(s) {}
+	string_t() {}
+	string_t(const char *s) : std::string(s) {}
+	string_t(const std::string &s) : std::string(s) {}
 
-    inline explicit operator bool() const { return not empty(); }
+	inline explicit operator bool() const { return not empty(); }
 
-    string_t lower() const;
+	string_t lower() const;
 
-    std::vector<string_t> split(const char *delim, const int MAX_NUM = -1) const;
-    string_t replace(const std::string &from, const std::string &to) const;
+	std::vector<string_t> split(const char *delim, const int MAX_NUM = -1) const;
+	string_t replace(const std::string &from, const std::string &to) const;
 	string_t strip(const char *targets) const;
+	string_t slice(int i, int j) const;
 
-    bool startswith(const std::string&);
-    bool endswith(const std::string&);
+	bool startswith(const std::string&);
+	bool endswith(const std::string&);
+
+	bool parse_as_function(string_t *pred, std::vector<string_t> *args) const;
+};
+
+
+/** A wrapper class of string_t to manage filepaths. */
+class filepath_t : public string_t
+{
+public:
+	filepath_t() {}
+	filepath_t(const char *s) : string_t(s) { reguralize(); }
+	filepath_t(const std::string &s) : string_t(s) { reguralize(); }
+	filepath_t(const filepath_t &s) : string_t(s) {}
+
+	bool find_file() const; /// Returns whether a file exists.
+
+	filepath_t filename() const;
+	filepath_t dirname() const;
+	size_t filesize() const;
+
+	bool mkdir() const;
+
+private:
+	void reguralize();
 };
 
 
@@ -100,53 +126,168 @@ public:
 class string_hash_t
 {
 public:
-    static string_hash_t get_unknown_hash();
-    static void reset_unknown_hash_count();
+	static string_hash_t get_unknown_hash();
+	static void reset_unknown_hash_count();
 
-    string_hash_t() : m_hash(0) {}
-    string_hash_t(const string_hash_t& h);
-    string_hash_t(const std::string& s);
+	string_hash_t() : m_hash(0) {}
+	string_hash_t(const string_hash_t& h);
+	string_hash_t(const std::string& s);
 
-    const std::string& string() const;
-    operator const std::string& () const;
+	const std::string& string() const;
+	operator const std::string& () const;
 
-    string_hash_t& operator=(const std::string &s);
-    string_hash_t& operator=(const string_hash_t &h);
+	string_hash_t& operator=(const std::string &s);
+	string_hash_t& operator=(const string_hash_t &h);
 
-    bool operator>(const string_hash_t &x) const { return m_hash > x.m_hash; }
-    bool operator<(const string_hash_t &x) const { return m_hash < x.m_hash; }
-    bool operator==(const char *s) const { return m_hash == ms_hashier.at(s); }
-    bool operator!=(const char *s) const { return m_hash != ms_hashier.at(s); }
-    bool operator==(const string_hash_t &x) const { return m_hash == x.m_hash; }
-    bool operator!=(const string_hash_t &x) const { return m_hash != x.m_hash; }
+	bool operator>(const string_hash_t &x) const { return m_hash > x.m_hash; }
+	bool operator<(const string_hash_t &x) const { return m_hash < x.m_hash; }
+	bool operator==(const char *s) const { return m_hash == ms_hashier.at(s); }
+	bool operator!=(const char *s) const { return m_hash != ms_hashier.at(s); }
+	bool operator==(const string_hash_t &x) const { return m_hash == x.m_hash; }
+	bool operator!=(const string_hash_t &x) const { return m_hash != x.m_hash; }
 
-    const unsigned& get_hash() const { return m_hash; }
+	const unsigned& get_hash() const { return m_hash; }
 
-    bool is_constant() const { return m_is_constant; }
-    bool is_unknown()  const { return m_is_unknown; }
+	bool is_constant() const { return m_is_constant; }
+	bool is_unknown()  const { return m_is_unknown; }
 
-    bool is_unifiable_with(const string_hash_t&) const;
+	bool is_unifiable_with(const string_hash_t&) const;
 
 protected:
-    /** Assign a hash to str if needed, and return the hash of str. */
-    static unsigned get_hash(std::string str);
+	/** Assign a hash to str if needed, and return the hash of str. */
+	static unsigned get_hash(std::string str);
 
-    static std::mutex ms_mutex_hash, ms_mutex_unknown;
-    static hash_map<std::string, unsigned> ms_hashier;
-    static std::deque<string_t> ms_strs;
-    static unsigned ms_issued_variable_count;
+	static std::mutex ms_mutex_hash, ms_mutex_unknown;
+	static hash_map<std::string, unsigned> ms_hashier;
+	static std::deque<string_t> ms_strs;
+	static unsigned ms_issued_variable_count;
 
-    inline void set_flags(const std::string &str);
+	inline void set_flags(const std::string &str);
 
-    unsigned m_hash;
-    bool m_is_constant, m_is_unknown;
+	unsigned m_hash;
+	bool m_is_constant, m_is_unknown;
 
 #ifdef _DEBUG
-    std::string m_string;
+	std::string m_string;
 #endif
 };
 
 std::ostream& operator<<(std::ostream& os, const string_hash_t& t);
+
+} // end of dav
+
+
+namespace std
+{
+
+template <> struct hash<dav::string_hash_t>
+{
+	size_t operator() (const dav::string_hash_t &s) const
+	{
+		return s.get_hash();
+	}
+};
+
+template <> struct hash<dav::string_t> : public hash<std::string>
+{
+	size_t operator() (const dav::string_t &s) const
+	{
+		return hash<std::string>::operator()(s);
+	}
+};
+
+} // end of std
+
+
+namespace dav
+{
+
+/** A class to strage parameters given by command-option. */
+class parameter_strage_t : public std::unordered_map<string_t, string_t>
+{
+public:
+	static parameter_strage_t* instance();
+
+	void add(const string_t &key, const string_t &value);
+
+	const string_t& get(const string_t &key, const string_t &def = "") const;
+	int geti(const string_t &key, int def = -1) const;
+	double getf(const string_t &key, double def = -1.0) const;
+
+	bool has(const string_t &key) const;
+
+private:
+	parameter_strage_t() {}
+
+	static std::unique_ptr<parameter_strage_t> ms_instance;
+};
+
+parameter_strage_t* param() { return parameter_strage_t::instance(); }
+
+
+/** A class to print strings on the console. */
+class console_t
+{
+public:
+	static console_t* instance();
+
+	void print(const std::string &str) const;
+	void error(const std::string &str) const;
+	void warn(const std::string &str) const;
+
+	void print_fmt(const char *format, ...) const;
+	void error_fmt(const char *format, ...) const;
+	void warn_fmt(const char *format, ...) const;
+
+	void add_indent();
+	void sub_indent();
+
+private:
+	console_t() : m_indent(0) {}
+
+	std::string time_stamp() const;
+	std::string indent() const;
+
+	static std::unique_ptr<console_t> ms_instance;
+	static const int BUFFER_SIZE_FOR_FMT = 256 * 256;
+	static std::mutex ms_mutex;
+
+	int m_indent;
+};
+
+console_t* console() { return console_t::instance(); }
+
+
+/** A class to see duration-time. */
+class time_watcher_t
+{
+public:
+	time_watcher_t() : m_begin(std::chrono::system_clock::now()) {}
+
+	/** Returns duration time from m_begin in seconds. */
+	duration_time_t duration() const;
+
+	/** Returns whether the duration time exceeds timeout. */
+	bool timed_out(duration_time_t timeout) const;
+
+private:
+	std::chrono::system_clock::time_point m_begin;
+};
+
+
+struct time_point_t
+{
+	time_point_t();
+
+	int year;
+	int month;
+	int day;
+	int hour;
+	int min;
+	int sec;
+};
+
+extern const time_point_t INIT_TIME;
 
 
 
@@ -189,12 +330,9 @@ private:
 template <class T> class component_generator_t
 {
 public:
-    virtual T* operator()(const phillip_main_t*) const { return NULL; }
+    virtual T* operator()() const { return NULL; }
 };
 
-
-namespace util
-{
 
 /** A wrapper class of cdb++. */
 class cdb_data_t
@@ -207,13 +345,13 @@ public:
     void prepare_query();
     void finalize();
 
-    inline void put(const void *key, size_t ksize, const void *value, size_t vsize);
-    inline const void* get(const void *key, size_t ksize, size_t *vsize) const;
-    inline size_t size() const;
+    void put(const void *key, size_t ksize, const void *value, size_t vsize);
+    const void* get(const void *key, size_t ksize, size_t *vsize) const;
+    size_t size() const;
 
-    inline const std::string& filename() const { return m_filename; }
-    inline bool is_writable() const { return m_builder != NULL; }
-    inline bool is_readable() const { return m_finder != NULL; }
+    const std::string& filename() const { return m_filename; }
+    bool is_writable() const { return m_builder != NULL; }
+    bool is_readable() const { return m_finder != NULL; }
 
 private:
     std::string m_filename;
@@ -224,31 +362,78 @@ private:
 };
 
 
-class time_watcher_t
+
+/** A class to read something from binary data. */
+class binary_reader_t
 {
 public:
-    time_watcher_t() : m_begin(std::chrono::system_clock::now()) {}
+	binary_reader_t(const char *ptr) : m_ptr(ptr), m_size(0) {}
 
-    /** Returns duration time from m_begin in seconds. */
-    duration_time_t duration() const;
+	template <class T> void read(T *out)
+	{
+		std::memcpy(out, current(), sizeof(T));
+		m_size += sizeof(T);
+	}
 
-    /** Returns whether the duration time exceeds timeout. */
-    bool timed_out(duration_time_t timeout) const;
+	size_t size() { return m_size; }
 
 private:
-    std::chrono::system_clock::time_point m_begin;
+	const char* current() { return m_ptr + m_size; }
+
+	const char *m_ptr;
+	size_t m_size;
 };
 
 
+template <> void binary_reader_t::read<std::string>(std::string *out)
+{
+	char str[512];
+	small_size_t size;
 
-template <class T> class symmetric_pair : public std::pair<T, T>
+	std::memcpy(&size, current(), sizeof(small_size_t));
+	m_size += sizeof(small_size_t);
+
+	std::memcpy(str, current(), sizeof(char)*size);
+	str[size] = '\0';
+	*out = std::string(str);
+	m_size += sizeof(char)*size;
+}
+
+
+
+/** A class to write something as binary data. */
+class binary_writer_t
 {
 public:
-    symmetric_pair(T x, T y) : std::pair<T, T>(x, y)
-    {
-        if (first > second) std::swap(first, second);
-    }
+	binary_writer_t(char *ptr) : m_ptr(ptr), m_size(0) {}
+
+	template <class T> void write(const T &value)
+	{
+		std::memcpy(current(), &value, sizeof(T));
+		m_size += sizeof(T);
+	}
+
+	size_t size() { return m_size; }
+
+private:
+	char* current() { return m_ptr + m_size; }
+
+	char *m_ptr;
+	size_t m_size;
 };
+
+
+template <> void binary_writer_t::write<std::string>(const std::string &value)
+{
+	size_t n(0);
+
+	unsigned char size = static_cast<unsigned char>(value.size());
+	std::memcpy(current(), &size, sizeof(unsigned char));
+	m_size += sizeof(unsigned char);
+
+	std::memcpy(current(), value.c_str(), sizeof(char)* value.size());
+	m_size += sizeof(char)* value.size();
+}
 
 
 
@@ -345,96 +530,74 @@ public:
 /* -------- Functions -------- */
 
 
-/** Call this function on starting phillip. */
-void initialize();
-
-inline void print_console(const std::string &str);
-inline void print_error(const std::string &str);
-inline void print_warning(const std::string &str);
-
-void print_console_fmt(const char *format, ...);
-void print_error_fmt(const char *format, ...);
-void print_warning_fmt(const char *format, ...);
-
-void now(int *year, int *month, int *day, int *hour, int *min, int *sec);
-void beginning_time(int *year, int *month, int *day, int *hour, int *min, int *sec);
-
 std::string format(const char *format, ...);
-std::string time_stamp();
+
+size_t filesize(std::istream &ifs);
 
 
-inline bool do_exist_file(const std::string &path);
-inline std::string get_file_name(const std::string &path);
-inline std::string get_directory_name(const std::string &path);
-inline size_t get_file_size(const std::string &filename);
-inline size_t get_file_size(std::istream &ifs);
-void mkdir(std::string path);
-
-std::string reguralize_path(const std::string &target);
-std::string indexize_path(std::string str, int idx);
-
-bool parse_string_as_function_call(
-    const std::string &str,
-    std::string *pred, std::vector<std::string> *terms);
-
-/** Convert string into binary and return size of binary.
- *  The size of string must be less than 255. */
-inline size_t string_to_binary(const std::string &str, char *out);
-inline size_t num_to_binary(const int num, char *out);
-inline size_t bool_to_binary(const bool _bool, char *out);
-template <class T> inline size_t to_binary(const T &value, char *out);
-
-inline size_t binary_to_string(const char *bin, std::string *out);
-inline size_t binary_to_num(const char *bin, int *out);
-inline size_t binary_to_bool(const char *bin, bool *out);
-template <class T> inline size_t binary_to(const char *bin, T *out);
-
-/** Returns joined string.
- *  If USE_STREAM is true, uses ostringstream to join. */
+/** Returns joined string. */
 template <class It> std::string join(
-    const It &s_begin, const It &s_end, const std::string &delim);
-template <class Container, class Function> std::string join_f(
-    const Container &container, Function func, const std::string &delim);
-
+	const It &s_begin, const It &s_end, const std::string &delimiter)
+{
+	std::ostringstream ss;
+	for (It it = s_begin; it != s_end; ++it)
+		ss << (it == s_begin ? "" : delimiter) << (*it);
+	return ss.str();
+}
 
 /** Returns whether set1 and set2 have any intersection. */
 template <class It> bool has_intersection(
-    It s1_begin, It s1_end, It s2_begin, It s2_end);
+	It s1_begin, It s1_end, It s2_begin, It s2_end)
+{
+	for (It i1 = s1_begin; i1 != s1_end; ++i1)
+		for (It i2 = s2_begin; i2 != s2_end; ++i2)
+			if (*i1 == *i2)
+				return true;
+
+	return false;
+}
+
 
 /** Returns intersection of set1 and set2. */
 template <class T> hash_set<T> intersection(
-    const hash_set<T> &set1, const hash_set<T> &set2);
+	const hash_set<T> &set1, const hash_set<T> &set2)
+{
+	bool set1_is_smaller = (set1.size() < set2.size());
+	const hash_set<T> *smaller = (set1_is_smaller ? &set1 : &set2);
+	const hash_set<T> *bigger = (set1_is_smaller ? &set2 : &set1);
+	hash_set<T> out;
+
+	for (auto it = smaller->begin(); it != smaller->end(); ++it)
+	{
+		if (bigger->find(*it) != bigger->end())
+			out.insert(*it);
+	}
+
+	return out;
+}
+
 
 template <class Container, class Element>
-inline bool has_element(const Container&, const Element&);
-
-template <class T> inline std::pair<T, T> make_symmetric_pair(const T &x, const T &y);
-
-template <class Container> void erase(Container &c, size_t i);
-
-extern std::mutex g_mutex_for_print;
-
-
-} // end util
-
-} // end phil
-
-
-namespace std
+inline bool has_element(const Container &c, const Element &e)
 {
-
-template <> struct hash<dav::string_hash_t>
-{
-    size_t operator() (const dav::string_hash_t &s) const
-    { return s.get_hash(); }
-};
-
-template <> struct hash<dav::string_t> : public hash<std::string>
-{
-    size_t operator() (const dav::string_t &s) const
-    { return hash<std::string>::operator()(s); }
-};
-
+	return c.find(e) != c.end();
 }
+
+
+template <class T> std::pair<T, T> symmetric_pair(const T &x, const T &y)
+{
+	return (x < y) ? std::make_pair(x, y) : std::make_pair(y, x);
+}
+
+
+template <class Container> void erase(Container &c, size_t i)
+{
+	auto it = c.begin();
+	for (size_t j = 0; j < i; ++j) ++it;
+	c.erase(it);
+}
+
+} // end of phil
+
 
 #include "./util.inline.h"

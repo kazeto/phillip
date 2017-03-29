@@ -1,8 +1,8 @@
 #include "./util.h"
 
+
 namespace dav
 {
-
 
 string_t string_t::lower() const
 {
@@ -81,6 +81,11 @@ string_t string_t::strip(const char *targets) const
 }
 
 
+string_t string_t::slice(int i, int j) const
+{
+	return substr(i, j - i);
+}
+
 
 bool string_t::startswith(const std::string &query)
 {
@@ -115,5 +120,72 @@ bool string_t::endswith(const std::string &query)
         return false;
 }
 
+
+bool string_t::parse_as_function(string_t *pred, std::vector<string_t> *args) const
+{
+	int num_open(0), num_close(0);
+	int idx_open(-1), idx_close(-1);
+	std::list<int> commas;
+
+	// FIND BRACKETS AND COMMAS
+	for (int i = 0; i < size(); ++i)
+	{
+		char c = at(i);
+
+		if (c == '(')
+		{
+			if (++num_open == 1)
+				idx_open = i;
+		}
+
+		if (c == ')')
+		{
+			++num_close;
+			if (num_open == num_close)
+				idx_close = i;
+			if (num_open < num_close)
+				return false; // INVALID FORMAT
+		}
+
+		if (c == ',')
+		{
+			if (num_open == num_close + 1)
+				commas.push_back(i);
+		}
+	}
+
+	// SPLIT THE STRING INTO PREDICATE AND ARGUMENTS
+	if (idx_open >= 0 and idx_close >= 0)
+	{
+		(*pred) = string_t(substr(0, idx_open)).strip(" ");
+		args->clear();
+
+		if (commas.empty())
+		{
+			if (idx_close - idx_open > 1)
+			{
+				string_t s = slice(idx_open + 1, idx_close).strip(" ");
+				if (not s.empty())
+					args->push_back(s);
+			}
+		}
+		else
+		{
+			args->push_back(slice(idx_open + 1, commas.front()).strip(" "));
+			for (auto it = commas.begin(); std::next(it) != commas.end(); ++it)
+				args->push_back(slice((*it) + 1, (*std::next(it))).strip(" "));
+			args->push_back(slice(commas.back() + 1, idx_close).strip(" "));
+		}
+	}
+	else if (idx_open < 0 and idx_close < 0)
+		(*pred) = strip(" ");
+
+	if (pred->empty()) return false;
+
+	for (auto t : (*args))
+		if (t.empty()) return false;
+
+	return true;
+}
 
 }

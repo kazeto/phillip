@@ -22,16 +22,13 @@ namespace kb
 {
 
 
-const axiom_id_t INVALID_AXIOM_ID = -1;
-const argument_set_id_t INVALID_ARGUMENT_SET_ID = 0;
-const predicate_id_t INVALID_PREDICATE_ID = 0;
-const predicate_id_t EQ_PREDICATE_ID = 1;
-
-
+configuration_t::configuration_t()
+	: max_distance(-1.0), thread_num(1)
+{}
 
 
 const int BUFFER_SIZE = 512 * 512;
-std::unique_ptr<knowledge_base_t, util::deleter_t<knowledge_base_t> > knowledge_base_t::ms_instance;
+std::unique_ptr<knowledge_base_t, deleter_t<knowledge_base_t>> knowledge_base_t::ms_instance;
 std::mutex knowledge_base_t::ms_mutex_for_cache;
 std::mutex knowledge_base_t::ms_mutex_for_rm;
 
@@ -45,36 +42,29 @@ knowledge_base_t* knowledge_base_t::instance()
 }
 
 
-void knowledge_base_t::initialize(std::string filename, const phillip_main_t *ph)
+void knowledge_base_t::initialize(const configuration_t &conf)
 {
     if (ms_instance != NULL)
         ms_instance.reset(NULL);
         
-    util::mkdir(util::get_directory_name(filename));
-    ms_instance.reset(new knowledge_base_t(filename, ph));
+	conf.path.dirname().mkdir();
+    ms_instance.reset(new knowledge_base_t(conf));
+
+	predicate_library_t::instance()->filepath() = conf.path + ".pred.dat";
 }
 
 
-knowledge_base_t::knowledge_base_t(const std::string &filename, const phillip_main_t *ph)
+knowledge_base_t::knowledge_base_t(const configuration_t &conf)
     : m_state(STATE_NULL),
-      m_filename(filename), m_version(KB_VERSION_1), 
-      axioms(filename),
-      predicates(filename + ".arity.dat"),
-      heuristics(filename + ".rm.dat")
+	m_version(KB_VERSION_1), 
+	axioms(conf.path),
+	m_config(conf),
+	heuristics(conf.path + ".rm.dat")
 {
     m_distance_provider = { NULL, "" };
 
-    m_config_for_compile.max_distance = ph->param_float("kb-max-distance", -1.0);
-    m_config_for_compile.thread_num = ph->param_int("kb-thread-num", 1);
-    m_config_for_compile.do_disable_stop_word = ph->flag("disable-stop_word");
-    m_config_for_compile.can_deduction = ph->flag("enable-deduction");
-    m_config_for_compile.do_print_heuristics = ph->flag("print-reachability-matrix");
-
-    if (m_config_for_compile.thread_num < 1)
-        m_config_for_compile.thread_num = 1;
-
-    std::string dist_key = ph->param("distance-provider");
-    set_distance_provider(dist_key.empty() ? "basic" : dist_key, ph);
+    auto dist_key = param()->get("distance-provider");
+    set_distance_provider(dist_key.empty() ? "basic" : conf.dp_key);
 }
 
 
@@ -120,7 +110,7 @@ void knowledge_base_t::prepare_query()
     if (m_state == STATE_NULL)
     {
         read_config();
-        predicates.load();
+        predicate_library_t::instance()->load();
         axioms.prepare_query();
 
         heuristics.prepare_query();
@@ -145,9 +135,9 @@ void knowledge_base_t::finalize()
         extend_inconsistency();
         create_reachable_matrix();
         write_config();
-        predicates.write();
+        predicate_library_t::instance()->write();
 
-        if (m_config_for_compile.do_print_heuristics)
+        if (param()->has("do_print_reachability"))
         {
             std::cerr << "Reachability Matrix:" << std::endl;
             heuristics.prepare_query();
@@ -1197,128 +1187,6 @@ hash_set<float> knowledge_base_t::reachable_matrix_t::get(size_t idx) const
     return out;
 }
 
-
-namespace dist
-{
-
-float null_distance_provider_t::operator()(const lf::axiom_t &ax) const
-{
-    return 0.0f;
-}
-
-
-float basic_distance_provider_t::operator()(const lf::axiom_t &ax) const
-{
-    float out;
-    return 1.0f;
-}
-
-
-float cost_based_distance_provider_t::operator()(const lf::axiom_t &ax) const
-{
-    float out(-1.0f);
-    return ax.func.scan_parameter("%f", &out) ? out : 1.0f;
-}
-
-
-distance_function_t* sum_of_left_hand_side_distance_provider_t::
-generator_t::operator()(const phillip_main_t *ph) const
-{
-    return new sum_of_left_hand_side_distance_provider_t(
-        ((ph == NULL) ? 1.0f : ph->param_float("default-distance", 1.0f)));
-}
-
-
-void sum_of_left_hand_side_distance_provider_t::read(std::ifstream *fi)
-{
-    fi->read((char*)&m_default_distance, sizeof(float));
-}
-
-
-void sum_of_left_hand_side_distance_provider_t::write(std::ofstream *fo) const
-{
-    fo->write((char*)&m_default_distance, sizeof(float));
-}
-
-
-float sum_of_left_hand_side_distance_provider_t::operator()(const lf::axiom_t &ax) const
-{
-    float out(0.0f);
-    std::vector<const lf::logical_function_t*> lhs;
-
-    ax.func.branch(0).enumerate_literal_branches(&lhs);
-    
-    for (auto l : lhs)
-    {
-        float d(m_default_distance);
-        l->scan_parameter("%f", &d);
-        out += d;
-    }
-    
-    return out;
-}
-
-
-}
-
-
-void pattern_to_binary(const conjunction_pattern_t &q, std::vector<char> *bin)
-{
-    size_t size_expected =
-        sizeof(unsigned char) * 2 +
-        sizeof(predicate_id_t) * q.predicates().size() +
-        (sizeof(predicate_id_t) + sizeof(char)) * 2 * q.hardterms().size();
-    size_t size(0);
-    bin->assign(size_expected, '\0');
-
-    size += util::num_to_binary(q.predicates().size(), &(*bin)[0]);
-    for (auto id : q.predicates())
-        size += util::to_binary<predicate_id_t>(id, &(*bin)[0] + size);
-
-    size += util::num_to_binary(q.hardterms().size(), &(*bin)[0] + size);
-    for (auto ht : q.hardterms())
-    {
-        size += util::to_binary<predicate_id_t>(ht.first.first, &(*bin)[0] + size);
-        size += util::to_binary<char>(ht.first.second, &(*bin)[0] + size);
-        size += util::to_binary<predicate_id_t>(ht.second.first, &(*bin)[0] + size);
-        size += util::to_binary<char>(ht.second.second, &(*bin)[0] + size);
-    }
-
-    assert(size == size_expected);
-};
-
-
-size_t binary_to_pattern(const char *bin, conjunction_pattern_t *out)
-{
-    size_t size(0);
-    int num_arity, num_hardterm, num_option;
-
-    out->predicates().clear();
-    out->hardterms().clear();
-
-    size += util::binary_to_num(bin + size, &num_arity);
-    for (int i = 0; i < num_arity; ++i)
-    {
-        predicate_id_t id;
-        size += util::binary_to<predicate_id_t>(bin + size, &id);
-        out->predicates().push_back(id);
-    }
-
-    size += util::binary_to_num(bin + size, &num_hardterm);
-    for (int i = 0; i < num_hardterm; ++i)
-    {
-        predicate_id_t id1, id2;
-        char idx1, idx2;
-        size += util::binary_to<predicate_id_t>(bin + size, &id1);
-        size += util::binary_to<char>(bin + size, &idx1);
-        size += util::binary_to<predicate_id_t>(bin + size, &id2);
-        size += util::binary_to<char>(bin + size, &idx2);
-        out->hardterms().push_back(std::make_pair(
-            std::make_pair(id1, idx1), std::make_pair(id2, idx2)));
-    }
-
-    return size;
-}
 
 
 } // end kb

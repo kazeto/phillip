@@ -98,7 +98,7 @@ public:
         // Initialize the hash to a 'random' value
 
         const uint32_t seed = 0x87654321;
-        uint32_t h = seed ^ size;
+        uint32_t h = static_cast<uint32_t>(seed ^ size);
 
         // Mix 4 bytes at a time into the hash
 
@@ -211,7 +211,7 @@ public:
      */
     builder_base(std::ofstream& os) : m_os(os)
     {
-        m_begin = m_os.tellp();
+        m_begin = static_cast<uint32_t>(m_os.tellp());
         m_cur = get_data_begin();
         m_os.seekp(m_begin + m_cur);
     }
@@ -250,7 +250,8 @@ public:
         ht.push_back(bucket(hv, m_cur));
 
         // Increment the current position.
-        m_cur += sizeof(uint32_t) + ksize + sizeof(uint32_t) + vsize;
+        m_cur += static_cast<uint32_t>(
+			sizeof(uint32_t) + ksize + sizeof(uint32_t) + vsize);
     }
 
 protected:
@@ -270,7 +271,7 @@ protected:
             if (!ht.empty()) {
                 // An actual table will have the double size; half elements
                 // in the table are kept empty.
-                int n = ht.size() * 2;
+                int n = static_cast<int>(ht.size() * 2);
 
                 // Allocate the actual table.
                 bucket* dst = new bucket[n];
@@ -320,9 +321,10 @@ protected:
             // Offset to the hash table (or zero for non-existent tables).
             write_uint32(m_ht[i].empty() ? 0 : m_cur);
             // Bucket size is double to the number of elements.
-            write_uint32(m_ht[i].size() * 2);
+            write_uint32(static_cast<uint32_t>(m_ht[i].size() * 2));
             // Advance the offset counter.
-            m_cur += sizeof(uint32_t) * 2 * m_ht[i].size() * 2;
+            m_cur += static_cast<uint32_t>(
+				sizeof(uint32_t) * 2 * m_ht[i].size() * 2);
         }
 
         // Seek to the last position.
