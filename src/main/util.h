@@ -9,10 +9,12 @@
 #include <cstdlib>
 #include <ctime>
 #include <chrono>
+#include <cassert>
 #include <sys/stat.h>
 #include <iostream>
 #include <initializer_list>
 #include <vector>
+#include <deque>
 #include <list>
 #include <string>
 #include <unordered_map>
@@ -37,8 +39,8 @@
 #endif
 
 
-/** A namespace of Henry. */
-namespace phil
+/** A namespace of David. */
+namespace dav
 {
 
 class phillip_main_t;
@@ -49,40 +51,8 @@ typedef unsigned char small_size_t;
 typedef long int index_t;
 typedef std::string file_path_t;
 
-typedef long int axiom_id_t;
-typedef small_size_t arity_t;
-typedef small_size_t term_idx_t;
-typedef string_t predicate_t;
-typedef string_t predicate_with_arity_t;
+
 typedef float duration_time_t;
-
-namespace sexp
-{
-class sexp_t;
-}
-
-namespace kb
-{
-class knowledge_base_t;
-class conjunction_pattern_t;
-
-typedef unsigned long int argument_set_id_t;
-typedef size_t predicate_id_t;
-typedef bool is_backward_t;
-
-typedef std::pair<index_t, term_idx_t> term_pos_t;
-typedef std::pair<std::pair<kb::predicate_id_t, term_idx_t>,
-                  std::pair<kb::predicate_id_t, term_idx_t> > hard_term_pair_t;
-
-extern const axiom_id_t INVALID_AXIOM_ID;
-extern const argument_set_id_t INVALID_ARGUMENT_SET_ID;
-extern const predicate_id_t INVALID_PREDICATE_ID;
-extern const predicate_id_t EQ_PREDICATE_ID;
-
-inline bool is_backward(std::pair<axiom_id_t, is_backward_t> &p)
-{ return p.second; }
-
-}
 
 
 namespace pg
@@ -92,17 +62,6 @@ namespace pg
     typedef index_t edge_idx_t;
     typedef index_t hypernode_idx_t;
     typedef int depth_t;
-}
-
-
-namespace opt
-{
-    typedef std::string feature_t;
-    typedef double error_t;
-    typedef double weight_t;
-    typedef double gradient_t;
-    typedef double rate_t;
-    typedef int epoch_t;
 }
 
 
@@ -124,140 +83,71 @@ public:
 
     inline explicit operator bool() const { return not empty(); }
 
-    bool to_arity(predicate_t *p, arity_t *n) const;
-    std::pair<predicate_t, arity_t> to_arity() const;
+    string_t lower() const;
 
-    string_t to_lower() const;
-
-    std::vector<string_t> split(const char *separator, const int MAX_NUM = -1) const;
+    std::vector<string_t> split(const char *delim, const int MAX_NUM = -1) const;
     string_t replace(const std::string &from, const std::string &to) const;
 	string_t strip(const char *targets) const;
+
+    bool startswith(const std::string&);
+    bool endswith(const std::string&);
 };
 
 
 /** Hash of string.
- * Use instead of std::string for acceleration. */
+ * Use instead of std::string for acceleration.
+ * Length of string must be less than 256. */
 class string_hash_t
 {
 public:
-    static inline string_hash_t get_unknown_hash();
-    static inline void reset_unknown_hash_count();
+    static string_hash_t get_unknown_hash();
+    static void reset_unknown_hash_count();
 
-    inline string_hash_t();
-    inline string_hash_t(const string_hash_t& h);
-    inline string_hash_t(const std::string& s);
+    string_hash_t() : m_hash(0) {}
+    string_hash_t(const string_hash_t& h);
+    string_hash_t(const std::string& s);
 
-    inline const std::string& string() const;
-    inline operator const std::string& () const;
+    const std::string& string() const;
+    operator const std::string& () const;
 
-    inline string_hash_t& operator=(const std::string &s);
-    inline string_hash_t& operator=(const string_hash_t &h);
+    string_hash_t& operator=(const std::string &s);
+    string_hash_t& operator=(const string_hash_t &h);
 
-    inline bool operator>(const string_hash_t &x) const;
-    inline bool operator<(const string_hash_t &x) const;
-    inline bool operator==(const char *s) const;
-    inline bool operator!=(const char *s) const;
-    inline bool operator==(const string_hash_t &h) const;
-    inline bool operator!=(const string_hash_t &h) const;
+    bool operator>(const string_hash_t &x) const { return m_hash > x.m_hash; }
+    bool operator<(const string_hash_t &x) const { return m_hash < x.m_hash; }
+    bool operator==(const char *s) const { return m_hash == ms_hashier.at(s); }
+    bool operator!=(const char *s) const { return m_hash != ms_hashier.at(s); }
+    bool operator==(const string_hash_t &x) const { return m_hash == x.m_hash; }
+    bool operator!=(const string_hash_t &x) const { return m_hash != x.m_hash; }
 
-    inline const unsigned& get_hash() const { return m_hash; }
+    const unsigned& get_hash() const { return m_hash; }
 
-    inline bool is_constant() const { return m_is_constant; }
-    inline bool is_unknown()  const { return m_is_unknown; }
-    inline bool is_hard_term() const { return m_is_hard_term; }
+    bool is_constant() const { return m_is_constant; }
+    bool is_unknown()  const { return m_is_unknown; }
 
-    inline bool is_unifiable_with(const string_hash_t&) const;
+    bool is_unifiable_with(const string_hash_t&) const;
 
-private:
+protected:
     /** Assign a hash to str if needed, and return the hash of str. */
-    static inline unsigned get_hash(std::string str);
+    static unsigned get_hash(std::string str);
 
     static std::mutex ms_mutex_hash, ms_mutex_unknown;
     static hash_map<std::string, unsigned> ms_hashier;
-    static std::vector<std::string> ms_strs;
+    static std::deque<string_t> ms_strs;
     static unsigned ms_issued_variable_count;
 
     inline void set_flags(const std::string &str);
 
     unsigned m_hash;
-    bool m_is_constant, m_is_unknown, m_is_hard_term;
+    bool m_is_constant, m_is_unknown;
 
 #ifdef _DEBUG
     std::string m_string;
 #endif
 };
 
+std::ostream& operator<<(std::ostream& os, const string_hash_t& t);
 
-typedef string_hash_t term_t;
-typedef std::pair<term_t, term_t> substitution_t;
-
-
-/** A struct of literal. */
-class literal_t
-{
-public:
-    static inline predicate_with_arity_t predicate_with_arity(
-        const predicate_t &pred, int term_num, bool is_negated);
-    static predicate_with_arity_t predicate_with_arity(
-        kb::predicate_id_t id, bool is_negated);
-
-    inline static literal_t equal(const term_t&, const term_t&);
-    inline static literal_t not_equal(const term_t&, const term_t&);
-
-    // DEFAULT CONSTRUCTOR
-    inline literal_t() : m_pid(kb::INVALID_PREDICATE_ID) {}
-
-    // CONSTRUCT A LITERAL WITH A PREDICATE-ID
-    inline literal_t(kb::predicate_id_t pid, const std::vector<term_t>&, bool = true);
-
-    // CONSTRUCT A LITERAL WITH A STRING AS THE PREDICATE
-    inline literal_t(const predicate_t&, const std::vector<term_t>&, bool = true);
-    inline literal_t(const predicate_t&, const std::initializer_list<std::string>&, bool = true);
-
-    // CONSTRUCT A LITERAL WITH S-EXPRESSION
-    literal_t(const sexp::sexp_t &s);
-
-    bool operator > (const literal_t &x) const;
-    bool operator < (const literal_t &x) const;
-    bool operator == (const literal_t &x) const;
-    bool operator != (const literal_t &x) const;
-
-    inline std::string to_string(bool f_colored = false) const;
-
-    predicate_t predicate() const;
-    inline predicate_with_arity_t predicate_with_arity() const;
-    kb::predicate_id_t pid() const { return m_pid; }
-
-    inline std::vector<term_t>& terms()             { return m_terms; }
-    inline const std::vector<term_t>& terms() const { return m_terms; }
-
-    inline bool& truth()       { return m_truth; }
-    inline bool  truth() const { return m_truth; }
-
-    inline bool is_valid() const;
-    inline bool is_equality() const;
-    inline bool is_valid_as_functional_predicate() const;
-
-    inline bool do_share_predicate_with(const literal_t &x) const;
-    inline bool is_unifiable_with(const literal_t &x) const;
-
-    bool is_functional() const;
-
-    size_t write_binary(char *bin) const;
-    size_t read_binary(const char *bin);
-
-    void print(std::string *p_out_str, bool f_colored = false) const;
-
-    static const int MAX_ARGUMENTS_NUM = 12;
-
-private:
-    inline void regularize();
-
-    kb::predicate_id_t m_pid;
-    predicate_t m_predicate;
-    std::vector<term_t> m_terms;
-    bool m_truth;
-};
 
 
 /** A base class of components of phillip_main_t. */
@@ -303,11 +193,6 @@ public:
 };
 
 
-/** Functions for GoogleTest. */
-std::ostream& operator<<(std::ostream& os, const term_t& t);
-std::ostream& operator<<(std::ostream& os, const literal_t& t);
-
-
 namespace util
 {
 
@@ -322,10 +207,8 @@ public:
     void prepare_query();
     void finalize();
 
-    inline void put(
-        const void *key, size_t ksize, const void *value, size_t vsize);
-    inline const void* get(
-        const void *key, size_t ksize, size_t *vsize) const;
+    inline void put(const void *key, size_t ksize, const void *value, size_t vsize);
+    inline const void* get(const void *key, size_t ksize, size_t *vsize) const;
     inline size_t size() const;
 
     inline const std::string& filename() const { return m_filename; }
@@ -341,49 +224,32 @@ private:
 };
 
 
-class timeout_t
+class time_watcher_t
 {
 public:
-    timeout_t() : m_time(-1.0f) {}
-    timeout_t(duration_time_t t) : m_time(t) {}
+    time_watcher_t() : m_begin(std::chrono::system_clock::now()) {}
 
-    inline void set(duration_time_t t) { m_time = t; }
-    inline duration_time_t get() const { return m_time; }
+    /** Returns duration time from m_begin in seconds. */
+    duration_time_t duration() const;
 
-    inline bool empty() const { return m_time <= 0.0f; }
-    inline bool do_time_out(duration_time_t duration) const;
-    inline bool do_time_out(const std::chrono::system_clock::time_point &begin) const;
+    /** Returns whether the duration time exceeds timeout. */
+    bool timed_out(duration_time_t timeout) const;
 
 private:
-    duration_time_t m_time;
+    std::chrono::system_clock::time_point m_begin;
 };
 
 
-class xml_element_t
+
+template <class T> class symmetric_pair : public std::pair<T, T>
 {
 public:
-    inline xml_element_t(const std::string &name, const std::string &text)
-        : m_name(name), m_text(text) {}
-
-    inline const std::string& name() const { return m_name; }
-    inline const std::string& text() const { return m_text; }
-    inline hash_map<std::string, std::string> attributes() const { return m_attr; }
-    inline std::list<xml_element_t> children() const { return m_children; }
-
-    inline void add_attribute(const std::string &key, const std::string &val);
-    inline void remove_attribute(const std::string &key);
-
-    inline void add_child(const xml_element_t &elem);
-    inline xml_element_t& last_child() { return m_children.back(); }
-
-    void print(std::ostream *os) const;
-
-private:
-    std::string m_name;
-    std::string m_text;
-    hash_map<std::string, std::string> m_attr;
-    std::list<xml_element_t> m_children;
+    symmetric_pair(T x, T y) : std::pair<T, T>(x, y)
+    {
+        if (first > second) std::swap(first, second);
+    }
 };
+
 
 
 template <class Key, class Value> class triangular_matrix_t
@@ -421,6 +287,7 @@ public:
 protected:
     inline void regularize_keys(Key &k1, Key &k2) const { if (k1 > k2) std::swap(k1, k2); }
 };
+
 
 
 template <class T> class pair_set_t : public hash_map<T, hash_set<T> >
@@ -481,44 +348,20 @@ public:
 /** Call this function on starting phillip. */
 void initialize();
 
-phil::duration_time_t duration_time(const std::chrono::system_clock::time_point &begin);
-
 inline void print_console(const std::string &str);
 inline void print_error(const std::string &str);
 inline void print_warning(const std::string &str);
+
 void print_console_fmt(const char *format, ...);
 void print_error_fmt(const char *format, ...);
 void print_warning_fmt(const char *format, ...);
 
-inline void now(
-    int *year, int *month, int *day, int *hour, int *min, int *sec);
-void beginning_time(
-    int *year, int *month, int *day, int *hour, int *min, int *sec);
+void now(int *year, int *month, int *day, int *hour, int *min, int *sec);
+void beginning_time(int *year, int *month, int *day, int *hour, int *min, int *sec);
 
 std::string format(const char *format, ...);
 std::string time_stamp();
 
-/** Split string with separator.
- *  @param str       Target string.
- *  @param separator A list of separation character.
- *  @param MAX_NUM   A maximum number of separation. Default is unlimited.
- *  @return Result of split. */
-std::vector<std::string> split(
-    const std::string &str, const char *separator, const int MAX_NUM = -1);
-
-/** Replace string.
- *  @param input input string.
- *  @param find string to replace.
- *  @param replace string to this.
- *  @return replacing result. */
-std::string replace(
-    const std::string &input,
-    const std::string &find,
-    const std::string &replace);
-
-std::string strip(const std::string &input, const char *targets);
-bool startswith(const std::string &str, const std::string &query);
-bool endswith(const std::string &str, const std::string &query);
 
 inline bool do_exist_file(const std::string &path);
 inline std::string get_file_name(const std::string &path);
@@ -553,9 +396,6 @@ template <class It> std::string join(
 template <class Container, class Function> std::string join_f(
     const Container &container, Function func, const std::string &delim);
 
-template <class Map, class Key, class Value, class Operator>
-inline bool find_then(
-    const Map &map, const Key &key, const Value &value, const Operator &opr);
 
 /** Returns whether set1 and set2 have any intersection. */
 template <class It> bool has_intersection(
@@ -568,7 +408,7 @@ template <class T> hash_set<T> intersection(
 template <class Container, class Element>
 inline bool has_element(const Container&, const Element&);
 
-template <class T> inline std::pair<T, T> make_sorted_pair(const T &x, const T &y);
+template <class T> inline std::pair<T, T> make_symmetric_pair(const T &x, const T &y);
 
 template <class Container> void erase(Container &c, size_t i);
 
@@ -583,18 +423,18 @@ extern std::mutex g_mutex_for_print;
 namespace std
 {
 
-template <> struct hash<phil::string_hash_t>
+template <> struct hash<dav::string_hash_t>
 {
-    size_t operator() (const phil::string_hash_t &s) const
+    size_t operator() (const dav::string_hash_t &s) const
     { return s.get_hash(); }
 };
 
-template <> struct hash<phil::string_t> : public hash<std::string>
+template <> struct hash<dav::string_t> : public hash<std::string>
 {
-    size_t operator() (const phil::string_t &s) const
+    size_t operator() (const dav::string_t &s) const
     { return hash<std::string>::operator()(s); }
 };
 
 }
 
-#include "./define.inline.h"
+#include "./util.inline.h"

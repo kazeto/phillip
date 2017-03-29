@@ -8,14 +8,6 @@ namespace kb
 {
 
 
-inline bool functional_predicate_configuration_t::is_good() const
-{
-    return
-        (m_pid != INVALID_PREDICATE_ID) and
-        not (m_rel & (REL_ASYMMETRIC | REL_SYMMETRIC)) and
-        not (m_rel & (REL_RIGHT_UNIQUE | REL_SYMMETRIC));
-}
-
 
 inline std::list<axiom_id_t> knowledge_base_t::axioms_database_t::
 gets_by_rhs(predicate_id_t rhs) const
@@ -78,34 +70,34 @@ inline std::string knowledge_base_t::axioms_database_t::get_name_of_unnamed_axio
 }
 
 
-inline const std::vector<predicate_with_arity_t>& knowledge_base_t::predicate_database_t::arities() const
+inline const std::vector<predicate_with_arity_t>& knowledge_base_t::predicate_library_t::arities() const
 {
     return m_arities;
 }
 
 
-inline predicate_id_t knowledge_base_t::predicate_database_t::pred2id(const predicate_with_arity_t &arity) const
+inline predicate_id_t knowledge_base_t::predicate_library_t::pred2id(const predicate_with_arity_t &arity) const
 {
     auto found = m_arity2id.find(arity);
     return (found != m_arity2id.end()) ? found->second : INVALID_PREDICATE_ID;
 }
 
 
-inline const predicate_with_arity_t& knowledge_base_t::predicate_database_t::id2pred(predicate_id_t id) const
+inline const predicate_with_arity_t& knowledge_base_t::predicate_library_t::id2pred(predicate_id_t id) const
 {
     return (id < m_arities.size()) ? m_arities.at(id) : m_arities.front();    
 }
 
 
-inline const hash_map<predicate_id_t, functional_predicate_configuration_t>&
-knowledge_base_t::predicate_database_t::functional_predicates() const
+inline const hash_map<predicate_id_t, predicate_property_t>&
+knowledge_base_t::predicate_library_t::functional_predicates() const
 {
     return m_functional_predicates;
 }
 
 
-inline const functional_predicate_configuration_t*
-knowledge_base_t::predicate_database_t::
+inline const predicate_property_t*
+knowledge_base_t::predicate_library_t::
 find_functional_predicate(predicate_id_t id) const
 {
     auto found = m_functional_predicates.find(id);
@@ -113,28 +105,28 @@ find_functional_predicate(predicate_id_t id) const
 }
 
 
-inline const functional_predicate_configuration_t*
-knowledge_base_t::predicate_database_t::
+inline const predicate_property_t*
+knowledge_base_t::predicate_library_t::
 find_functional_predicate(const predicate_with_arity_t &p) const
 {
     return find_functional_predicate(pred2id(p));
 }
 
 
-inline bool knowledge_base_t::predicate_database_t::
+inline bool knowledge_base_t::predicate_library_t::
 is_functional(predicate_id_t id) const
 {
     return find_functional_predicate(id) != nullptr;
 }
 
-inline bool knowledge_base_t::predicate_database_t::
+inline bool knowledge_base_t::predicate_library_t::
 is_functional(const predicate_with_arity_t &p) const
 {
     return find_functional_predicate(p) != nullptr;
 }
 
 inline const std::list<std::pair<term_idx_t, term_idx_t> >*
-knowledge_base_t::predicate_database_t::find_inconsistent_terms(predicate_id_t a1, predicate_id_t a2) const
+knowledge_base_t::predicate_library_t::find_inconsistent_terms(predicate_id_t a1, predicate_id_t a2) const
 {
     assert(a1 <= a2);
 

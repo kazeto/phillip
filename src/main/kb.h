@@ -11,12 +11,10 @@
 #include <mutex>
 #include <ctime>
 
-#include "./define.h"
-#include "./sexp.h"
-#include "./logical_function.h"
+#include "./util.h"
+#include "./fol.h"
 
-
-namespace phil
+namespace dav
 {
 
 
@@ -26,26 +24,6 @@ namespace pg { class proof_graph_t; }
 namespace kb
 {
 
-typedef long relation_flags_t;
-
-
-enum variable_unifiability_type_e : char
-{
-    UNI_STRONGLY_LIMITED, /// Is expressed as '*'.
-    UNI_WEAKLY_LIMITED,   /// Is expressed as '+'.
-    UNI_UNLIMITED,        /// Is expressed as '.'.
-};
-
-
-enum relation_e : long
-{
-    REL_NONE         = 0x00000000,
-    REL_IRREFLEXIVE  = 0x00000001,
-    REL_SYMMETRIC    = 0x00000010,
-    REL_ASYMMETRIC   = 0x00000100,
-    REL_TRANSITIVE   = 0x00001000,
-    REL_RIGHT_UNIQUE = 0x00010000
-};
 
 
 enum version_e
@@ -86,40 +64,6 @@ public:
     virtual void write(std::ofstream *fo) const = 0;
 
     virtual std::string repr() const = 0;
-};
-
-
-class functional_predicate_configuration_t
-{
-public:
-    functional_predicate_configuration_t();
-    functional_predicate_configuration_t(predicate_id_t arity, relation_flags_t rel);
-    functional_predicate_configuration_t(const lf::logical_function_t &f);
-    functional_predicate_configuration_t(std::ifstream *fi);
-
-    void write(std::ofstream *fo) const;
-
-    predicate_id_t predicate_id() const { return m_pid; }
-    bool do_postpone(const pg::proof_graph_t*, index_t n1, index_t n2) const;
-
-    bool is_irreflexive() const { return m_rel & REL_IRREFLEXIVE; }
-    bool is_symmetric() const { return m_rel & REL_SYMMETRIC; }
-    bool is_asymmetric() const { return m_rel & REL_ASYMMETRIC; }
-    bool is_transitive() const { return m_rel & REL_TRANSITIVE; }
-    bool is_right_unique() const { return m_rel & REL_RIGHT_UNIQUE; }
-
-    term_idx_t governor() const { return (m_unifiability.size() == 3) ? 1 : 0; }
-    term_idx_t dependent() const { return (m_unifiability.size() == 3) ? 2 : 1; }
-
-    inline bool is_good() const;
-    string_t repr() const;
-
-private:
-    void assign_unifiability(relation_flags_t flags, arity_t n);
-
-    predicate_id_t m_pid;
-    std::vector<variable_unifiability_type_e> m_unifiability;
-    relation_flags_t m_rel;
 };
 
 
@@ -224,51 +168,6 @@ public:
             std::map<conjunction_pattern_t, std::set<std::pair<axiom_id_t, is_backward_t>>> pat2ax;
         } m_tmp; /// Temporal variables for compiling.
     } axioms;
-
-    /** A class of the list of predicates. */
-    class predicate_database_t
-    {
-        friend knowledge_base_t;
-    private:
-        predicate_database_t(const std::string &filename);
-
-        void clear();
-        void load();
-        void write() const;
-
-    public:
-        predicate_id_t add(const predicate_with_arity_t&);
-        predicate_id_t add(const literal_t&);
-
-        void define_functional_predicate(const lf::logical_function_t&);
-        void define_functional_predicate(const functional_predicate_configuration_t&);
-
-        void define_mutual_exclusion(const lf::logical_function_t &f);
-        void define_mutual_exclusion(const literal_t &l1, const literal_t &l2);
-
-        inline const std::vector<predicate_with_arity_t>& arities() const;
-        inline predicate_id_t pred2id(const predicate_with_arity_t&) const;
-        inline const predicate_with_arity_t& id2pred(predicate_id_t) const;
-
-        inline const hash_map<predicate_id_t, functional_predicate_configuration_t>& functional_predicates() const;
-        inline const functional_predicate_configuration_t* find_functional_predicate(predicate_id_t) const;
-        inline const functional_predicate_configuration_t* find_functional_predicate(const predicate_with_arity_t&) const;
-        inline bool is_functional(predicate_id_t) const;
-        inline bool is_functional(const predicate_with_arity_t&) const;
-
-        inline const std::list<std::pair<term_idx_t, term_idx_t> >*
-            find_inconsistent_terms(predicate_id_t, predicate_id_t) const;
-
-    private:
-        std::string m_filename;
-
-        std::vector<predicate_with_arity_t> m_arities;
-        hash_map<predicate_with_arity_t, predicate_id_t> m_arity2id;
-
-        hash_map<predicate_id_t, functional_predicate_configuration_t> m_functional_predicates;
-        hash_map<predicate_id_t, hash_map<predicate_id_t,
-            std::list<std::pair<term_idx_t, term_idx_t> > > > m_mutual_exclusions;
-    } predicates;
 
     /** A class of reachable-matrix for all predicate pairs. */
     class reachable_matrix_t
