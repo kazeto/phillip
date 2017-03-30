@@ -572,10 +572,16 @@ bool proof_graph_t::_check_nodes_coexistability(
     }
 
     hash_set<node_idx_t> ns1, ns2;
-    enumerate_dependent_nodes(n1, &ns1);
-    enumerate_dependent_nodes(n2, &ns2);
-    ns1.insert(n1);
-    ns2.insert(n2);
+    {
+        enumerate_dependent_nodes(n1, &ns1);
+        enumerate_dependent_nodes(n2, &ns2);
+        
+        auto hn1 = hypernode(node(n1).master_hypernode());
+        auto hn2 = hypernode(node(n2).master_hypernode());
+        ns1.insert(hn1.begin(), hn1.end());
+        ns2.insert(hn2.begin(), hn2.end());
+    }
+    
     if (ns1.size() > ns2.size()) std::swap(ns1, ns2);
 
     for (auto it = ns1.begin(); it != ns1.end(); ++it)
