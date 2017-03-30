@@ -1,39 +1,86 @@
 #pragma once
 
 
-namespace phil
+namespace dav
 {
 
 namespace kb
 {
 
-
-
-inline std::list<axiom_id_t> knowledge_base_t::axioms_database_t::
-gets_by_rhs(predicate_id_t rhs) const
+template <typename T> void rules_cdb_t<T>::prepare_compile()
 {
-    return gets_from_cdb((char*)&rhs, sizeof(predicate_id_t), &m_cdb_rhs);
+	cdb_data_t::prepare_compile();
+	m_rids.clear();
 }
 
 
-inline std::list<axiom_id_t> knowledge_base_t::axioms_database_t::
-gets_by_rhs(const predicate_with_arity_t &rhs) const
+template <typename T> void rules_cdb_t<T>::finalize()
 {
-    return gets_by_rhs(kb()->predicates.pred2id(rhs));
+	char key[512];
+	binary_writer_t key_writer(key);
+
+	// WRITE TO CDB FILE
+	for (auto p : m_rids)
+	{
+		key_writer.reset();
+		key_writer.write<T>(p.first);
+
+		size_t size_value = sizeof(size_t);
+		for (const auto &f : p.second)
+			size_value += f.bytesize();
+
+		char *value = new char[size_value];
+		binary_writer_t value_writer(value);
+
+		value_writer.write<size_t>(p.second.size());
+		for (const auto &f : p.second)
+			value_writer.write(f);
+
+		assert(size_value == value_writer.size());
+		put(key, key_writer.size(), value, value_writer.size());
+
+		delete[] value;
+	}
+
+	m_rids.clear();
+	cdb_data_t::finalize();
 }
 
 
-inline std::list<axiom_id_t> knowledge_base_t::axioms_database_t::
-gets_by_lhs(predicate_id_t lhs) const
+template <typename T> std::list<rule_id_t> rules_cdb_t<T>::gets(const T &key) const
 {
-    return gets_from_cdb((char*)&lhs, sizeof(predicate_id_t), &m_cdb_lhs);
+	assert(is_readable());
+
+	std::list<axiom_id_t> out;
+	char key[512];
+	binary_writer_t key_writer(key);
+	key_writer.write<T>(key);
+
+	size_t value_size;
+	const char *value = (const char*)dat->get(key, key_writer.size(), &value_size);
+
+	if (value != nullptr)
+	{
+		binary_reader_t value_reader(value);
+		size_t num(0);
+		value_reader.read<size_t>(&num);
+
+		for (size_t i = 0; i < num; ++i)
+		{
+			rule_id_t rid;
+			value_reader.read<rule_id_t>(&rid);
+			out.push_back(rid);
+		}
+	}
+
+	return out;
 }
 
 
-inline std::list<axiom_id_t> knowledge_base_t::axioms_database_t::
-gets_by_lhs(const predicate_with_arity_t &lhs) const
+template <typename T> void rules_cdb_t<T>::insert(const T &key, rule_id_t value)
 {
-    return gets_by_lhs(kb()->predicates.pred2id(lhs));
+	assert(is_writable());
+	m_rids[k].insert(v);
 }
 
 
@@ -62,12 +109,6 @@ inline void knowledge_base_t::clear_distance_cache()
 }
 
 
-inline std::string knowledge_base_t::axioms_database_t::get_name_of_unnamed_axiom()
-{
-    char buf[128];
-    _sprintf(buf, "_%#.8lx", m_num_unnamed_axioms++);
-    return std::string(buf);
-}
 
 
 }

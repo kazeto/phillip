@@ -35,36 +35,44 @@ conjunction_t::feature_t::feature_t(binary_reader_t &r)
 	pids.assign(len, 0);
 	for (small_size_t i = 0; i < len; ++i)
 		r.read<predicate_id_t>(&pids[i]);
+
+	char flag;
+	r.read<char>(&flag);
+	is_rhs = (bool)(flag);
 }
 
 
 bool conjunction_t::feature_t::operator<(const feature_t &x) const
 {
+	if (is_rhs != x.is_rhs) return not is_rhs;
 	return pids < x.pids;
 }
 
 
 bool conjunction_t::feature_t::operator>(const feature_t &x) const
 {
+	if (is_rhs != x.is_rhs) return is_rhs;
 	return pids > x.pids;
 }
 
 
 bool conjunction_t::feature_t::operator==(const feature_t &x) const
 {
+	if (is_rhs != x.is_rhs) return false;
 	return pids == x.pids;
 }
 
 
 bool conjunction_t::feature_t::operator!=(const feature_t &x) const
 {
+	if (is_rhs != x.is_rhs) return true;
 	return pids != x.pids;
 }
 
 
 size_t conjunction_t::feature_t::bytesize() const
 {
-	return sizeof(predicate_id_t) * pids.size();
+	return sizeof(predicate_id_t) * pids.size() + sizeof(char);
 }
 
 

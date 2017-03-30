@@ -1,22 +1,10 @@
-#include "./fol.h"
+#include "./kb.h"
 
 namespace dav
 {
 
-std::unique_ptr<conjunction_library_t> conjunction_library_t::ms_instance;
-
-
-void conjunction_library_t::initialize(const filepath_t &path)
+namespace kb
 {
-	ms_instance.reset(new conjunction_library_t(path));
-}
-
-
-conjunction_library_t* conjunction_library_t::instance()
-{
-	assert(not ms_instance);
-	return ms_instance.get();
-}
 
 
 conjunction_library_t::conjunction_library_t(const filepath_t &path)
@@ -63,14 +51,21 @@ void conjunction_library_t::finalize()
 }
 
 
-void conjunction_library_t::insert(const conjunction_t &conj)
+void conjunction_library_t::insert(const rule_t &r)
 {
 	assert(is_writable());
 
-	auto feat = conj.feature();
+	auto f_lhs = r.lhs().feature();
+	f_lhs.is_rhs = false;
 
-	for (const auto &a : conj)
-		m_features[a.predicate().pid()].insert(feat);
+	for (const auto &a : r.lhs())
+		m_features[a.predicate().pid()].insert(f_lhs);
+
+	auto f_rhs = r.lhs().feature();
+	f_rhs.is_rhs = true;
+
+	for (const auto &a : r.rhs())
+		m_features[a.predicate().pid()].insert(f_rhs);
 }
 
 
@@ -99,4 +94,6 @@ std::list<conjunction_t::feature_t> conjunction_library_t::get(predicate_id_t pi
 }
 
 
-}
+} // end of kb
+
+} // end of dav

@@ -11,16 +11,14 @@
 #include <mutex>
 #include <ctime>
 
-#include "./util.h"
 #include "./fol.h"
+
 
 namespace dav
 {
 
-
 namespace kb
 {
-
 
 
 enum version_e
@@ -33,19 +31,130 @@ enum version_e
 };
 
 
-/** A virtual class to define distance between predicates
- *  on creation of reachable-matrix. */
-class distance_function_t
+/** A class to strage all patterns of conjunctions found in KB. */
+class conjunction_library_t : public cdb_data_t
 {
 public:
-    virtual ~distance_function_t() {}
+	conjunction_library_t(const filepath_t &path);
 
-	virtual double operator()(const rule_t&) const = 0;
+	void prepare_compile();
+	void prepare_query();
+	void finalize();
 
-    virtual std::string repr() const = 0;
+	void insert(const rule_t&);
+	std::list<conjunction_t::feature_t> get(predicate_id_t) const;
+
+private:
+	std::unordered_map<predicate_id_t, std::set<conjunction_t::feature_t>> m_features;
 };
 
 
+/** Wrapper class of CDB for map of rule-set. */
+template <typename T> class rules_cdb_t : public cdb_data_t
+{
+public:
+	rules_cdb_t(const filepath_t &path) : cdb_data_t(path) {}
+
+	void prepare_compile();
+	void finalize();
+
+	std::list<rule_id_t> gets(const T &key) const;
+	void insert(const T&, rule_id_t);
+
+private:
+	std::map<T, std::unordered_set<rule_id_t>> m_rids;
+};
+
+
+/** A class of database of axioms. */
+class rule_library_t
+{
+public:
+	rule_library_t(const filepath_t &filename);
+	~rule_library_t();
+
+	void prepare_compile();
+	void prepare_query();
+	void finalize();
+
+	rule_id_t add(rule_t &r);
+	rule_t get(rule_id_t id) const;
+
+	inline size_t size() const { return m_num_rules; }
+	inline bool is_writable() const { return (m_fo_idx != NULL) and (m_fo_dat != NULL); }
+	inline bool is_readable() const { return (m_fi_idx != NULL) and (m_fi_dat != NULL); }
+	inline bool empty() const { return size() == 0; }
+
+private:
+	typedef unsigned long long pos_t;
+	typedef unsigned long rule_size_t; /// The type of binary size of axiom.
+
+	string_t get_name_of_unnamed_axiom();
+
+	static std::mutex ms_mutex;
+
+	filepath_t m_filename;
+	std::unique_ptr<std::ofstream> m_fo_idx, m_fo_dat;
+	std::unique_ptr<std::ifstream> m_fi_idx, m_fi_dat;
+	size_t m_num_rules;
+	size_t m_num_unnamed_rules;
+	pos_t m_writing_pos;
+};
+
+
+
+/** A virtual class to define distance between predicates.
+*  An instance of this class will be used on creation of reachable-matrix. */
+class distance_function_t
+{
+public:
+	virtual ~distance_function_t() {}
+
+	virtual double operator()(const rule_t&) const = 0;
+	virtual std::string repr() const = 0;
+};
+
+
+/** A class of reachability-matrix for all predicate pairs. */
+class reachability_matrix_t
+{
+public:
+	static void initialize(const filepath_t &path);
+	static reachability_matrix_t* instance();
+
+	void load(); // TODO
+	void write(); // TODO
+
+	void construct(); // TODO
+
+	void prepare_compile();
+	void prepare_query();
+	void finalize();
+
+	float get(size_t idx1, size_t idx2) const;
+	hash_set<float> get(size_t idx) const;
+
+	bool is_writable() const { return static_cast<bool>(m_fout); }
+	bool is_readable() const { return static_cast<bool>(m_fin); }
+
+private:
+	typedef unsigned long long pos_t;
+
+	reachability_matrix_t(const filepath_t &path);
+	void put(size_t idx1, const hash_map<size_t, float> &dist);
+
+	static std::unique_ptr<reachability_matrix_t> ms_instance;
+	static std::mutex ms_mutex;
+
+	filepath_t m_path;
+	std::unique_ptr<std::ofstream> m_fout;
+	std::unique_ptr<std::ifstream> m_fin;
+	hash_map<size_t, pos_t> m_map_idx_to_pos;
+};
+
+
+
+/** A struct for configuration of KB. */
 struct configuration_t
 {
 	configuration_t();
@@ -90,100 +199,11 @@ public:
 
     inline void clear_distance_cache();
 
-    /** A class of database of axioms. */
-    class axioms_database_t
-    {
-        friend knowledge_base_t;
-    private:
-        axioms_database_t(const std::string &filename);
-
-        void prepare_compile();
-        void prepare_query();
-        void finalize();
-
-    public:
-        ~axioms_database_t();
-
-        axiom_id_t add(const rule_t &r);
-        rule_t get(axiom_id_t id) const;
-
-        inline std::list<axiom_id_t> gets_by_rhs(predicate_id_t rhs) const;
-        inline std::list<axiom_id_t> gets_by_rhs(const predicate_with_arity_t &rhs) const;
-        inline std::list<axiom_id_t> gets_by_lhs(predicate_id_t lhs) const;
-        inline std::list<axiom_id_t> gets_by_lhs(const predicate_with_arity_t &lhs) const;
-
-        std::list<conjunction_pattern_t> patterns(predicate_id_t arity) const;
-        std::list<std::pair<axiom_id_t, bool>> gets_by_pattern(const conjunction_pattern_t &query) const;
-
-        hash_set<axiom_id_t> gets_in_same_group_as(axiom_id_t id) const;
-
-        inline size_t size() const   { return static_cast<size_t>(m_num_compiled_axioms); }
-        inline bool is_writable() const { return (m_fo_idx != NULL) and(m_fo_dat != NULL); }
-        inline bool is_readable() const { return (m_fi_idx != NULL) and (m_fi_dat != NULL); }
-        inline bool empty() const       { return size() == 0; }
-
-    private:
-        typedef unsigned long long axiom_pos_t;
-        typedef unsigned long axiom_size_t; /// The type of binary size of axiom.
-        typedef string_t group_name_t;
-
-        inline std::string get_name_of_unnamed_axiom();
-        std::list<axiom_id_t> gets_from_cdb(
-			const char *key, size_t key_size, const cdb_data_t *dat) const;
-
-        static std::mutex ms_mutex;
-
-        std::string m_filename;
-        std::unique_ptr<std::ofstream> m_fo_idx, m_fo_dat;
-        std::unique_ptr<std::ifstream> m_fi_idx, m_fi_dat;
-        int m_num_compiled_axioms, m_num_unnamed_axioms;
-        axiom_pos_t m_writing_pos;
-
-        cdb_data_t m_cdb_rhs, m_cdb_lhs;
-        cdb_data_t m_cdb_arity_patterns, m_cdb_pattern_to_ids;
-
-        struct
-        {
-            hash_map<axiom_id_t, std::list<hash_set<axiom_id_t>*> > ax2gr;
-            std::list<hash_set<axiom_id_t> > groups;
-        } m_groups;
-
-        struct
-        {
-            hash_map<group_name_t, hash_set<axiom_id_t> > gr2ax;
-            hash_map<predicate_id_t, hash_set<axiom_id_t> > lhs2ax, rhs2ax;
-            hash_map<predicate_id_t, std::set<conjunction_pattern_t>> pred2pats;
-            std::map<conjunction_pattern_t, std::set<std::pair<axiom_id_t, is_backward_t>>> pat2ax;
-        } m_tmp; /// Temporal variables for compiling.
-    } axioms;
-
-    /** A class of reachable-matrix for all predicate pairs. */
-    class reachable_matrix_t
-    {
-        friend knowledge_base_t;
-    private:
-        reachable_matrix_t(const std::string &filename);
-
-        void prepare_compile();
-        void prepare_query();
-        void finalize();
-
-    public:
-        void put(size_t idx1, const hash_map<size_t, float> &dist);
-        float get(size_t idx1, size_t idx2) const;
-        hash_set<float> get(size_t idx) const;
-
-        inline bool is_writable() const { return static_cast<bool>(m_fout); }
-        inline bool is_readable() const { return static_cast<bool>(m_fin); }
-
-    private:
-        typedef unsigned long long pos_t;
-        static std::mutex ms_mutex;
-        std::string  m_filename;
-        std::unique_ptr<std::ofstream> m_fout;
-        std::unique_ptr<std::ifstream> m_fin;
-        hash_map<size_t, pos_t> m_map_idx_to_pos;
-    } heuristics;
+    rule_library_t rules;
+	rules_cdb_t<predicate_id_t> lhs2rids;
+	rules_cdb_t<predicate_id_t> rhs2rids;
+	rules_cdb_t<rule_class_t> class2rids;
+	rules_cdb_t<conjunction_t::feature_t> feats2rids;
 
 private:
     enum kb_state_e { STATE_NULL, STATE_COMPILE, STATE_QUERY };
@@ -207,8 +227,6 @@ private:
         const std::set<std::pair<predicate_id_t, predicate_id_t> > &base_para,
         hash_map<predicate_id_t, float> *out) const;
 
-    void extend_inconsistency();
-
     static std::unique_ptr<knowledge_base_t, deleter_t<knowledge_base_t>> ms_instance;
     static std::mutex ms_mutex_for_cache;
     static std::mutex ms_mutex_for_rm;
@@ -217,15 +235,6 @@ private:
     version_e m_version;
 
     configuration_t m_config;
-
-    /** Function object to provide distance between predicates. */
-    struct
-    {
-        distance_function_t *instance;
-        std::string key;
-    } m_distance_provider;
-
-    mutable hash_map<size_t, hash_map<size_t, float> > m_cache_distance;
 };
 
 

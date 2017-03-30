@@ -11,11 +11,13 @@ namespace dav
 typedef long int axiom_id_t;
 typedef small_size_t arity_t;
 typedef small_size_t term_idx_t;
-typedef string_t predicate_with_arity_t;
 typedef size_t predicate_id_t;
+typedef size_t rule_id_t;
+typedef bool is_right_hand_side_t;
 
 typedef string_hash_t term_t;
 typedef std::pair<term_t, term_t> substitution_t;
+typedef string_t rule_class_t;
 
 enum predicate_id_e : predicate_id_t
 {
@@ -23,29 +25,10 @@ enum predicate_id_e : predicate_id_t
     EQ_PREDICATE_ID = 1,
 };
 
-
-namespace kb
+enum rule_id_e : rule_id_t
 {
-class knowledge_base_t;
-class conjunction_pattern_t;
-
-typedef unsigned long int argument_set_id_t;
-typedef bool is_backward_t;
-
-typedef std::pair<index_t, term_idx_t> term_pos_t;
-typedef std::pair<std::pair<predicate_id_t, term_idx_t>,
-    std::pair<predicate_id_t, term_idx_t> > hard_term_pair_t;
-
-extern const axiom_id_t INVALID_AXIOM_ID;
-extern const argument_set_id_t INVALID_ARGUMENT_SET_ID;
-extern const predicate_id_t EQ_PREDICATE_ID;
-
-inline bool is_backward(std::pair<axiom_id_t, is_backward_t> &p)
-{
-    return p.second;
-}
-
-} // end of kb
+	INVALID_RULE_ID = 0
+};
 
 
 /** A class to represent predicates. */
@@ -259,7 +242,7 @@ private:
 class conjunction_t : public std::vector<literal_t>
 {
 public:
-	/** A class to express features of conjunctions.
+	/** A class to express features of conjunctions in rules.
 	*  Instances of this are used as keys on looking up KB. */
 	struct feature_t
 	{
@@ -274,6 +257,7 @@ public:
 		size_t bytesize() const;
 
 		std::vector<predicate_id_t> pids;
+		is_right_hand_side_t is_rhs;
 	};
 
     conjunction_t() {}
@@ -296,35 +280,16 @@ template <> void binary_writer_t::write<conjunction_t>(const conjunction_t &x)
 	write<std::string>(x.param());
 }
 
-template <> void binary_writer_t::write<conjunction_t::feature_t>(const conjunction_t::feature_t &x)
+template <> void binary_writer_t::
+write<conjunction_t::feature_t>(const conjunction_t::feature_t &x)
 {
 	write<small_size_t>(static_cast<small_size_t>(x.pids.size()));
 	for (const auto &pid : x.pids)
 		write<predicate_id_t>(pid);
+
+	char flag = x.is_rhs ? 0 : 1;
+	write<char>(flag);
 }
-
-
-/** A class to strage all patterns of conjunctions found in KB. */
-class conjunction_library_t : public cdb_data_t
-{
-public:
-	static void initialize(const filepath_t &path);
-	static conjunction_library_t* instance();
-
-	void prepare_compile();
-	void prepare_query();
-	void finalize();
-
-	void insert(const conjunction_t&);
-	std::list<conjunction_t::feature_t> get(predicate_id_t) const;
-
-private:
-	conjunction_library_t(const filepath_t &path);
-
-	static std::unique_ptr<conjunction_library_t> ms_instance;
-
-	std::unordered_map<predicate_id_t, std::set<conjunction_t::feature_t>> m_features;
-};
 
 
 /** A class to represents rules. */
@@ -343,9 +308,13 @@ public:
     inline const conjunction_t& rhs() const { return m_rhs; }
     inline       conjunction_t& rhs()       { return m_rhs; }
 
+	inline rule_id_t  rid() const { return m_rid; }
+	inline rule_id_t& rid()       { return m_rid; }
+
 private:
     string_t m_name;
     conjunction_t m_lhs, m_rhs;
+	rule_id_t m_rid;
 };
 
 template <> void binary_writer_t::write<rule_t>(const rule_t &x)
@@ -354,6 +323,8 @@ template <> void binary_writer_t::write<rule_t>(const rule_t &x)
 	write<conjunction_t>(x.lhs());
 	write<conjunction_t>(x.rhs());
 }
+
+
 
 
 

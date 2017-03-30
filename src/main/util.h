@@ -395,7 +395,6 @@ private:
 	size_t m_size;
 };
 
-
 template <> void binary_reader_t::read<std::string>(std::string *out)
 {
 	char str[512];
@@ -425,6 +424,7 @@ public:
 	}
 
 	size_t size() { return m_size; }
+	void reset() { m_size = 0; }
 
 private:
 	char* current() { return m_ptr + m_size; }
@@ -432,7 +432,6 @@ private:
 	char *m_ptr;
 	size_t m_size;
 };
-
 
 template <> void binary_writer_t::write<std::string>(const std::string &value)
 {
