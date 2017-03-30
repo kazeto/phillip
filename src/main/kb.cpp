@@ -1,6 +1,5 @@
 /* -*- coding: utf-8 -*- */
 
-#include <iomanip>
 #include <cassert>
 #include <cstring>
 #include <climits>
@@ -22,11 +21,6 @@ namespace kb
 {
 
 
-configuration_t::configuration_t()
-	: max_distance(-1.0), thread_num(1)
-{}
-
-
 const int BUFFER_SIZE = 512 * 512;
 std::unique_ptr<knowledge_base_t, deleter_t<knowledge_base_t>> knowledge_base_t::ms_instance;
 std::mutex knowledge_base_t::ms_mutex_for_cache;
@@ -42,55 +36,45 @@ knowledge_base_t* knowledge_base_t::instance()
 }
 
 
-void knowledge_base_t::initialize(const configuration_t &conf)
+void knowledge_base_t::initialize(const filepath_t &path)
 {
-    if (ms_instance != NULL)
-        ms_instance.reset(NULL);
+	assert(not ms_instance);
         
-	conf.path.dirname().mkdir();
-    ms_instance.reset(new knowledge_base_t(conf));
+	path.dirname().mkdir();
+    ms_instance.reset(new knowledge_base_t(path));
 
-	predicate_library_t::instance()->filepath() = conf.path + ".pred.dat";
+	predicate_library_t::instance()->filepath() = path + ".pred.dat";
 }
 
 
-knowledge_base_t::knowledge_base_t(const configuration_t &conf)
-    : m_state(STATE_NULL),
-	m_version(KB_VERSION_1), 
-	axioms(conf.path),
-	m_config(conf),
-	heuristics(conf.path + ".rm.dat")
-{
-    m_distance_provider = { NULL, "" };
-
-    auto dist_key = param()->get("distance-provider");
-    set_distance_provider(dist_key.empty() ? "basic" : conf.dp_key);
-}
+knowledge_base_t::knowledge_base_t(const filepath_t &path)
+    : m_state(STATE_NULL), m_version(KB_VERSION_1),	m_path(path),
+	rules(path + "base.dat"),
+	lhs2rids(path + ".lhs.cdb"),
+	rhs2rids(path + ".rhs.cdb"),
+	class2rids(path + ".cls.cdb"),
+	feat2rids(path + ".ft.cdb")
+{}
 
 
 knowledge_base_t::~knowledge_base_t()
 {
     finalize();
-
-    if (m_distance_provider.instance != NULL)
-        delete m_distance_provider.instance;
 }
 
 
 void knowledge_base_t::prepare_compile()
 {
-    if (m_distance_provider.instance == NULL)
-        throw phillip_exception_t(
-        "Preparing KB had failed, "
-        "because distance provider has not been set.");
-
     if (m_state == STATE_QUERY)
         finalize();
 
     if (m_state == STATE_NULL)
     {
-        axioms.prepare_compile();
-
+		rules.prepare_compile();
+		lhs2rids.prepare_compile();
+		rhs2rids.prepare_compile();
+		class2rids.prepare_compile();
+		feat2rids.prepare_compile();
 
         m_state = STATE_COMPILE;
     }
@@ -99,21 +83,16 @@ void knowledge_base_t::prepare_compile()
 
 void knowledge_base_t::prepare_query()
 {
-    if (m_distance_provider.instance == NULL)
-        throw phillip_exception_t(
-        "Preparing KB had failed, "
-        "because distance provider has not been set.");
-
     if (m_state == STATE_COMPILE)
         finalize();
 
     if (m_state == STATE_NULL)
     {
-        read_config();
-        predicate_library_t::instance()->load();
-        axioms.prepare_query();
-
-        heuristics.prepare_query();
+		rules.prepare_query();
+		lhs2rids.prepare_query();
+		rhs2rids.prepare_query();
+		class2rids.prepare_query();
+		feat2rids.prepare_query();
 
         m_state = STATE_QUERY;
     }
@@ -127,213 +106,23 @@ void knowledge_base_t::finalize()
     kb_state_e state = m_state;
     m_state = STATE_NULL;
 
-    axioms.finalize();
-    heuristics.finalize();
+	write_spec(m_path + ".spec.txt");
 
-	auto *preds = predicate_library_t::instance();
-
-    if (state == STATE_COMPILE)
-    {
-        extend_inconsistency();
-        create_reachable_matrix();
-        write_config();
-        preds->write();
-
-        if (param()->has("print-reachability"))
-        {
-			std::ofstream fo(param()->get("print-reachability"));
-
-            fo << "Reachability Matrix:" << std::endl;
-            heuristics.prepare_query();
-
-            fo << std::setw(30) << std::right << "" << " | ";
-            for (auto p : preds->predicates())
-                fo << p.string() << " | ";
-            fo << std::endl;
-
-            for (auto p1 : preds->predicates())
-            {
-                predicate_id_t idx1 = preds->pred2id(p1);
-                fo << std::setw(30) << std::right << p1.string() << " | ";
-
-                for (auto p2 : preds->predicates())
-                {
-                    predicate_id_t idx2 = preds->pred2id(p2);
-                    float dist = heuristics.get(idx1, idx2);
-                    fo << std::setw(p2.string().length()) << dist << " | ";
-                }
-                fo << std::endl;
-            }
-        }
-    }
+	rules.finalize();
+	lhs2rids.finalize();
+	rhs2rids.finalize();
+	class2rids.finalize();
+	feat2rids.finalize();
 }
 
 
-void knowledge_base_t::write_config() const
+void knowledge_base_t::write_spec(const filepath_t &path) const
 {
-    std::string filename(m_config.path + ".conf");
-    std::ofstream fo(
-        filename.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);
-    char version(NUM_OF_KB_VERSION_TYPES - 1); // LATEST VERSION
-    char num_dp = m_distance_provider.key.length();
+	std::ofstream fo(path);
 
-    if (not fo)
-        throw phillip_exception_t(
-        format("Cannot open KB-configuration file: \"%s\"", filename.c_str()));
-
-    fo.write(&version, sizeof(char));
-    fo.write((char*)&m_config.max_distance, sizeof(float));
-
-    fo.write(&num_dp, sizeof(char));
-    fo.write(m_distance_provider.key.c_str(), m_distance_provider.key.length());
-
-    fo.close();
-}
-
-
-void knowledge_base_t::read_config()
-{
-    std::string filename(m_config.path + ".conf");
-    std::ifstream fi(filename.c_str(), std::ios::in | std::ios::binary);
-    char version, num;
-    char key[256];
-
-    if (not fi)
-        throw phillip_exception_t(
-        format("Cannot open KB-configuration file: \"%s\"", filename.c_str()));
-
-    fi.read(&version, sizeof(char));
-
-    if (version > 0 and version < NUM_OF_KB_VERSION_TYPES)
-        m_version = static_cast<version_e>(version);
-    else
-    {
-        m_version = KB_VERSION_UNSPECIFIED;
-        throw phillip_exception_t(
-            "This compiled knowledge base is invalid. Please re-compile it.");
-    }
-
-    if (not is_valid_version())
-        throw phillip_exception_t(
-        "This compiled knowledge base is too old. Please re-compile it.");
-
-    fi.read((char*)&m_config.max_distance, sizeof(float));
-
-    fi.read(&num, sizeof(char));
-    fi.read(key, num);
-    key[num] = '\0';
-    set_distance_provider(key);
-
-    fi.close();
-}
-
-
-std::list<conjunction_pattern_t> knowledge_base_t::rule_library_t::patterns(predicate_id_t pid) const
-{
-    std::list<conjunction_pattern_t> out;
-
-    if (not m_cdb_arity_patterns.is_readable())
-    {
-        console()->warn("kb-search: Kb-state is invalid.");
-        return out;
-    }
-
-    size_t value_size;
-    const char *value = (const char*)m_cdb_arity_patterns.get(&pid, sizeof(predicate_id_t), &value_size);
-
-    if (value != nullptr)
-    {
-        size_t num_query, read_size(0);
-        read_size += util::binary_to<size_t>(value, &num_query);
-        out.assign(num_query, conjunction_pattern_t());
-
-        for (auto &p : out)
-            read_size += binary_to_pattern(value + read_size, &p);
-    }
-
-    return out;
-}
-
-
-std::list<std::pair<axiom_id_t, bool>> knowledge_base_t::rule_library_t::
-gets_by_pattern(const conjunction_pattern_t &pattern) const
-{
-    std::list<std::pair<axiom_id_t, is_right_hand_side_t>> out;
-
-    if (not m_cdb_pattern_to_ids.is_readable())
-    {
-        util::print_warning("kb-search: Kb-state is invalid.");
-        return out;
-    }
-
-    std::vector<char> key;
-    pattern_to_binary(pattern, &key);
-
-    size_t value_size;
-    const char *value = (const char*)
-        m_cdb_pattern_to_ids.get(&key[0], key.size(), &value_size);
-
-    if (value != nullptr)
-    {
-        size_t size(0), num_id(0);
-        size += util::binary_to<size_t>(value + size, &num_id);
-        out.assign(num_id, std::pair<axiom_id_t, is_right_hand_side_t>());
-
-        for (auto &p : out)
-        {
-            char flag;
-            size += util::binary_to<axiom_id_t>(value + size, &(p.first));
-            size += util::binary_to<char>(value + size, &flag);
-            p.second = (flag != 0x00);
-        }
-    }
-
-    return out;
-}
-
-
-void knowledge_base_t::set_distance_provider(
-    const std::string &key, const phillip_main_t *ph)
-{
-    if (m_distance_provider.instance != NULL)
-        delete m_distance_provider.instance;
-
-    m_distance_provider = {
-        bin::distance_provider_library_t::instance()->generate(key, ph),
-        key };
-
-    if (m_distance_provider.instance == NULL)
-        throw phillip_exception_t(
-        util::format("The key of distance-provider is invalid: \"%s\"", key.c_str()));
-}
-
-
-float knowledge_base_t::get_distance(
-    const std::string &arity1, const std::string &arity2 ) const
-{
-    predicate_id_t get1 = predicates.pred2id(arity1);
-    predicate_id_t get2 = predicates.pred2id(arity2);
-    return get_distance(get1, get2);
-}
-
-
-float knowledge_base_t::get_distance(predicate_id_t a1, predicate_id_t a2) const
-{
-    if (a1 == INVALID_PREDICATE_ID or a2 == INVALID_PREDICATE_ID)
-        return -1.0f;
-
-    std::lock_guard<std::mutex> lock(ms_mutex_for_cache);
-    auto found1 = m_cache_distance.find(a1);
-    if (found1 != m_cache_distance.end())
-    {
-        auto found2 = found1->second.find(a2);
-        if (found2 != found1->second.end())
-            return found2->second;
-    }
-
-    float dist(heuristics.get(a1, a2));
-    m_cache_distance[a1][a2] = dist;
-    return dist;
+	fo << "version: " << m_version << std::endl;
+	fo << "time-stamp: " << INIT_TIME.string() << std::endl;
+	fo << "num: " << rules.size() << std::endl;
 }
 
 
@@ -580,4 +369,4 @@ void knowledge_base_t::_create_reachable_matrix_indirect(
 
 } // end kb
 
-} // end phil
+} // end dav

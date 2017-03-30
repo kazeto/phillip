@@ -63,6 +63,13 @@ time_point_t::time_point_t()
 #endif
 }
 
+
+string_t time_point_t::string() const
+{
+	return format("%04d/%02d/%02d %02d:%02d:%02d", year, month, day, hour, min, sec);
+}
+
+
 const time_point_t INIT_TIME;
 
 

@@ -116,53 +116,44 @@ public:
 
 
 /** A class of reachability-matrix for all predicate pairs. */
-class reachability_matrix_t
+class heuristics_t
 {
 public:
 	static void initialize(const filepath_t &path);
-	static reachability_matrix_t* instance();
+	static heuristics_t* instance();
 
-	void load(); // TODO
-	void write(); // TODO
+	void load();
+	void construct();
 
-	void construct(); // TODO
-
-	void prepare_compile();
-	void prepare_query();
-	void finalize();
-
-	float get(size_t idx1, size_t idx2) const;
-	hash_set<float> get(size_t idx) const;
+	float get(predicate_id_t pid1, predicate_id_t pid2) const;
+	std::unordered_map<predicate_id_t, float> get(predicate_id_t pid) const;
 
 	bool is_writable() const { return static_cast<bool>(m_fout); }
 	bool is_readable() const { return static_cast<bool>(m_fin); }
 
+	std::unique_ptr<distance_function_t>& function() { return m_dist; }
+
+	void print(const filepath_t&); // For debugging.
+
 private:
 	typedef unsigned long long pos_t;
 
-	reachability_matrix_t(const filepath_t &path);
+	heuristics_t(const filepath_t &path);
 	void put(size_t idx1, const hash_map<size_t, float> &dist);
 
-	static std::unique_ptr<reachability_matrix_t> ms_instance;
+	static std::unique_ptr<heuristics_t> ms_instance;
 	static std::mutex ms_mutex;
 
 	filepath_t m_path;
 	std::unique_ptr<std::ofstream> m_fout;
 	std::unique_ptr<std::ifstream> m_fin;
-	hash_map<size_t, pos_t> m_map_idx_to_pos;
-};
+	hash_map<size_t, pos_t> m_pid2pos;
 
+	float m_max_distance;
+	int m_thread_num;
+	string_t m_dist_key;
 
-
-/** A struct for configuration of KB. */
-struct configuration_t
-{
-	configuration_t();
-
-	filepath_t path;
-	double max_distance;
-	int thread_num;
-	string_t dp_key; /// Key of distance-provider
+	std::unique_ptr<distance_function_t> m_dist;
 };
 
 
@@ -170,7 +161,7 @@ struct configuration_t
 class knowledge_base_t
 {
 public:
-    static void initialize(const configuration_t &conf);
+    static void initialize(const filepath_t&);
     static knowledge_base_t* instance();
 
     ~knowledge_base_t();
@@ -179,53 +170,23 @@ public:
     void prepare_query();   /// Prepares for reading knowledge base.
     void finalize();        /// Is called on the end of compiling or reading.
 
-    void set_distance_provider(const string_t &key);
-
-    /** Returns ditance between arity1 and arity2
-     *  in a reachable-matrix in the current knowledge-base.
-     *  If these arities are not reachable, then return -1. */
-    float get_distance(const std::string &a1, const std::string &a2) const;
-    float get_distance(predicate_id_t a1, predicate_id_t a2) const;
-
-    /** Returns distance between arity1 and arity2 with distance-provider. */
-    inline float get_distance(axiom_id_t id) const;
-
     version_e version() const     { return m_version; }
     bool is_valid_version() const { return m_version == KB_VERSION_12; }
     bool is_writable() const      { return m_state == STATE_COMPILE; }
     bool is_readable() const      { return m_state == STATE_QUERY; }
-    const std::string& filename() const { return m_config.path; }
-	float get_max_distance() const { return m_config.max_distance; }
-
-    inline void clear_distance_cache();
+    const filepath_t& filepath() const { return m_path; }
 
     rule_library_t rules;
 	rules_cdb_t<predicate_id_t> lhs2rids;
 	rules_cdb_t<predicate_id_t> rhs2rids;
 	rules_cdb_t<rule_class_t> class2rids;
-	rules_cdb_t<conjunction_t::feature_t> feats2rids;
+	rules_cdb_t<conjunction_t::feature_t> feat2rids;
 
 private:
     enum kb_state_e { STATE_NULL, STATE_COMPILE, STATE_QUERY };
 
-    knowledge_base_t(const configuration_t &conf);
-
-    void write_config() const;
-    void read_config();
-
-    void create_reachable_matrix();
-    
-    void _create_reachable_matrix_direct(
-        const hash_set<predicate_id_t> &ignored,
-        hash_map<predicate_id_t, hash_map<predicate_id_t, float> > *out_lhs,
-        hash_map<predicate_id_t, hash_map<predicate_id_t, float> > *out_rhs,
-        std::set<std::pair<predicate_id_t, predicate_id_t> > *out_para);
-    void _create_reachable_matrix_indirect(
-        predicate_id_t target,
-        const hash_map<predicate_id_t, hash_map<predicate_id_t, float> > &base_lhs,
-        const hash_map<predicate_id_t, hash_map<predicate_id_t, float> > &base_rhs,
-        const std::set<std::pair<predicate_id_t, predicate_id_t> > &base_para,
-        hash_map<predicate_id_t, float> *out) const;
+    knowledge_base_t(const filepath_t&);
+	void write_spec(const filepath_t&) const;
 
     static std::unique_ptr<knowledge_base_t, deleter_t<knowledge_base_t>> ms_instance;
     static std::mutex ms_mutex_for_cache;
@@ -233,8 +194,7 @@ private:
 
     kb_state_e m_state;
     version_e m_version;
-
-    configuration_t m_config;
+	filepath_t m_path;
 };
 
 

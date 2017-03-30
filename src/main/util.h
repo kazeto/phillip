@@ -288,6 +288,7 @@ private:
 struct time_point_t
 {
 	time_point_t();
+	string_t string() const;
 
 	int year;
 	int month;
