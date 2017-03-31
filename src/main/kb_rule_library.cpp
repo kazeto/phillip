@@ -128,7 +128,7 @@ rule_t rule_library_t::get(rule_id_t rid) const
 	m_fi_dat->read(buffer, rsize);
 
 	rule_t out;
-	binary_reader_t(buffer).read<rule_t>(&out);
+	binary_reader_t(buffer, SIZE).read<rule_t>(&out);
 	out.rid() = rid;
 
 	return out;

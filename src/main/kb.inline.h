@@ -51,17 +51,17 @@ template <typename T> std::list<rule_id_t> rules_cdb_t<T>::gets(const T &key) co
 {
 	assert(is_readable());
 
-	std::list<axiom_id_t> out;
+	std::list<rule_id_t> out;
 	char key[512];
 	binary_writer_t key_writer(key);
 	key_writer.write<T>(key);
 
 	size_t value_size;
-	const char *value = (const char*)dat->get(key, key_writer.size(), &value_size);
+	const char *value = (const char*)get(key, key_writer.size(), &value_size);
 
 	if (value != nullptr)
 	{
-		binary_reader_t value_reader(value);
+		binary_reader_t value_reader(value, value_size);
 		size_t num(0);
 		value_reader.read<size_t>(&num);
 
@@ -82,33 +82,6 @@ template <typename T> void rules_cdb_t<T>::insert(const T &key, rule_id_t value)
 	assert(is_writable());
 	m_rids[k].insert(v);
 }
-
-
-inline float knowledge_base_t::get_distance(const lf::axiom_t &axiom) const
-{
-    return (*m_distance_provider.instance)(axiom);
-}
-
-
-inline float knowledge_base_t::get_distance(axiom_id_t id) const
-{
-    return get_distance(axioms.get(id));
-}
-
-
-inline float knowledge_base_t::get_max_distance() const
-{
-    return m_config_for_compile.max_distance;
-}
-
-
-inline void knowledge_base_t::clear_distance_cache()
-{
-    std::lock_guard<std::mutex> lock(ms_mutex_for_cache);
-    m_cache_distance.clear();
-}
-
-
 
 
 }

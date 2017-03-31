@@ -378,12 +378,13 @@ private:
 class binary_reader_t
 {
 public:
-	binary_reader_t(const char *ptr) : m_ptr(ptr), m_size(0) {}
+	binary_reader_t(const char *ptr, size_t len) : m_ptr(ptr), m_size(0), m_len(len) {}
 
 	template <class T> void read(T *out)
 	{
 		std::memcpy(out, current(), sizeof(T));
 		m_size += sizeof(T);
+		assert(m_size <= m_len);
 	}
 
 	size_t size() { return m_size; }
@@ -394,16 +395,15 @@ private:
 
 	const char *m_ptr;
 	size_t m_size;
+	size_t m_len;
 };
 
 template <> void binary_reader_t::read<std::string>(std::string *out)
 {
-	char str[512];
 	small_size_t size;
+	read<small_size_t>(&size);
 
-	std::memcpy(&size, current(), sizeof(small_size_t));
-	m_size += sizeof(small_size_t);
-
+	char str[512];
 	std::memcpy(str, current(), sizeof(char)*size);
 	str[size] = '\0';
 	*out = std::string(str);
@@ -416,12 +416,13 @@ template <> void binary_reader_t::read<std::string>(std::string *out)
 class binary_writer_t
 {
 public:
-	binary_writer_t(char *ptr) : m_ptr(ptr), m_size(0) {}
+	binary_writer_t(char *ptr, size_t len) : m_ptr(ptr), m_size(0), m_len(len) {}
 
 	template <class T> void write(const T &value)
 	{
 		std::memcpy(current(), &value, sizeof(T));
 		m_size += sizeof(T);
+		assert(m_size <= m_len);
 	}
 
 	size_t size() { return m_size; }
@@ -432,6 +433,7 @@ private:
 
 	char *m_ptr;
 	size_t m_size;
+	size_t m_len;
 };
 
 template <> void binary_writer_t::write<std::string>(const std::string &value)

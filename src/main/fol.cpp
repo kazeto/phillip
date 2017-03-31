@@ -1,4 +1,7 @@
+#include <algorithm>
+
 #include "./fol.h"
+
 
 namespace dav
 {
@@ -21,7 +24,11 @@ conjunction_t::feature_t conjunction_t::feature() const
 	feature_t out;
 
 	for (const auto &a : (*this))
-		out.pids.push_back(a.predicate().pid());
+	{
+		auto pid = a.predicate().pid();
+		if (pid != INVALID_PREDICATE_ID and pid != EQ_PREDICATE_ID)
+			out.pids.push_back(pid);
+	}
 
 	return out;
 }
@@ -35,44 +42,51 @@ conjunction_t::feature_t::feature_t(binary_reader_t &r)
 	pids.assign(len, 0);
 	for (small_size_t i = 0; i < len; ++i)
 		r.read<predicate_id_t>(&pids[i]);
-
-	char flag;
-	r.read<char>(&flag);
-	is_rhs = (bool)(flag);
 }
 
 
 bool conjunction_t::feature_t::operator<(const feature_t &x) const
 {
-	if (is_rhs != x.is_rhs) return not is_rhs;
 	return pids < x.pids;
 }
 
 
 bool conjunction_t::feature_t::operator>(const feature_t &x) const
 {
-	if (is_rhs != x.is_rhs) return is_rhs;
 	return pids > x.pids;
 }
 
 
 bool conjunction_t::feature_t::operator==(const feature_t &x) const
 {
-	if (is_rhs != x.is_rhs) return false;
 	return pids == x.pids;
 }
 
 
 bool conjunction_t::feature_t::operator!=(const feature_t &x) const
 {
-	if (is_rhs != x.is_rhs) return true;
 	return pids != x.pids;
+}
+
+
+char* conjunction_t::feature_t::binary() const
+{
+	char *out = new char[bytesize()];
+	binary_writer_t wr(out, bytesize());
+	wr.write(*this);
+	return out;
 }
 
 
 size_t conjunction_t::feature_t::bytesize() const
 {
 	return sizeof(predicate_id_t) * pids.size() + sizeof(char);
+}
+
+
+bool conjunction_t::feature_t::entail(const feature_t&)
+{
+
 }
 
 

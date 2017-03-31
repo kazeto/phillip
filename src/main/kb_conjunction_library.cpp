@@ -32,14 +32,17 @@ void conjunction_library_t::finalize()
 	{
 		size_t size_value = sizeof(size_t);
 		for (const auto &f : p.second)
-			size_value += f.bytesize();
+			size_value += f.first.bytesize() + sizeof(char);
 
 		char *value = new char[size_value];
 		binary_writer_t writer(value);
 
 		writer.write<size_t>(p.second.size());
 		for (const auto &f : p.second)
-			writer.write(f);
+		{
+			writer.write<conjunction_t::feature_t>(f.first);
+			writer.write<char>(f.second ? 1 : 0);
+		}
 
 		put((char*)(&p.first), sizeof(predicate_id_t), value, size_value);
 
@@ -55,25 +58,22 @@ void conjunction_library_t::insert(const rule_t &r)
 {
 	assert(is_writable());
 
-	auto f_lhs = r.lhs().feature();
-	f_lhs.is_rhs = false;
+	std::pair<conjunction_t::feature_t, is_backward_t> vl(r.lhs().feature(), false);
+	std::pair<conjunction_t::feature_t, is_backward_t> vr(r.rhs().feature(), true);
 
 	for (const auto &a : r.lhs())
-		m_features[a.predicate().pid()].insert(f_lhs);
-
-	auto f_rhs = r.lhs().feature();
-	f_rhs.is_rhs = true;
+		m_features[a.predicate().pid()].insert(vl);
 
 	for (const auto &a : r.rhs())
-		m_features[a.predicate().pid()].insert(f_rhs);
+		m_features[a.predicate().pid()].insert(vr);
 }
 
 
-std::list<conjunction_t::feature_t> conjunction_library_t::get(predicate_id_t pid) const
+std::list<conjunction_library_t::elem_t> conjunction_library_t::get(predicate_id_t pid) const
 {
 	assert(is_readable());
 
-	std::list<conjunction_t::feature_t> out;
+	std::list<elem_t> out;
 
 	size_t value_size;
 	const char *value =
@@ -81,13 +81,19 @@ std::list<conjunction_t::feature_t> conjunction_library_t::get(predicate_id_t pi
 
 	if (value != nullptr)
 	{
-		binary_reader_t reader(value);
+		binary_reader_t reader(value, value_size);
 		size_t num;
 
 		reader.read<size_t>(&num);
-		out.assign(num, conjunction_t::feature_t());
+		out.assign(num, elem_t());
 		for (auto &p : out)
-			reader.read<conjunction_t::feature_t>(&p);
+		{
+			reader.read<conjunction_t::feature_t>(&p.feature);
+
+			char flag;
+			reader.read<char>(&flag);
+			p.is_backward = (bool)(flag);
+		}
 	}
 
 	return out;

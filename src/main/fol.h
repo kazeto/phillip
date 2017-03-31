@@ -14,6 +14,7 @@ typedef small_size_t term_idx_t;
 typedef size_t predicate_id_t;
 typedef size_t rule_id_t;
 typedef bool is_right_hand_side_t;
+typedef bool is_backward_t;
 
 typedef string_hash_t term_t;
 typedef std::pair<term_t, term_t> substitution_t;
@@ -105,7 +106,6 @@ public:
     inline       string_t& param()       { return m_param; }
 
     bool good() const; /// Returns whether this is valid.
-
 
     string_t string() const;
     inline operator std::string() const { return string(); }
@@ -254,10 +254,12 @@ public:
 		bool operator==(const feature_t &x) const;
 		bool operator!=(const feature_t &x) const;
 
+		char* binary() const;
 		size_t bytesize() const;
 
+		bool entail(const feature_t&);
+
 		std::vector<predicate_id_t> pids;
-		is_right_hand_side_t is_rhs;
 	};
 
     conjunction_t() {}
@@ -286,9 +288,6 @@ write<conjunction_t::feature_t>(const conjunction_t::feature_t &x)
 	write<small_size_t>(static_cast<small_size_t>(x.pids.size()));
 	for (const auto &pid : x.pids)
 		write<predicate_id_t>(pid);
-
-	char flag = x.is_rhs ? 0 : 1;
-	write<char>(flag);
 }
 
 

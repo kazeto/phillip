@@ -24,9 +24,6 @@
     <ClCompile Include="..\..\src\test\main.cpp">
       <Filter>test</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\main\kb.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\main\fol_predicate.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -66,7 +63,10 @@
     <ClCompile Include="..\..\src\main\kb_rule_library.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\main\kb_reachability_matrix.cpp">
+    <ClCompile Include="..\..\src\main\kb_knowledge_base.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\main\kb.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>

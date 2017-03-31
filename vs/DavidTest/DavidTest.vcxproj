@@ -149,13 +149,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\main\fol.cpp" />
+    <ClCompile Include="..\..\src\main\kb.cpp" />
     <ClCompile Include="..\..\src\main\kb_conjunction_library.cpp" />
     <ClCompile Include="..\..\src\main\fol_literal.cpp" />
     <ClCompile Include="..\..\src\main\fol_predicate_library.cpp" />
     <ClCompile Include="..\..\src\main\fol_predicate.cpp" />
     <ClCompile Include="..\..\src\main\fol_predicate_property.cpp" />
-    <ClCompile Include="..\..\src\main\kb.cpp" />
-    <ClCompile Include="..\..\src\main\kb_reachability_matrix.cpp" />
+    <ClCompile Include="..\..\src\main\kb_knowledge_base.cpp" />
     <ClCompile Include="..\..\src\main\kb_rule_library.cpp" />
     <ClCompile Include="..\..\src\main\util.cpp" />
     <ClCompile Include="..\..\src\main\util_cdb_data.cpp" />
