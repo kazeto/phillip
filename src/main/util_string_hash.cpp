@@ -125,16 +125,24 @@ void string_hash_t::set_flags(const std::string &str)
 {
     assert(not str.empty());
 
+	m_is_constant = false;
+	m_is_unknown = false;
+
     if (not str.empty())
     {
-        m_is_constant = std::isupper(str.at(0));
+		m_is_constant = true;
+
+		for (auto c : str)
+		{
+			if (c != '_')
+			{
+				m_is_constant = not std::islower(c);
+				break;
+			}
+		}
+
         m_is_unknown = (str.size() < 2) ? false :
             (str.at(0) == '_' and str.at(1) == 'u');
-    }
-    else
-    {
-        m_is_constant = false;
-        m_is_unknown = false;
     }
 }
 

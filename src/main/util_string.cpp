@@ -108,7 +108,7 @@ bool string_t::endswith(const std::string &query)
     if (query.size() <= this->size())
     {
         int q = query.size() - 1;
-        int s = query.size() - 1;
+        int s = this->size() - 1;
         for (int i = 0; i < query.size(); ++i)
         {
             if (query.at(q - i) != this->at(s - i))

@@ -61,10 +61,15 @@ public:
     parser_t(std::istream *is);
     parser_t(const std::string &path);
     
-    bool read();
+    void read();
+	bool eof() const { return m_stream->eof(); }
 
 private:
     stream_t m_stream;
+
+	std::unique_ptr<problem_t> m_problem;
+	std::unique_ptr<rule_t> m_rule;
+	std::unique_ptr<predicate_property_t> m_property;
 };
 
 

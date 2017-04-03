@@ -3,19 +3,19 @@
 namespace dav
 {
 
-literal_t literal_t::equal(const term_t &t1, const term_t &t2, bool naf)
+atom_t atom_t::equal(const term_t &t1, const term_t &t2, bool naf)
 {
-    return literal_t(EQ_PREDICATE_ID, std::vector<term_t>{t1, t2}, true, naf);
+    return atom_t(EQ_PREDICATE_ID, std::vector<term_t>{t1, t2}, true, naf);
 }
 
 
-literal_t literal_t::not_equal(const term_t &t1, const term_t &t2, bool naf)
+atom_t atom_t::not_equal(const term_t &t1, const term_t &t2, bool naf)
 {
-    return literal_t(EQ_PREDICATE_ID, std::vector<term_t>{t1, t2}, false, naf);
+    return atom_t(EQ_PREDICATE_ID, std::vector<term_t>{t1, t2}, false, naf);
 }
 
 
-literal_t::literal_t(
+atom_t::atom_t(
     predicate_id_t pid, const std::vector<term_t> &terms, bool neg, bool naf)
     : m_predicate(pid), m_terms(terms), m_neg(neg), m_naf(naf)
 {
@@ -23,18 +23,18 @@ literal_t::literal_t(
 }
 
 
-literal_t::literal_t(
+atom_t::atom_t(
     const string_t &pred, const std::vector<term_t> &terms, bool neg, bool naf)
-    : m_predicate(pred), m_terms(terms), m_neg(neg), m_naf(naf)
+    : m_predicate(pred, terms.size()), m_terms(terms), m_neg(neg), m_naf(naf)
 {
     regularize();
 }
 
 
-literal_t::literal_t(
+atom_t::atom_t(
     const string_t &pred,
     const std::initializer_list<std::string> &terms, bool neg, bool naf)
-    : m_predicate(pred), m_neg(neg), m_naf(naf)
+    : m_predicate(pred, terms.size()), m_neg(neg), m_naf(naf)
 {
     for (auto t : terms)
         m_terms.push_back(term_t(t));
@@ -42,7 +42,7 @@ literal_t::literal_t(
 }
 
 
-literal_t::literal_t(binary_reader_t &r)
+atom_t::atom_t(binary_reader_t &r)
 {
 	std::string s_buf;
 	predicate_id_t pid;
@@ -70,7 +70,7 @@ literal_t::literal_t(binary_reader_t &r)
 }
 
 
-bool literal_t::operator > (const literal_t &x) const
+bool atom_t::operator > (const atom_t &x) const
 {
     if (m_neg != x.m_neg) return not m_neg;
     if (m_naf != x.m_naf) return not m_naf;
@@ -85,7 +85,7 @@ bool literal_t::operator > (const literal_t &x) const
 }
 
 
-bool literal_t::operator < (const literal_t &x) const
+bool atom_t::operator < (const atom_t &x) const
 {
     if (m_neg != x.m_neg) return m_neg;
     if (m_naf != x.m_naf) return m_naf;
@@ -100,7 +100,7 @@ bool literal_t::operator < (const literal_t &x) const
 }
 
 
-bool literal_t::operator == (const literal_t &x) const
+bool atom_t::operator == (const atom_t &x) const
 {
     if (m_neg != x.m_neg) return false;
     if (m_naf != x.m_naf) return false;
@@ -115,7 +115,7 @@ bool literal_t::operator == (const literal_t &x) const
 }
 
 
-bool literal_t::operator != (const literal_t &x) const
+bool atom_t::operator != (const atom_t &x) const
 {
     if (m_neg != x.m_neg) return true;
     if (m_naf != x.m_naf) return true;
@@ -131,7 +131,7 @@ bool literal_t::operator != (const literal_t &x) const
 
 
 /** Get string-expression of the literal. */
-string_t literal_t::string() const
+string_t atom_t::string() const
 {
     static const int color[] = { 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 };
     std::string out;
@@ -154,24 +154,55 @@ string_t literal_t::string() const
 }
 
 
-bool literal_t::good() const
+bool atom_t::good() const
 {
     return m_predicate.good() and (m_predicate.arity() == m_terms.size());
 }
 
 
-inline void literal_t::regularize()
+inline void atom_t::regularize()
 {
-    // IF THE PREDICATE IS SYMMETRIC, SORT TERMS.
+	auto prp = predicate_library_t::instance()->find_property(predicate().pid());
+
+	if ((bool)prp)
+	{
+		// IF THE PREDICATE IS SYMMETRIC, SORT TERMS.
+		if (prp->is_symmetric())
+		{
+			auto ar = m_terms.size();
+			if (ar > 1)
+				if (term(ar - 2) > term(ar - 1))
+					std::swap(m_terms[ar - 2], m_terms[ar - 1]);
+		}
+	}
 }
 
 
 
-std::ostream& operator<<(std::ostream& os, const literal_t& lit)
+std::ostream& operator<<(std::ostream& os, const atom_t& lit)
 {
     return os << lit.string();
 }
 
+
+template <> void binary_writer_t::write<atom_t>(const atom_t &x)
+{
+	assert(x.predicate().pid() != INVALID_PREDICATE_ID);
+	write<predicate_id_t>(x.predicate().pid());
+
+	// WRITE ARGUMENTS
+	for (int i = 0; i < x.terms().size(); ++i)
+		write<std::string>(x.term(i).string());
+
+	// WRITE NEGATION
+	char flag(0b0000);
+	if (x.neg()) flag |= 0b0001;
+	if (x.naf()) flag |= 0b0010;
+	write<char>(flag);
+
+	// WRITE PARAMETER
+	write<std::string>(x.param());
+}
 
 
 }

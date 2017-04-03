@@ -10,8 +10,6 @@
 #include <fcntl.h>
 
 #include "./kb.h"
-#include "./phillip.h"
-#include "./binary.h"
 
 
 namespace dav

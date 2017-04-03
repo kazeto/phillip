@@ -112,20 +112,20 @@ bool filepath_t::mkdir() const
 void filepath_t::reguralize()
 {
 #ifdef _WIN32
-	replace("/", "\\");
+	assign(replace("/", "\\"));
 #else
-	replace("\\", "/");
+	assign(replace("\\", "/"));
 #endif
 
 	while (true)
 	{
-		if (find("%TIME") >= 0)
+		if (find("$TIME") != std::string::npos)
 		{
 			std::string _replace = format(
 				"%04d%02d%02d_%02d%02d%02d",
 				INIT_TIME.year, INIT_TIME.month, INIT_TIME.day,
 				INIT_TIME.hour, INIT_TIME.min, INIT_TIME.sec);
-			(*this) = replace("%TIME", _replace);
+			assign(replace("%TIME", _replace));
 		}
 		else
 			break;
@@ -133,11 +133,11 @@ void filepath_t::reguralize()
 
 	while (true)
 	{
-		if (find("%DAY") >= 0)
+		if (find("$DAY") != std::string::npos)
 		{
 			std::string _replace = format(
 				"%04d%02d%02d", INIT_TIME.year, INIT_TIME.month, INIT_TIME.day);
-			(*this) = replace("%DAY", _replace);
+			assign(replace("%DAY", _replace));
 		}
 		else
 			break;

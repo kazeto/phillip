@@ -27,7 +27,7 @@ predicate_property_t::predicate_property_t(std::ifstream *fi)
     {
         char c;
         fi->read(&c, sizeof(char));
-        m_properties.insert(static_cast<property_type_e>(c));
+        m_properties.insert(static_cast<predicate_property_type_e>(c));
     }
 
     assign_unifiability();
@@ -55,8 +55,8 @@ void predicate_property_t::write(std::ofstream *fo) const
 //#ifdef DISABLE_UNIPP
 //    return false;
 //#else
-//    const literal_t &l1 = graph->node(n1).literal();
-//    const literal_t &l2 = graph->node(n2).literal();
+//    const atom_t &l1 = graph->node(n1).literal();
+//    const atom_t &l2 = graph->node(n2).literal();
 //    int n_all(0), n_fail(0);
 //
 //    assert(graph->node(n1).predicate_id() == m_pid);

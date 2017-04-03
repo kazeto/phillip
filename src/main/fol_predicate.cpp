@@ -30,8 +30,9 @@ predicate_t::predicate_t(const string_t &s)
 predicate_t::predicate_t(predicate_id_t pid)
     : m_pid(pid)
 {
-    auto s = predicate_library_t::instance()->id2pred(pid);
-    parse(s, &m_pred, &m_arity);
+    auto p = predicate_library_t::instance()->id2pred(pid);
+	m_pred = p.predicate();
+	m_arity = p.arity();
 }
 
 

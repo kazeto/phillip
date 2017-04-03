@@ -85,11 +85,10 @@ rule_id_t rule_library_t::add(rule_t &r)
 	axiom_id_t id = size() + 1;
 	const int SIZE(512 * 512);
 	char buffer[SIZE];
-	binary_writer_t wr(buffer);
+	binary_writer_t wr(buffer, SIZE);
 
 	/* AXIOM => BINARY-DATA */
 	wr.write<rule_t>(r);
-	assert(wr.size() < SIZE and wr.size < ULONG_MAX);
 
 	/* INSERT AXIOM TO CDB.ID */
 	rule_size_t rsize(static_cast<rule_size_t>(wr.size()));

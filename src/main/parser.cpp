@@ -70,11 +70,6 @@ formatter_t operator|(const formatter_t &f1, const formatter_t &f2)
 	};
 }
 
-condition_t operator!(const condition_t &c)
-{
-    return [=](char ch) {return not c(ch); };
-}
-
 
 formatter_t word(const std::string &w)
 {
@@ -90,6 +85,8 @@ formatter_t word(const std::string &w)
 		{
 			if (str.back() == w.at(len - 1))
 				return (len == w.length()) ? FMT_GOOD : FMT_READING;
+			else
+				return FMT_BAD;
 		}
     };
 }
@@ -257,9 +254,12 @@ parser_t::parser_t(const std::string &path)
 {}
 
 
-bool parser_t::read()
+void parser_t::read()
 {
     string_t line;
+	m_problem.reset();
+	m_rule.reset();
+	m_property.reset();
 
     auto expect = [&](const condition_t &c)
     {
@@ -285,7 +285,7 @@ bool parser_t::read()
     /** Reads an atom from input-stream.
         If success, returns an atom read.
 		If failed, returns an empty atom and roles the stream position back. */
-    auto read_atom = [&]() -> literal_t
+    auto read_atom = [&]() -> atom_t
     {
 		auto pos = m_stream->tellg();
         bool naf = false;
@@ -293,19 +293,23 @@ bool parser_t::read()
         string_t pred;
         std::vector<term_t> terms;
 
-		auto cancel = [&]() -> literal_t
+		auto cancel = [&]() -> atom_t
 		{
 			m_stream->seekg(pos);
-			return literal_t();
+			return atom_t();
+		};
+
+		auto check = [&](const condition_t &c)
+		{
+			return bad(m_stream.get(c));
 		};
 
         m_stream.skip();
 
         // READ NEGATION AS FAILURE
-        if (m_stream.read(word("not")))
+        if (m_stream.read(word("not ")))
         {
             naf = true;
-            expect(space);
             m_stream.skip();
         }
 
@@ -318,14 +322,14 @@ bool parser_t::read()
 
             m_stream.skip();
             neg = (bool)(m_stream.get(is('!')));
-            expect(is('='));
+            if (check(is('='))) return cancel();
 
             m_stream.skip();
             string_t t2 = m_stream.read(argument);
             if (not t2) return cancel();
 
             m_stream.skip();
-            expect(is(')'));
+            if (check(is(')'))) return cancel();
             m_stream.skip();
         }
 
@@ -341,7 +345,7 @@ bool parser_t::read()
             if (pred.empty()) return cancel();
 
             m_stream.skip();
-            expect(is('('));
+            if (check(is('('))) return cancel();
             m_stream.skip();
 
             // ---- READ ARGUMENTS
@@ -353,14 +357,14 @@ bool parser_t::read()
                 terms.push_back(term_t(s));
                 m_stream.skip();
 
-                if (m_stream.get(is(')')))
+                if (check(is(')')))
                 {
                     m_stream.skip();
                     break;
                 }
                 else
                 {
-                    expect(is(','));
+                    if (check(is(','))) return cancel();
                     m_stream.skip();
                 }
             }
@@ -369,20 +373,23 @@ bool parser_t::read()
         // ---- READ PARAMETER OF THE ATOM
         string_t param = read_parameter();
 
-        return literal_t(pred, terms, neg, naf);
+        return atom_t(pred, terms, neg, naf);
     };
 
     /** A function to parse conjunctions and disjunctions.
         If success, returns the pointer of the vector. */
-    auto read_atom_array = [&](char delim) -> conjunction_t
+    auto read_atom_array = [&](char delim, bool must_be_enclosed = false) -> conjunction_t
     {
         conjunction_t out;
         bool is_enclosed = bad(m_stream.get(is('{')));
 
+		if (must_be_enclosed and not is_enclosed)
+			throw;
+
         m_stream.skip();
 
         // ---- READ ATOMS
-		literal_t atom = read_atom();
+		atom_t atom = read_atom();
         while (atom.good())
         {
             out.push_back(atom);
@@ -415,7 +422,7 @@ bool parser_t::read()
     };
 
     /** A function to parse observations. */
-    auto read_observation = [&]()
+    auto read_observation = [&]() -> problem_t
     {
         string_t n = m_stream.read(name);
         m_stream.skip();
@@ -423,52 +430,38 @@ bool parser_t::read()
         expect(is('{'));
         m_stream.skip();
 
-        std::unique_ptr<std::vector<literal_t>> obs; /// Observation
-        std::unique_ptr<std::vector<literal_t>> req; /// Requirement
-        std::list<std::unique_ptr<std::vector<literal_t>>> chs; /// Choices
-
+		problem_t out;
         while (m_stream.get(is('}')))
         {
             string_t key = m_stream.read(many(alpha));
 
-            if (key == "observe" and obs)
+            if (key == "observe" and not out.observation().empty())
                 throw; // Observation already exists.
 
-            else if (key == "require" and req)
+            else if (key == "require" and not out.requirement().empty())
                 throw; // Requirement already exists.
 
             m_stream.skip();
-            expect(is('{')); // Open braces
+            auto atoms = read_atom_array('^', true);
 
-            m_stream.skip();
-            expect(not is('{')); // Don't repeat braces!
-
-            auto atoms = read_atom_array('^');
-
-            m_stream.skip();
-            expect(is('}')); // Close braces
-
-            if (key == "observe" and obs)
-                obs.reset(atoms);
-            else if (key == "require")
-                req.reset(atoms);
+			if (key == "observe")
+				out.observation() = atoms;
+			else if (key == "require")
+				out.requirement() = atoms;
             else if (key == "choices")
-            {
-                chs.push_back(std::unique_ptr<std::vector<literal_t>>());
-                chs.back().reset(atoms);
-            }
+				out.choices().push_back(atoms);
 
             m_stream.skip();
         }
 
-        if (not obs)
+        if (out.observation().empty())
             throw; /// Empty observation
 
-        // TODO: RETURN
+		return out;
     };
 
     /** A function to parse definitions of rules. */
-    auto read_rule = [&]()
+    auto read_rule = [&]() -> rule_t
     {
 		rule_t out;
         string_t n = m_stream.read(name);
@@ -477,39 +470,54 @@ bool parser_t::read()
         expect(is('{'));
         m_stream.skip();
 
-        auto lhs = read_atom_array('^');
+        out.lhs() = read_atom_array('^');
         m_stream.skip();
 
         expects("=>");
         m_stream.skip();
 
-        auto rhs = read_atom_array('^');
+        out.rhs() = read_atom_array('^');
         m_stream.skip();
 
         expect(is('}'));
 
-		if ((bool)lhs and (bool)rhs)
-		{
+		if (out.lhs().empty() or out.rhs().empty())
+			throw;
 
-		}
+		return out;
     };
 
     /** A function to parse properties of predicates. */
-    auto read_property = [&]()
+    auto read_property = [&]() -> predicate_property_t
     {
         string_t pred = m_stream.read(predicate);
         m_stream.skip();
         expect(is('{'));
         m_stream.skip();
 
-        std::list<string_t> properties;
+		predicate_id_t pid = predicate_library_t::instance()->add(pred);
+
+		auto str2prop = [](const string_t &s) -> predicate_property_type_e
+		{
+			if (s == "irreflexive") return PRP_IRREFLEXIVE;
+			if (s == "symmetric") return PRP_SYMMETRIC;
+			if (s == "asymmetric") return PRP_ASYMMETRIC;
+			if (s == "transitive") return PRP_TRANSITIVE;
+			if (s == "right-unique") return PRP_RIGHT_UNIQUE;
+			return PRP_NONE;
+		};
+
+        predicate_property_t::properties_t props;
         while (true)
         {
-            string_t prop = m_stream.read(many(alpha | digit | is('-')));
+            string_t str = m_stream.read(many(alpha | digit | is('-')));
             m_stream.skip();
 
-            if (prop)
-                properties.push_back(prop);
+			predicate_property_type_e prop = str2prop(str);
+			if (prop != PRP_NONE)
+				props.insert(prop);
+			else
+				throw;
 
             if (m_stream.get(is('}')))
                 break;
@@ -520,7 +528,7 @@ bool parser_t::read()
             }
         }
 
-        // TODO: RETURN
+		return predicate_property_t(pid, props);
     };
 
     while (not m_stream->eof())
@@ -530,13 +538,13 @@ bool parser_t::read()
         string_t key = m_stream.read(many(alpha)).lower();
 
         if (key == "problem")
-            read_observation();
+            m_problem.reset(new problem_t(read_observation()));
 
         else if (key == "rule")
-            read_rule();
+            m_rule.reset(new rule_t(read_rule()));
 
         else if (key == "property")
-            read_property();
+            m_property.reset(new predicate_property_t(read_property()));
     }
 }
 

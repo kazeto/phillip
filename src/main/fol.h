@@ -31,6 +31,16 @@ enum rule_id_e : rule_id_t
 	INVALID_RULE_ID = 0
 };
 
+enum predicate_property_type_e : char
+{
+	PRP_NONE,
+	PRP_IRREFLEXIVE, /// p(x,y) => (x != y)
+	PRP_SYMMETRIC,   /// p(x,y) => p(y,x)
+	PRP_ASYMMETRIC,  /// p(x,y) => !p(y,x)
+	PRP_TRANSITIVE,  /// p(x,y) ^ p(y,z) => p(x,z)
+	PRP_RIGHT_UNIQUE /// p(x,z) ^ p(y,z) => (x=y)
+};
+
 
 /** A class to represent predicates. */
 class predicate_t
@@ -73,22 +83,22 @@ private:
 
 
 /** A class of atoms in first-order logic. */
-class literal_t
+class atom_t
 {
 public:
-    static literal_t equal(const term_t&, const term_t&, bool naf = false);
-    static literal_t not_equal(const term_t&, const term_t&, bool naf = false);
+    static atom_t equal(const term_t&, const term_t&, bool naf = false);
+    static atom_t not_equal(const term_t&, const term_t&, bool naf = false);
 
-    literal_t() {}
-    literal_t(predicate_id_t pid, const std::vector<term_t>&, bool neg, bool naf);
-    literal_t(const string_t&, const std::vector<term_t>&, bool neg, bool naf);
-    literal_t(const string_t&, const std::initializer_list<std::string>&, bool neg, bool naf);
-    literal_t(binary_reader_t&);
+    atom_t() {}
+    atom_t(predicate_id_t pid, const std::vector<term_t>&, bool neg, bool naf);
+    atom_t(const string_t&, const std::vector<term_t>&, bool neg, bool naf);
+    atom_t(const string_t&, const std::initializer_list<std::string>&, bool neg, bool naf);
+    atom_t(binary_reader_t&);
 
-    bool operator > (const literal_t &x) const;
-    bool operator < (const literal_t &x) const;
-    bool operator == (const literal_t &x) const;
-    bool operator != (const literal_t &x) const;
+    bool operator > (const atom_t &x) const;
+    bool operator < (const atom_t &x) const;
+    bool operator == (const atom_t &x) const;
+    bool operator != (const atom_t &x) const;
 
     const predicate_t& predicate() const { return m_predicate; }
 
@@ -123,26 +133,10 @@ private:
 };
 
 /** Functions for output-stream. */
-std::ostream& operator<<(std::ostream& os, const literal_t& t);
+std::ostream& operator<<(std::ostream& os, const atom_t& t);
 
-template <> void binary_writer_t::write<literal_t>(const literal_t &x)
-{
-	assert(x.predicate().pid() != INVALID_PREDICATE_ID);
-	write<predicate_id_t>(x.predicate().pid());
+template <> void binary_writer_t::write<atom_t>(const atom_t &x);
 
-	// WRITE ARGUMENTS
-	for (int i = 0; i < x.terms().size(); ++i)
-		write<std::string>(x.term(i).string());
-
-	// WRITE NEGATION
-	char flag(0b0000);
-	if (x.neg()) flag |= 0b0001;
-	if (x.naf()) flag |= 0b0010;
-	write<char>(flag);
-
-	// WRITE PARAMETER
-	write<std::string>(x.param());
-}
 
 
 /** A class to represent properties of predicates */
@@ -156,17 +150,7 @@ public:
         UNI_UNLIMITED,        /// Is expressed as '.'.
     };
 
-    enum property_type_e : char
-    {
-        PRP_NONE,
-        PRP_IRREFLEXIVE, /// p(x,y) => (x != y)
-        PRP_SYMMETRIC,   /// p(x,y) => p(y,x)
-        PRP_ASYMMETRIC,  /// p(x,y) => !p(y,x)
-        PRP_TRANSITIVE,  /// p(x,y) ^ p(y,z) => p(x,z)
-        PRP_RIGHT_UNIQUE /// p(x,z) ^ p(y,z) => (x=y)
-    };
-
-    typedef std::unordered_set<property_type_e> properties_t;
+    typedef std::unordered_set<predicate_property_type_e> properties_t;
 
     predicate_property_t();
     predicate_property_t(predicate_id_t pid, const properties_t &prp);
@@ -202,6 +186,7 @@ private:
 class predicate_library_t
 {
 public:
+	static void initialize();
     static predicate_library_t* instance();
 
     void init();
@@ -212,7 +197,7 @@ public:
     inline       filepath_t& filepath()       { return m_filename; }
 
     predicate_id_t add(const predicate_t&);
-    predicate_id_t add(const literal_t&);
+    predicate_id_t add(const atom_t&);
 
     void add_property(const predicate_property_t&);
 
@@ -225,7 +210,7 @@ public:
 	const predicate_property_t* find_property(predicate_id_t) const;
 
 private:
-    predicate_library_t();
+    predicate_library_t() {}
 
     static std::unique_ptr<predicate_library_t> ms_instance; /// For singleton pattern.
 
@@ -239,7 +224,7 @@ private:
 
 
 /** A class to represents conjunctions and disjunction. */
-class conjunction_t : public std::vector<literal_t>
+class conjunction_t : public std::vector<atom_t>
 {
 public:
 	/** A class to express features of conjunctions in rules.
@@ -257,8 +242,6 @@ public:
 		char* binary() const;
 		size_t bytesize() const;
 
-		bool entail(const feature_t&);
-
 		std::vector<predicate_id_t> pids;
 	};
 
@@ -274,21 +257,11 @@ private:
     string_t m_param;
 };
 
-template <> void binary_writer_t::write<conjunction_t>(const conjunction_t &x)
-{
-	write<small_size_t>(static_cast<small_size_t>(x.size()));
-	for (const auto &a : x)
-		write<literal_t>(a);
-	write<std::string>(x.param());
-}
+template <> void binary_writer_t::write<conjunction_t>(const conjunction_t &x);
 
 template <> void binary_writer_t::
-write<conjunction_t::feature_t>(const conjunction_t::feature_t &x)
-{
-	write<small_size_t>(static_cast<small_size_t>(x.pids.size()));
-	for (const auto &pid : x.pids)
-		write<predicate_id_t>(pid);
-}
+write<conjunction_t::feature_t>(const conjunction_t::feature_t &x);
+
 
 
 /** A class to represents rules. */
@@ -316,15 +289,29 @@ private:
 	rule_id_t m_rid;
 };
 
-template <> void binary_writer_t::write<rule_t>(const rule_t &x)
+template <> void binary_writer_t::write<rule_t>(const rule_t &x);
+
+
+
+class problem_t
 {
-	write<std::string>(x.name());
-	write<conjunction_t>(x.lhs());
-	write<conjunction_t>(x.rhs());
-}
+public:
+	problem_t() {}
 
+	inline const conjunction_t& observation() const { return m_observation; }
+	inline       conjunction_t& observation()       { return m_observation; }
 
+	inline const conjunction_t& requirement() const { return m_requirement; }
+	inline       conjunction_t& requirement()       { return m_requirement; }
 
+	inline const std::vector<conjunction_t>& choices() const { return m_choices; }
+	inline       std::vector<conjunction_t>& choices()       { return m_choices; }
+
+private:
+	conjunction_t m_observation;
+	conjunction_t m_requirement;
+	std::vector<conjunction_t> m_choices;
+};
 
 
 } // end of dav

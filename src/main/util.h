@@ -149,6 +149,7 @@ public:
 	const unsigned& get_hash() const { return m_hash; }
 
 	bool is_constant() const { return m_is_constant; }
+	bool is_variable() const { return not is_constant(); }
 	bool is_unknown()  const { return m_is_unknown; }
 
 	bool is_unifiable_with(const string_hash_t&) const;
@@ -157,12 +158,12 @@ protected:
 	/** Assign a hash to str if needed, and return the hash of str. */
 	static unsigned get_hash(std::string str);
 
+	inline void set_flags(const std::string &str);
+
 	static std::mutex ms_mutex_hash, ms_mutex_unknown;
 	static hash_map<std::string, unsigned> ms_hashier;
 	static std::deque<string_t> ms_strs;
 	static unsigned ms_issued_variable_count;
-
-	inline void set_flags(const std::string &str);
 
 	unsigned m_hash;
 	bool m_is_constant, m_is_unknown;
@@ -222,7 +223,7 @@ private:
 	static std::unique_ptr<parameter_strage_t> ms_instance;
 };
 
-parameter_strage_t* param() { return parameter_strage_t::instance(); }
+inline parameter_strage_t* param() { return parameter_strage_t::instance(); }
 
 
 /** A class to print strings on the console. */
@@ -259,7 +260,7 @@ private:
 	int m_verbosity;
 };
 
-console_t* console() { return console_t::instance(); }
+inline console_t* console() { return console_t::instance(); }
 
 #define PRINT_VERBOSE_1(s) if (console()->verbosity() >= 1) console()->print(s)
 #define PRINT_VERBOSE_2(s) if (console()->verbosity() >= 2) console()->print(s)
@@ -398,17 +399,7 @@ private:
 	size_t m_len;
 };
 
-template <> void binary_reader_t::read<std::string>(std::string *out)
-{
-	small_size_t size;
-	read<small_size_t>(&size);
-
-	char str[512];
-	std::memcpy(str, current(), sizeof(char)*size);
-	str[size] = '\0';
-	*out = std::string(str);
-	m_size += sizeof(char)*size;
-}
+template <> void binary_reader_t::read<std::string>(std::string *out);
 
 
 
@@ -436,17 +427,7 @@ private:
 	size_t m_len;
 };
 
-template <> void binary_writer_t::write<std::string>(const std::string &value)
-{
-	size_t n(0);
-
-	unsigned char size = static_cast<unsigned char>(value.size());
-	std::memcpy(current(), &size, sizeof(unsigned char));
-	m_size += sizeof(unsigned char);
-
-	std::memcpy(current(), value.c_str(), sizeof(char)* value.size());
-	m_size += sizeof(char)* value.size();
-}
+template <> void binary_writer_t::write<std::string>(const std::string &value);
 
 
 

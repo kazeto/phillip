@@ -6,17 +6,17 @@ namespace dav
 std::unique_ptr<predicate_library_t> predicate_library_t::ms_instance;
 
 
-predicate_library_t* predicate_library_t::instance()
+void predicate_library_t::initialize()
 {
-    if (not ms_instance)
-        ms_instance.reset(new predicate_library_t());
-    return ms_instance.get();
+	ms_instance.reset(new predicate_library_t());
+	ms_instance->init();
 }
 
 
-predicate_library_t::predicate_library_t()
+predicate_library_t* predicate_library_t::instance()
 {
-    init();
+	assert(ms_instance);
+    return ms_instance.get();
 }
 
 
@@ -31,6 +31,9 @@ void predicate_library_t::init()
 
     m_predicates.push_back(predicate_t("=", 2));
     m_pred2id["=/2"] = EQ_PREDICATE_ID;
+
+	predicate_property_t prp(EQ_PREDICATE_ID, { PRP_SYMMETRIC, PRP_TRANSITIVE });
+	add_property(prp);
 }
 
 
@@ -103,7 +106,7 @@ predicate_id_t predicate_library_t::add(const predicate_t &p)
 }
 
 
-predicate_id_t predicate_library_t::add(const literal_t &a)
+predicate_id_t predicate_library_t::add(const atom_t &a)
 {
     if (a.predicate().pid() == INVALID_PREDICATE_ID)
         return add(a.predicate());

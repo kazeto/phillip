@@ -64,6 +64,32 @@ time_point_t::time_point_t()
 }
 
 
+template <> void binary_reader_t::read<std::string>(std::string *out)
+{
+	small_size_t size;
+	read<small_size_t>(&size);
+
+	char str[512];
+	std::memcpy(str, current(), sizeof(char)*size);
+	str[size] = '\0';
+	*out = std::string(str);
+	m_size += sizeof(char)*size;
+}
+
+
+template <> void binary_writer_t::write<std::string>(const std::string &value)
+{
+	size_t n(0);
+
+	unsigned char size = static_cast<unsigned char>(value.size());
+	std::memcpy(current(), &size, sizeof(unsigned char));
+	m_size += sizeof(unsigned char);
+
+	std::memcpy(current(), value.c_str(), sizeof(char)* value.size());
+	m_size += sizeof(char)* value.size();
+}
+
+
 string_t time_point_t::string() const
 {
 	return format("%04d/%02d/%02d %02d:%02d:%02d", year, month, day, hour, min, sec);

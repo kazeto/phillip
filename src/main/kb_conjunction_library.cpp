@@ -35,7 +35,7 @@ void conjunction_library_t::finalize()
 			size_value += f.first.bytesize() + sizeof(char);
 
 		char *value = new char[size_value];
-		binary_writer_t writer(value);
+		binary_writer_t writer(value, size_value);
 
 		writer.write<size_t>(p.second.size());
 		for (const auto &f : p.second)

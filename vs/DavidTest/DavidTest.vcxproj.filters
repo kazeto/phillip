@@ -72,6 +72,9 @@
     <ClCompile Include="..\..\src\main\parser.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\main\fol_conjunction.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\main\util.h">
@@ -91,6 +94,9 @@
     </ClInclude>
     <ClInclude Include="..\..\src\main\parser.h">
       <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\test\test_fol.h">
+      <Filter>test</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
