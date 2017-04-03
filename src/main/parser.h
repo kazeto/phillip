@@ -3,17 +3,25 @@
 #include <functional>
 #include <list>
 #include <memory>
-#include "./define.h"
 
-namespace phil
+#include "./fol.h"
+
+namespace dav
 {
 
 namespace parse
 {
 
 
+enum format_result_e
+{
+	FMT_BAD,
+	FMT_READING,
+	FMT_GOOD,
+};
+
 using condition_t = std::function<bool(char)>;
-using formatter_t = std::function<bool(const std::string&)>;
+using formatter_t = std::function<format_result_e(const std::string&)>;
 
 
 /// A wrapper class of input-stream.
@@ -60,9 +68,6 @@ private:
 };
 
 
-
-
-
 } // end of parse
 
-} // end of phil
+} // end of dav

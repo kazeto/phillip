@@ -157,6 +157,7 @@
     <ClCompile Include="..\..\src\main\fol_predicate_property.cpp" />
     <ClCompile Include="..\..\src\main\kb_knowledge_base.cpp" />
     <ClCompile Include="..\..\src\main\kb_rule_library.cpp" />
+    <ClCompile Include="..\..\src\main\parser.cpp" />
     <ClCompile Include="..\..\src\main\util.cpp" />
     <ClCompile Include="..\..\src\main\util_cdb_data.cpp" />
     <ClCompile Include="..\..\src\main\util_console.cpp" />
@@ -170,6 +171,7 @@
     <ClInclude Include="..\..\src\main\fol.h" />
     <ClInclude Include="..\..\src\main\kb.h" />
     <ClInclude Include="..\..\src\main\kb.inline.h" />
+    <ClInclude Include="..\..\src\main\parser.h" />
     <ClInclude Include="..\..\src\main\util.h" />
     <ClInclude Include="..\..\src\test\test_util.h" />
   </ItemGroup>

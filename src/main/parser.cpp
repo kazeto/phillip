@@ -1,11 +1,12 @@
 #include <functional>
+#include <algorithm>
 #include <cassert>
 #include <cstring>
 
 #include "./parser.h"
 
 
-namespace phil
+namespace dav
 {
 
 namespace parse
@@ -55,12 +56,18 @@ condition_t bad = [=](char ch) { return (ch == -1) or (ch == 0); };
 
 formatter_t operator&(const formatter_t &f1, const formatter_t &f2)
 {
-    return [=](const std::string &s) { return f1(s) and f2(s); };
+    return [=](const std::string &s)
+	{
+		return static_cast<format_result_e>(std::min<int>(f1(s), f2(s)));
+	};
 }
 
 formatter_t operator|(const formatter_t &f1, const formatter_t &f2)
 {
-    return [=](const std::string &s) { return f1(s) or f2(s); };
+    return [=](const std::string &s)
+	{
+		return static_cast<format_result_e>(std::max<int>(f1(s), f2(s)));
+	};
 }
 
 condition_t operator!(const condition_t &c)
@@ -73,25 +80,38 @@ formatter_t word(const std::string &w)
 {
     return [=](const std::string &str)
     {
+		if (str.empty()) return FMT_READING;
+
         auto len = str.length();
 
-        if (len <= w.length())
-            return (std::tolower(str.back()) == w.at(len - 1));
-        else
-            return space(str.back());
+		if (len > w.length())
+			return FMT_BAD;
+		else 
+		{
+			if (str.back() == w.at(len - 1))
+				return (len == w.length()) ? FMT_GOOD : FMT_READING;
+		}
     };
 }
 
 
 formatter_t many(const condition_t &c)
 {
-    return [=](const std::string &str) { return str.empty() or c(str.back()); };
+    return [=](const std::string &str)
+	{
+		if (str.empty()) return FMT_READING;
+		else return c(str.back()) ? FMT_GOOD : FMT_BAD;
+	};
 }
 
 
 formatter_t startswith(const condition_t &c)
 {
-    return [=](const std::string &str) { return str.empty() or c(str.front()); };
+    return [=](const std::string &str)
+	{
+		if (str.empty()) return FMT_READING;
+		else return (c(str.front())) ? FMT_GOOD : FMT_BAD;
+	};
 }
 
 
@@ -99,22 +119,21 @@ formatter_t enclosed(char begin, char last)
 {
     return [=](const std::string &str)
     {
-        auto len = str.length();
+		if (str.empty()) return FMT_READING;
 
-        if (len <= 0)
-            return true;
-        else
-        {
-            if (bad(str.back()))
-                return false;
+		auto len = str.length();
 
-            if (str.front() != begin)
-                return false;
-            else if (len <= 2)
-                return true;
-            else
-                return (str.at(len - 2) == last);
-        }
+        if (bad(str.back())) return FMT_BAD;
+
+		if (str.front() != begin) return FMT_BAD;
+		else
+		{
+			auto i = str.find(last, 1);
+
+			if (i < 0)             return FMT_READING;
+			else if (i == len - 1) return FMT_GOOD;
+			else                   return FMT_BAD;
+		}
     };
 }
 
@@ -176,21 +195,35 @@ char stream_t::get(const condition_t &f)
 
 string_t stream_t::read(const formatter_t &f)
 {
+	format_result_e past = FMT_READING;
     string_t out;
+	auto pos = (*this)->tellg();
     char ch = (*this)->get();
 
     while (not bad(ch))
     {
-        if (not f(out + ch))
-        {
-            (*this)->unget();
-            break;
-        }
-        else
-        {
-            out += ch;
-            ch = (*this)->get();
-        }
+		format_result_e res = f(out + ch);
+
+		switch (f(out + ch))
+		{
+		case FMT_BAD:
+			switch (past)
+			{
+			case FMT_GOOD:
+				(*this)->unget();
+				break;
+			default:
+				out = "";
+				(*this)->seekg(pos);
+				break;
+			}
+			break;
+
+		default:
+			out += ch;
+			ch = (*this)->get();
+			break;
+		}
     }
 
     return out;
@@ -250,14 +283,21 @@ bool parser_t::read()
     };
 
     /** Reads an atom from input-stream.
-        If success, returns the pointer of the atom.
-        If failed, returns nullptr. */
-    auto read_atom = [&]() -> literal_t*
+        If success, returns an atom read.
+		If failed, returns an empty atom and roles the stream position back. */
+    auto read_atom = [&]() -> literal_t
     {
+		auto pos = m_stream->tellg();
         bool naf = false;
         bool neg = false;
         string_t pred;
         std::vector<term_t> terms;
+
+		auto cancel = [&]() -> literal_t
+		{
+			m_stream->seekg(pos);
+			return literal_t();
+		};
 
         m_stream.skip();
 
@@ -274,7 +314,7 @@ bool parser_t::read()
         {
             m_stream.skip();
             string_t t1 = m_stream.read(argument);
-            if (not t1) throw;
+            if (not t1) return cancel();
 
             m_stream.skip();
             neg = (bool)(m_stream.get(is('!')));
@@ -282,7 +322,7 @@ bool parser_t::read()
 
             m_stream.skip();
             string_t t2 = m_stream.read(argument);
-            if (not t2) throw;
+            if (not t2) return cancel();
 
             m_stream.skip();
             expect(is(')'));
@@ -298,7 +338,7 @@ bool parser_t::read()
 
             // ---- READ PREDICATE
             pred = m_stream.read(predicate);
-            if (pred.empty()) throw;
+            if (pred.empty()) return cancel();
 
             m_stream.skip();
             expect(is('('));
@@ -308,7 +348,7 @@ bool parser_t::read()
             while (true)
             {
                 auto s = m_stream.read(argument);
-                if (s.empty()) throw;
+                if (s.empty()) return cancel();
 
                 terms.push_back(term_t(s));
                 m_stream.skip();
@@ -329,24 +369,23 @@ bool parser_t::read()
         // ---- READ PARAMETER OF THE ATOM
         string_t param = read_parameter();
 
-        return new literal_t(pred, terms, neg);
+        return literal_t(pred, terms, neg, naf);
     };
 
     /** A function to parse conjunctions and disjunctions.
-        If success, returns the pointer of the vector.
-        If failed, returns nullptr. */
-    auto read_atom_array = [&](char delim) -> std::vector<literal_t>*
+        If success, returns the pointer of the vector. */
+    auto read_atom_array = [&](char delim) -> conjunction_t
     {
-        std::vector<literal_t> out;
+        conjunction_t out;
         bool is_enclosed = bad(m_stream.get(is('{')));
 
         m_stream.skip();
 
         // ---- READ ATOMS
-        std::unique_ptr<literal_t> atom(read_atom());
-        while (atom)
+		literal_t atom = read_atom();
+        while (atom.good())
         {
-            out.push_back(*atom);
+            out.push_back(atom);
             m_stream.skip();
 
             if (m_stream.get(is('}')))
@@ -360,7 +399,7 @@ bool parser_t::read()
                 m_stream.skip();
             }
 
-            atom.reset(read_atom());
+            atom = read_atom();
         }
 
         // ---- READ PARAMETER OF THE ATOMS
@@ -372,7 +411,7 @@ bool parser_t::read()
             param = read_parameter();
         }
 
-        return new std::vector<literal_t>(out);
+        return out;
     };
 
     /** A function to parse observations. */
@@ -431,6 +470,7 @@ bool parser_t::read()
     /** A function to parse definitions of rules. */
     auto read_rule = [&]()
     {
+		rule_t out;
         string_t n = m_stream.read(name);
         m_stream.skip();
 
@@ -448,7 +488,10 @@ bool parser_t::read()
 
         expect(is('}'));
 
-        // TODO: RETURN
+		if ((bool)lhs and (bool)rhs)
+		{
+
+		}
     };
 
     /** A function to parse properties of predicates. */
@@ -484,7 +527,7 @@ bool parser_t::read()
     {
         m_stream.skip();
         
-        std::string key = m_stream.read(many(alpha)).to_lower();
+        string_t key = m_stream.read(many(alpha)).lower();
 
         if (key == "problem")
             read_observation();

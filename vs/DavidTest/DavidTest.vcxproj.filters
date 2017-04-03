@@ -69,6 +69,9 @@
     <ClCompile Include="..\..\src\main\kb.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\main\parser.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\main\util.h">
@@ -84,6 +87,9 @@
       <Filter>ソース ファイル</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\main\kb.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\main\parser.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
