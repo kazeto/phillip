@@ -286,26 +286,28 @@ void knowledge_base_t::finalize()
 
         if (phillip_main_t::verbose() == FULL_VERBOSE)
         {
-            std::cerr << "Reachability Matrix:" << std::endl;
+            std::ofstream fout(ms_filename + ".rm.txt");
+            
+            fout << "Reachability Matrix:" << std::endl;
             m_rm.prepare_query();
 
-            std::cerr << std::setw(30) << std::right << "" << " | ";
+            fout << std::setw(30) << std::right << "" << " | ";
             for (auto arity : m_arity_db.arities())
-                std::cerr << arity << " | ";
-            std::cerr << std::endl;
+                fout << arity << " | ";
+            fout << std::endl;
 
             for (auto a1 : m_arity_db.arities())
             {
                 arity_id_t idx1 = search_arity_id(a1);
-                std::cerr << std::setw(30) << std::right << a1 << " | ";
+                fout << std::setw(30) << std::right << a1 << " | ";
 
                 for (auto a2 : m_arity_db.arities())
                 {
                     arity_id_t idx2 = search_arity_id(a2);
                     float dist = m_rm.get(idx1, idx2);
-                    std::cerr << std::setw(a2.length()) << (int)dist << " | ";
+                    fout << std::setw(a2.length()) << (int)dist << " | ";
                 }
-                std::cerr << std::endl;
+                fout << std::endl;
             }
         }
 

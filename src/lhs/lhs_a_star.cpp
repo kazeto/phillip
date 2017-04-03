@@ -78,7 +78,7 @@ pg::proof_graph_t* a_star_based_enumerator_t::execute() const
                         == static_cast<pg::chain_candidate_t>(rc))
                     {
                         float d = rc.dist_from;
-                        auto found = from2goals.find(rc.node_to);
+                        auto found = from2goals.find(rc.node_from);
 
                         if (found == from2goals.end())
                         {
