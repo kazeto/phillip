@@ -286,26 +286,28 @@ void knowledge_base_t::finalize()
 
         if (phillip_main_t::verbose() == FULL_VERBOSE)
         {
-            std::cerr << "Reachability Matrix:" << std::endl;
+            std::ofstream fout(ms_filename + ".rm.txt");
+            
+            fout << "Reachability Matrix:" << std::endl;
             m_rm.prepare_query();
 
-            std::cerr << std::setw(30) << std::right << "" << " | ";
+            fout << std::setw(30) << std::right << "" << " | ";
             for (auto arity : m_arity_db.arities())
-                std::cerr << arity << " | ";
-            std::cerr << std::endl;
+                fout << arity << " | ";
+            fout << std::endl;
 
             for (auto a1 : m_arity_db.arities())
             {
                 arity_id_t idx1 = search_arity_id(a1);
-                std::cerr << std::setw(30) << std::right << a1 << " | ";
+                fout << std::setw(30) << std::right << a1 << " | ";
 
                 for (auto a2 : m_arity_db.arities())
                 {
                     arity_id_t idx2 = search_arity_id(a2);
                     float dist = m_rm.get(idx1, idx2);
-                    std::cerr << std::setw(a2.length()) << (int)dist << " | ";
+                    fout << std::setw(a2.length()) << (int)dist << " | ";
                 }
-                std::cerr << std::endl;
+                fout << std::endl;
             }
         }
 
@@ -412,7 +414,8 @@ axiom_id_t knowledge_base_t::insert_implication(
         std::vector<const lf::logical_function_t*> branches;
         func.enumerate_literal_branches(&branches);
         for (auto br : branches)
-            m_arity_db.add(br->literal().get_arity());
+            if (not br->literal().is_equality())
+                m_arity_db.add(br->literal().get_arity());
 
         // IF func IS CATEGORICAL KNOWLEDGE, IT IS INSERTED TO CATEGORY-TABLE.
         if (m_category_table.instance->insert(func))
@@ -1037,6 +1040,8 @@ void knowledge_base_t::create_query_map()
         for (index_t i = 0; i < branches.size(); ++i)
         {
             const literal_t &lit = branches[i]->literal();
+            if (lit.is_equality()) continue;
+            
             std::string arity = lit.get_arity();
             arity_id_t idx = search_arity_id(arity);
 

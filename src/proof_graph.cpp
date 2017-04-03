@@ -526,7 +526,9 @@ bool proof_graph_t::check_availability_of_chain(
         const std::list<std::pair<term_t, term_t> > &neqs = found_neqs->second;
         for (auto it = neqs.begin(); it != neqs.end(); ++it)
         {
-            node_idx_t n = find_sub_node(it->first, it->second);
+            if (it->first == it->second) return false;
+            
+            node_idx_t n = find_neg_sub_node(it->first, it->second);
             if (n >= 0) subs2->insert(n);
         }
     }
@@ -570,10 +572,16 @@ bool proof_graph_t::_check_nodes_coexistability(
     }
 
     hash_set<node_idx_t> ns1, ns2;
-    enumerate_dependent_nodes(n1, &ns1);
-    enumerate_dependent_nodes(n2, &ns2);
-    ns1.insert(n1);
-    ns2.insert(n2);
+    {
+        enumerate_dependent_nodes(n1, &ns1);
+        enumerate_dependent_nodes(n2, &ns2);
+        
+        auto hn1 = hypernode(node(n1).master_hypernode());
+        auto hn2 = hypernode(node(n2).master_hypernode());
+        ns1.insert(hn1.begin(), hn1.end());
+        ns2.insert(hn2.begin(), hn2.end());
+    }
+    
     if (ns1.size() > ns2.size()) std::swap(ns1, ns2);
 
     for (auto it = ns1.begin(); it != ns1.end(); ++it)
@@ -1039,20 +1047,40 @@ void proof_graph_t::print_edges(std::ostream *os) const
               << "\" axiom=\"" << e.axiom_id()
               << "\" gap=\"" << gaps;
 
-        auto conds = m_subs_of_conditions_for_chain.find(i);
-        if (conds != m_subs_of_conditions_for_chain.end())
+        (*os) << "\" conds=\"";
+        
+        auto conds_pos = m_subs_of_conditions_for_chain.find(i);
+        auto conds_neg = m_neqs_of_conditions_for_chain.find(i);
+        bool is_begin = true;
+        
+        if (conds_pos != m_subs_of_conditions_for_chain.end())
         {
-            (*os) << "\" conds=\"";
-            for (auto p = conds->second.begin(); p != conds->second.end(); ++p)
+            for (auto p = conds_pos->second.begin(); p != conds_pos->second.end(); ++p)
             {
-                if (p != conds->second.begin())
+                if (not is_begin)
                     (*os) << ", ";
+                else
+                    is_begin = false;
                 (*os) << "(= "
                       << p->first.string() << " "
                       << p->second.string() << ")";
             }
         }
-
+        
+        if (conds_neg != m_neqs_of_conditions_for_chain.end())
+        {
+            for (auto p = conds_neg->second.begin(); p != conds_neg->second.end(); ++p)
+            {
+                if (not is_begin)
+                    (*os) << ", ";
+                else
+                    is_begin = false;
+                (*os) << "(!= "
+                      << p->first.string() << " "
+                      << p->second.string() << ")";
+            }
+        }
+        
         (*os) << "\">" << edge_to_string(i)
               << "</edge>" << std::endl;
     }
@@ -1312,6 +1340,20 @@ hypernode_idx_t proof_graph_t::chain(
                     if (not generate_subs(_t, term_t(sub), subs, conds))
                         return false;
                 }
+            }
+        }
+
+        /* CHECK WHETHER NON-EQUALITIES ARE SATISFIED. */
+        for (const auto &lit : ax_from)
+        {
+            if (lit->is_equality() and not lit->truth)
+            {
+                const auto it1 = subs->find(lit->terms.at(0));
+                const auto it2 = subs->find(lit->terms.at(1));
+
+                if (it1 != subs->end() and it2 != subs->end())
+                if (it1->second == it2->second)
+                    return false;
             }
         }
 
@@ -1575,22 +1617,38 @@ hypernode_idx_t proof_graph_t::chain(
         }
 
         // EQUALITY IN EVIDENCES IN THE AXIOM ARE CONSIDERED AS CONDITIONS.
+        // (NOW, WE DON'T CONSIDER TRUE-EQUALITY LITERALS IN ax_from)
         auto ax_from = (is_backward ? axiom.func.get_rhs() : axiom.func.get_lhs());
         std::list< std::pair<term_t, term_t> >
             *cond_neq = &m_neqs_of_conditions_for_chain[edge_idx],
             *cond_sub = &m_subs_of_conditions_for_chain[edge_idx];
 
         for (auto it = ax_from.begin(); it != ax_from.end(); ++it)
-        if ((*it)->is_equality())
+        if ((*it)->is_equality() and not (*it)->truth)
         {
-            auto found1 = subs.find((*it)->terms.at(0));
-            auto found2 = subs.find((*it)->terms.at(1));
-            if (found1 != subs.end() and found2 != subs.end())
+            term_t t1 = (*it)->terms.at(0);
+            term_t t2 = (*it)->terms.at(1);
+
+            if (not t1.is_constant())
             {
-                term_t t1(found1->second), t2(found2->second);
-                if (t1 > t2) std::swap(t1, t2);
-                cond_neq->push_back(std::make_pair(t1, t2));
+                auto found = subs.find(t1);
+                if (found != subs.end())
+                    t1 = found->second;
+                else
+                    continue;
             }
+
+            if (not t2.is_constant())
+            {
+                auto found = subs.find(t2);
+                if (found != subs.end())
+                    t2 = found->second;
+                else
+                    continue;
+            }
+            
+            if (t1 > t2) std::swap(t1, t2);
+            cond_neq->push_back(std::make_pair(t1, t2));
         }
     }
 
@@ -1641,7 +1699,7 @@ int proof_graph_t::get_depth_of_deepest_node(
 
 
 std::list<std::pair<arity_t, arity_t> > proof_graph_t::get_gaps_on_edge(edge_idx_t idx) const
-{
+{    
     std::list<std::pair<arity_t, arity_t> > out;
     const edge_t &e = edge(idx);
     auto tail = hypernode(e.tail());
@@ -1656,12 +1714,19 @@ std::list<std::pair<arity_t, arity_t> > proof_graph_t::get_gaps_on_edge(edge_idx
         else if (e.type() == EDGE_HYPOTHESIZE)
             ax.func.branch(1).enumerate_literal_branches(&branches_tail);
 
+        int n_eq = 0;
         for (index_t i = 0; i < branches_tail.size(); ++i)
         {
-            arity_t a1 = branches_tail.at(i)->literal().get_arity();
-            arity_t a2 = node(tail.at(i)).arity();
+            const literal_t &lit = branches_tail.at(i)->literal();
+            if (lit.is_equality())
+                ++n_eq;
+            else
+            {
+                arity_t a1 = lit.get_arity();
+                arity_t a2 = node(tail.at(i - n_eq)).arity();
 
-            if (a1 != a2) out.push_back(std::make_pair(a1, a2));
+                if (a1 != a2) out.push_back(std::make_pair(a1, a2));
+            }
         }
     }
     else if (e.is_unify_edge())
@@ -2106,22 +2171,34 @@ void proof_graph_t::_enumerate_mutual_exclusion_for_counter_nodes(
     const literal_t &target,
     std::list<std::tuple<node_idx_t, unifier_t> > *out) const
 {
-    const hash_set<node_idx_t>* indices =
-        search_nodes_with_predicate(target.predicate, target.terms.size());
-
-    if (indices == NULL) return;
-
-    for (auto it = indices->begin(); it != indices->end(); ++it)
+    if (not target.is_equality())
     {
-        const literal_t &l2 = node(*it).literal();
+        const hash_set<node_idx_t>* indices =
+            search_nodes_with_predicate(target.predicate, target.terms.size());
 
-        if (target.truth != l2.truth)
+        if (indices == NULL) return;
+        
+        for (auto it = indices->begin(); it != indices->end(); ++it)
         {
-            unifier_t uni;
+            const literal_t &l2 = node(*it).literal();
 
-            if (check_unifiability(target, l2, true, &uni))
-                out->push_back(std::make_tuple(*it, uni));
+            if (target.truth != l2.truth)
+            {
+                unifier_t uni;
+
+                if (check_unifiability(target, l2, true, &uni))
+                    out->push_back(std::make_tuple(*it, uni));
+            }
         }
+    }
+    else
+    {
+        node_idx_t n = target.truth ?
+            find_neg_sub_node(target.terms[0], target.terms[1]) :
+            find_sub_node(target.terms[0], target.terms[1]);
+
+        if (n >= 0)
+            out->push_back(std::make_tuple(n, unifier_t()));
     }
 }
 

@@ -631,7 +631,7 @@ void ilp_problem_t::add_variables_for_requirement(bool do_maximize)
     const std::vector<pg::requirement_t> &reqs = m_graph->requirements();
     bool do_infer_pseudo_positive = phillip()->do_infer_pseudo_positive();
 
-    if (reqs.size() <= 1 and do_infer_pseudo_positive) return;
+    if (reqs.size() <= 1 and not do_infer_pseudo_positive) return;
 
     bool do_filter = (m_graph->requirements().size() > 1) and do_infer_pseudo_positive;
     for (auto req : m_graph->requirements())
