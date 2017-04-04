@@ -5,3 +5,4 @@
 
 #include "./test_util.h"
 #include "./test_fol.h"
+#include "./test_kb.h"

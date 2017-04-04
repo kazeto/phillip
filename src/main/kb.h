@@ -40,10 +40,10 @@ public:
 	};
 
 	conjunction_library_t(const filepath_t &path);
+	~conjunction_library_t();
 
-	void prepare_compile();
-	void prepare_query();
-	void finalize();
+	virtual void prepare_compile() override;
+	virtual void finalize() override;
 
 	void insert(const rule_t&);
 	std::list<elem_t> get(predicate_id_t) const;
@@ -61,8 +61,8 @@ class feature_to_rules_cdb_t : public cdb_data_t
 public:
 	feature_to_rules_cdb_t(const filepath_t &path) : cdb_data_t(path) {}
 
-	void prepare_compile();
-	void finalize();
+	virtual void prepare_compile() override;
+	virtual void finalize() override;
 
 	std::list<rule_id_t> gets(const conjunction_t::feature_t&, is_backward_t) const;
 	void insert(const conjunction_t&, is_backward_t, rule_id_t);
@@ -80,8 +80,8 @@ template <typename T> class rules_cdb_t : public cdb_data_t
 public:
 	rules_cdb_t(const filepath_t &path) : cdb_data_t(path) {}
 
-	void prepare_compile();
-	void finalize();
+	virtual void prepare_compile() override;
+	virtual void finalize() override;
 
 	std::list<rule_id_t> gets(const T &key) const;
 	void insert(const T&, rule_id_t);

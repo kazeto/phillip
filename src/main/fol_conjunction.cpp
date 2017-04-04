@@ -19,6 +19,16 @@ conjunction_t::conjunction_t(binary_reader_t &r)
 }
 
 
+string_t conjunction_t::string() const
+{
+	std::list<string_t> strs;
+	for (const auto &a : (*this))
+		strs.push_back(a.string());
+
+	return "{" + join(strs.begin(), strs.end(), " ^ ") + "}";
+}
+
+
 conjunction_t::feature_t conjunction_t::feature() const
 {
 	feature_t out;
@@ -93,6 +103,12 @@ template <> void binary_writer_t::write<conjunction_t>(const conjunction_t &x)
 }
 
 
+template <> void binary_reader_t::read<conjunction_t>(conjunction_t *p)
+{
+	*p = conjunction_t(*this);
+}
+
+
 template <> void binary_writer_t::
 write<conjunction_t::feature_t>(const conjunction_t::feature_t &x)
 {
@@ -101,5 +117,10 @@ write<conjunction_t::feature_t>(const conjunction_t::feature_t &x)
 		write<predicate_id_t>(pid);
 }
 
+
+template <> void binary_reader_t::read<conjunction_t::feature_t>(conjunction_t::feature_t *p)
+{
+	*p = conjunction_t::feature_t(*this);
+}
 
 }

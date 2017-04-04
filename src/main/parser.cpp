@@ -321,7 +321,7 @@ void parser_t::read()
             if (not t1) return cancel();
 
             m_stream.skip();
-            neg = (bool)(m_stream.get(is('!')));
+            neg = not bad(m_stream.get(is('!')));
             if (check(is('='))) return cancel();
 
             m_stream.skip();
@@ -337,7 +337,7 @@ void parser_t::read()
         else
         {
             // READ TYPICAL NEGATION
-            neg = (bool)(m_stream.get(is('!')));
+            neg = not bad(m_stream.get(is('!')));
             m_stream.skip();
 
             // ---- READ PREDICATE

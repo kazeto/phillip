@@ -72,7 +72,7 @@ TEST(UtilityTest, ParameterStrage)
 
 	EXPECT_EQ(param()->get("aaa"), "xxx");
 	EXPECT_EQ(param()->geti("bbb"), 123);
-	EXPECT_FLOAT_EQ(param()->getf("ccc"), 12.4);
+	EXPECT_FLOAT_EQ(static_cast<float>(param()->getf("ccc")), 12.4f);
 	EXPECT_EQ(param()->geti("ccc"), 12);
 	EXPECT_EQ(param()->get("ddd"), "");
 	EXPECT_EQ(param()->get("ddd", "xxx"), "xxx");

@@ -16,30 +16,34 @@ template <typename T> void rules_cdb_t<T>::prepare_compile()
 
 template <typename T> void rules_cdb_t<T>::finalize()
 {
-	char key[512];
-	binary_writer_t key_writer(key, 512);
-
-	// WRITE TO CDB FILE
-	for (auto p : m_rids)
+	if (is_writable())
 	{
-		key_writer.reset();
-		key_writer.write<T>(p.first);
+		char key[512];
+		binary_writer_t key_writer(key, 512);
 
-		size_t size_value = sizeof(size_t) + sizeof(rule_id_t) * p.second.size();
-		char *value = new char[size_value];
-		binary_writer_t value_writer(value, size_value);
+		// WRITE TO CDB FILE
+		for (auto p : m_rids)
+		{
+			key_writer.reset();
+			key_writer.write<T>(p.first);
 
-		value_writer.write<size_t>(p.second.size());
-		for (const auto &f : p.second)
-			value_writer.write<rule_id_t>(f);
+			size_t size_value = sizeof(size_t) + sizeof(rule_id_t) * p.second.size();
+			char *value = new char[size_value];
+			binary_writer_t value_writer(value, size_value);
 
-		assert(size_value == value_writer.size());
-		put(key, key_writer.size(), value, value_writer.size());
+			value_writer.write<size_t>(p.second.size());
+			for (const auto &f : p.second)
+				value_writer.write<rule_id_t>(f);
 
-		delete[] value;
+			assert(size_value == value_writer.size());
+			put(key, key_writer.size(), value, value_writer.size());
+
+			delete[] value;
+		}
+
+		m_rids.clear();
 	}
 
-	m_rids.clear();
 	cdb_data_t::finalize();
 }
 

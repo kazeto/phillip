@@ -12,6 +12,12 @@ conjunction_library_t::conjunction_library_t(const filepath_t &path)
 {}
 
 
+conjunction_library_t::~conjunction_library_t()
+{
+	finalize();
+}
+
+
 void conjunction_library_t::prepare_compile()
 {
 	cdb_data_t::prepare_compile();
@@ -19,36 +25,33 @@ void conjunction_library_t::prepare_compile()
 }
 
 
-void conjunction_library_t::prepare_query()
-{
-	cdb_data_t::prepare_query();
-}
-
-
 void conjunction_library_t::finalize()
 {
 	// WRITE TO CDB FILE
-	for (auto p : m_features)
+	if (is_writable())
 	{
-		size_t size_value = sizeof(size_t);
-		for (const auto &f : p.second)
-			size_value += f.first.bytesize() + sizeof(char);
-
-		char *value = new char[size_value];
-		binary_writer_t writer(value, size_value);
-
-		writer.write<size_t>(p.second.size());
-		for (const auto &f : p.second)
+		for (auto p : m_features)
 		{
-			writer.write<conjunction_t::feature_t>(f.first);
-			writer.write<char>(f.second ? 1 : 0);
+			size_t size_value = sizeof(size_t);
+			for (const auto &f : p.second)
+				size_value += f.first.bytesize() + sizeof(char);
+
+			char *value = new char[size_value];
+			binary_writer_t writer(value, size_value);
+
+			writer.write<size_t>(p.second.size());
+			for (const auto &f : p.second)
+			{
+				writer.write<conjunction_t::feature_t>(f.first);
+				writer.write<char>(f.second ? 1 : 0);
+			}
+
+			put((char*)(&p.first), sizeof(predicate_id_t), value, size_value);
+
+			delete[] value;
 		}
-
-		put((char*)(&p.first), sizeof(predicate_id_t), value, size_value);
-
-		delete[] value;
+		m_features.clear();
 	}
-	m_features.clear();
 
 	cdb_data_t::finalize();
 }
@@ -92,7 +95,7 @@ std::list<conjunction_library_t::elem_t> conjunction_library_t::get(predicate_id
 
 			char flag;
 			reader.read<char>(&flag);
-			p.is_backward = (bool)(flag);
+			p.is_backward = (flag != 0);
 		}
 	}
 

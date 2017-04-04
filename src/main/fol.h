@@ -136,6 +136,7 @@ private:
 std::ostream& operator<<(std::ostream& os, const atom_t& t);
 
 template <> void binary_writer_t::write<atom_t>(const atom_t &x);
+template <> void binary_reader_t::read<atom_t>(atom_t *p);
 
 
 
@@ -182,6 +183,7 @@ private:
 };
 
 
+
 /** A class of the database of predicates. */
 class predicate_library_t
 {
@@ -222,6 +224,9 @@ private:
     hash_map<predicate_id_t, predicate_property_t> m_properties;
 };
 
+inline predicate_library_t* plib() { return predicate_library_t::instance(); }
+
+
 
 /** A class to represents conjunctions and disjunction. */
 class conjunction_t : public std::vector<atom_t>
@@ -251,6 +256,8 @@ public:
     inline const string_t& param() const { return m_param; }
     inline       string_t& param()       { return m_param; }
 
+	string_t string() const;
+
 	feature_t feature() const;
 
 private:
@@ -258,9 +265,10 @@ private:
 };
 
 template <> void binary_writer_t::write<conjunction_t>(const conjunction_t &x);
+template <> void binary_reader_t::read<conjunction_t>(conjunction_t *p);
 
-template <> void binary_writer_t::
-write<conjunction_t::feature_t>(const conjunction_t::feature_t &x);
+template <> void binary_writer_t::write<conjunction_t::feature_t>(const conjunction_t::feature_t &x);
+template <> void binary_reader_t::read<conjunction_t::feature_t>(conjunction_t::feature_t *p);
 
 
 
@@ -290,6 +298,7 @@ private:
 };
 
 template <> void binary_writer_t::write<rule_t>(const rule_t &x);
+template <> void binary_reader_t::read<rule_t>(rule_t *p);
 
 
 

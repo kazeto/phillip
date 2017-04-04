@@ -112,7 +112,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>D:\My Projects\phillip\googletest\googletest\msvc\gtest\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\googletest\googletest\msvc\gtest\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -155,7 +155,7 @@
     <ClCompile Include="..\..\src\main\fol_conjunction.cpp" />
     <ClCompile Include="..\..\src\main\kb.cpp" />
     <ClCompile Include="..\..\src\main\kb_conjunction_library.cpp" />
-    <ClCompile Include="..\..\src\main\fol_literal.cpp" />
+    <ClCompile Include="..\..\src\main\fol_atom.cpp" />
     <ClCompile Include="..\..\src\main\fol_predicate_library.cpp" />
     <ClCompile Include="..\..\src\main\fol_predicate.cpp" />
     <ClCompile Include="..\..\src\main\fol_predicate_property.cpp" />
@@ -178,6 +178,7 @@
     <ClInclude Include="..\..\src\main\parser.h" />
     <ClInclude Include="..\..\src\main\util.h" />
     <ClInclude Include="..\..\src\test\test_fol.h" />
+    <ClInclude Include="..\..\src\test\test_kb.h" />
     <ClInclude Include="..\..\src\test\test_util.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

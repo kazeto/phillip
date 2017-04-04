@@ -353,9 +353,9 @@ public:
     cdb_data_t(std::string filename);
     ~cdb_data_t();
 
-    void prepare_compile();
-    void prepare_query();
-    void finalize();
+    virtual void prepare_compile();
+    virtual void prepare_query();
+    virtual void finalize();
 
     void put(const void *key, size_t ksize, const void *value, size_t vsize);
     const void* get(const void *key, size_t ksize, size_t *vsize) const;

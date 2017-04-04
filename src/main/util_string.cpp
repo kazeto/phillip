@@ -27,17 +27,17 @@ std::vector<string_t> string_t::split(const char *separator, const int MAX_NUM) 
     std::vector<string_t> out;
     int idx(0);
 
-    while (idx < size())
+    while (idx < static_cast<int>(size()))
     {
         int idx2(_find_split_index(separator, idx));
 
         if (idx2 < 0)
-            idx2 = size();
+            idx2 = static_cast<int>(size());
 
         if (idx2 - idx > 0)
         {
-            if (MAX_NUM > 0 and out.size() >= MAX_NUM)
-                idx2 = size();
+            if (MAX_NUM > 0 and static_cast<int>(out.size()) >= MAX_NUM)
+                idx2 = static_cast<int>(size());
             out.push_back(substr(idx, idx2 - idx));
         }
 
@@ -91,7 +91,7 @@ bool string_t::startswith(const std::string &query)
 {
     if (query.size() <= this->size())
     {
-        for (int i = 0; i < query.size(); ++i)
+        for (size_t i = 0; i < query.size(); ++i)
         {
             if (query.at(i) != this->at(i))
                 return false;
@@ -109,7 +109,7 @@ bool string_t::endswith(const std::string &query)
     {
         int q = query.size() - 1;
         int s = this->size() - 1;
-        for (int i = 0; i < query.size(); ++i)
+        for (int i = 0; i < static_cast<int>(query.size()); ++i)
         {
             if (query.at(q - i) != this->at(s - i))
                 return false;
@@ -128,7 +128,7 @@ bool string_t::parse_as_function(string_t *pred, std::vector<string_t> *args) co
 	std::list<int> commas;
 
 	// FIND BRACKETS AND COMMAS
-	for (int i = 0; i < size(); ++i)
+	for (int i = 0; i < static_cast<int>(size()); ++i)
 	{
 		char c = at(i);
 

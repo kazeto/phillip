@@ -25,7 +25,8 @@ atom_t::atom_t(
 
 atom_t::atom_t(
     const string_t &pred, const std::vector<term_t> &terms, bool neg, bool naf)
-    : m_predicate(pred, terms.size()), m_terms(terms), m_neg(neg), m_naf(naf)
+    : m_predicate(pred, static_cast<arity_t>(terms.size())),
+	m_terms(terms), m_neg(neg), m_naf(naf)
 {
     regularize();
 }
@@ -34,7 +35,7 @@ atom_t::atom_t(
 atom_t::atom_t(
     const string_t &pred,
     const std::initializer_list<std::string> &terms, bool neg, bool naf)
-    : m_predicate(pred, terms.size()), m_neg(neg), m_naf(naf)
+    : m_predicate(pred, static_cast<arity_t>(terms.size())), m_neg(neg), m_naf(naf)
 {
     for (auto t : terms)
         m_terms.push_back(term_t(t));
@@ -62,8 +63,8 @@ atom_t::atom_t(binary_reader_t &r)
 	// READ NEGATION
 	char flag;
 	r.read<char>(&flag);
-	m_neg = (bool)(flag & 0b0001);
-	m_naf = (bool)(flag & 0b0010);
+	m_neg = ((flag & 0b0001) != 0);
+	m_naf = ((flag & 0b0010) != 0);
 
 	// READ PARAMETER
 	r.read<std::string>(&m_param);
@@ -164,12 +165,12 @@ inline void atom_t::regularize()
 {
 	auto prp = predicate_library_t::instance()->find_property(predicate().pid());
 
-	if ((bool)prp)
+	if (prp != nullptr)
 	{
 		// IF THE PREDICATE IS SYMMETRIC, SORT TERMS.
 		if (prp->is_symmetric())
 		{
-			auto ar = m_terms.size();
+			term_idx_t ar = static_cast<term_idx_t>(m_terms.size());
 			if (ar > 1)
 				if (term(ar - 2) > term(ar - 1))
 					std::swap(m_terms[ar - 2], m_terms[ar - 1]);
@@ -191,7 +192,7 @@ template <> void binary_writer_t::write<atom_t>(const atom_t &x)
 	write<predicate_id_t>(x.predicate().pid());
 
 	// WRITE ARGUMENTS
-	for (int i = 0; i < x.terms().size(); ++i)
+	for (term_idx_t i = 0; i < static_cast<term_idx_t>(x.terms().size()); ++i)
 		write<std::string>(x.term(i).string());
 
 	// WRITE NEGATION
@@ -202,6 +203,12 @@ template <> void binary_writer_t::write<atom_t>(const atom_t &x)
 
 	// WRITE PARAMETER
 	write<std::string>(x.param());
+}
+
+
+template <> void binary_reader_t::read<atom_t>(atom_t *p)
+{
+	*p = atom_t(*this);
 }
 
 

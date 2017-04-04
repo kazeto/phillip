@@ -1,8 +1,11 @@
 #pragma once
 
+#include <gtest/gtest.h>
+
 #include "../main/fol.h"
 
 using namespace dav;
+
 
 TEST(FOLTest, Predicate)
 {
@@ -35,6 +38,8 @@ TEST(FOLTest, Predicate)
 TEST(FOLTest, Atom)
 {
 	predicate_library_t::instance()->add(predicate_t("eat/3"));
+	predicate_library_t::instance()->add(predicate_t("apple/1"));
+	predicate_library_t::instance()->add(predicate_t("man/1"));
 
 	atom_t eat1("eat", { "e", "x", "y" }, false, false);
 	atom_t eat2("eat", { "e", "x", "y" }, true, false);
@@ -84,4 +89,55 @@ TEST(FOLTest, Atom)
 	atom_t eat5(rd);
 	EXPECT_TRUE(eat1 == eat5);
 	EXPECT_TRUE(wr.size() == rd.size());
+}
+
+
+TEST(FOLTest, Conjunction)
+{
+	conjunction_t conj1;
+	conj1.push_back(atom_t("eat", { "e", "x", "y" }, false, false));
+	conj1.push_back(atom_t("man", { "x" }, false, false));
+	conj1.push_back(atom_t("apple", { "y" }, false, false));
+	conj1.param() = "this_is_parameter";
+
+	EXPECT_EQ(conj1.string(), "{eat(e, x, y) ^ man(x) ^ apple(y)}");
+
+	char buf[1024];
+	binary_writer_t wr(buf, 1024);
+	binary_reader_t rd(buf, 1024);
+
+	wr.write<conjunction_t>(conj1);
+	conjunction_t conj2(rd);
+
+	EXPECT_TRUE(conj1 == conj2);
+
+	conjunction_t::feature_t feat1 = conj1.feature();
+	wr.reset();
+	wr.write<conjunction_t::feature_t>(feat1);
+	rd.reset();
+	conjunction_t::feature_t feat2(rd);
+
+	EXPECT_TRUE(feat1 == feat2);
+}
+
+
+TEST(FOLTest, Rule)
+{
+	rule_t r1;
+	r1.name() = "this_is_rule_name";
+	r1.lhs().push_back(atom_t("apple", { "x" }, false, false));
+	r1.rhs().push_back(atom_t("eat", { "e", "y", "x" }, false, false));
+	r1.rid() = 1;
+
+	char buf[1024];
+	binary_reader_t rd(buf, 1024);
+	binary_writer_t wr(buf, 1024);
+
+	wr.write<rule_t>(r1);
+	rule_t r2(rd);
+
+	EXPECT_TRUE(rd.size() == wr.size());
+	EXPECT_EQ(r2.name(), "this_is_rule_name");
+	EXPECT_TRUE(r1.lhs() == r2.lhs());
+	EXPECT_TRUE(r1.rhs() == r2.rhs());
 }
