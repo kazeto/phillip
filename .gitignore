@@ -28,6 +28,7 @@ Thumbs.db
 *.obj
 *.exe
 *.pdb
+*.idb
 *.user
 *.aps
 *.pch
@@ -40,8 +41,13 @@ Thumbs.db
 *.cache
 *.ilk
 *.log
+*.tlog
+*.VC.db
 *.sdf
 *.opensdf
+*/unsuccessfulbuild
+*.lastbuildstate
+*.cdb
 ipch
 vs/[Dd]ebug/*
 vs/[Rr]elease/*
