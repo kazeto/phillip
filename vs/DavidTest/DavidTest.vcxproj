@@ -179,6 +179,7 @@
     <ClInclude Include="..\..\src\main\util.h" />
     <ClInclude Include="..\..\src\test\test_fol.h" />
     <ClInclude Include="..\..\src\test\test_kb.h" />
+    <ClInclude Include="..\..\src\test\test_parser.h" />
     <ClInclude Include="..\..\src\test\test_util.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

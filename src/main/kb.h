@@ -66,6 +66,7 @@ public:
 
 	std::list<rule_id_t> gets(const conjunction_t::feature_t&, is_backward_t) const;
 	void insert(const conjunction_t&, is_backward_t, rule_id_t);
+	void insert(const rule_t&);
 
 private:
 	std::map<
@@ -112,9 +113,10 @@ public:
 
 private:
 	typedef unsigned long long pos_t;
-	typedef unsigned long rule_size_t; /// The type of binary size of axiom.
 
 	string_t get_name_of_unnamed_axiom();
+	filepath_t filepath_idx() const { return m_filename + ".idx.cdb"; }
+	filepath_t filepath_dat() const { return m_filename + ".dat.cdb"; }
 
 	static std::mutex ms_mutex;
 
@@ -139,6 +141,8 @@ public:
     void prepare_compile(); /// Prepares for compiling knowledge base.
     void prepare_query();   /// Prepares for reading knowledge base.
     void finalize();        /// Is called on the end of compiling or reading.
+
+	void add(rule_t &r); // TODO
 
     version_e version() const     { return m_version; }
     bool is_valid_version() const { return m_version == KB_VERSION_1; }

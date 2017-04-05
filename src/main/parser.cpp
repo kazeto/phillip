@@ -127,9 +127,9 @@ formatter_t enclosed(char begin, char last)
 		{
 			auto i = str.find(last, 1);
 
-			if (i < 0)             return FMT_READING;
-			else if (i == len - 1) return FMT_GOOD;
-			else                   return FMT_BAD;
+			if (i == std::string::npos) return FMT_READING;
+			else if (i == len - 1)      return FMT_GOOD;
+			else                        return FMT_BAD;
 		}
     };
 }
@@ -141,7 +141,7 @@ formatter_t general = many(not (bad | space | bracket | quotation_mark | is("#^!
 formatter_t argument = (startswith(alpha) & many(alpha | digit)) | quotation;
 formatter_t parameter = general | quotation;
 formatter_t name = general | quotation;
-const formatter_t &predicate = general;
+formatter_t predicate = general;
 
 
 stream_t::stream_t(std::istream *is)
@@ -149,7 +149,7 @@ stream_t::stream_t(std::istream *is)
 {}
 
 
-stream_t::stream_t(const std::string &path)
+stream_t::stream_t(const filepath_t &path)
     : m_row(1), m_column(1)
 {
     std::ifstream *fin = new std::ifstream(path);
@@ -196,6 +196,7 @@ string_t stream_t::read(const formatter_t &f)
     string_t out;
 	auto pos = (*this)->tellg();
     char ch = (*this)->get();
+	int n_endl = 0;
 
     while (not bad(ch))
     {
@@ -214,14 +215,29 @@ string_t stream_t::read(const formatter_t &f)
 				(*this)->seekg(pos);
 				break;
 			}
-			break;
+			goto END_READ;
 
 		default:
 			out += ch;
 			ch = (*this)->get();
 			break;
 		}
+
+		past = res;
     }
+
+END_READ:
+
+	for (const auto &c : out)
+	{
+		if (c == '\n')
+		{
+			++m_row;
+			m_column = 1;
+		}
+		else
+			++m_column;
+	}
 
     return out;
 }

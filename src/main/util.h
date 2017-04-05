@@ -351,7 +351,7 @@ class cdb_data_t
 {
 public:
     cdb_data_t(std::string filename);
-    ~cdb_data_t();
+    virtual ~cdb_data_t();
 
     virtual void prepare_compile();
     virtual void prepare_query();

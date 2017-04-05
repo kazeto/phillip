@@ -26,8 +26,10 @@ void feature_to_rules_cdb_t::finalize()
 		wr_key.write<conjunction_t::feature_t>(feat);
 		wr_key.write<char>(backward ? 1 : 0);
 
-		std::vector<char> val(sizeof(rule_id_t) * p.second.size(), '\0');
+		std::vector<char> val(sizeof(size_t) + sizeof(rule_id_t) * p.second.size(), '\0');
 		binary_writer_t wr_val(&val[0], val.size());
+
+		wr_val.write<size_t>(p.second.size());
 		for (const auto &rid : p.second)
 			wr_val.write<rule_id_t>(rid);
 
@@ -74,6 +76,13 @@ std::list<rule_id_t> feature_to_rules_cdb_t::gets(
 void feature_to_rules_cdb_t::insert(const conjunction_t &conj, is_backward_t backward, rule_id_t rid)
 {
 	m_feat2rids[std::make_pair(conj.feature(), backward)].insert(rid);
+}
+
+
+void feature_to_rules_cdb_t::insert(const rule_t &r)
+{
+	insert(r.lhs(), false, r.rid());
+	insert(r.rhs(), true, r.rid());
 }
 
 

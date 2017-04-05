@@ -105,7 +105,8 @@ void knowledge_base_t::finalize()
     kb_state_e state = m_state;
     m_state = STATE_NULL;
 
-	write_spec(m_path + ".spec.txt");
+	if (state == STATE_COMPILE)
+		write_spec(m_path + ".spec.txt");
 
 	rules.finalize();
 	features.finalize();

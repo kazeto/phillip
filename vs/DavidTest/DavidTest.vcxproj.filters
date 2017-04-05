@@ -101,5 +101,8 @@
     <ClInclude Include="..\..\src\test\test_kb.h">
       <Filter>test</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\test\test_parser.h">
+      <Filter>test</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

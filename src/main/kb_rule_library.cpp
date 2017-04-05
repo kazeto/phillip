@@ -32,8 +32,8 @@ void rule_library_t::prepare_compile()
 		std::lock_guard<std::mutex> lock(ms_mutex);
 
 		auto flag = (std::ios::binary | std::ios::out);
-		m_fo_idx.reset(new std::ofstream((m_filename + ".idx").c_str(), flag));
-		m_fo_dat.reset(new std::ofstream((m_filename + ".dat").c_str(), flag));
+		m_fo_idx.reset(new std::ofstream(filepath_idx().c_str(), flag));
+		m_fo_dat.reset(new std::ofstream(filepath_dat().c_str(), flag));
 		m_num_rules = 0;
 		m_num_unnamed_rules = 0;
 		m_writing_pos = 0;
@@ -51,11 +51,12 @@ void rule_library_t::prepare_query()
 		std::lock_guard<std::mutex> lock(ms_mutex);
 
 		auto flag = (std::ios::binary | std::ios::in);
-		m_fi_idx.reset(new std::ifstream((m_filename + ".index.dat").c_str(), flag));
-		m_fi_dat.reset(new std::ifstream((m_filename + ".axioms.dat").c_str(), flag));
+		m_fi_idx.reset(new std::ifstream(filepath_idx().c_str(), flag));
+		m_fi_dat.reset(new std::ifstream(filepath_dat().c_str(), flag));
 
 		m_fi_idx->seekg(-static_cast<int>(sizeof(int)), std::ios_base::end);
-		m_fi_idx->read((char*)&m_num_rules, sizeof(int));
+		m_fi_idx->read((char*)&m_num_rules, sizeof(size_t));
+		m_fi_idx->clear();
 	}
 }
 
@@ -64,7 +65,7 @@ void rule_library_t::finalize()
 {
 	if (is_writable())
 	{
-		m_fo_idx->write((char*)&m_num_rules, sizeof(int));
+		m_fo_idx->write((char*)&m_num_rules, sizeof(size_t));
 		m_fo_idx.reset();
 		m_fo_dat.reset();
 	}
@@ -74,15 +75,13 @@ void rule_library_t::finalize()
 }
 
 
-
-
 rule_id_t rule_library_t::add(rule_t &r)
 {
 	if (r.name().empty())
 		r.name() = get_name_of_unnamed_axiom();
 
 	// WRITE AXIOM TO KNOWLEDGE-BASE.
-	axiom_id_t id = size() + 1;
+	rule_id_t id = size() + 1;
 	const int SIZE(512 * 512);
 	char buffer[SIZE];
 	binary_writer_t wr(buffer, SIZE);
@@ -90,10 +89,10 @@ rule_id_t rule_library_t::add(rule_t &r)
 	/* AXIOM => BINARY-DATA */
 	wr.write<rule_t>(r);
 
-	/* INSERT AXIOM TO CDB.ID */
-	rule_size_t rsize(static_cast<rule_size_t>(wr.size()));
+	/* INSERT A RULE TO CDB.IDX */
+	size_t rsize(wr.size());
 	m_fo_idx->write((char*)(&m_writing_pos), sizeof(pos_t));
-	m_fo_idx->write((char*)(&rsize), sizeof(rule_size_t));
+	m_fo_idx->write((char*)(&rsize), sizeof(size_t));
 
 	m_fo_dat->write(buffer, wr.size());
 
@@ -113,14 +112,15 @@ rule_t rule_library_t::get(rule_id_t rid) const
 	assert(is_readable());
 
 	pos_t pos;
-	rule_size_t rsize;
+	size_t rsize;
 	const int SIZE(512 * 512);
 	char buffer[SIZE];
 
 	// GET RULE'S POSITION AND SIZE.
-	m_fi_idx->seekg((rid - 1) * (sizeof(pos_t) + sizeof(rule_size_t)));
+	int offset = (rid - 1) * (sizeof(pos_t) + sizeof(size_t));
+	m_fi_idx->seekg(offset);
 	m_fi_idx->read((char*)&pos, sizeof(pos_t));
-	m_fi_idx->read((char*)&rsize, sizeof(rule_size_t));
+	m_fi_idx->read((char*)&rsize, sizeof(size_t));
 
 	// GET THE RULE
 	m_fi_dat->seekg(pos);
