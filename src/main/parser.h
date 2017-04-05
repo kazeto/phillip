@@ -38,6 +38,7 @@ extern condition_t quotation_mark;
 extern condition_t bracket;
 extern condition_t newline;
 extern condition_t bad;
+extern condition_t is_general;
 
 formatter_t operator&(const formatter_t &f1, const formatter_t &f2);
 formatter_t operator|(const formatter_t &f1, const formatter_t &f2);
@@ -64,6 +65,7 @@ public:
     stream_t(const filepath_t &path);
 
     char get(const condition_t&);
+	bool peek(const condition_t&) const;
 
     string_t read(const formatter_t&);
 
@@ -74,10 +76,11 @@ public:
     size_t row() const { return m_row; }
     size_t column() const { return m_column; }
 
+	exception_t exception(const string_t&) const;
+
 private:
     size_t m_row, m_column;
 };
-
 
 
 /** A class to manage parsing. */
@@ -89,6 +92,10 @@ public:
     
     void read();
 	bool eof() const { return m_stream->eof(); }
+
+	const std::unique_ptr<problem_t>& prob() { return m_problem; }
+	const std::unique_ptr<rule_t>& rule() { return m_rule; }
+	const std::unique_ptr<predicate_property_t>& prop() { return m_property; }
 
 private:
     stream_t m_stream;

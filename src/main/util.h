@@ -328,10 +328,10 @@ protected:
 };
 
 
-class phillip_exception_t : public std::runtime_error
+class exception_t : public std::runtime_error
 {
 public:
-    phillip_exception_t(const std::string &what, bool do_print_usage = false)
+    exception_t(const std::string &what, bool do_print_usage = false)
         : std::runtime_error(what), m_do_print_usage(do_print_usage) {}
     bool do_print_usage() const { return m_do_print_usage; }
 private:
@@ -383,9 +383,9 @@ public:
 
 	template <class T> void read(T *out)
 	{
+		assertion(sizeof(T));
 		std::memcpy(out, current(), sizeof(T));
 		m_size += sizeof(T);
-		assert(m_size <= m_len);
 	}
 
 	size_t size() { return m_size; }
@@ -393,6 +393,12 @@ public:
 
 private:
 	const char* current() { return m_ptr + m_size; }
+
+	inline void assertion(size_t s)
+	{
+		if (m_size + s > m_len)
+			throw exception_t("buffer overread");
+	}
 
 	const char *m_ptr;
 	size_t m_size;
@@ -411,9 +417,9 @@ public:
 
 	template <class T> void write(const T &value)
 	{
+		assertion(sizeof(T));
 		std::memcpy(current(), &value, sizeof(T));
 		m_size += sizeof(T);
-		assert(m_size <= m_len);
 	}
 
 	size_t size() { return m_size; }
@@ -421,6 +427,12 @@ public:
 
 private:
 	char* current() { return m_ptr + m_size; }
+
+	inline void assertion(size_t s)
+	{
+		if (m_size + s > m_len)
+			throw exception_t("buffer overflow");
+	}
 
 	char *m_ptr;
 	size_t m_size;

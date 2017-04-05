@@ -52,6 +52,7 @@ condition_t quotation_mark = is("\'\"");
 condition_t bracket = is("(){}[]<>");
 condition_t newline = is('\n');
 condition_t bad = [=](char ch) { return (ch == -1) or (ch == 0); };
+condition_t is_general = not (bad | space | bracket | quotation_mark | is("#^!|="));
 
 
 formatter_t operator&(const formatter_t &f1, const formatter_t &f2)
@@ -137,7 +138,7 @@ formatter_t enclosed(char begin, char last)
 
 formatter_t quotation = many(not newline) & (enclosed('\'', '\'') | enclosed('\"', '\"'));
 formatter_t comment = enclosed('#', '\n');
-formatter_t general = many(not (bad | space | bracket | quotation_mark | is("#^!|=")));
+formatter_t general = many(is_general);
 formatter_t argument = (startswith(alpha) & many(alpha | digit)) | quotation;
 formatter_t parameter = general | quotation;
 formatter_t name = general | quotation;
@@ -157,7 +158,7 @@ stream_t::stream_t(const filepath_t &path)
     if (*fin)
         reset(fin);
     else
-        throw;
+        throw exception_t(format("cannot open \"%s\"", path.c_str()));
 }
 
 
@@ -187,6 +188,12 @@ char stream_t::get(const condition_t &f)
     }
 
     return -1;
+}
+
+
+bool stream_t::peek(const condition_t &c) const
+{
+	return c((*this)->peek());
 }
 
 
@@ -259,6 +266,12 @@ void stream_t::skip()
 }
 
 
+exception_t stream_t::exception(const string_t &str) const
+{
+	return exception_t(str + format(" at line %d, column %d.", row(), column()));
+}
+
+
 
 parser_t::parser_t(std::istream *is)
     : m_stream(is)
@@ -280,14 +293,14 @@ void parser_t::read()
     auto expect = [&](const condition_t &c)
     {
         if (bad(m_stream.get(c)))
-            throw;
+            throw m_stream.exception(format("expected \'%c\'", c));
     };
 
     auto expects = [&](const string_t &s)
     {
         for (auto c : s)
             if (bad(m_stream.get(is(c))))
-                throw;
+                throw m_stream.exception(format("expected \"%s\"", s));
     };
 
     auto read_parameter = [&]() -> string_t
@@ -315,7 +328,7 @@ void parser_t::read()
 			return atom_t();
 		};
 
-		auto check = [&](const condition_t &c)
+		auto fail = [&](const condition_t &c)
 		{
 			return bad(m_stream.get(c));
 		};
@@ -338,14 +351,14 @@ void parser_t::read()
 
             m_stream.skip();
             neg = not bad(m_stream.get(is('!')));
-            if (check(is('='))) return cancel();
+            if (fail(is('='))) return cancel();
 
             m_stream.skip();
             string_t t2 = m_stream.read(argument);
             if (not t2) return cancel();
 
             m_stream.skip();
-            if (check(is(')'))) return cancel();
+            if (fail(is(')'))) return cancel();
             m_stream.skip();
         }
 
@@ -361,7 +374,7 @@ void parser_t::read()
             if (pred.empty()) return cancel();
 
             m_stream.skip();
-            if (check(is('('))) return cancel();
+            if (fail(is('('))) return cancel();
             m_stream.skip();
 
             // ---- READ ARGUMENTS
@@ -373,15 +386,15 @@ void parser_t::read()
                 terms.push_back(term_t(s));
                 m_stream.skip();
 
-                if (check(is(')')))
+                if (fail(is(')')))
                 {
+                    if (fail(is(','))) return cancel();
                     m_stream.skip();
-                    break;
                 }
                 else
                 {
-                    if (check(is(','))) return cancel();
                     m_stream.skip();
+                    break;
                 }
             }
         }
@@ -397,10 +410,10 @@ void parser_t::read()
     auto read_atom_array = [&](char delim, bool must_be_enclosed = false) -> conjunction_t
     {
         conjunction_t out;
-        bool is_enclosed = bad(m_stream.get(is('{')));
+        bool is_enclosed = not bad(m_stream.get(is('{')));
 
 		if (must_be_enclosed and not is_enclosed)
-			throw;
+			throw m_stream.exception("expected \'{\'");
 
         m_stream.skip();
 
@@ -411,11 +424,8 @@ void parser_t::read()
             out.push_back(atom);
             m_stream.skip();
 
-            if (m_stream.get(is('}')))
-            {
-                m_stream.skip();
-                break;
-            }
+			if (m_stream.peek(not (is(delim) | is_general)))
+				break;
             else
             {
                 expect(is(delim));
@@ -447,15 +457,17 @@ void parser_t::read()
         m_stream.skip();
 
 		problem_t out;
-        while (m_stream.get(is('}')))
+        while (bad(m_stream.get(is('}'))))
         {
             string_t key = m_stream.read(many(alpha));
 
+			// Observation already exists.
             if (key == "observe" and not out.observation().empty())
-                throw; // Observation already exists.
+                throw m_stream.exception("multiple observation");
 
+			// Requirement already exists.
             else if (key == "require" and not out.requirement().empty())
-                throw; // Requirement already exists.
+				throw m_stream.exception("multiple requirement");
 
             m_stream.skip();
             auto atoms = read_atom_array('^', true);
@@ -464,14 +476,17 @@ void parser_t::read()
 				out.observation() = atoms;
 			else if (key == "require")
 				out.requirement() = atoms;
-            else if (key == "choices")
+			else if (key == "choice")
 				out.choices().push_back(atoms);
+			else
+				throw m_stream.exception(
+					format("unknown keyword \"%s\" was found", key.c_str()));
 
             m_stream.skip();
         }
 
-        if (out.observation().empty())
-            throw; /// Empty observation
+		if (out.observation().empty())
+			throw m_stream.exception("empty observation");
 
 		return out;
     };
@@ -497,8 +512,10 @@ void parser_t::read()
 
         expect(is('}'));
 
-		if (out.lhs().empty() or out.rhs().empty())
-			throw;
+		if (out.lhs().empty())
+			throw m_stream.exception("empty conjunction on left-hand-side");
+		if (out.rhs().empty())
+			throw m_stream.exception("empty conjunction on right-hand-side");
 
 		return out;
     };
@@ -533,7 +550,9 @@ void parser_t::read()
 			if (prop != PRP_NONE)
 				props.insert(prop);
 			else
-				throw;
+				throw m_stream.exception(
+					format("unknown keyword \"%s\" was found", str.c_str()));
+			;
 
             if (m_stream.get(is('}')))
                 break;
@@ -547,21 +566,23 @@ void parser_t::read()
 		return predicate_property_t(pid, props);
     };
 
-    while (not m_stream->eof())
-    {
-        m_stream.skip();
+	m_stream.skip();
         
-        string_t key = m_stream.read(many(alpha)).lower();
+	string_t key = m_stream.read(many(alpha)).lower();
+	m_stream.skip();
 
-        if (key == "problem")
-            m_problem.reset(new problem_t(read_observation()));
+	if (key == "problem")
+		m_problem.reset(new problem_t(read_observation()));
 
-        else if (key == "rule")
-            m_rule.reset(new rule_t(read_rule()));
+	else if (key == "rule")
+		m_rule.reset(new rule_t(read_rule()));
 
-        else if (key == "property")
-            m_property.reset(new predicate_property_t(read_property()));
-    }
+	else if (key == "property")
+		m_property.reset(new predicate_property_t(read_property()));
+
+	else
+		throw m_stream.exception(
+			format("unknown keyword \"%s\" was found", key.c_str()));
 }
 
 

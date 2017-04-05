@@ -44,7 +44,7 @@ void predicate_library_t::load()
     init();
 
     if (fi.bad())
-        throw phillip_exception_t("Failed to open " + m_filename);
+        throw exception_t("Failed to open " + m_filename);
 
     {
         // READ PREDICATES LIST
@@ -71,7 +71,7 @@ void predicate_library_t::write() const
     std::ofstream fo(m_filename.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);
 
     if (fo.bad())
-        throw phillip_exception_t("Failed to open " + m_filename);
+        throw exception_t("Failed to open " + m_filename);
 
     size_t arity_num = m_predicates.size();
     fo.write((char*)&arity_num, sizeof(size_t));

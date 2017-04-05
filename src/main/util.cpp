@@ -6,7 +6,7 @@
 #include <ctime>
 
 
-const int FAILURE_MKDIR = -1;
+constexpr int FAILURE_MKDIR = -1;
 
 
 namespace dav
@@ -67,10 +67,11 @@ time_point_t::time_point_t()
 template <> void binary_reader_t::read<std::string>(std::string *out)
 {
 	small_size_t size;
-	read<small_size_t>(&size);
+	read<small_size_t>(&size); // size must be less than 256!!
 
 	char str[512];
-	std::memcpy(str, current(), sizeof(char)*size);
+	assertion(sizeof(char) * size);
+	std::memcpy(str, current(), sizeof(char) * size);
 	str[size] = '\0';
 	*out = std::string(str);
 	m_size += sizeof(char)*size;
@@ -81,10 +82,9 @@ template <> void binary_writer_t::write<std::string>(const std::string &value)
 {
 	size_t n(0);
 
-	unsigned char size = static_cast<unsigned char>(value.size());
-	std::memcpy(current(), &size, sizeof(unsigned char));
-	m_size += sizeof(unsigned char);
+	write<small_size_t>(static_cast<small_size_t>(value.size()));
 
+	assertion(sizeof(char) * value.size());
 	std::memcpy(current(), value.c_str(), sizeof(char)* value.size());
 	m_size += sizeof(char)* value.size();
 }
@@ -101,7 +101,7 @@ const time_point_t INIT_TIME;
 
 std::string format(const char *format, ...)
 {
-    static const int SIZE = 256 * 256;
+    constexpr int SIZE = 256 * 256;
     char buffer[SIZE];
 
     va_list arg;

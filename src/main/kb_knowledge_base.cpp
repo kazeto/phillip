@@ -26,7 +26,7 @@ std::unique_ptr<knowledge_base_t, deleter_t<knowledge_base_t>> knowledge_base_t:
 knowledge_base_t* knowledge_base_t::instance()
 {
     if (not ms_instance)
-        throw phillip_exception_t("An instance of knowledge-base has not been initialized.");
+        throw exception_t("An instance of knowledge-base has not been initialized.");
 
     return ms_instance.get();
 }
