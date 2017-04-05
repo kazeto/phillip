@@ -91,8 +91,8 @@ public:
 	string_t strip(const char *targets) const;
 	string_t slice(int i, int j) const;
 
-	bool startswith(const std::string&);
-	bool endswith(const std::string&);
+	bool startswith(const std::string&) const;
+	bool endswith(const std::string&) const;
 
 	bool parse_as_function(string_t *pred, std::vector<string_t> *args) const;
 };

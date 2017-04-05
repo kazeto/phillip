@@ -161,7 +161,10 @@
     <ClCompile Include="..\..\src\main\fol_predicate_property.cpp" />
     <ClCompile Include="..\..\src\main\kb_knowledge_base.cpp" />
     <ClCompile Include="..\..\src\main\kb_rule_library.cpp" />
-    <ClCompile Include="..\..\src\main\parser.cpp" />
+    <ClCompile Include="..\..\src\main\parse.cpp" />
+    <ClCompile Include="..\..\src\main\parse_argv_parser.cpp" />
+    <ClCompile Include="..\..\src\main\parse_input_parser.cpp" />
+    <ClCompile Include="..\..\src\main\parse_stream.cpp" />
     <ClCompile Include="..\..\src\main\util.cpp" />
     <ClCompile Include="..\..\src\main\util_cdb_data.cpp" />
     <ClCompile Include="..\..\src\main\util_console.cpp" />
@@ -175,11 +178,11 @@
     <ClInclude Include="..\..\src\main\fol.h" />
     <ClInclude Include="..\..\src\main\kb.h" />
     <ClInclude Include="..\..\src\main\kb.inline.h" />
-    <ClInclude Include="..\..\src\main\parser.h" />
+    <ClInclude Include="..\..\src\main\parse.h" />
     <ClInclude Include="..\..\src\main\util.h" />
     <ClInclude Include="..\..\src\test\test_fol.h" />
     <ClInclude Include="..\..\src\test\test_kb.h" />
-    <ClInclude Include="..\..\src\test\test_parser.h" />
+    <ClInclude Include="..\..\src\test\test_parse.h" />
     <ClInclude Include="..\..\src\test\test_util.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

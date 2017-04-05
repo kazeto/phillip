@@ -66,13 +66,22 @@
     <ClCompile Include="..\..\src\main\kb.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\main\parser.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\main\fol_conjunction.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\main\fol_atom.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\main\parse.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\main\parse_stream.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\main\parse_input_parser.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\main\parse_argv_parser.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -92,16 +101,16 @@
     <ClInclude Include="..\..\src\main\kb.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\main\parser.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\src\test\test_fol.h">
       <Filter>test</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\test\test_kb.h">
       <Filter>test</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\test\test_parser.h">
+    <ClInclude Include="..\..\src\main\parse.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\test\test_parse.h">
       <Filter>test</Filter>
     </ClInclude>
   </ItemGroup>

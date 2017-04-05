@@ -3,6 +3,7 @@
 #include <functional>
 #include <list>
 #include <memory>
+#include <set>
 
 #include "./fol.h"
 
@@ -84,11 +85,11 @@ private:
 
 
 /** A class to manage parsing. */
-class parser_t
+class input_parser_t
 {
 public:
-    parser_t(std::istream *is);
-    parser_t(const std::string &path);
+    input_parser_t(std::istream *is);
+    input_parser_t(const std::string &path);
     
     void read();
 	bool eof() const { return m_stream->eof(); }
@@ -103,6 +104,42 @@ private:
 	std::unique_ptr<problem_t> m_problem;
 	std::unique_ptr<rule_t> m_rule;
 	std::unique_ptr<predicate_property_t> m_property;
+};
+
+
+/** A class to parse command options on LINUX-like way. */
+class argv_parser_t
+{
+public:
+	static string_t help();
+
+	argv_parser_t(int argc, char *argv[]);
+
+	const string_t& mode() const { return m_mode; }
+	const std::deque<std::pair<string_t, string_t>>& opts() const { return m_opts; }
+	const std::deque<string_t>& inputs() const { return m_inputs; }
+
+private:
+	struct option_t
+	{
+		bool do_take_arg() const { return not arg.empty(); }
+
+		string_t name;
+		string_t arg;
+		string_t help;
+		string_t def; /// default value
+	};
+
+	static const option_t* find_opt(const string_t &name);
+
+	void add_opt(const string_t &n, const string_t &v);
+
+	static std::set<string_t> ACCEPTABLE_MODES;
+	static std::list<option_t> ACCEPTABLE_OPTS;
+
+	string_t m_mode;
+	std::deque<std::pair<string_t, string_t>> m_opts;
+	std::deque<string_t> m_inputs;
 };
 
 

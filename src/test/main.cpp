@@ -6,4 +6,4 @@
 #include "./test_util.h"
 #include "./test_fol.h"
 #include "./test_kb.h"
-#include "./test_parser.h"
+#include "./test_parse.h"

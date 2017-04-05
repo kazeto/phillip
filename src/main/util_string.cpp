@@ -87,7 +87,7 @@ string_t string_t::slice(int i, int j) const
 }
 
 
-bool string_t::startswith(const std::string &query)
+bool string_t::startswith(const std::string &query) const
 {
     if (query.size() <= this->size())
     {
@@ -103,7 +103,7 @@ bool string_t::startswith(const std::string &query)
 }
 
 
-bool string_t::endswith(const std::string &query)
+bool string_t::endswith(const std::string &query) const
 {
     if (query.size() <= this->size())
     {
