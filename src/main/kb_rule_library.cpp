@@ -80,8 +80,10 @@ rule_id_t rule_library_t::add(rule_t &r)
 	if (r.name().empty())
 		r.name() = get_name_of_unnamed_axiom();
 
-	// WRITE AXIOM TO KNOWLEDGE-BASE.
 	rule_id_t id = size() + 1;
+	r.rid() = id;
+
+	// WRITE AXIOM TO KNOWLEDGE-BASE.
 	const int SIZE(512 * 512);
 	char buffer[SIZE];
 	binary_writer_t wr(buffer, SIZE);

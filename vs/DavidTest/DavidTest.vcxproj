@@ -165,6 +165,11 @@
     <ClCompile Include="..\..\src\main\parse_argv_parser.cpp" />
     <ClCompile Include="..\..\src\main\parse_input_parser.cpp" />
     <ClCompile Include="..\..\src\main\parse_stream.cpp" />
+    <ClCompile Include="..\..\src\main\pg.cpp" />
+    <ClCompile Include="..\..\src\main\pg_chainer.cpp" />
+    <ClCompile Include="..\..\src\main\pg_edge.cpp" />
+    <ClCompile Include="..\..\src\main\pg_node.cpp" />
+    <ClCompile Include="..\..\src\main\pg_unifier.cpp" />
     <ClCompile Include="..\..\src\main\util.cpp" />
     <ClCompile Include="..\..\src\main\util_cdb_data.cpp" />
     <ClCompile Include="..\..\src\main\util_console.cpp" />
@@ -179,6 +184,8 @@
     <ClInclude Include="..\..\src\main\kb.h" />
     <ClInclude Include="..\..\src\main\kb.inline.h" />
     <ClInclude Include="..\..\src\main\parse.h" />
+    <ClInclude Include="..\..\src\main\pg.h" />
+    <ClInclude Include="..\..\src\main\pg.inline.h" />
     <ClInclude Include="..\..\src\main\util.h" />
     <ClInclude Include="..\..\src\test\test_fol.h" />
     <ClInclude Include="..\..\src\test\test_kb.h" />

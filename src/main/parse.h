@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <list>
+#include <tuple>
 #include <memory>
 #include <set>
 
@@ -61,6 +62,8 @@ extern formatter_t predicate;
 class stream_t : public std::unique_ptr<std::istream>
 {
 public:
+	typedef std::tuple<std::streampos, size_t, size_t> stream_pos_t;
+
 	/** @param ptr The pointer of an input-stream allocated by `new`. */
     stream_t(std::istream *ptr);
     stream_t(const filepath_t &path);
@@ -76,6 +79,9 @@ public:
 
     size_t row() const { return m_row; }
     size_t column() const { return m_column; }
+
+	stream_pos_t position() const;
+	void restore(const stream_pos_t&);
 
 	exception_t exception(const string_t&) const;
 

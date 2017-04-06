@@ -442,6 +442,18 @@ private:
 template <> void binary_writer_t::write<std::string>(const std::string &value);
 
 
+/** A class for maps of one-to-many. */
+template <typename T1, typename T2> class one_to_many_t
+	: public std::unordered_map<T1, std::unordered_set<T2>>
+{
+public:
+	const std::unordered_set<T2>& get(const T1 &key) const
+	{
+		auto it = find(key);
+		return (it == end()) ? nullptr : &it->second;
+	}
+};
+
 
 template <class Key, class Value> class triangular_matrix_t
 : public hash_map<Key, hash_map<Key, Value> >

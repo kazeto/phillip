@@ -142,7 +142,7 @@ public:
     void prepare_query();   /// Prepares for reading knowledge base.
     void finalize();        /// Is called on the end of compiling or reading.
 
-	void add(rule_t &r); // TODO
+	void add(rule_t &r);
 
     version_e version() const     { return m_version; }
     bool is_valid_version() const { return m_version == KB_VERSION_1; }

@@ -45,7 +45,7 @@ void knowledge_base_t::initialize(const filepath_t &path)
 
 knowledge_base_t::knowledge_base_t(const filepath_t &path)
     : m_state(STATE_NULL), m_version(KB_VERSION_1),	m_path(path),
-	rules(path + "base.dat"),
+	rules(path + "base"),
 	features(path + "ft1.cdb"),
 	feat2rids(path + "ft2.cdb"),
 	lhs2rids(path + ".lhs.cdb"),
@@ -114,6 +114,31 @@ void knowledge_base_t::finalize()
 	lhs2rids.finalize();
 	rhs2rids.finalize();
 	class2rids.finalize();
+}
+
+
+void knowledge_base_t::add(rule_t &r)
+{
+	if (is_writable())
+	{
+		for (auto &a : r.lhs()) a.predicate().assign();
+		for (auto &a : r.rhs()) a.predicate().assign();
+
+		rules.add(r);
+		features.insert(r);
+		feat2rids.insert(r);
+
+		for (const auto &a : r.lhs())
+			lhs2rids.insert(a.pid(), r.rid());
+		for (const auto &a : r.rhs())
+			rhs2rids.insert(a.pid(), r.rid());
+
+		auto cls = r.classname();
+		if (not cls.empty())
+			class2rids.insert(cls, r.rid());
+	}
+	else
+		throw "knowledge-base is not writable.";
 }
 
 

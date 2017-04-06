@@ -141,11 +141,8 @@ formatter_t comment = enclosed('#', '\n');
 formatter_t general = many(is_general);
 formatter_t argument = (startswith(alpha) & many(alpha | digit)) | quotation;
 formatter_t parameter = general | quotation;
-formatter_t name = general | quotation;
+formatter_t name = general;
 formatter_t predicate = general;
-
-
-
 
 
 }

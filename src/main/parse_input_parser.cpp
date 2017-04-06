@@ -51,15 +51,15 @@ void input_parser_t::read()
 	If failed, returns an empty atom and roles the stream position back. */
 	auto read_atom = [&]() -> atom_t
 	{
-		auto pos = m_stream->tellg();
 		bool naf = false;
 		bool neg = false;
 		string_t pred;
 		std::vector<term_t> terms;
+		auto pos = m_stream.position();
 
 		auto cancel = [&]() -> atom_t
 		{
-			m_stream->seekg(pos);
+			m_stream.restore(pos);
 			return atom_t();
 		};
 
@@ -133,11 +133,12 @@ void input_parser_t::read()
 				}
 			}
 		}
+		atom_t out(pred, terms, neg, naf);
 
 		// ---- READ PARAMETER OF THE ATOM
-		string_t param = read_parameter();
+		out.param() = read_parameter();
 
-		return atom_t(pred, terms, neg, naf);
+		return out;
 	};
 
 	/** A function to parse conjunctions and disjunctions.
@@ -171,12 +172,11 @@ void input_parser_t::read()
 		}
 
 		// ---- READ PARAMETER OF THE ATOMS
-		string_t param;
 		if (is_enclosed)
 		{
 			expect(is('}'));
 			m_stream.skip();
-			param = read_parameter();
+			out.param() = read_parameter();
 		}
 
 		return out;

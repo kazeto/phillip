@@ -13,19 +13,13 @@
 #include <map>
 #include <ciso646>
 
+#include "./util.h"
+#include "./fol.h"
+#include "./kb.h"
 
-#include "./logical_function.h"
 
-
-namespace phil
+namespace dav
 {
-
-
-namespace ilp
-{
-class ilp_problem_t;
-class ilp_solution_t;
-}
 
 
 /** A namespace about proof-graphs. */
@@ -47,8 +41,8 @@ enum node_type_e
 };
 
 
-/** A struct of node in proof-graphs. */
-class node_t
+/** A class of nodes in proof-graphs. */
+class node_t : public atom_t
 {
 public:
     /** @param lit     The literal assigned to this.
@@ -56,59 +50,40 @@ public:
      *  @param idx     The index of this in proof_graph_t::m_nodes.
      *  @param depth   Distance from observations in the proof-graph.
      *  @param parents Indices of nodes being parents of this node. */
-    node_t(
-        const proof_graph_t *graph,
-        const literal_t &lit, node_type_e type, node_idx_t idx,
-        depth_t depth, const hash_set<node_idx_t> &parents);
+    node_t(const atom_t&, node_type_e, node_idx_t, depth_t);
 
-    inline node_type_e type() const { return m_type; }
-    inline const literal_t& literal() const { return m_literal; }
-    inline predicate_with_arity_t predicate_with_arity() const { return m_literal.predicate_with_arity(); }
-    inline kb::predicate_id_t predicate_id() const { return m_pred_id; }
+    inline const node_type_e& type() const { return m_type; }
 
     /** Returns the index of this node in a proof-graph. */
-    inline index_t index() const { return m_index; }
+    inline const node_idx_t& index() const { return m_index; }
 
     /** Returns the distance from nearest-observation in proof-graph.
-     *  Observation and Labels have depth of 0.
-     *  Unification-nodes have depth of -1. */
-    inline depth_t depth() const { return m_depth; }
+     *  Nodes observed or required have depth 0.
+     *  Nodes of equality have depth -1. */
+    inline const depth_t& depth() const { return m_depth; }
 
-    inline const hash_set<pg::node_idx_t>& parents() const;
+	/** Returns the index of hypernode
+	*  which was instantiated for instantiation of this node.
+	*  CAUTION:
+	*    If the node has plural parental-edges, this value is invalid.
+	*    Such case can occurs when this node is an equality atom. */
+	inline const hypernode_idx_t& master() const { return m_master; }
+	inline       hypernode_idx_t& master() { return m_master; }
 
-    /** Returns nodes between this and observations which this explains. */
-    inline const hash_set<pg::node_idx_t>& ancestors() const;
+	inline const bool& active() const { return m_is_active; }
+	inline       bool& active()       { return m_is_active; }
 
-    /** Returns nodes which must be hypothesized to hypothesize this. */
-    inline const hash_set<pg::node_idx_t>& relatives() const;
-
-    /** Returns the index of hypernode
-     *  which was instantiated for instantiation of this node.
-     *  CAUTION:
-     *    If the node has plural parental-edges, this value is invalid.
-     *    Such case can occurs when the node is a substituion node. */
-    inline hypernode_idx_t master_hypernode() const;
-    inline void set_master_hypernode(hypernode_idx_t idx);
-
-    /** If true, this node is a substitution node. */
-    inline bool is_equality_node() const;
-
-    /** If true, this node is a non-equality node. */
-    inline bool is_non_equality_node() const;
-
-    /** If true, this node can be hypothesized
-     *  by only transitive unification from other nodes. */
-    inline bool is_transitive_equality_node() const;
-
-    inline std::string to_string() const;
+    string_t string() const;
 
 private:
     node_type_e m_type;
-    literal_t   m_literal;
     node_idx_t  m_index;
-    hypernode_idx_t m_master_hypernode_idx;
+    hypernode_idx_t m_master;
     depth_t m_depth;
-    kb::predicate_id_t m_pred_id;
+    predicate_id_t m_pred_id;
+
+	/** If this is not active, this won't be included in ILP-problem. */
+	bool m_is_active;
 
     hash_set<node_idx_t> m_parents;
     hash_set<node_idx_t> m_ancestors;
@@ -133,101 +108,190 @@ class edge_t
 {
 public:
     inline edge_t();
-    inline edge_t(
-        edge_type_e type, hypernode_idx_t tail, hypernode_idx_t head,
-        axiom_id_t id = -1 );
+	inline edge_t(
+		edge_type_e type, edge_idx_t idx,
+		hypernode_idx_t tail, hypernode_idx_t head, rule_id_t id = -1);
 
-    inline edge_type_e type()     const { return m_type; }
-    inline hypernode_idx_t tail() const { return m_index_tail; }
-    inline hypernode_idx_t head() const { return m_index_head; }
-    inline axiom_id_t axiom_id()  const { return m_axiom_id; }
+    inline const edge_type_e& type() const { return m_type; }
+	inline const edge_idx_t& index() const { return m_index; }
+    inline const hypernode_idx_t& tail() const { return m_tail; }
+    inline const hypernode_idx_t& head() const { return m_head; }
+    inline const rule_id_t& rid()  const { return m_rid; }
 
-    inline bool is_chain_edge() const;
-    inline bool is_unify_edge() const;
+	inline bool is_abduction() const { return type() == EDGE_HYPOTHESIZE; }
+	inline bool is_deduction() const { return type() == EDGE_IMPLICATION; }
+	inline bool is_unification() const { return type() == EDGE_UNIFICATION; }
 
 private:
     edge_type_e m_type;
-    hypernode_idx_t m_index_tail;  /**< A index of tail hypernode. */
-    hypernode_idx_t m_index_head;  /**< A index of head hypernode. */
-    axiom_id_t m_axiom_id;         /**< The used axiom's id. */
+	edge_idx_t m_index;
+    hypernode_idx_t m_tail;  /// A index of tail hypernode.
+    hypernode_idx_t m_head;  /// A index of head hypernode.
+    rule_id_t m_rid; /// The id of rule used.
 };
 
 
-/** A class to express unifications of terms.
- *  This class assumes that each unification is one-to-one.
- *  Therefore, for example,
- *  a unifier which has both of (= x y) and (= x z) is invalid. */
-class unifier_t
+class hypernode_t : std::vector<node_idx_t>
 {
 public:
-    inline unifier_t() {};
-    inline unifier_t(const term_t& x, const term_t& y);
-
-    bool operator==(const unifier_t &x) const;
-
-    /** Substitute variables in the given literal.
-    *  e.g. (= x y) & p(y) --apply--> p(x) */
-    void operator()(literal_t *p_out_lit) const;
-
-    inline void clear();
-
-    /** Add pair of term which are unified. */
-    inline void add(term_t x, term_t y);
-
-    inline const std::set<literal_t>& substitutions() const;
-    inline const hash_map<term_t, term_t>& mapping() const;
-
-    /** Returns the term which x is substituted to.
-     *  If not found, returns NULL. */
-    inline const term_t* find_substitution_term(const term_t &x) const;
-
-    /** Returns whether this instance does not have any term. */
-    inline bool empty() const;
-
-    bool do_contain(const unifier_t &x) const;
-
-    std::string to_string() const;
+	inline const hypernode_idx_t& index() const { return m_index; }
+	inline       hypernode_idx_t& index()       { return m_index; }
 
 private:
-    /** The list of unification-assumptions. */
-    std::set<literal_t> m_substitutions;
+	hypernode_idx_t m_index;
+};
+
+
+/** A class of unification between atoms. */
+class unifier_t : public std::pair<const atom_t*, const atom_t*>
+{
+public:
+    unifier_t(const atom_t*, const atom_t*);
+	unifier_t(proof_graph_t*, node_idx_t, node_idx_t); // TODO
+
+	operator bool() const { return m_unifiable; }
+	operator std::string() const { return string(); }
+
+	/** The list of equality atoms which induced by this. */
+    std::list<atom_t> products() const;
+
+	edge_t edge(proof_graph_t*) const; // TODO
+
+	const std::unordered_map<term_t, term_t>& map() const { return m_map; }
+
+	bool unifiable() const { return m_unifiable; }
+
+    string_t string() const;
+
+private:
+	/** Additional information which is necessary in order to unify nodes in a proof-graph. */
+	struct option_t
+	{
+		proof_graph_t *pg;
+		node_idx_t first, second;
+	};
+
+	void init();
 
     /** Map from the term before substitution
      *  to the term after substitution. */
-    hash_map<term_t, term_t> m_mapping;
+    std::unordered_map<term_t, term_t> m_map;
+	bool m_unifiable;
+
+	std::unique_ptr<option_t> m_opt;
 };
 
 
-/** A class of a candidate of chaining.
- *  This class can be used as the key of std::map or the value of std::set. */
-struct chain_candidate_t
+/** Class of forward-chaining and backward-chaining. */
+class chainer_t : public std::tuple<rule_id_t, is_backward_t, std::vector<node_idx_t>>
 {
-    chain_candidate_t() : axiom_id(0), is_forward(false) {}
-    inline chain_candidate_t(
-        const std::vector<node_idx_t> &_nodes,
-        axiom_id_t _id, bool _is_forward)
-        : axiom_id(_id), nodes(_nodes), is_forward(_is_forward) {}
+public:
+	chainer_t(proof_graph_t*, rule_id_t, is_backward_t, const std::vector<node_idx_t>&);
 
-    bool operator>(const chain_candidate_t &x) const;
-    bool operator<(const chain_candidate_t &x) const;
-    bool operator==(const chain_candidate_t &x) const;
-    bool operator!=(const chain_candidate_t &x) const;
+	std::list<atom_t> products() const;
 
-    std::vector<node_idx_t> nodes;
-    axiom_id_t axiom_id;
-    bool is_forward;
+	const rule_id_t& rid() const { return std::get<0>(*this); }
+	const is_backward_t& is_backward() const { return std::get<1>(*this); }
+	const std::vector<node_idx_t>& targets() const { return std::get<2>(*this); }
+
+private:
+	proof_graph_t *m_pg;
 };
 
 
-struct requirement_t
+/** Class to manage nodes in a proof-graph. */
+class nodes_array_t : public std::deque<node_t>
 {
-    struct element_t
-    {
-        literal_t literal;
-        node_idx_t index;
-    };
-    std::list<element_t> conjunction;
-    bool is_gold;
+	friend proof_graph_t;
+public:
+	nodes_array_t(proof_graph_t *m) : m_master(m) {}
+
+	node_idx_t add(node_type_e, const atom_t&, depth_t); // TODO
+
+	one_to_many_t<hypernode_idx_t, node_idx_t> hn2nodes;
+	one_to_many_t<predicate_id_t, node_idx_t>  pid2nodes;
+	one_to_many_t<term_t, node_idx_t>          term2nodes;
+	one_to_many_t<node_type_e, node_idx_t>     type2nodes;
+	one_to_many_t<depth_t, node_idx_t>         depth2nodes;
+
+private:
+	proof_graph_t *m_master;
+};
+
+
+/** Class to manage hypernodes in a proof-graph. */
+class hypernodes_array_t : public std::deque<hypernode_t>
+{
+	friend proof_graph_t;
+public:
+	hypernodes_array_t(proof_graph_t *m) : m_master(m) {}
+
+	hypernode_idx_t add(const hypernode_t&); // TODO
+
+	one_to_many_t<node_idx_t, hypernode_idx_t> node2hns;
+	one_to_many_t<edge_idx_t, hypernode_idx_t> edge2hns;
+
+private:
+	proof_graph_t *m_master;
+};
+
+
+/** Class to manage edges in a proof-graph. */
+class edges_array_t : public std::deque<edge_t>
+{
+	friend proof_graph_t;
+public:
+	edges_array_t(proof_graph_t *m) : m_master(m) {}
+
+	edge_idx_t add(const edge_t&); // TODO
+
+	one_to_many_t<rule_id_t, edge_idx_t>   rule2edges;
+	one_to_many_t<edge_type_e, edge_idx_t> type2edges;
+
+private:
+	proof_graph_t *m_master;
+};
+
+
+/** Class to storage mutual-exclusions between nodes or edges. */
+class mutual_exclusion_library_t
+{
+public:
+	mutual_exclusion_library_t() {}
+
+	const std::unordered_set<node_idx_t>* mutual_exclusive_with(const node_t&);
+	const std::unordered_set<edge_idx_t>* mutual_exclusive_with(const edge_t&);
+
+	/** Updates this library with given node.
+	 *  Since it uses given node's index, the node must have a valid index. */
+	void update(const node_t&);
+
+	/** Updates this library with given edge.
+     *  Since it uses given edge's index, the edge must have a valid index. */
+	void update(const edge_t&);
+
+private:
+	one_to_many_t<node_idx_t, node_idx_t> m_muex_nodes;
+	one_to_many_t<edge_idx_t, edge_idx_t> m_muex_edges;
+	one_to_many_t<hypernode_idx_t, hypernode_idx_t> m_muex_hypernodes;
+
+	/** Conditions where given nodes are mutual-exclusive. */
+	std::map<std::pair<node_idx_t, node_idx_t>, std::set<atom_t>> m_conds;
+};
+
+
+/** Class to check whether the atoms can be valid on given presupposition. */
+class validater_t
+{
+public:
+	void presuppose(const node_t&);
+	void presuppose(const hypernode_t&);
+
+	void validate(const node_t&);
+
+private:
+	std::unordered_set<node_idx_t> m_pre_nodes;
+	std::unordered_set<edge_idx_t> m_pre_edges;
 };
 
 
@@ -294,7 +358,7 @@ public:
      *  Call this method after creation of proof-graph. */
     void post_process();
     
-    inline node_idx_t add_observation(const literal_t &lit, int depth = 0);
+    inline node_idx_t add_observation(const atom_t &lit, int depth = 0);
 
     /** Add an element of requirements.
      *  The operator of req must be OPR_LITERAL or OPR_OR. */
@@ -318,19 +382,9 @@ public:
     inline hypernode_idx_t forward_chain(
         const std::vector<node_idx_t> &target, const lf::axiom_t &axiom);
 
-    inline const std::vector<node_t>& nodes() const;
-    inline const node_t& node(node_idx_t i) const;
-
-    inline const std::vector<edge_t>& edges() const;
-    inline const edge_t& edge(edge_idx_t i) const;
-
-    inline const std::vector< std::vector<node_idx_t> >& hypernodes() const;
-    inline const std::vector<node_idx_t>& hypernode(hypernode_idx_t i) const;
-
-    /** Returns a set of indices of observable nodes. */
-    inline const hash_set<node_idx_t>& observation_indices() const;
-
-    inline const std::vector<requirement_t>& requirements() const;
+	nodes_array_t nodes;
+	edges_array_t edges;
+	hypernodes_array_t hypernodes;
 
     std::list<std::tuple<node_idx_t, node_idx_t, unifier_t> >
         enumerate_mutual_exclusive_nodes() const;
@@ -341,21 +395,8 @@ public:
      *  If not found, return NULL. */
     inline const unifier_t* search_mutual_exclusion_of_node(node_idx_t n1, node_idx_t n2) const;
 
-    /** Return pointer of set of nodes whose literal has given term.
-     *  If any node was found, return NULL. */
-    inline const hash_set<node_idx_t>* search_nodes_with_term(term_t term) const;
-
-    /** Return pointer of set of nodes whose literal has given predicate.
-     *  If any node was found, return NULL. */
     inline const hash_set<node_idx_t>*
-        search_nodes_with_predicate(predicate_t predicate, int arity) const;
-
-    /** Return pointer of set of nodes whose predicate-ids are same as given one.
-     *  If any node was found, return NULL. */
-    inline const hash_set<node_idx_t>* search_nodes_with_pid(kb::predicate_id_t arity) const;
-
-    inline const hash_set<node_idx_t>*
-        search_nodes_with_same_predicate_as(const literal_t&) const;
+        search_nodes_with_same_predicate_as(const atom_t&) const;
 
     /** Return pointer of set of nodes whose depth is equal to given value.
      *  If any node was found, return NULL. */
@@ -494,7 +535,7 @@ protected:
      *  @param[out] out   The unifier of p1 and p2.
      *  @return Possibility to unify literals p1 & p2. */
     static bool check_unifiability(
-        const literal_t &p1, const literal_t &p2,
+        const atom_t &p1, const atom_t &p2,
         bool do_ignore_truthment, unifier_t *out = NULL);
 
     /** Return hash of node indices' list. */
@@ -508,7 +549,7 @@ protected:
      *  @param depth The depth of the new node.
      *  @return The index of added new node. */
     node_idx_t add_node(
-        const literal_t &lit, node_type_e type, int depth,
+        const atom_t &lit, node_type_e type, int depth,
         const hash_set<node_idx_t> &parents);
 
     /** Adds a new edge.
@@ -524,7 +565,7 @@ protected:
 
     /** Get mutual exclusions around the literal 'target'. */
     void get_mutual_exclusions(
-        const literal_t &target,
+        const atom_t &target,
         std::list<std::tuple<node_idx_t, unifier_t> > *muexs) const;
 
     /** Is a sub-routine of add_node.
@@ -542,13 +583,13 @@ protected:
     /** Is a sub-routine of _get_mutual_exclusion.
      *  Adds mutual-exclusions for target and nodes being inconsistent with it. */
     void _enumerate_mutual_exclusion_for_inconsistent_nodes(
-        const literal_t &target,
+        const atom_t &target,
         std::list<std::tuple<node_idx_t, unifier_t> > *out) const;
 
     /** Is a sub-routine of _get_mutual_exclusion.
      *  Adds mutual-exclusions between target and its counter nodes. */
     void _enumerate_mutual_exclusion_for_counter_nodes(
-        const literal_t &target,
+        const atom_t &target,
         std::list<std::tuple<node_idx_t, unifier_t> > *out) const;
 
     /** Is a sub-routine of chain.
@@ -597,7 +638,6 @@ protected:
     std::vector<edge_t> m_edges;
 
     hash_set<node_idx_t> m_observations; /// Indices of observation nodes.
-    std::vector<requirement_t> m_requirements;
 
     /** These are written in xml-file of output as attributes. */
     hash_map<std::string, std::string> m_attributes;

@@ -16,6 +16,13 @@ rule_t::rule_t(binary_reader_t &r)
 }
 
 
+rule_class_t rule_t::classname() const
+{
+	auto splitted = m_name.split(":", 1);
+	return (splitted.size() == 2) ? splitted.front() : "";
+}
+
+
 template <> void binary_writer_t::write<rule_t>(const rule_t &x)
 {
 	write<std::string>(x.name());

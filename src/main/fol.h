@@ -59,19 +59,22 @@ public:
     bool operator == (const predicate_t &x) const;
     bool operator != (const predicate_t &x) const;
 
+	/** Add this to predicate-library and update PID. */
+	void assign();
+
     string_t string() const;
     inline operator std::string() const { return string(); }
 
     const string_t& predicate() const { return m_pred; }
 
-    arity_t  arity() const { return m_arity; }
-    arity_t& arity()       { return m_arity; }
+    inline const arity_t& arity() const { return m_arity; }
+    inline       arity_t& arity()       { return m_arity; }
 
     bool is_unary() const { return m_arity == 1; }
     bool is_binary() const { return m_arity == 2; }
 
-    predicate_id_t  pid() const { return m_pid; }
-    predicate_id_t& pid()       { return m_pid; }
+    inline const predicate_id_t& pid() const { return m_pid; }
+    inline       predicate_id_t& pid()       { return m_pid; }
 
     bool good() const;
 
@@ -100,7 +103,8 @@ public:
     bool operator == (const atom_t &x) const;
     bool operator != (const atom_t &x) const;
 
-    const predicate_t& predicate() const { return m_predicate; }
+    inline const predicate_t& predicate() const { return m_predicate; }
+	inline       predicate_t& predicate()       { return m_predicate; }
 
     inline const std::vector<term_t>& terms() const { return m_terms; }
     inline const term_t& term(term_idx_t i) const { return m_terms.at(i); }
@@ -114,6 +118,9 @@ public:
 
     inline const string_t& param() const { return m_param; }
     inline       string_t& param()       { return m_param; }
+
+	inline const predicate_id_t& pid() const { return predicate().pid(); }
+	inline const arity_t& arity() const { return predicate().arity(); }
 
     bool good() const; /// Returns whether this is valid.
 
@@ -290,6 +297,8 @@ public:
 
 	inline rule_id_t  rid() const { return m_rid; }
 	inline rule_id_t& rid()       { return m_rid; }
+
+	rule_class_t classname() const;
 
 private:
     string_t m_name;

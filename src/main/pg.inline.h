@@ -7,136 +7,11 @@
 #include <algorithm>
 
 
-namespace phil
+namespace dav
 {
 
 namespace pg
 {
-
-
-
-inline const hash_set<pg::node_idx_t>& node_t::parents() const
-{
-    return m_parents;
-}
-
-
-inline const hash_set<pg::node_idx_t>& node_t::ancestors() const
-{
-    return m_ancestors;
-}
-
-
-inline const hash_set<pg::node_idx_t>& node_t::relatives() const
-{
-    return m_relatives;
-}
-
-
-inline void node_t::set_master_hypernode(hypernode_idx_t idx)
-{
-    m_master_hypernode_idx = idx;
-}
-
-
-inline hypernode_idx_t node_t::master_hypernode() const
-{
-    return m_master_hypernode_idx;
-}
-
-
-inline bool node_t::is_equality_node() const
-{
-    return (m_literal.is_equality() and m_literal.truth());
-}
-
-
-inline bool node_t::is_non_equality_node() const
-{
-    return (m_literal.is_equality() and not m_literal.truth());
-}
-
-
-inline bool node_t::is_transitive_equality_node() const
-{
-    return is_equality_node() and m_master_hypernode_idx == -1;
-}
-
-
-inline std::string node_t::to_string() const
-{
-    return m_literal.to_string() + util::format(":%d", m_index);
-}
-
-
-inline edge_t::edge_t()
-    : m_type(EDGE_UNSPECIFIED),
-      m_index_tail(-1), m_index_head(-1), m_axiom_id(-1)
-{}
-
-
-inline edge_t::edge_t(
-    edge_type_e type, hypernode_idx_t tail, hypernode_idx_t head, axiom_id_t id )
-    : m_type(type), m_index_tail(tail), m_index_head(head), m_axiom_id(id)
-{}
-
-
-inline bool edge_t::is_chain_edge() const
-{
-    return type() == EDGE_HYPOTHESIZE or type() == EDGE_IMPLICATION;
-}
-
-
-inline bool edge_t::is_unify_edge() const
-{
-    return type() == EDGE_UNIFICATION;
-}
-
-
-inline unifier_t::unifier_t( const term_t &x, const term_t &y )
-{ add(x, y); }
-
-
-inline const term_t* unifier_t::find_substitution_term(const term_t &x) const
-{
-    auto found = m_mapping.find(x);
-    return (found != m_mapping.end()) ? &(found->second) : NULL;
-}
-
-
-inline const std::set<literal_t>& unifier_t::substitutions() const
-{
-    return m_substitutions;
-}
-
-
-inline const hash_map<term_t, term_t>& unifier_t::mapping() const
-{
-    return m_mapping;
-}
-
-
-inline void unifier_t::add(term_t x, term_t y)
-{
-    if (x == y) return;
-    if (x < y) std::swap(x, y);
-
-    m_substitutions.insert(literal_t::equal(x, y));
-    m_mapping[x] = y;
-}
-
-
-inline void unifier_t::clear()
-{
-    m_substitutions.clear();
-    m_mapping.clear();
-}
-
-
-inline bool unifier_t::empty() const
-{
-    return m_substitutions.empty();
-}
 
 
 inline const hash_map<index_t, hash_set<term_t> >&
@@ -165,7 +40,7 @@ proof_graph_t::unifiable_variable_clusters_set_t::is_in_same_cluster(
 
 
 inline node_idx_t proof_graph_t::
-    add_observation(const literal_t &lit, int depth)
+    add_observation(const atom_t &lit, int depth)
 {
     int idx = add_node(lit, NODE_OBSERVABLE, depth, hash_set<node_idx_t>());
     std::list<std::tuple<node_idx_t, unifier_t> > muex;
@@ -277,7 +152,7 @@ proof_graph_t::search_nodes_with_pid(const kb::predicate_id_t arity) const
 
 
 inline const hash_set<node_idx_t>*
-proof_graph_t::search_nodes_with_same_predicate_as(const literal_t &lit) const
+proof_graph_t::search_nodes_with_same_predicate_as(const atom_t &lit) const
 {
     if (lit.pid() != kb::INVALID_PREDICATE_ID)
         return search_nodes_with_pid(lit.pid());

@@ -91,6 +91,12 @@ bool predicate_t::operator!=(const predicate_t &x) const
 }
 
 
+void predicate_t::assign()
+{
+	m_pid = plib()->add(*this);
+}
+
+
 string_t predicate_t::string() const
 {
     char line[512];

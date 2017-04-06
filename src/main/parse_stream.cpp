@@ -62,7 +62,7 @@ string_t stream_t::read(const formatter_t &f)
 {
 	format_result_e past = FMT_READING;
 	string_t out;
-	auto pos = (*this)->tellg();
+	auto pos = position();
 	char ch = (*this)->get();
 	int n_endl = 0;
 
@@ -80,7 +80,7 @@ string_t stream_t::read(const formatter_t &f)
 				break;
 			default:
 				out = "";
-				(*this)->seekg(pos);
+				restore(pos);
 				break;
 			}
 			goto END_READ;
@@ -124,6 +124,20 @@ void stream_t::skip()
 {
 	do ignore(space);
 	while (read(comment));
+}
+
+
+stream_t::stream_pos_t stream_t::position() const
+{
+	return stream_pos_t((*this)->tellg(), m_row, m_column);
+}
+
+
+void stream_t::restore(const stream_pos_t &pos)
+{
+	(*this)->seekg(std::get<0>(pos));
+	m_row = std::get<1>(pos);
+	m_column = std::get<2>(pos);
 }
 
 

@@ -97,3 +97,28 @@ TEST(KBTest, RuleLibrary)
 	EXPECT_TRUE(r.lhs() == r2.lhs());
 	EXPECT_TRUE(r.rhs() == r2.rhs());
 }
+
+
+TEST(KBTest, KnowledgeBase)
+{
+	kb::knowledge_base_t::initialize("tmp.kb");
+
+	rule_t r;
+	r.name() = "test:a";
+	r.lhs().push_back(atom_t("kill", { "e1", "x", "y" }, false, false));
+	r.rhs().push_back(atom_t("arrest", { "e2", "z", "y" }, false, false));
+	r.rhs().push_back(atom_t("police", { "z" }, false, false));
+
+	kb::kb()->prepare_compile();
+	kb::kb()->add(r);
+	kb::kb()->prepare_query();
+
+	rule_t r2 = kb::kb()->rules.get(1);
+	EXPECT_EQ(r2.name(), "test:a");
+	EXPECT_TRUE(r.lhs() == r2.lhs());
+	EXPECT_TRUE(r.rhs() == r2.rhs());
+
+	auto cls = kb::kb()->class2rids.gets("test");
+	EXPECT_EQ(cls.size(), 1);
+	EXPECT_EQ(cls.front(), 1);
+}
