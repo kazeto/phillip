@@ -69,6 +69,7 @@ ilp_solver_library_t::ilp_solver_library_t()
     add("null", new sol::null_solver_t::generator_t());
     add("lpsolve", new sol::lp_solve_t::generator_t());
     add("gurobi", new sol::gurobi_t::generator_t());
+    add("gurobi-kbest", new sol::gurobi_k_best_t::generator_t());
 }
 
 
