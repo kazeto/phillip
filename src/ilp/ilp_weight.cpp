@@ -145,11 +145,15 @@ ilp::ilp_problem_t* weighted_converter_t::execute() const
                     &hn_to = graph->hypernode(edge.head());
                 std::vector<double> weights((*m_weight_provider)(graph, parent));
 
+                if (m_is_logarithmic)
+                    cost_from /= static_cast<double>(hn_to.size());
+                
                 // ASSIGN COSTS TO HEAD NODES
                 for (int i = 0; i < hn_to.size(); ++i)
                 {
                     double cost = m_is_logarithmic ?
-                        (cost_from + weights[i]) : (cost_from * weights[i]);
+                        (cost_from + weights[i]) :
+                        (cost_from * weights[i]);
                     add_variable_for_cost(hn_to[i], cost);
                 }
 
