@@ -48,3 +48,6 @@ Besides each time you change the knowledge base, you need to compile it.
 In detail, please refer to [Phillip Wiki](https://github.com/kazeto/phillip/wiki).
 
 
+# License
+
+Phillip is distributed under the term of the [modified BSD license](http://www.opensource.org/licenses/bsd-license.php).
