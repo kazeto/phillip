@@ -6,6 +6,19 @@ Phillip
 ----
 Phillip is the first-ordered abductive reasoner for natural language processing in C++.
 
+# News
+
+David, a successor of Phillip, was released! Try it.
+
+Link: https://github.com/aurtg/open-david
+
+Compared with Phillip, David has the following features:
+
+- More multifunctional (refer David's manual)
+- Etcetera abduction (Gordon,2016) is available
+- Not only lp_solve and Gurobi, but also SCIP and CBC are available as ILP solver
+- The input format is David-specific, user-friendly
+- The output format is JSON format
 
 # Install
 ----
