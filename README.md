@@ -17,7 +17,7 @@ Compared with Phillip, David has the following features:
 - More multifunctional (refer David's manual)
 - Etcetera abduction (Gordon,2016) is available
 - Not only lp_solve and Gurobi, but also SCIP and CBC are available as ILP solver
-- The input format is David-specific, user-friendly
+- The input format is David-specific and user-friendly
 - The output format is JSON format
 
 # Install
